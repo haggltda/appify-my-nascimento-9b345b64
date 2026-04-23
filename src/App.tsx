@@ -19,6 +19,15 @@ import Resultado from "./pages/Resultado";
 import ProntasContrato from "./pages/ProntasContrato";
 import Historico from "./pages/Historico";
 import Administracao from "./pages/Administracao";
+import Composicao from "./pages/Composicao";
+import Implantacao from "./pages/contratos/Implantacao";
+import ContratosAtivos from "./pages/contratos/Ativos";
+import Empenhos from "./pages/contratos/Empenhos";
+import Postos from "./pages/contratos/Postos";
+import Faturamento from "./pages/contratos/Faturamento";
+import Medicoes from "./pages/contratos/Medicoes";
+import Reajustes from "./pages/contratos/Reajustes";
+import Encerramentos from "./pages/contratos/Encerramentos";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +46,7 @@ const App = () => (
             <Route path="editais" element={<CadastroEdital />} />
             <Route path="documentos" element={<Documentos />} />
             <Route path="triagem" element={<TriagemIA />} />
+            <Route path="composicao" element={<Composicao />} />
             <Route path="parecer-tecnico" element={<Parecer papel="tecnico" />} />
             <Route path="parecer-gerencial" element={<Parecer papel="gerencial" />} />
             <Route path="controladoria" element={<Controladoria />} />
@@ -44,6 +54,14 @@ const App = () => (
             <Route path="pregao" element={<Pregao />} />
             <Route path="resultado" element={<Resultado />} />
             <Route path="prontas-contrato" element={<ProntasContrato />} />
+            <Route path="contratos/implantacao" element={<Implantacao />} />
+            <Route path="contratos/ativos" element={<ContratosAtivos />} />
+            <Route path="contratos/empenhos" element={<Empenhos />} />
+            <Route path="contratos/postos" element={<Postos />} />
+            <Route path="contratos/faturamento" element={<Faturamento />} />
+            <Route path="contratos/medicoes" element={<Medicoes />} />
+            <Route path="contratos/reajustes" element={<Reajustes />} />
+            <Route path="contratos/encerramentos" element={<Encerramentos />} />
             <Route path="historico" element={<Historico />} />
             <Route path="administracao" element={<Administracao />} />
           </Route>
