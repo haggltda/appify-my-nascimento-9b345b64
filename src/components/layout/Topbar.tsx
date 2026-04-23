@@ -71,7 +71,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
       <div className="relative ml-2 hidden flex-1 max-w-xl md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
-          placeholder="Buscar edital, órgão, número, responsável…"
+          placeholder="Buscar em todos os módulos · editais, contratos, lançamentos, fornecedores…"
           className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-16 text-sm shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
         />
         <kbd className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
@@ -93,7 +93,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           </div>
           <div className="hidden text-left lg:block">
             <p className="text-xs font-semibold leading-tight">Ana Carvalho</p>
-            <p className="text-[10px] text-muted-foreground">Analista de Licitações · NEN</p>
+            <p className="text-[10px] text-muted-foreground">Analista Corporativo · NEN</p>
           </div>
           <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground lg:block" />
         </button>
