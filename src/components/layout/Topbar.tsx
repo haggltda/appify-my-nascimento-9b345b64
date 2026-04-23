@@ -1,11 +1,13 @@
-import { Bell, Search, PanelLeft, ChevronDown, Building2, HelpCircle, Settings } from "lucide-react";
+import { Bell, Search, PanelLeft, ChevronDown, Building2, HelpCircle, Settings, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { empresas } from "@/data/licitacoes";
 import { cn } from "@/lib/utils";
 
 export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const [empresa, setEmpresa] = useState(empresas[0]);
   const [openSelector, setOpenSelector] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border/70 bg-surface/80 px-4 backdrop-blur-md lg:px-6">
@@ -96,6 +98,16 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
             <p className="text-[10px] text-muted-foreground">Analista Corporativo · NEN</p>
           </div>
           <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground lg:block" />
+        </button>
+
+        <button
+          onClick={() => navigate("/login")}
+          className="ml-1 flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:border-destructive/40 hover:bg-destructive-soft hover:text-destructive"
+          aria-label="Sair"
+          title="Sair da plataforma"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Sair</span>
         </button>
       </div>
     </header>
