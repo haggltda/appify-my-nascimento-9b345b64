@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff, Briefcase, Wallet, BookOpen, ShoppingCart, Users2, Calculator } from "lucide-react";
 import logoGN from "@/assets/logo-grupo-nascimento.png";
 
 export default function Login() {
@@ -28,27 +28,40 @@ export default function Login() {
 
         <div className="relative z-10 mt-auto max-w-lg">
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-wider text-white/80 backdrop-blur">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent" /> Módulo de Licitações
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" /> ERP Corporativo Multi-CNPJ
           </p>
           <h1 className="font-display text-4xl font-bold leading-tight">
-            Inteligência operacional para o ciclo completo de licitações.
+            Plataforma corporativa para a gestão integrada do Grupo Nascimento.
           </h1>
           <p className="mt-4 text-base leading-relaxed text-white/75">
-            Pipeline de oportunidades, análise de risco com IA, pareceres, controladoria
-            e workflow de aprovações em uma única plataforma multi-CNPJ.
+            Licitações, Contratos, Financeiro, Contábil, Suprimentos, RH e Controladoria —
+            em uma única plataforma multi-CNPJ, segura e auditável.
           </p>
 
-          <div className="mt-10 grid grid-cols-3 gap-4">
+          <div className="mt-10 grid grid-cols-3 gap-3">
             {[
-              { v: "11", l: "Empresas" },
-              { v: "248", l: "Editais ativos" },
-              { v: "R$ 1,2B", l: "Em pipeline" },
-            ].map((s) => (
-              <div key={s.l} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur">
-                <p className="font-display text-2xl font-bold">{s.v}</p>
-                <p className="text-[11px] uppercase tracking-wider text-white/60">{s.l}</p>
-              </div>
-            ))}
+              { i: Briefcase, l: "Licitações", s: "Ativo" },
+              { i: Wallet, l: "Financeiro", s: "Em breve" },
+              { i: BookOpen, l: "Contábil", s: "Em breve" },
+              { i: ShoppingCart, l: "Suprimentos", s: "Em breve" },
+              { i: Users2, l: "RH", s: "Em breve" },
+              { i: Calculator, l: "Controladoria", s: "Em breve" },
+            ].map((m) => {
+              const active = m.s === "Ativo";
+              return (
+                <div
+                  key={m.l}
+                  className={
+                    "rounded-xl border px-3 py-3 backdrop-blur " +
+                    (active ? "border-accent/40 bg-accent/10" : "border-white/10 bg-white/5")
+                  }
+                >
+                  <m.i className={"mb-1.5 h-4 w-4 " + (active ? "text-accent" : "text-white/60")} />
+                  <p className="text-[12px] font-semibold leading-tight text-white">{m.l}</p>
+                  <p className={"mt-0.5 text-[10px] uppercase tracking-wider " + (active ? "text-accent" : "text-white/50")}>{m.s}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -70,9 +83,9 @@ export default function Login() {
           <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             <ShieldCheck className="h-3 w-3 text-success" /> Acesso restrito
           </div>
-          <h2 className="font-display text-2xl font-bold">Acessar plataforma</h2>
+          <h2 className="font-display text-2xl font-bold">Acessar o ERP</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Use suas credenciais corporativas para entrar no ERP.
+            Use suas credenciais corporativas para acessar o ERP do Grupo Nascimento.
           </p>
 
           {error && (
