@@ -5,16 +5,17 @@ interface Props {
   title: string;
   subtitle?: string;
   breadcrumb?: string[];
+  module?: string;
   actions?: React.ReactNode;
   className?: string;
 }
 
-export function PageHeader({ title, subtitle, breadcrumb = [], actions, className }: Props) {
+export function PageHeader({ title, subtitle, breadcrumb = [], module = "Licitações", actions, className }: Props) {
   return (
     <div className={cn("mb-6", className)}>
       {breadcrumb.length > 0 && (
         <nav className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="font-medium">Licitações</span>
+          <span className="font-medium">{module}</span>
           {breadcrumb.map((b, i) => (
             <span key={i} className="flex items-center gap-1.5">
               <ChevronRight className="h-3 w-3" />
