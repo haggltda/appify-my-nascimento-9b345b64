@@ -99,6 +99,16 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           </div>
           <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground lg:block" />
         </button>
+
+        <button
+          onClick={() => navigate("/login")}
+          className="ml-1 flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:border-destructive/40 hover:bg-destructive-soft hover:text-destructive"
+          aria-label="Sair"
+          title="Sair da plataforma"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Sair</span>
+        </button>
       </div>
     </header>
   );
