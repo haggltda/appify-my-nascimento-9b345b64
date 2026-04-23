@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff } from "lucide-react";
+import logoGN from "@/assets/logo-grupo-nascimento.png";
 
 export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
@@ -16,8 +17,8 @@ export default function Login() {
         <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-primary-glow/20 blur-3xl" />
 
         <div className="relative z-10 flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-accent shadow-accent-glow">
-            <span className="font-display text-lg font-extrabold">N</span>
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/10 p-1.5 backdrop-blur ring-1 ring-white/20">
+            <img src={logoGN} alt="Grupo Nascimento" className="h-full w-full object-contain" />
           </div>
           <div>
             <p className="font-display text-base font-bold leading-tight">Grupo Nascimento</p>
@@ -61,9 +62,7 @@ export default function Login() {
         <div className="w-full max-w-md">
           <div className="mb-8 lg:hidden">
             <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-accent">
-                <span className="font-display text-base font-extrabold text-white">N</span>
-              </div>
+              <img src={logoGN} alt="Grupo Nascimento" className="h-10 w-10 object-contain" />
               <p className="font-display font-bold">Grupo Nascimento</p>
             </div>
           </div>
