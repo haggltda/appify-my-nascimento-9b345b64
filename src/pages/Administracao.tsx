@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import logoGN from "@/assets/logo-grupo-nascimento.png";
 import {
   Users, ShieldCheck, Key, GitBranch, Settings, Activity, AlertOctagon, Lock, Palette,
   Plus, Search, MoreVertical, CheckCircle2, XCircle, Eye, Edit, Building2, ChevronRight,
@@ -401,9 +402,7 @@ function Identidade() {
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Logotipo</p>
           <div className="mt-3 flex items-center justify-center rounded-md border-2 border-dashed border-border bg-muted/30 px-4 py-8">
-            <div className="grid h-12 w-12 place-items-center rounded-lg bg-gradient-accent shadow-accent-glow">
-              <span className="font-display text-lg font-extrabold text-white">N</span>
-            </div>
+            <img src={logoGN} alt="Grupo Nascimento" className="h-12 w-12 object-contain" />
             <div className="ml-3">
               <p className="font-display font-bold">Grupo Nascimento</p>
               <p className="text-xs text-muted-foreground">ERP Corporativo</p>
