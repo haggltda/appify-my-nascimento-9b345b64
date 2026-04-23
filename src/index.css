@@ -2,104 +2,211 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* =========================================================
+   GRUPO NASCIMENTO — ERP DESIGN SYSTEM
+   Corporate, premium, futurístico discreto.
+   Azul institucional profundo + laranja vibrante.
+   Todos os tokens em HSL.
+   ========================================================= */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Superfícies */
+    --background: 215 35% 97%;
+    --foreground: 222 45% 12%;
+
+    --surface: 0 0% 100%;
+    --surface-elevated: 0 0% 100%;
+    --surface-sunken: 215 30% 95%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 45% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 45% 12%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Marca — Azul institucional Nascimento */
+    --primary: 218 78% 22%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 218 78% 18%;
+    --primary-soft: 218 60% 94%;
+    --primary-glow: 218 90% 45%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Marca — Laranja institucional (ações) */
+    --accent: 22 95% 54%;
+    --accent-foreground: 0 0% 100%;
+    --accent-hover: 22 95% 48%;
+    --accent-soft: 22 95% 95%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Secundário corporativo */
+    --secondary: 215 25% 92%;
+    --secondary-foreground: 218 50% 20%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 215 25% 94%;
+    --muted-foreground: 215 16% 42%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Status */
+    --success: 152 60% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 152 60% 94%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --warning: 38 95% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 38 95% 94%;
 
-    --radius: 0.5rem;
+    --destructive: 0 75% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 75% 96%;
 
-    --sidebar-background: 0 0% 98%;
+    --info: 210 90% 50%;
+    --info-foreground: 0 0% 100%;
+    --info-soft: 210 90% 95%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Bordas / inputs */
+    --border: 215 25% 88%;
+    --border-strong: 215 25% 78%;
+    --input: 215 25% 88%;
+    --ring: 218 78% 35%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    --radius: 0.625rem;
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    /* Gradientes corporativos */
+    --gradient-primary: linear-gradient(135deg, hsl(218 78% 22%), hsl(218 70% 32%));
+    --gradient-accent: linear-gradient(135deg, hsl(22 95% 54%), hsl(18 95% 48%));
+    --gradient-surface: linear-gradient(180deg, hsl(0 0% 100%), hsl(215 30% 98%));
+    --gradient-hero: linear-gradient(135deg, hsl(218 78% 18%) 0%, hsl(220 60% 28%) 60%, hsl(218 50% 38%) 100%);
+    --gradient-mesh:
+      radial-gradient(at 0% 0%, hsl(218 78% 22% / 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsl(22 95% 54% / 0.06) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, hsl(218 90% 45% / 0.05) 0px, transparent 50%);
 
-    --sidebar-accent: 240 4.8% 95.9%;
+    /* Sombras premium (cards flutuantes) */
+    --shadow-xs: 0 1px 2px 0 hsl(218 50% 15% / 0.04);
+    --shadow-sm: 0 1px 2px 0 hsl(218 50% 15% / 0.05), 0 1px 3px 0 hsl(218 50% 15% / 0.04);
+    --shadow-md: 0 4px 8px -2px hsl(218 50% 15% / 0.06), 0 2px 4px -2px hsl(218 50% 15% / 0.04);
+    --shadow-lg: 0 12px 24px -8px hsl(218 50% 15% / 0.10), 0 4px 8px -4px hsl(218 50% 15% / 0.06);
+    --shadow-xl: 0 24px 48px -12px hsl(218 50% 15% / 0.14);
+    --shadow-glow: 0 0 0 1px hsl(218 78% 22% / 0.06), 0 8px 24px -6px hsl(218 78% 22% / 0.18);
+    --shadow-accent-glow: 0 8px 20px -6px hsl(22 95% 54% / 0.40);
+    --shadow-inset: inset 0 1px 0 0 hsl(0 0% 100% / 0.6);
 
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    /* Sidebar institucional */
+    --sidebar-background: 220 50% 10%;
+    --sidebar-foreground: 215 30% 88%;
+    --sidebar-muted: 215 20% 60%;
+    --sidebar-primary: 22 95% 54%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 45% 16%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 40% 18%;
+    --sidebar-ring: 218 90% 45%;
 
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Transições */
+    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: 400ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 222 45% 7%;
+    --foreground: 215 30% 92%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --surface: 222 40% 10%;
+    --surface-elevated: 222 38% 12%;
+    --surface-sunken: 222 45% 6%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --card: 222 40% 11%;
+    --card-foreground: 215 30% 92%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --popover: 222 40% 11%;
+    --popover-foreground: 215 30% 92%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --primary: 218 90% 60%;
+    --primary-foreground: 222 45% 7%;
+    --primary-hover: 218 90% 65%;
+    --primary-soft: 218 50% 18%;
+    --primary-glow: 218 90% 55%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 22 95% 58%;
+    --accent-foreground: 0 0% 100%;
+    --accent-hover: 22 95% 62%;
+    --accent-soft: 22 60% 18%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --secondary: 222 30% 18%;
+    --secondary-foreground: 215 30% 92%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --muted: 222 30% 16%;
+    --muted-foreground: 215 16% 60%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --success: 152 60% 46%;
+    --success-soft: 152 40% 18%;
+    --warning: 38 95% 55%;
+    --warning-soft: 38 50% 18%;
+    --destructive: 0 70% 55%;
+    --destructive-soft: 0 50% 18%;
+    --info: 210 90% 60%;
+    --info-soft: 210 50% 18%;
+
+    --border: 222 30% 20%;
+    --border-strong: 222 30% 28%;
+    --input: 222 30% 20%;
+    --ring: 218 90% 60%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(218 78% 30%), hsl(218 70% 40%));
+    --gradient-surface: linear-gradient(180deg, hsl(222 40% 12%), hsl(222 45% 9%));
+    --gradient-hero: linear-gradient(135deg, hsl(222 50% 8%) 0%, hsl(220 45% 14%) 60%, hsl(218 40% 20%) 100%);
+
+    --sidebar-background: 222 50% 6%;
+    --sidebar-foreground: 215 30% 88%;
+    --sidebar-accent: 222 40% 12%;
+    --sidebar-border: 222 40% 14%;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+    background-image: var(--gradient-mesh);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4 { @apply tracking-tight; font-feature-settings: "ss01"; }
+}
+
+@layer components {
+  /* Card flutuante premium */
+  .card-elevated {
+    @apply rounded-xl border border-border/60 bg-card;
+    box-shadow: var(--shadow-md), var(--shadow-inset);
+  }
+  .card-floating {
+    @apply rounded-xl border border-border/50 bg-card;
+    box-shadow: var(--shadow-lg), var(--shadow-inset);
+    transition: box-shadow var(--transition-base), transform var(--transition-base);
+  }
+  .card-floating:hover {
+    box-shadow: var(--shadow-xl), var(--shadow-inset);
+    transform: translateY(-1px);
   }
 
-  body {
-    @apply bg-background text-foreground;
+  /* Botão tátil premium (relevo) */
+  .btn-relief {
+    box-shadow:
+      0 1px 0 0 hsl(0 0% 100% / 0.15) inset,
+      0 -1px 0 0 hsl(0 0% 0% / 0.10) inset,
+      0 4px 10px -2px hsl(218 50% 15% / 0.18);
   }
+
+  /* Chip de status */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  /* Linha guia institucional */
+  .divider-soft { @apply h-px w-full bg-gradient-to-r from-transparent via-border to-transparent; }
+
+  /* Scrollbar discreto */
+  .scroll-elegant::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-elegant::-webkit-scrollbar-thumb { @apply bg-border-strong rounded-full; }
+  .scroll-elegant::-webkit-scrollbar-track { background: transparent; }
 }
