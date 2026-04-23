@@ -68,9 +68,11 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
     >
       {/* Brand */}
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-accent shadow-accent-glow">
-          <span className="font-display text-base font-extrabold text-accent-foreground">N</span>
-        </div>
+        <img
+          src={(await import("@/assets/logo-grupo-nascimento.png")).default}
+          alt="Grupo Nascimento"
+          className="h-9 w-9 shrink-0 object-contain"
+        />
         {!collapsed && (
           <div className="min-w-0">
             <p className="font-display text-sm font-bold leading-tight text-white">Grupo Nascimento</p>
