@@ -20,7 +20,7 @@ export default function PainelExecutivo() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Painel Executivo de Licitações"
+        title="Painel Executivo"
         subtitle="Visão consolidada multi-CNPJ. Indicadores em tempo real, alertas críticos e pendências por etapa do fluxo."
         actions={
           <>
