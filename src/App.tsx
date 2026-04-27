@@ -20,6 +20,12 @@ import ProntasContrato from "./pages/ProntasContrato";
 import Historico from "./pages/Historico";
 import Administracao from "./pages/Administracao";
 import Composicao from "./pages/Composicao";
+import CustosBDI from "./pages/CustosBDI";
+import ParecerSST from "./pages/pareceres/ParecerSST";
+import ParecerJuridico from "./pages/pareceres/ParecerJuridico";
+import ParecerControladoria from "./pages/pareceres/ParecerControladoria";
+import ParecerDiretorOperacional from "./pages/pareceres/ParecerDiretorOperacional";
+import ParecerDiretorAdministrativo from "./pages/pareceres/ParecerDiretorAdministrativo";
 import Implantacao from "./pages/contratos/Implantacao";
 import ContratosAtivos from "./pages/contratos/Ativos";
 import Empenhos from "./pages/contratos/Empenhos";
@@ -47,7 +53,13 @@ const App = () => (
             <Route path="documentos" element={<Documentos />} />
             <Route path="triagem" element={<TriagemIA />} />
             <Route path="composicao" element={<Composicao />} />
+            <Route path="custos-bdi" element={<CustosBDI />} />
             <Route path="parecer-tecnico" element={<Parecer papel="tecnico" />} />
+            <Route path="parecer-sst" element={<ParecerSST />} />
+            <Route path="parecer-juridico" element={<ParecerJuridico />} />
+            <Route path="parecer-controladoria" element={<ParecerControladoria />} />
+            <Route path="parecer-dir-operacional" element={<ParecerDiretorOperacional />} />
+            <Route path="parecer-dir-administrativo" element={<ParecerDiretorAdministrativo />} />
             <Route path="parecer-gerencial" element={<Parecer papel="gerencial" />} />
             <Route path="controladoria" element={<Controladoria />} />
             <Route path="aprovacoes" element={<Aprovacoes />} />
