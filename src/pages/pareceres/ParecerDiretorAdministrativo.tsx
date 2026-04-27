@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PareceristaForm } from "@/components/forms/PareceristaForm";
+import { PareceristaWorkspace } from "@/components/pareceres/PareceristaWorkspace";
 
 export default function ParecerDiretorAdministrativo() {
   return (
@@ -9,10 +10,16 @@ export default function ParecerDiretorAdministrativo() {
         breadcrumb={["Licitações", "Análise & Decisão", "Diretor Administrativo"]}
         subtitle="Decisão executiva sobre estrutura administrativa, governança e implicações estratégicas."
       />
-      <PareceristaForm
+      <PareceristaWorkspace
         papel="Diretor Administrativo"
-        subtitulo="Avalie alinhamento estratégico, capacidade administrativa e risco reputacional."
-        cor="accent"
+        statusFiltro={["aprovacao_diretoria", "aprovacao_presidencia", "controladoria"]}
+        renderDetalhe={(l) => (
+          <PareceristaForm
+            papel="Diretor Administrativo"
+            subtitulo={`${l.numero} · ${l.objeto} — avalie alinhamento estratégico, capacidade administrativa e risco reputacional.`}
+            cor="accent"
+          />
+        )}
       />
     </div>
   );

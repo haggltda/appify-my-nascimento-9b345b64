@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PareceristaForm } from "@/components/forms/PareceristaForm";
+import { PareceristaWorkspace } from "@/components/pareceres/PareceristaWorkspace";
 
 export default function ParecerControladoria() {
   return (
@@ -9,9 +10,15 @@ export default function ParecerControladoria() {
         breadcrumb={["Licitações", "Análise & Decisão", "Parecer Controladoria"]}
         subtitle="Validação de margens, BDI, tributos, fluxo de caixa e impacto orçamentário do contrato."
       />
-      <PareceristaForm
+      <PareceristaWorkspace
         papel="Controladoria"
-        subtitulo="Avalie a viabilidade econômico-financeira, BDI, exposição tributária e premissas de margem."
+        statusFiltro={["controladoria", "parecer_gerencial", "em_analise"]}
+        renderDetalhe={(l) => (
+          <PareceristaForm
+            papel="Controladoria"
+            subtitulo={`${l.numero} · ${l.objeto} — avalie viabilidade econômico-financeira, BDI, exposição tributária e premissas de margem.`}
+          />
+        )}
       />
     </div>
   );
