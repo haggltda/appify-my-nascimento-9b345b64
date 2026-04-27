@@ -1,7 +1,21 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { PieChart, Plus, Trash2, Briefcase, Calculator, TrendingUp, MapPin, Building2 } from "lucide-react";
+import {
+  PieChart,
+  Briefcase,
+  Calculator,
+  Package,
+  TrendingUp,
+  Save,
+  Send,
+  Check,
+  Building2,
+  MapPin,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { formatBRL } from "@/data/contratos";
+import { toast } from "sonner";
 
 interface Posto {
   id: string;
@@ -21,7 +35,7 @@ const postosIniciais: Posto[] = [
   { id: "p2", cargo: "Encarregado operacional", qtd: 12, local: "Zona Sul — Base SLU", salario: 4200, va: 480, vt: 240, uniformes: 95, epis: 145, insalubridade: 20 },
 ];
 
-const verbasFolha = [
+const verbasFolhaIniciais = [
   { rubrica: "INSS patronal", percentual: 20.0 },
   { rubrica: "FGTS", percentual: 8.0 },
   { rubrica: "RAT/SAT", percentual: 3.0 },
@@ -30,18 +44,47 @@ const verbasFolha = [
   { rubrica: "Provisão multa rescisória", percentual: 4.0 },
 ];
 
+type AbaId = "postos" | "encargos" | "insumos" | "impostos";
+
+interface AbaDef {
+  id: AbaId;
+  label: string;
+  icon: any;
+}
+
+const abas: AbaDef[] = [
+  { id: "postos", label: "Postos e Salários", icon: Briefcase },
+  { id: "encargos", label: "Encargos e Benefícios", icon: Calculator },
+  { id: "insumos", label: "Insumos e Operação", icon: Package },
+  { id: "impostos", label: "Impostos e Margem", icon: TrendingUp },
+];
+
 export default function Composicao() {
   const [postos, setPostos] = useState<Posto[]>(postosIniciais);
+  const [verbas, setVerbas] = useState(verbasFolhaIniciais);
   const [empresa] = useState("NSV — Nascimento Serviços Ltda.");
   const [licitacao] = useState("PE 044/2025 · Limpeza urbana e coleta seletiva");
   const [margem, setMargem] = useState(12);
-  const [tributos] = useState(14.25); // ISS + PIS + COFINS + IRPJ + CSLL estimado
-  const [custoIndireto, setCustoIndireto] = useState(8.5); // % sobre custo direto
+  const [tributos, setTributos] = useState(14.25);
+  const [custoIndireto, setCustoIndireto] = useState(8.5);
+
+  const [abaAtiva, setAbaAtiva] = useState<AbaId>("postos");
+  const [validas, setValidas] = useState<Record<AbaId, boolean>>({
+    postos: false,
+    encargos: false,
+    insumos: false,
+    impostos: false,
+  });
+
+  const marcarValida = (id: AbaId) => setValidas((v) => (v[id] ? v : { ...v, [id]: true }));
+
+  const todasValidas = validas.postos && validas.encargos && validas.insumos && validas.impostos;
 
   const totais = useMemo(() => {
+    const totalEncargosPct = verbas.reduce((a, v) => a + v.percentual, 0);
     const custoDiretoMes = postos.reduce((s, p) => {
       const beneficios = p.va + p.vt + p.uniformes + p.epis;
-      const folha = p.salario * (1 + verbasFolha.reduce((a, v) => a + v.percentual, 0) / 100);
+      const folha = p.salario * (1 + totalEncargosPct / 100);
       const insalub = (p.salario * p.insalubridade) / 100;
       return s + (folha + beneficios + insalub) * p.qtd;
     }, 0);
@@ -50,122 +93,291 @@ export default function Composicao() {
     const trib = (subtotal * tributos) / 100;
     const lucro = (subtotal * margem) / 100;
     const total = subtotal + trib + lucro;
-    const bdi = ((total - custoDiretoMes) / custoDiretoMes) * 100;
-    return { custoDiretoMes, indiretos, subtotal, trib, lucro, total, bdi };
-  }, [postos, margem, tributos, custoIndireto]);
+    const bdi = custoDiretoMes > 0 ? ((total - custoDiretoMes) / custoDiretoMes) * 100 : 0;
+    return { custoDiretoMes, indiretos, subtotal, trib, lucro, total, bdi, totalEncargosPct };
+  }, [postos, margem, tributos, custoIndireto, verbas]);
 
-  const addPosto = () =>
-    setPostos((p) => [...p, { id: `p${Date.now()}`, cargo: "Novo cargo", qtd: 1, local: "", salario: 0, va: 0, vt: 0, uniformes: 0, epis: 0, insalubridade: 0 }]);
-  const removePosto = (id: string) => setPostos((p) => p.filter((x) => x.id !== id));
-  const update = (id: string, k: keyof Posto, v: any) =>
+  const addPosto = () => {
+    setPostos((p) => [
+      ...p,
+      { id: `p${Date.now()}`, cargo: "Novo cargo", qtd: 1, local: "", salario: 0, va: 0, vt: 0, uniformes: 0, epis: 0, insalubridade: 0 },
+    ]);
+    marcarValida("postos");
+  };
+  const removePosto = (id: string) => {
+    setPostos((p) => p.filter((x) => x.id !== id));
+    marcarValida("postos");
+  };
+  const updatePosto = (id: string, k: keyof Posto, v: any) => {
     setPostos((p) => p.map((x) => (x.id === id ? { ...x, [k]: typeof x[k] === "number" ? Number(v) || 0 : v } : x)));
+    marcarValida("postos");
+  };
+
+  const updateVerba = (idx: number, valor: number) => {
+    setVerbas((vs) => vs.map((v, i) => (i === idx ? { ...v, percentual: valor } : v)));
+    marcarValida("encargos");
+  };
+
+  const enviarControladoria = () => {
+    if (!todasValidas) return;
+    toast.success("Composição enviada à Controladoria", {
+      description: `${licitacao} · BDI ${totais.bdi.toFixed(2)}% · ${formatBRL(totais.total)}/mês`,
+    });
+    // Reset (volta para grid inicial = aba postos)
+    setValidas({ postos: false, encargos: false, insumos: false, impostos: false });
+    setAbaAtiva("postos");
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Composição de Custos & BDI"
         breadcrumb={["Operação", "Composição & BDI"]}
-        subtitle="Detalhamento por posto, verbas da folha, tributos e definição da margem de lucro — ainda na fase de licitação."
+        subtitle="Detalhamento por posto, verbas da folha, tributos e definição da margem de lucro — fase de licitação."
         actions={
           <>
-            <button className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted">
-              Salvar rascunho
+            <button
+              onClick={() => toast("Rascunho salvo", { description: "Você pode continuar mais tarde." })}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
+            >
+              <Save className="h-3.5 w-3.5" /> Salvar rascunho
             </button>
-            <button className="btn-relief inline-flex h-9 items-center gap-1.5 rounded-md bg-gradient-accent px-3 text-sm font-semibold text-accent-foreground">
-              Enviar à Controladoria
+            <button
+              disabled={!todasValidas}
+              onClick={enviarControladoria}
+              className={`btn-relief inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-all ${
+                todasValidas
+                  ? "bg-gradient-accent text-accent-foreground"
+                  : "cursor-not-allowed bg-muted text-muted-foreground opacity-60"
+              }`}
+            >
+              <Send className="h-3.5 w-3.5" /> Enviar à Controladoria
             </button>
           </>
         }
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-6">
-          {/* Identificação */}
+        {/* Área central com abas */}
+        <div className="space-y-4">
+          {/* Identificação fixa */}
           <section className="card-elevated p-5">
-            <h2 className="mb-4 flex items-center gap-2 font-display text-sm font-bold"><Building2 className="h-4 w-4 text-primary" /> Identificação</h2>
+            <h2 className="mb-4 flex items-center gap-2 font-display text-sm font-bold">
+              <Building2 className="h-4 w-4 text-primary" /> Identificação
+            </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Empresa responsável" value={empresa} />
               <Field label="Licitação vinculada" value={licitacao} />
             </div>
           </section>
 
-          {/* Postos */}
-          <section className="card-elevated p-5">
-            <header className="mb-4 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 font-display text-sm font-bold"><Briefcase className="h-4 w-4 text-primary" /> Postos de trabalho</h2>
-              <button onClick={addPosto} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover">
-                <Plus className="h-3.5 w-3.5" /> Adicionar posto
-              </button>
-            </header>
+          {/* Tabs */}
+          <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-surface-sunken p-1">
+            {abas.map((a) => {
+              const ativa = abaAtiva === a.id;
+              const ok = validas[a.id];
+              const Icon = a.icon;
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => setAbaAtiva(a.id)}
+                  className={`relative flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
+                    ativa
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{a.label}</span>
+                  {ok && (
+                    <span className="grid h-4 w-4 place-items-center rounded-full bg-success text-success-foreground">
+                      <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-            <div className="space-y-4">
-              {postos.map((p) => (
-                <div key={p.id} className="rounded-lg border border-border bg-surface-sunken p-4">
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div className="flex flex-1 items-start gap-3">
-                      <input value={p.cargo} onChange={(e) => update(p.id, "cargo", e.target.value)}
-                        className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm font-semibold outline-none focus:border-primary" />
-                      <div className="w-20">
-                        <input type="number" value={p.qtd} onChange={(e) => update(p.id, "qtd", e.target.value)}
-                          className="h-9 w-full rounded-md border border-input bg-background px-3 text-center text-sm font-semibold outline-none focus:border-primary" />
-                        <p className="mt-1 text-center text-[10px] uppercase text-muted-foreground">Qtd</p>
+          {/* Conteúdo da aba */}
+          {abaAtiva === "postos" && (
+            <section className="card-elevated p-5">
+              <header className="mb-4 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 font-display text-sm font-bold">
+                  <Briefcase className="h-4 w-4 text-primary" /> Postos de trabalho
+                </h2>
+                <button onClick={addPosto} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover">
+                  <Plus className="h-3.5 w-3.5" /> Adicionar posto
+                </button>
+              </header>
+
+              <div className="space-y-4">
+                {postos.map((p) => (
+                  <div key={p.id} className="rounded-lg border border-border bg-surface-sunken p-4">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="flex flex-1 items-start gap-3">
+                        <input
+                          value={p.cargo}
+                          onChange={(e) => updatePosto(p.id, "cargo", e.target.value)}
+                          className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm font-semibold outline-none focus:border-primary"
+                        />
+                        <div className="w-20">
+                          <input
+                            type="number"
+                            value={p.qtd}
+                            onChange={(e) => updatePosto(p.id, "qtd", e.target.value)}
+                            className="h-9 w-full rounded-md border border-input bg-background px-3 text-center text-sm font-semibold outline-none focus:border-primary"
+                          />
+                          <p className="mt-1 text-center text-[10px] uppercase text-muted-foreground">Qtd</p>
+                        </div>
                       </div>
+                      <button onClick={() => removePosto(p.id)} className="grid h-8 w-8 place-items-center rounded-md text-destructive hover:bg-destructive-soft">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                    <button onClick={() => removePosto(p.id)} className="grid h-8 w-8 place-items-center rounded-md text-destructive hover:bg-destructive-soft">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="mb-3 flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                      <input
+                        value={p.local}
+                        onChange={(e) => updatePosto(p.id, "local", e.target.value)}
+                        placeholder="Local de prestação"
+                        className="h-8 flex-1 rounded-md border border-input bg-background px-3 text-xs outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-3">
+                      <Money label="Salário base" v={p.salario} onChange={(v) => updatePosto(p.id, "salario", v)} />
+                      <Money label="Insalub. (%)" v={p.insalubridade} onChange={(v) => updatePosto(p.id, "insalubridade", v)} />
+                      <Money label="VT (R$)" v={p.vt} onChange={(v) => updatePosto(p.id, "vt", v)} />
+                    </div>
                   </div>
-                  <div className="mb-3 flex items-center gap-2">
-                    <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                    <input value={p.local} onChange={(e) => update(p.id, "local", e.target.value)}
-                      placeholder="Local de prestação"
-                      className="h-8 flex-1 rounded-md border border-input bg-background px-3 text-xs outline-none focus:border-primary" />
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-                    <Money label="Salário base" v={p.salario} onChange={(v) => update(p.id, "salario", v)} />
-                    <Money label="VA" v={p.va} onChange={(v) => update(p.id, "va", v)} />
-                    <Money label="VT" v={p.vt} onChange={(v) => update(p.id, "vt", v)} />
-                    <Money label="Uniformes" v={p.uniformes} onChange={(v) => update(p.id, "uniformes", v)} />
-                    <Money label="EPIs" v={p.epis} onChange={(v) => update(p.id, "epis", v)} />
-                    <Money label="Insalub. (%)" v={p.insalubridade} onChange={(v) => update(p.id, "insalubridade", v)} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
+            </section>
+          )}
 
-          {/* Verbas da folha */}
-          <section className="card-elevated p-5">
-            <h2 className="mb-4 flex items-center gap-2 font-display text-sm font-bold"><Calculator className="h-4 w-4 text-primary" /> Encargos sobre a folha</h2>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {verbasFolha.map((v) => (
-                <div key={v.rubrica} className="flex items-center justify-between rounded-md border border-border bg-surface-sunken px-3 py-2">
-                  <span className="text-xs font-medium">{v.rubrica}</span>
-                  <span className="font-mono text-xs font-semibold text-primary">{v.percentual.toFixed(2)}%</span>
+          {abaAtiva === "encargos" && (
+            <section className="card-elevated p-5">
+              <h2 className="mb-4 flex items-center gap-2 font-display text-sm font-bold">
+                <Calculator className="h-4 w-4 text-primary" /> Encargos sobre a folha & benefícios
+              </h2>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <th className="px-3 py-2 text-left">Rubrica</th>
+                    <th className="px-3 py-2 text-right">Percentual</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {verbas.map((v, i) => (
+                    <tr key={v.rubrica} className="border-b border-border/60">
+                      <td className="px-3 py-2.5 font-medium">{v.rubrica}</td>
+                      <td className="px-3 py-1.5 text-right">
+                        <input
+                          type="number"
+                          step={0.01}
+                          value={v.percentual}
+                          onChange={(e) => updateVerba(i, Number(e.target.value) || 0)}
+                          className="ml-auto block h-8 w-24 rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-primary-soft/60">
+                    <td className="px-3 py-2.5 font-bold">Total de encargos</td>
+                    <td className="px-3 py-2.5 text-right font-mono font-bold text-primary">
+                      {totais.totalEncargosPct.toFixed(2)}%
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              <h3 className="mb-3 mt-6 font-display text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Benefícios por posto
+              </h3>
+              <div className="space-y-2">
+                {postos.map((p) => (
+                  <div key={p.id} className="grid grid-cols-3 gap-2 rounded-md border border-border bg-surface-sunken p-3">
+                    <div className="col-span-3 text-xs font-semibold">{p.cargo}</div>
+                    <Money label="VA" v={p.va} onChange={(v) => updatePosto(p.id, "va", v)} />
+                    <Money label="VT" v={p.vt} onChange={(v) => updatePosto(p.id, "vt", v)} />
+                    <Money label="Insalub %" v={p.insalubridade} onChange={(v) => updatePosto(p.id, "insalubridade", v)} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {abaAtiva === "insumos" && (
+            <section className="card-elevated p-5">
+              <h2 className="mb-4 flex items-center gap-2 font-display text-sm font-bold">
+                <Package className="h-4 w-4 text-primary" /> Insumos e operação
+              </h2>
+              <div className="space-y-3">
+                {postos.map((p) => (
+                  <div key={p.id} className="rounded-md border border-border bg-surface-sunken p-3">
+                    <p className="mb-2 text-xs font-semibold">{p.cargo} · {p.qtd} posto(s)</p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Money label="Uniformes (R$/mês)" v={p.uniformes} onChange={(v) => updatePosto(p.id, "uniformes", v)} />
+                      <Money label="EPIs (R$/mês)" v={p.epis} onChange={(v) => updatePosto(p.id, "epis", v)} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-md border border-info/30 bg-info-soft px-3 py-2.5 text-[12px] text-info">
+                Os valores de insumos compõem o custo direto e impactam diretamente o BDI consolidado.
+              </div>
+            </section>
+          )}
+
+          {abaAtiva === "impostos" && (
+            <section className="card-elevated p-5">
+              <h2 className="mb-4 flex items-center gap-2 font-display text-sm font-bold">
+                <TrendingUp className="h-4 w-4 text-accent" /> Tributos, indiretos e margem
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Slider label="Custos indiretos (% s/ direto)" v={custoIndireto} onChange={(v: number) => { setCustoIndireto(v); marcarValida("impostos"); }} max={30} />
+                <Slider label="Carga tributária estimada" v={tributos} onChange={(v: number) => { setTributos(v); marcarValida("impostos"); }} max={30} />
+                <Slider label="Margem de lucro desejada" v={margem} onChange={(v: number) => { setMargem(v); marcarValida("impostos"); }} max={40} highlight />
+              </div>
+              <div className="mt-4 rounded-md border border-warning/30 bg-warning-soft px-3 py-2.5 text-[12px] text-warning">
+                A margem definida aqui é decisão da licitação — ela será revisada pela Controladoria antes da aprovação final
+                e comporá o BDI do contrato após assinatura.
+              </div>
+            </section>
+          )}
+
+          {/* Status do workflow */}
+          <div className="card-elevated p-4">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Workflow de validação
+            </p>
+            <div className="grid gap-2 sm:grid-cols-4">
+              {abas.map((a) => (
+                <div
+                  key={a.id}
+                  className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
+                    validas[a.id]
+                      ? "border-success/40 bg-success-soft text-success"
+                      : "border-border bg-card text-muted-foreground"
+                  }`}
+                >
+                  {validas[a.id] ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />}
+                  <span className="font-semibold">{a.label}</span>
                 </div>
               ))}
             </div>
             <p className="mt-3 text-[11px] text-muted-foreground">
-              Total de encargos: <strong className="text-foreground">{verbasFolha.reduce((s, v) => s + v.percentual, 0).toFixed(2)}%</strong>
+              {todasValidas
+                ? "Todas as abas validadas. Você pode enviar à Controladoria."
+                : "Interaja com cada aba para liberar o envio à Controladoria."}
             </p>
-          </section>
-
-          {/* Tributos & lucro */}
-          <section className="card-elevated p-5">
-            <h2 className="mb-4 flex items-center gap-2 font-display text-sm font-bold"><TrendingUp className="h-4 w-4 text-accent" /> Tributos, indiretos e margem</h2>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Slider label="Custos indiretos (% s/ direto)" v={custoIndireto} onChange={setCustoIndireto} max={30} />
-              <Slider label="Carga tributária estimada" v={tributos} onChange={() => {}} max={30} disabled />
-              <Slider label="Margem de lucro desejada" v={margem} onChange={setMargem} max={40} highlight />
-            </div>
-            <div className="mt-4 rounded-md border border-warning/30 bg-warning-soft px-3 py-2.5 text-[12px] text-warning">
-              A margem definida aqui é decisão da licitação — ela será revisada pela Controladoria antes da aprovação final e comporá o BDI do contrato após assinatura.
-            </div>
-          </section>
+          </div>
         </div>
 
-        {/* Painel lateral: BDI consolidado */}
-        <aside className="space-y-4">
+        {/* Painel lateral STICKY: BDI consolidado */}
+        <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
           <div className="card-elevated overflow-hidden">
             <header className="border-b border-border bg-gradient-primary px-5 py-3 text-primary-foreground">
               <div className="flex items-center gap-2">
@@ -218,21 +430,32 @@ function Money({ label, v, onChange }: { label: string; v: number; onChange: (v:
   return (
     <div>
       <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
-      <input type="number" value={v} onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className="h-8 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary" />
+      <input
+        type="number"
+        value={v}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        className="h-8 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary"
+      />
     </div>
   );
 }
 
-function Slider({ label, v, onChange, max, disabled, highlight }: any) {
+function Slider({ label, v, onChange, max, highlight }: any) {
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
         <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
         <span className={`font-mono text-sm font-bold ${highlight ? "text-accent" : "text-primary"}`}>{Number(v).toFixed(2)}%</span>
       </div>
-      <input type="range" min={0} max={max} step={0.5} value={v} disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-accent" />
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={0.5}
+        value={v}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-accent"
+      />
     </div>
   );
 }
