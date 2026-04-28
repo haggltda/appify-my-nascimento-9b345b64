@@ -24,6 +24,30 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
     } catch { /* noop */ }
   }, [isDemo]);
 
+  // Global write-guard: any element with [data-write] is intercepted in demo mode.
+  useEffect(() => {
+    if (!isDemo) return;
+    const handler = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      const el = target?.closest?.("[data-write]") as HTMLElement | null;
+      if (!el) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const label = el.getAttribute("data-write-label") || el.getAttribute("aria-label") || "Esta ação";
+      toast({
+        title: "Modo demonstração",
+        description: `${label} está desabilitada no ambiente somente leitura.`,
+        variant: "destructive",
+      });
+    };
+    document.addEventListener("click", handler, true);
+    document.addEventListener("submit", handler, true);
+    return () => {
+      document.removeEventListener("click", handler, true);
+      document.removeEventListener("submit", handler, true);
+    };
+  }, [isDemo]);
+
   const enableDemo = useCallback(() => setIsDemo(true), []);
   const disableDemo = useCallback(() => setIsDemo(false), []);
 
