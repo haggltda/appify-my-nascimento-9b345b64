@@ -103,7 +103,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         </button>
 
         <button
-          onClick={() => navigate("/login")}
+          onClick={() => { disableDemo(); navigate("/login"); }}
           className="ml-1 flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:border-destructive/40 hover:bg-destructive-soft hover:text-destructive"
           aria-label="Sair"
           title="Sair da plataforma"
