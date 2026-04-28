@@ -85,9 +85,15 @@ const App = () => (
             <Route path="contratos/encerramentos" element={<Encerramentos />} />
             <Route path="historico" element={<Historico />} />
             <Route path="administracao" element={<Administracao />} />
+            <Route path="co/empresas" element={<Empresas />} />
+            <Route path="co/centros-custo" element={<CentrosCusto />} />
+            <Route path="co/dre" element={<LinhasDRE />} />
+            <Route path="co/classificadores" element={<Classificadores />} />
+            <Route path="co/obz" element={<PlanejadorOBZ />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </EmpresaAtivaProvider>
         </DemoModeProvider>
       </BrowserRouter>
     </TooltipProvider>
