@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff, Briefcase, Wallet, BookOpen, ShoppingCart, Users2, Calculator } from "lucide-react";
+import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff, Briefcase, Wallet, BookOpen, ShoppingCart, Users2, Calculator, UserRound } from "lucide-react";
 import logoGN from "@/assets/logo-grupo-nascimento.png";
+import { useDemoMode } from "@/context/DemoModeContext";
 
 export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
   const [error] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { enableDemo, disableDemo } = useDemoMode();
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
@@ -96,7 +98,7 @@ export default function Login() {
           )}
 
           <form
-            onSubmit={(e) => { e.preventDefault(); navigate("/app"); }}
+            onSubmit={(e) => { e.preventDefault(); disableDemo(); navigate("/app"); }}
             className="mt-6 space-y-4"
           >
             <Field label="E-mail corporativo" icon={<Mail className="h-4 w-4" />}>
@@ -145,6 +147,27 @@ export default function Login() {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
           </form>
+
+          <div className="my-6 flex items-center gap-3 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            ou
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => { enableDemo(); navigate("/app"); }}
+            className="group flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-warning/50 bg-warning/10 text-sm font-semibold text-foreground transition-colors hover:bg-warning/20"
+          >
+            <UserRound className="h-4 w-4" />
+            Entrar como visitante
+            <span className="rounded-full bg-warning/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">
+              Demo
+            </span>
+          </button>
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Acesso somente leitura · Dados fictícios para demonstração
+          </p>
 
           <div className="my-6 divider-soft" />
 
