@@ -35,6 +35,12 @@ import Faturamento from "./pages/contratos/Faturamento";
 import Medicoes from "./pages/contratos/Medicoes";
 import Reajustes from "./pages/contratos/Reajustes";
 import Encerramentos from "./pages/contratos/Encerramentos";
+import { EmpresaAtivaProvider } from "./context/EmpresaAtivaContext";
+import Empresas from "./pages/controladoria/Empresas";
+import CentrosCusto from "./pages/controladoria/CentrosCusto";
+import LinhasDRE from "./pages/controladoria/DRE";
+import Classificadores from "./pages/controladoria/Classificadores";
+import PlanejadorOBZ from "./pages/controladoria/PlanejadorOBZ";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +51,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <DemoModeProvider>
+        <EmpresaAtivaProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
@@ -78,9 +85,15 @@ const App = () => (
             <Route path="contratos/encerramentos" element={<Encerramentos />} />
             <Route path="historico" element={<Historico />} />
             <Route path="administracao" element={<Administracao />} />
+            <Route path="co/empresas" element={<Empresas />} />
+            <Route path="co/centros-custo" element={<CentrosCusto />} />
+            <Route path="co/dre" element={<LinhasDRE />} />
+            <Route path="co/classificadores" element={<Classificadores />} />
+            <Route path="co/obz" element={<PlanejadorOBZ />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </EmpresaAtivaProvider>
         </DemoModeProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -126,14 +126,43 @@ const licitacoesModule: ModuleDef = {
   ],
 };
 
-// Todos os módulos do ERP — Licitações ativa, demais "Em breve"
+// Módulo Controladoria & Orçamento — ativo (catálogos + OBZ)
+const controladoriaOrcModule: ModuleDef = {
+  id: "controladoria_orc",
+  label: "Controladoria & Orçamento",
+  description: "Catálogos mestres, OBZ, baseline",
+  icon: Calculator,
+  basePath: "/app/co",
+  status: "active",
+  groups: [
+    {
+      label: "Cadastros Mestres",
+      defaultOpen: true,
+      items: [
+        { label: "Empresas do Grupo", to: "/app/co/empresas", icon: Building2 },
+        { label: "Centros de Custo", to: "/app/co/centros-custo", icon: FolderKanban },
+        { label: "Linhas da DRE", to: "/app/co/dre", icon: BookOpen },
+        { label: "Classificadores & Drivers", to: "/app/co/classificadores", icon: ListChecks },
+      ],
+    },
+    {
+      label: "Orçamento",
+      defaultOpen: true,
+      items: [
+        { label: "Planejador OBZ", to: "/app/co/obz", icon: Calculator },
+      ],
+    },
+  ],
+};
+
+// Todos os módulos do ERP — Licitações + Controladoria & Orçamento ativos
 const erpModules: ModuleDef[] = [
   licitacoesModule,
+  controladoriaOrcModule,
   { id: "financeiro", label: "Financeiro", description: "Contas a pagar/receber, fluxo de caixa", icon: Wallet, basePath: "/app/financeiro", status: "soon" },
   { id: "contabil", label: "Contábil", description: "Lançamentos, balancetes, SPED", icon: BookOpen, basePath: "/app/contabil", status: "soon" },
   { id: "suprimentos", label: "Suprimentos", description: "Compras, fornecedores, estoque", icon: ShoppingCart, basePath: "/app/suprimentos", status: "soon" },
   { id: "rh", label: "Recursos Humanos", description: "Folha, ponto, benefícios", icon: Users2, basePath: "/app/rh", status: "soon" },
-  { id: "controladoria", label: "Controladoria", description: "Orçamento, KPIs, planejamento", icon: Calculator, basePath: "/app/controladoria-corp", status: "soon" },
   { id: "bi", label: "BI & Analytics", description: "Dashboards consolidados", icon: BarChart3, basePath: "/app/bi", status: "soon" },
 ];
 
