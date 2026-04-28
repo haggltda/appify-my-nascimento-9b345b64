@@ -1,12 +1,12 @@
-import { Bell, Search, PanelLeft, ChevronDown, Building2, HelpCircle, Settings, LogOut } from "lucide-react";
+import { Bell, Search, PanelLeft, ChevronDown, Building2, HelpCircle, Settings, LogOut, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { empresas } from "@/data/licitacoes";
 import { cn } from "@/lib/utils";
 import { useDemoMode } from "@/context/DemoModeContext";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 
 export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
-  const [empresa, setEmpresa] = useState(empresas[0]);
+  const { empresa, empresas, setEmpresa } = useEmpresaAtiva();
   const [openSelector, setOpenSelector] = useState(false);
   const navigate = useNavigate();
   const { disableDemo } = useDemoMode();
@@ -32,36 +32,61 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Empresa ativa</p>
-            <p className="truncate text-xs font-semibold text-foreground">{empresa.sigla} · {empresa.cnpj}</p>
+            <p className="truncate text-xs font-semibold text-foreground">
+              {empresa.sigla} · <span className="font-mono">{empresa.cnpj}</span>
+            </p>
           </div>
+          <span className="hidden rounded-md bg-primary-soft px-1.5 py-0.5 text-[10px] font-semibold text-primary md:inline-block">
+            {empresa.regime}
+          </span>
+          {empresa.validacaoDocumentalObrigatoria && (
+            <span className="hidden items-center gap-1 rounded-md bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning md:inline-flex" title="Validação documental obrigatória">
+              <ShieldAlert className="h-3 w-3" />
+              Validar
+            </span>
+          )}
           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
 
         {openSelector && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setOpenSelector(false)} />
-            <div className="absolute left-0 top-full z-20 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-popover shadow-xl animate-fade-in">
+            <div className="absolute left-0 top-full z-20 mt-2 w-96 overflow-hidden rounded-xl border border-border bg-popover shadow-xl animate-fade-in">
               <div className="border-b border-border bg-muted/40 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Selecione a empresa</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Empresas do Grupo Nascimento</p>
               </div>
-              <ul className="max-h-72 overflow-y-auto py-1">
+              <ul className="max-h-96 overflow-y-auto py-1">
                 {empresas.map((e) => (
                   <li key={e.id}>
                     <button
-                      onClick={() => { setEmpresa(e); setOpenSelector(false); }}
+                      onClick={() => { setEmpresa(e.id); setOpenSelector(false); }}
                       className={cn(
-                        "flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-secondary",
+                        "flex w-full items-start gap-3 px-3 py-2.5 text-left text-sm hover:bg-secondary",
                         empresa.id === e.id && "bg-primary-soft",
                       )}
                     >
-                      <div className="grid h-8 w-8 place-items-center rounded-md bg-primary/10 text-primary text-xs font-bold">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary text-[11px] font-bold">
                         {e.sigla}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{e.nome}</p>
-                        <p className="font-mono text-[11px] text-muted-foreground">{e.cnpj}</p>
+                        <p className="truncate text-sm font-semibold">{e.razao}</p>
+                        <p className="truncate font-mono text-[11px] text-muted-foreground">{e.cnpj}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            {e.regime}
+                          </span>
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            {e.papel}
+                          </span>
+                          {e.validacaoDocumentalObrigatoria && (
+                            <span className="inline-flex items-center gap-1 rounded bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning">
+                              <ShieldAlert className="h-2.5 w-2.5" />
+                              Validação documental
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {empresa.id === e.id && <span className="h-2 w-2 rounded-full bg-accent" />}
+                      {empresa.id === e.id && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />}
                     </button>
                   </li>
                 ))}
@@ -97,7 +122,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           </div>
           <div className="hidden text-left lg:block">
             <p className="text-xs font-semibold leading-tight">Ana Carvalho</p>
-            <p className="text-[10px] text-muted-foreground">Analista Corporativo · NEN</p>
+            <p className="text-[10px] text-muted-foreground">Analista Corporativo · {empresa.sigla}</p>
           </div>
           <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground lg:block" />
         </button>
