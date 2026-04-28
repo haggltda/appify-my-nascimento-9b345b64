@@ -35,6 +35,12 @@ import Faturamento from "./pages/contratos/Faturamento";
 import Medicoes from "./pages/contratos/Medicoes";
 import Reajustes from "./pages/contratos/Reajustes";
 import Encerramentos from "./pages/contratos/Encerramentos";
+import { EmpresaAtivaProvider } from "./context/EmpresaAtivaContext";
+import Empresas from "./pages/controladoria/Empresas";
+import CentrosCusto from "./pages/controladoria/CentrosCusto";
+import LinhasDRE from "./pages/controladoria/DRE";
+import Classificadores from "./pages/controladoria/Classificadores";
+import PlanejadorOBZ from "./pages/controladoria/PlanejadorOBZ";
 
 const queryClient = new QueryClient();
 
