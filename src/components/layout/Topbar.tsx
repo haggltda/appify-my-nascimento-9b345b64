@@ -3,11 +3,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { empresas } from "@/data/licitacoes";
 import { cn } from "@/lib/utils";
+import { useDemoMode } from "@/context/DemoModeContext";
 
 export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const [empresa, setEmpresa] = useState(empresas[0]);
   const [openSelector, setOpenSelector] = useState(false);
   const navigate = useNavigate();
+  const { disableDemo } = useDemoMode();
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border/70 bg-surface/80 px-4 backdrop-blur-md lg:px-6">
