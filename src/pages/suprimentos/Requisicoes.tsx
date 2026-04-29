@@ -94,7 +94,8 @@ export default function Requisicoes() {
     <div>
       <PageHeader
         title="Requisições de Compra"
-        description="Solicitações internas que originam pedidos de compra e validações de estoque/orçamento."
+        subtitle="Solicitações internas que originam pedidos de compra e validações de estoque/orçamento."
+        module="Suprimentos"
         actions={
           <Button onClick={() => setOpenForm(true)}>
             <Plus className="h-4 w-4 mr-2" /> Nova Requisição
@@ -404,9 +405,17 @@ function RCDetailDialog({ rcId, onClose, onChanged }: { rcId: string; onClose: (
 
   const transitionMut = useMutation({
     mutationFn: async (newStatus: string) => {
+      // status legacy só aceita um subconjunto; mapear quando possível
+      const legacyMap: Record<string, string> = {
+        rascunho: "rascunho", enviada: "enviada", aprovada: "aprovada",
+        rejeitada: "rejeitada", cancelada: "cancelada", pedido_gerado: "pedido_emitido",
+      };
+      const legacyStatus = legacyMap[newStatus];
+      const payload: any = { status_v2: newStatus };
+      if (legacyStatus) payload.status = legacyStatus;
       const { error } = await supabase
         .from("requisicao_compra")
-        .update({ status_v2: newStatus as any, status: newStatus })
+        .update(payload)
         .eq("id", rcId);
       if (error) throw error;
     },
