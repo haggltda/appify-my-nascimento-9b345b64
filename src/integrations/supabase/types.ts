@@ -179,6 +179,186 @@ export type Database = {
         }
         Relationships: []
       }
+      centros_custo: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          empresa_id: string
+          id: string
+          nome: string
+          responsavel: string | null
+          tipo: Database["public"]["Enums"]["cc_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          nome: string
+          responsavel?: string | null
+          tipo?: Database["public"]["Enums"]["cc_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          nome?: string
+          responsavel?: string | null
+          tipo?: Database["public"]["Enums"]["cc_tipo"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "centros_custo_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classificador_valores: {
+        Row: {
+          ativo: boolean
+          classificador_id: string
+          codigo: string
+          created_at: string
+          descricao: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          classificador_id: string
+          codigo: string
+          created_at?: string
+          descricao: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          classificador_id?: string
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classificador_valores_classificador_id_fkey"
+            columns: ["classificador_id"]
+            isOneToOne: false
+            referencedRelation: "classificadores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classificadores: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classificadores_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dre_linhas: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string
+          empresa_id: string
+          id: string
+          natureza: Database["public"]["Enums"]["dre_natureza"]
+          nivel: number
+          ordem: number
+          parent_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao: string
+          empresa_id: string
+          id?: string
+          natureza: Database["public"]["Enums"]["dre_natureza"]
+          nivel?: number
+          ordem?: number
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          empresa_id?: string
+          id?: string
+          natureza?: Database["public"]["Enums"]["dre_natureza"]
+          nivel?: number
+          ordem?: number
+          parent_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_linhas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_linhas_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
           ativa: boolean
@@ -245,6 +425,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "profiles_empresa_fk"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "profiles_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
@@ -303,6 +490,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_empresa: { Args: { _user_id: string }; Returns: string }
       has_permission: {
         Args: {
           _acao: Database["public"]["Enums"]["app_acao"]
@@ -339,6 +527,15 @@ export type Database = {
         | "diretor_adm"
         | "diretor_op"
         | "visitante"
+      cc_tipo: "adm" | "operacional"
+      dre_natureza:
+        | "receita"
+        | "deducao"
+        | "custo"
+        | "despesa"
+        | "resultado"
+        | "tributo"
+        | "financeiro"
       regime_tributario: "lucro_real" | "lucro_presumido" | "simples_nacional"
     }
     CompositeTypes: {
@@ -487,6 +684,16 @@ export const Constants = {
         "diretor_adm",
         "diretor_op",
         "visitante",
+      ],
+      cc_tipo: ["adm", "operacional"],
+      dre_natureza: [
+        "receita",
+        "deducao",
+        "custo",
+        "despesa",
+        "resultado",
+        "tributo",
+        "financeiro",
       ],
       regime_tributario: ["lucro_real", "lucro_presumido", "simples_nacional"],
     },
