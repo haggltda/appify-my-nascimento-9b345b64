@@ -395,7 +395,7 @@ function AlterarContaDialog({ conta, contas, dreLinhas, empresaId, userId, onCre
       toast({ title: "Justificativa obrigatória", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.from("plano_contas_solicitacao").insert({
+    const payload: Database["public"]["Tables"]["plano_contas_solicitacao"]["Insert"] = {
       empresa_id: empresaId,
       tipo: "alterar",
       conta_contabil_id: conta.id,
@@ -409,7 +409,8 @@ function AlterarContaDialog({ conta, contas, dreLinhas, empresaId, userId, onCre
       grupo_dre: form.grupo_dre,
       justificativa: form.justificativa,
       solicitado_por: userId,
-    });
+    };
+    const { error } = await supabase.from("plano_contas_solicitacao").insert(payload);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Solicitação enviada" });
     setOpen(false);
