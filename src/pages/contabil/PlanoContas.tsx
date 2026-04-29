@@ -451,7 +451,7 @@ function AlterarContaDialog({ conta, contas, dreLinhas, empresaId, userId, onCre
           <div><Label>Grupo DRE</Label>
             <Select value={form.grupo_dre} onValueChange={(v) => setForm({ ...form, grupo_dre: v as GrupoDre })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="balanco">Balanço</SelectItem><SelectItem value="resultado">Resultado</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="balanco">Balanço</SelectItem><SelectItem value="balanco_gerencial">Balanço Gerencial</SelectItem><SelectItem value="dre">DRE</SelectItem></SelectContent>
             </Select>
           </div>
           <div className="col-span-2 flex items-center gap-6">
