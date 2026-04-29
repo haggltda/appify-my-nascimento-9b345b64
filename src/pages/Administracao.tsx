@@ -8,13 +8,14 @@ import {
 import { cn } from "@/lib/utils";
 
 type Tab =
-  | "usuarios" | "perfis" | "permissoes" | "alcadas" | "parametros"
+  | "usuarios" | "perfis" | "modulos" | "permissoes" | "alcadas" | "parametros"
   | "sessoes" | "logs" | "ocorrencias" | "auditoria" | "identidade";
 
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "usuarios", label: "Usuários", icon: Users },
   { id: "perfis", label: "Perfis de acesso", icon: ShieldCheck },
-  { id: "permissoes", label: "Permissões", icon: Key },
+  { id: "modulos", label: "Módulos & Menus", icon: GitBranch },
+  { id: "permissoes", label: "Permissões por perfil", icon: Key },
   { id: "alcadas", label: "Alçadas de aprovação", icon: GitBranch },
   { id: "parametros", label: "Parâmetros gerais", icon: Settings },
   { id: "sessoes", label: "Sessões ativas", icon: Activity },
@@ -56,6 +57,7 @@ export default function Administracao() {
         <div className="space-y-5">
           {tab === "usuarios" && <Usuarios />}
           {tab === "perfis" && <Perfis />}
+          {tab === "modulos" && <ModulosMenus />}
           {tab === "permissoes" && <Permissoes />}
           {tab === "alcadas" && <Alcadas />}
           {tab === "parametros" && <Parametros />}
@@ -182,19 +184,122 @@ function Perfis() {
   );
 }
 
-/* ----------------------------- PERMISSÕES ----------------------------- */
-function Permissoes() {
-  const acoes = ["Visualizar", "Incluir", "Editar", "Aprovar", "Cancelar", "Excluir", "Reabrir", "Exportar", "Lançar manualmente", "Executar IA"];
-  const submodulos = ["Pipeline", "Cadastro de Editais", "Documentos", "Triagem & IA", "Parecer Técnico", "Parecer Gerencial", "Controladoria", "Aprovações", "Pregão", "Resultado"];
+/* ----------------------------- MÓDULOS & MENUS ----------------------------- */
+function ModulosMenus() {
+  type Item = { id: string; modulo: string; menu: string; acao: string };
+  const [items, setItems] = useState<Item[]>([
+    { id: "1", modulo: "Licitações", menu: "Pipeline", acao: "Visualizar" },
+    { id: "2", modulo: "Licitações", menu: "Cadastro de Editais", acao: "Incluir" },
+    { id: "3", modulo: "Licitações", menu: "Cadastro de Editais", acao: "Alterar" },
+    { id: "4", modulo: "Controladoria & Orçamento", menu: "Planejador OBZ", acao: "Aprovar" },
+    { id: "5", modulo: "Controladoria & Orçamento", menu: "Centros de Custo", acao: "Excluir" },
+  ]);
+  const [draft, setDraft] = useState({ modulo: "", menu: "", acao: "Visualizar" });
+
+  const add = () => {
+    if (!draft.modulo.trim() || !draft.menu.trim()) return;
+    setItems((s) => [...s, { id: crypto.randomUUID(), ...draft }]);
+    setDraft({ modulo: "", menu: "", acao: "Visualizar" });
+  };
+  const remove = (id: string) => setItems((s) => s.filter((i) => i.id !== id));
+
   return (
     <section className="card-elevated">
       <header className="flex items-center justify-between border-b border-border px-5 py-3.5">
         <div>
-          <h2 className="font-display text-sm font-bold">Matriz de permissões</h2>
-          <p className="text-xs text-muted-foreground">Perfil: <strong className="text-foreground">Analista de Licitações</strong> · Escopo: empresa NEN · CC-104</p>
+          <h2 className="font-display text-sm font-bold">Módulos, Menus & Ações</h2>
+          <p className="text-xs text-muted-foreground">CRUD de itens de menu e ações disponíveis no sistema.</p>
         </div>
-        <select className="h-9 rounded-md border border-border bg-card px-3 text-xs">
-          <option>Analista de Licitações</option><option>Gerente de Licitação</option><option>Controladoria</option>
+      </header>
+      <div className="grid gap-2 border-b border-border bg-muted/30 px-5 py-3 sm:grid-cols-[1fr_1fr_180px_auto]">
+        <input
+          placeholder="Módulo (ex: Licitações)"
+          value={draft.modulo}
+          onChange={(e) => setDraft((d) => ({ ...d, modulo: e.target.value }))}
+          className="h-9 rounded-md border border-border bg-card px-3 text-sm"
+        />
+        <input
+          placeholder="Menu / Submenu"
+          value={draft.menu}
+          onChange={(e) => setDraft((d) => ({ ...d, menu: e.target.value }))}
+          className="h-9 rounded-md border border-border bg-card px-3 text-sm"
+        />
+        <select
+          value={draft.acao}
+          onChange={(e) => setDraft((d) => ({ ...d, acao: e.target.value }))}
+          className="h-9 rounded-md border border-border bg-card px-3 text-sm"
+        >
+          {["Visualizar", "Incluir", "Alterar", "Excluir", "Aprovar", "Exportar", "Executar IA"].map((a) => (
+            <option key={a}>{a}</option>
+          ))}
+        </select>
+        <button
+          onClick={add}
+          data-write
+          className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground"
+        >
+          <Plus className="h-3.5 w-3.5" /> Adicionar
+        </button>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="px-5 py-3 text-left">Módulo</th>
+            <th className="px-3 py-3 text-left">Menu</th>
+            <th className="px-3 py-3 text-left">Ação</th>
+            <th className="px-5 py-3 text-right">Ações</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {items.map((it) => (
+            <tr key={it.id} className="hover:bg-muted/40">
+              <td className="px-5 py-2.5 font-medium">{it.modulo}</td>
+              <td className="px-3 py-2.5">{it.menu}</td>
+              <td className="px-3 py-2.5">
+                <span className="chip border border-border bg-muted">{it.acao}</span>
+              </td>
+              <td className="px-5 py-2.5 text-right">
+                <button
+                  onClick={() => remove(it.id)}
+                  data-write
+                  className="text-xs font-medium text-destructive hover:underline"
+                >
+                  Excluir
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+/* ----------------------------- PERMISSÕES POR PERFIL ----------------------------- */
+function Permissoes() {
+  const acoes = ["Visualizar", "Incluir", "Alterar", "Excluir", "Aprovar", "Exportar", "Executar IA"];
+  const submodulos = [
+    "Pipeline", "Cadastro de Editais", "Documentos", "Triagem & IA",
+    "Composição & BDI", "Parecer Técnico", "Parecer SST", "Parecer Jurídico",
+    "Parecer Controladoria", "Aprovações", "Pregão", "Resultado",
+    "Contratos Ativos", "Empenhos", "Medições",
+    "Empresas", "Centros de Custo", "Linhas DRE", "Planejador OBZ",
+  ];
+  const perfis = ["Admin", "Controladoria", "Comercial", "Operacional", "Jurídico", "SST", "Diretor Adm.", "Diretor Op.", "Visitante"];
+  const [perfil, setPerfil] = useState(perfis[1]);
+  return (
+    <section className="card-elevated">
+      <header className="flex items-center justify-between border-b border-border px-5 py-3.5">
+        <div>
+          <h2 className="font-display text-sm font-bold">Matriz de permissões por perfil</h2>
+          <p className="text-xs text-muted-foreground">Perfil ativo: <strong className="text-foreground">{perfil}</strong></p>
+        </div>
+        <select
+          value={perfil}
+          onChange={(e) => setPerfil(e.target.value)}
+          className="h-9 rounded-md border border-border bg-card px-3 text-xs"
+        >
+          {perfis.map((p) => <option key={p}>{p}</option>)}
         </select>
       </header>
       <div className="overflow-x-auto">
@@ -210,7 +315,7 @@ function Permissoes() {
               <tr key={sm} className="hover:bg-muted/40">
                 <td className="px-5 py-3 text-sm font-medium">{sm}</td>
                 {acoes.map((a) => {
-                  const checked = (i + a.length) % 3 !== 0;
+                  const checked = perfil === "Admin" ? true : (i + a.length) % 3 !== 0;
                   return (
                     <td key={a} className="px-2 py-3 text-center">
                       <input type="checkbox" defaultChecked={checked} className="h-4 w-4 rounded border-border accent-primary" />
@@ -224,7 +329,7 @@ function Permissoes() {
       </div>
       <div className="flex items-center justify-between border-t border-border bg-muted/30 px-5 py-3 text-xs">
         <p className="text-muted-foreground">Filtrado por escopo: <strong className="text-foreground">Empresa</strong>, <strong className="text-foreground">Contrato</strong>, <strong className="text-foreground">Centro de Custo</strong></p>
-        <button className="btn-relief inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground">Salvar matriz</button>
+        <button data-write className="btn-relief inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground">Salvar matriz</button>
       </div>
     </section>
   );

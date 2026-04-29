@@ -1,8 +1,11 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { empresasGrupo } from "@/data/controladoria";
-import { ShieldAlert, CheckCircle2 } from "lucide-react";
+import { ShieldAlert, CheckCircle2, Pencil } from "lucide-react";
+import { RoleGate } from "@/components/RoleGate";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Empresas() {
+  const { toast } = useToast();
   return (
     <div>
       <PageHeader
@@ -35,6 +38,16 @@ export default function Empresas() {
                 </span>
               )}
             </div>
+
+            <RoleGate acao="alterar" modulo="empresas">
+              <button
+                data-write
+                onClick={() => toast({ title: "Editar empresa", description: `Abrindo edição de ${e.sigla} (mock)` })}
+                className="mt-3 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-border bg-card text-xs font-semibold hover:bg-secondary"
+              >
+                <Pencil className="h-3 w-3" /> Editar empresa
+              </button>
+            </RoleGate>
 
             <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
               <div>
