@@ -31,6 +31,45 @@ export default function PainelExecutivo() {
     .filter((l) => !["perdida", "vencida"].includes(l.status))
     .reduce((acc, l) => acc + l.valorEstimado, 0);
 
+  // === Agregações analíticas ===
+  const porAnalista = useMemo(() => {
+    const map = new Map<string, { responsavel: string; qtd: number; valor: number; vitorias: number; perdidas: number }>();
+    licitacoes.forEach((l) => {
+      const cur = map.get(l.responsavel) || { responsavel: l.responsavel, qtd: 0, valor: 0, vitorias: 0, perdidas: 0 };
+      cur.qtd++;
+      cur.valor += l.valorEstimado;
+      if (l.status === "vencida") cur.vitorias++;
+      if (l.status === "perdida") cur.perdidas++;
+      map.set(l.responsavel, cur);
+    });
+    return Array.from(map.values())
+      .map((a) => ({ ...a, taxa: a.vitorias + a.perdidas > 0 ? (a.vitorias / (a.vitorias + a.perdidas)) * 100 : 0 }))
+      .sort((a, b) => b.valor - a.valor);
+  }, []);
+
+  const porModalidade = useMemo(() => {
+    const map = new Map<string, number>();
+    licitacoes.forEach((l) => map.set(l.modalidade, (map.get(l.modalidade) || 0) + l.valorEstimado));
+    return Array.from(map, ([modalidade, valor]) => ({ modalidade, valor }));
+  }, []);
+
+  const funilEtapas = useMemo(
+    () => statusOrdem.map((s) => ({
+      etapa: statusLabel[s].length > 14 ? statusLabel[s].slice(0, 12) + "…" : statusLabel[s],
+      qtd: licitacoes.filter((l) => l.status === s).length,
+    })).filter(e => e.qtd > 0),
+    []
+  );
+
+  const evolucaoMensal = useMemo(() => {
+    // Mock derivado: 6 meses retroativos
+    const base = valorPipeline / 6;
+    return ["Nov", "Dez", "Jan", "Fev", "Mar", "Abr"].map((mes, i) => {
+      const fator = 0.7 + (i * 0.08) + Math.sin(i) * 0.05;
+      return { mes, valor: Math.round(base * fator), processos: 8 + i * 2 };
+    });
+  }, [valorPipeline]);
+
   return (
     <div className="space-y-6">
       <PageHeader
