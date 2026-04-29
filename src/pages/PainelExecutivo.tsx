@@ -353,3 +353,22 @@ function KpiCard({
     </div>
   );
 }
+
+function ChartCard({ title, subtitle, icon, children }: { title: string; subtitle: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="card-floating overflow-hidden p-0">
+      <header className="flex items-start justify-between border-b border-border bg-gradient-to-br from-card to-muted/30 px-5 py-3.5">
+        <div className="flex items-start gap-2.5">
+          <span className="mt-0.5 grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary shadow-[0_2px_6px_-2px_hsl(var(--primary)/0.4)]">
+            {icon}
+          </span>
+          <div>
+            <h3 className="font-display text-sm font-bold leading-tight">{title}</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>
+          </div>
+        </div>
+      </header>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
