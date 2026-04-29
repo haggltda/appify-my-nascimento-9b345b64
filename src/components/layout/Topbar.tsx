@@ -132,19 +132,19 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
 
         <div className="mx-1 h-8 w-px bg-border" />
 
-        <button className="flex items-center gap-2.5 rounded-lg px-2 py-1 hover:bg-secondary">
+        <button className="flex items-center gap-2.5 rounded-lg px-2 py-1 hover:bg-secondary" title={user?.email ?? ""}>
           <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-primary text-sm font-semibold text-primary-foreground">
-            AC
+            {iniciais}
           </div>
           <div className="hidden text-left lg:block">
-            <p className="text-xs font-semibold leading-tight">Ana Carvalho</p>
-            <p className="text-[10px] text-muted-foreground">Analista Corporativo · {empresa.sigla}</p>
+            <p className="text-xs font-semibold leading-tight">{nomeExibido}</p>
+            <p className="text-[10px] text-muted-foreground">{roleLabel} · {empresa.sigla}</p>
           </div>
           <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground lg:block" />
         </button>
 
         <button
-          onClick={() => { disableDemo(); navigate("/login"); }}
+          onClick={async () => { await signOut(); disableDemo(); navigate("/login"); }}
           className="ml-1 flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:border-destructive/40 hover:bg-destructive-soft hover:text-destructive"
           aria-label="Sair"
           title="Sair da plataforma"
