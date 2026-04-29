@@ -95,6 +95,9 @@ export default function Composicao() {
     encargos: false,
     insumos: false,
     impostos: false,
+    dre: true,
+    caixa: true,
+    grafico: true,
   });
 
   const marcarValida = (id: AbaId) => setValidas((v) => (v[id] ? v : { ...v, [id]: true }));
@@ -145,7 +148,7 @@ export default function Composicao() {
       description: `${licitacao} · BDI ${totais.bdi.toFixed(2)}% · ${formatBRL(totais.total)}/mês`,
     });
     // Reset (volta para grid inicial = aba postos)
-    setValidas({ postos: false, encargos: false, insumos: false, impostos: false });
+    setValidas({ postos: false, encargos: false, insumos: false, impostos: false, dre: true, caixa: true, grafico: true });
     setAbaAtiva("postos");
   };
 
