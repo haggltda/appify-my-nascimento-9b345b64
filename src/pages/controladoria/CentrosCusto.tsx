@@ -5,14 +5,44 @@ import { Lock, Building2, FileBadge, Plus, PowerOff } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { useToast } from "@/hooks/use-toast";
 
+type CCContrat = (typeof centrosCustoContratuais)[number];
+
 export default function CentrosCusto() {
+  const { toast } = useToast();
+  const [lista, setLista] = useState<CCContrat[]>(centrosCustoContratuais);
+  const [draft, setDraft] = useState({
+    empresaId: empresasGrupo[0].id,
+    nome: "",
+    contratoNumero: "",
+  });
+
+  const addCC = () => {
+    if (!draft.nome.trim() || !draft.contratoNumero.trim()) {
+      toast({ title: "Campos obrigatórios", description: "Informe nome e contrato.", variant: "destructive" });
+      return;
+    }
+    const codigo = proximoCodigoContratual(draft.empresaId, new Date().getFullYear());
+    setLista((s) => [
+      ...s,
+      { codigo, nome: draft.nome, empresaId: draft.empresaId, contratoNumero: draft.contratoNumero, status: "ativo" } as CCContrat,
+    ]);
+    setDraft({ empresaId: empresasGrupo[0].id, nome: "", contratoNumero: "" });
+    toast({ title: "CC criado", description: codigo });
+  };
+  const toggle = (codigo: string) =>
+    setLista((s) =>
+      s.map((c) =>
+        c.codigo === codigo ? { ...c, status: c.status === "ativo" ? "inativo" : "ativo" } : c,
+      ),
+    );
+
   return (
     <div>
       <PageHeader
         module="Controladoria & Orçamento"
         breadcrumb={["Cadastros Mestres", "Centros de Custo"]}
         title="Centros de Custo"
-        subtitle="ADM fixos (catálogo congelado) e contratuais gerados automaticamente ao validar contrato."
+        subtitle="ADM fixos (catálogo congelado) e contratuais com CRUD restrito a Controladoria."
       />
 
       <section className="mb-8">
