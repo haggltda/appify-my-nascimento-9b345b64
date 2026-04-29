@@ -1,10 +1,24 @@
+import { useMemo } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
-import { licitacoes, formatBRL, formatDate, statusLabel } from "@/data/licitacoes";
+import { licitacoes, formatBRL, formatDate, statusLabel, statusOrdem } from "@/data/licitacoes";
 import {
   ArrowUpRight, AlertTriangle, Clock, FileText, Gavel, Trophy, XCircle,
-  TrendingUp, Sparkles, Filter, Download, Plus, ChevronRight,
+  TrendingUp, Sparkles, Filter, Download, Plus, ChevronRight, Users, Target, BarChart3,
 } from "lucide-react";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  PieChart as RPieChart, Pie, Cell, LineChart, Line,
+} from "recharts";
+
+const CHART_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "hsl(var(--success))",
+  "hsl(var(--warning))",
+  "hsl(var(--info))",
+  "hsl(var(--destructive))",
+];
 
 export default function PainelExecutivo() {
   const total = licitacoes.length;
