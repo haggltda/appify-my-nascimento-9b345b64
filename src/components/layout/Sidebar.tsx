@@ -148,6 +148,7 @@ const controladoriaOrcModule: ModuleDef = {
       label: "Orçamento",
       defaultOpen: true,
       items: [
+        { label: "Ciclos de Orçamento", to: "/app/orcamento", icon: Calculator },
         { label: "Planejador OBZ", to: "/app/co/obz", icon: Calculator },
       ],
     },
