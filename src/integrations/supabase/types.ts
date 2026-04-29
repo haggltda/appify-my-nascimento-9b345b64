@@ -302,6 +302,79 @@ export type Database = {
           },
         ]
       }
+      conciliacao_regras: {
+        Row: {
+          ativo: boolean
+          centro_custo_id: string | null
+          created_at: string
+          dre_linha_id: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          pattern_contraparte: string | null
+          pattern_descricao: string | null
+          pattern_documento: string | null
+          prioridade: number
+          updated_at: string
+          valor_max: number | null
+          valor_min: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          centro_custo_id?: string | null
+          created_at?: string
+          dre_linha_id?: string | null
+          empresa_id: string
+          id?: string
+          nome: string
+          pattern_contraparte?: string | null
+          pattern_descricao?: string | null
+          pattern_documento?: string | null
+          prioridade?: number
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          centro_custo_id?: string | null
+          created_at?: string
+          dre_linha_id?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          pattern_contraparte?: string | null
+          pattern_descricao?: string | null
+          pattern_documento?: string | null
+          prioridade?: number
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacao_regras_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_regras_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacao_regras_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dre_linhas: {
         Row: {
           ativo: boolean
@@ -599,6 +672,163 @@ export type Database = {
           },
         ]
       }
+      realizado_lancamentos: {
+        Row: {
+          centro_custo_id: string | null
+          classificadores: Json
+          contraparte: string | null
+          created_at: string
+          data_competencia: string
+          data_lancamento: string
+          descricao: string
+          documento: string | null
+          dre_linha_id: string | null
+          empresa_id: string
+          hash_dedup: string | null
+          id: string
+          lote_id: string | null
+          observacoes: string | null
+          origem_externa_id: string | null
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          centro_custo_id?: string | null
+          classificadores?: Json
+          contraparte?: string | null
+          created_at?: string
+          data_competencia: string
+          data_lancamento: string
+          descricao: string
+          documento?: string | null
+          dre_linha_id?: string | null
+          empresa_id: string
+          hash_dedup?: string | null
+          id?: string
+          lote_id?: string | null
+          observacoes?: string | null
+          origem_externa_id?: string | null
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          centro_custo_id?: string | null
+          classificadores?: Json
+          contraparte?: string | null
+          created_at?: string
+          data_competencia?: string
+          data_lancamento?: string
+          descricao?: string
+          documento?: string | null
+          dre_linha_id?: string | null
+          empresa_id?: string
+          hash_dedup?: string | null
+          id?: string
+          lote_id?: string | null
+          observacoes?: string | null
+          origem_externa_id?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "realizado_lancamentos_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "realizado_lancamentos_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "realizado_lancamentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "realizado_lancamentos_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "realizado_lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      realizado_lotes: {
+        Row: {
+          arquivo_nome: string | null
+          arquivo_path: string | null
+          created_at: string
+          empresa_id: string
+          erro_msg: string | null
+          id: string
+          importado_em: string
+          importado_por: string | null
+          observacoes: string | null
+          origem: Database["public"]["Enums"]["lote_origem"]
+          processado_em: string | null
+          referencia_ano: number
+          referencia_mes: number
+          status: Database["public"]["Enums"]["lote_status"]
+          total_lancamentos: number
+          total_valor: number
+          updated_at: string
+        }
+        Insert: {
+          arquivo_nome?: string | null
+          arquivo_path?: string | null
+          created_at?: string
+          empresa_id: string
+          erro_msg?: string | null
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          observacoes?: string | null
+          origem?: Database["public"]["Enums"]["lote_origem"]
+          processado_em?: string | null
+          referencia_ano: number
+          referencia_mes: number
+          status?: Database["public"]["Enums"]["lote_status"]
+          total_lancamentos?: number
+          total_valor?: number
+          updated_at?: string
+        }
+        Update: {
+          arquivo_nome?: string | null
+          arquivo_path?: string | null
+          created_at?: string
+          empresa_id?: string
+          erro_msg?: string | null
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          observacoes?: string | null
+          origem?: Database["public"]["Enums"]["lote_origem"]
+          processado_em?: string | null
+          referencia_ano?: number
+          referencia_mes?: number
+          status?: Database["public"]["Enums"]["lote_status"]
+          total_lancamentos?: number
+          total_valor?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "realizado_lotes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           acao: Database["public"]["Enums"]["app_acao"]
@@ -695,6 +925,8 @@ export type Database = {
         | "resultado"
         | "tributo"
         | "financeiro"
+      lote_origem: "manual" | "erp" | "extrato_bancario" | "planilha" | "api"
+      lote_status: "pendente" | "processado" | "erro" | "cancelado"
       obz_status: "rascunho" | "em_aprovacao" | "aprovada" | "arquivada"
       periodo_status: "aberto" | "fechado"
       regime_tributario: "lucro_real" | "lucro_presumido" | "simples_nacional"
@@ -856,6 +1088,8 @@ export const Constants = {
         "tributo",
         "financeiro",
       ],
+      lote_origem: ["manual", "erp", "extrato_bancario", "planilha", "api"],
+      lote_status: ["pendente", "processado", "erro", "cancelado"],
       obz_status: ["rascunho", "em_aprovacao", "aprovada", "arquivada"],
       periodo_status: ["aberto", "fechado"],
       regime_tributario: ["lucro_real", "lucro_presumido", "simples_nacional"],
