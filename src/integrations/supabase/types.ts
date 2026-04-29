@@ -14,16 +14,332 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_log: {
+        Row: {
+          diff: Json | null
+          id: number
+          op: string
+          pk: string | null
+          schema_name: string
+          table_name: string
+          ts: string
+          user_id: string | null
+        }
+        Insert: {
+          diff?: Json | null
+          id?: number
+          op: string
+          pk?: string | null
+          schema_name: string
+          table_name: string
+          ts?: string
+          user_id?: string | null
+        }
+        Update: {
+          diff?: Json | null
+          id?: number
+          op?: string
+          pk?: string | null
+          schema_name?: string
+          table_name?: string
+          ts?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      audit_log_2026_04: {
+        Row: {
+          diff: Json | null
+          id: number
+          op: string
+          pk: string | null
+          schema_name: string
+          table_name: string
+          ts: string
+          user_id: string | null
+        }
+        Insert: {
+          diff?: Json | null
+          id?: number
+          op: string
+          pk?: string | null
+          schema_name: string
+          table_name: string
+          ts?: string
+          user_id?: string | null
+        }
+        Update: {
+          diff?: Json | null
+          id?: number
+          op?: string
+          pk?: string | null
+          schema_name?: string
+          table_name?: string
+          ts?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      audit_log_2026_05: {
+        Row: {
+          diff: Json | null
+          id: number
+          op: string
+          pk: string | null
+          schema_name: string
+          table_name: string
+          ts: string
+          user_id: string | null
+        }
+        Insert: {
+          diff?: Json | null
+          id?: number
+          op: string
+          pk?: string | null
+          schema_name: string
+          table_name: string
+          ts?: string
+          user_id?: string | null
+        }
+        Update: {
+          diff?: Json | null
+          id?: number
+          op?: string
+          pk?: string | null
+          schema_name?: string
+          table_name?: string
+          ts?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      audit_log_2026_06: {
+        Row: {
+          diff: Json | null
+          id: number
+          op: string
+          pk: string | null
+          schema_name: string
+          table_name: string
+          ts: string
+          user_id: string | null
+        }
+        Insert: {
+          diff?: Json | null
+          id?: number
+          op: string
+          pk?: string | null
+          schema_name: string
+          table_name: string
+          ts?: string
+          user_id?: string | null
+        }
+        Update: {
+          diff?: Json | null
+          id?: number
+          op?: string
+          pk?: string | null
+          schema_name?: string
+          table_name?: string
+          ts?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      audit_log_default: {
+        Row: {
+          diff: Json | null
+          id: number
+          op: string
+          pk: string | null
+          schema_name: string
+          table_name: string
+          ts: string
+          user_id: string | null
+        }
+        Insert: {
+          diff?: Json | null
+          id?: number
+          op: string
+          pk?: string | null
+          schema_name: string
+          table_name: string
+          ts?: string
+          user_id?: string | null
+        }
+        Update: {
+          diff?: Json | null
+          id?: number
+          op?: string
+          pk?: string | null
+          schema_name?: string
+          table_name?: string
+          ts?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      empresas: {
+        Row: {
+          ativa: boolean
+          cnpj: string
+          codigo: string
+          created_at: string
+          id: string
+          nome_fantasia: string | null
+          razao_social: string
+          regime: Database["public"]["Enums"]["regime_tributario"]
+          updated_at: string
+        }
+        Insert: {
+          ativa?: boolean
+          cnpj: string
+          codigo: string
+          created_at?: string
+          id?: string
+          nome_fantasia?: string | null
+          razao_social: string
+          regime: Database["public"]["Enums"]["regime_tributario"]
+          updated_at?: string
+        }
+        Update: {
+          ativa?: boolean
+          cnpj?: string
+          codigo?: string
+          created_at?: string
+          id?: string
+          nome_fantasia?: string | null
+          razao_social?: string
+          regime?: Database["public"]["Enums"]["regime_tributario"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          display_name: string | null
+          email: string | null
+          empresa_id: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          empresa_id?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          empresa_id?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_permissions: {
+        Row: {
+          acao: Database["public"]["Enums"]["app_acao"]
+          created_at: string
+          id: string
+          modulo: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          acao: Database["public"]["Enums"]["app_acao"]
+          created_at?: string
+          id?: string
+          modulo: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          acao?: Database["public"]["Enums"]["app_acao"]
+          created_at?: string
+          id?: string
+          modulo?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_permission: {
+        Args: {
+          _acao: Database["public"]["Enums"]["app_acao"]
+          _modulo: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_acao:
+        | "visualizar"
+        | "incluir"
+        | "alterar"
+        | "excluir"
+        | "aprovar"
+        | "exportar"
+        | "executar_ia"
+        | "alterar_dre"
+      app_role:
+        | "admin"
+        | "controladoria"
+        | "comercial"
+        | "operacional"
+        | "juridico"
+        | "sst"
+        | "diretor_adm"
+        | "diretor_op"
+        | "visitante"
+      regime_tributario: "lucro_real" | "lucro_presumido" | "simples_nacional"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +466,29 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_acao: [
+        "visualizar",
+        "incluir",
+        "alterar",
+        "excluir",
+        "aprovar",
+        "exportar",
+        "executar_ia",
+        "alterar_dre",
+      ],
+      app_role: [
+        "admin",
+        "controladoria",
+        "comercial",
+        "operacional",
+        "juridico",
+        "sst",
+        "diretor_adm",
+        "diretor_op",
+        "visitante",
+      ],
+      regime_tributario: ["lucro_real", "lucro_presumido", "simples_nacional"],
+    },
   },
 } as const
