@@ -232,7 +232,7 @@ function KanbanView({ data, currentUser, onAssume, onOpen }: {
                   </div>
                 )}
                 {items.map((l) => (
-                  <article key={l.id} className="card-floating cursor-pointer p-3.5 hover:border-primary/40">
+                  <article key={l.id} onDoubleClick={() => onOpen(l)} className="card-floating cursor-pointer p-3.5 hover:border-primary/40" title="Duplo-clique para abrir Composição & BDI">
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-mono text-[11px] text-muted-foreground">{l.numero}</p>
                       <CriticidadeChip value={l.criticidade} />
