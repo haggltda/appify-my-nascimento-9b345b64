@@ -45,6 +45,17 @@ import LinhasDRE from "./pages/controladoria/DRE";
 import Classificadores from "./pages/controladoria/Classificadores";
 import PlanejadorOBZ from "./pages/controladoria/PlanejadorOBZ";
 import Orcamento from "./pages/Orcamento";
+import Fornecedores from "./pages/suprimentos/Fornecedores";
+import ProdutosServicos from "./pages/suprimentos/ProdutosServicos";
+import Requisicoes from "./pages/suprimentos/Requisicoes";
+import PedidosCompra from "./pages/suprimentos/PedidosCompra";
+import ContasPagar from "./pages/financeiro/ContasPagar";
+import ContasReceber from "./pages/financeiro/ContasReceber";
+import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
+import Lancamentos from "./pages/contabil/Lancamentos";
+import Colaboradores from "./pages/rh/Colaboradores";
+import Alocacoes from "./pages/rh/Alocacoes";
+import BIDashboard from "./pages/bi/Dashboard";
 
 const queryClient = new QueryClient();
 
