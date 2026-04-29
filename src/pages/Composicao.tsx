@@ -685,3 +685,29 @@ function Row({ label, v, bold, muted, accent, highlight }: any) {
     </div>
   );
 }
+
+function KpiMini({ label, value, tone }: { label: string; value: string; tone: "primary" | "warning" | "success" | "muted" }) {
+  const map = {
+    primary: "from-primary/15 to-primary/5 text-primary border-primary/20",
+    warning: "from-warning/15 to-warning/5 text-warning border-warning/20",
+    success: "from-success/15 to-success/5 text-success border-success/20",
+    muted: "from-muted to-muted/40 text-foreground border-border",
+  } as const;
+  return (
+    <div className={`rounded-lg border bg-gradient-to-br p-3 shadow-[0_2px_8px_-3px_hsl(var(--foreground)/0.08)] ${map[tone]}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{label}</p>
+      <p className="mt-1 font-display text-lg font-bold">{value}</p>
+    </div>
+  );
+}
+
+function DreRow({ label, data, total, tone }: { label: string; data: number[]; total: number; tone: string }) {
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  return (
+    <tr className="border-b border-border/60 hover:bg-muted/30">
+      <td className="px-2 py-1.5 text-left font-sans">{label}</td>
+      {data.map((v, i) => <td key={i} className={`px-2 py-1.5 text-right ${tone}`}>{fmt(v)}</td>)}
+      <td className={`px-2 py-1.5 text-right font-bold ${tone}`}>{fmt(total)}</td>
+    </tr>
+  );
+}
