@@ -2435,6 +2435,111 @@ export type Database = {
           },
         ]
       }
+      plano_contas_solicitacao: {
+        Row: {
+          ativo: boolean | null
+          centro_custo_padrao: string | null
+          classificacao: string | null
+          conta_contabil_id: string | null
+          created_at: string
+          decidido_em: string | null
+          decidido_por: string | null
+          descricao: string | null
+          dre_linha_id: string | null
+          empresa_id: string
+          entra_fluxo: boolean | null
+          entra_orcamento: boolean | null
+          exige_contrato:
+            | Database["public"]["Enums"]["conta_exige_contrato"]
+            | null
+          grupo_dre: Database["public"]["Enums"]["conta_grupo_dre"] | null
+          id: string
+          justificativa: string
+          motivo_decisao: string | null
+          natureza: Database["public"]["Enums"]["conta_natureza"] | null
+          parent_classificacao: string | null
+          solicitado_em: string
+          solicitado_por: string
+          status: Database["public"]["Enums"]["pcs_status"]
+          tipo: Database["public"]["Enums"]["pcs_tipo"]
+          tipo_conta: Database["public"]["Enums"]["conta_tipo"] | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          centro_custo_padrao?: string | null
+          classificacao?: string | null
+          conta_contabil_id?: string | null
+          created_at?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          descricao?: string | null
+          dre_linha_id?: string | null
+          empresa_id: string
+          entra_fluxo?: boolean | null
+          entra_orcamento?: boolean | null
+          exige_contrato?:
+            | Database["public"]["Enums"]["conta_exige_contrato"]
+            | null
+          grupo_dre?: Database["public"]["Enums"]["conta_grupo_dre"] | null
+          id?: string
+          justificativa: string
+          motivo_decisao?: string | null
+          natureza?: Database["public"]["Enums"]["conta_natureza"] | null
+          parent_classificacao?: string | null
+          solicitado_em?: string
+          solicitado_por?: string
+          status?: Database["public"]["Enums"]["pcs_status"]
+          tipo: Database["public"]["Enums"]["pcs_tipo"]
+          tipo_conta?: Database["public"]["Enums"]["conta_tipo"] | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean | null
+          centro_custo_padrao?: string | null
+          classificacao?: string | null
+          conta_contabil_id?: string | null
+          created_at?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          descricao?: string | null
+          dre_linha_id?: string | null
+          empresa_id?: string
+          entra_fluxo?: boolean | null
+          entra_orcamento?: boolean | null
+          exige_contrato?:
+            | Database["public"]["Enums"]["conta_exige_contrato"]
+            | null
+          grupo_dre?: Database["public"]["Enums"]["conta_grupo_dre"] | null
+          id?: string
+          justificativa?: string
+          motivo_decisao?: string | null
+          natureza?: Database["public"]["Enums"]["conta_natureza"] | null
+          parent_classificacao?: string | null
+          solicitado_em?: string
+          solicitado_por?: string
+          status?: Database["public"]["Enums"]["pcs_status"]
+          tipo?: Database["public"]["Enums"]["pcs_tipo"]
+          tipo_conta?: Database["public"]["Enums"]["conta_tipo"] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_contas_solicitacao_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_contas_solicitacao_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produto_servico: {
         Row: {
           ativo: boolean
@@ -3364,6 +3469,8 @@ export type Database = {
         | "dissidio"
         | "calculado"
       partida_dc: "D" | "C"
+      pcs_status: "pendente" | "aprovada" | "rejeitada" | "aplicada" | "erro"
+      pcs_tipo: "criar" | "alterar" | "inativar"
       pedido_compra_status:
         | "rascunho"
         | "aprovado"
@@ -3620,6 +3727,8 @@ export const Constants = {
         "calculado",
       ],
       partida_dc: ["D", "C"],
+      pcs_status: ["pendente", "aprovada", "rejeitada", "aplicada", "erro"],
+      pcs_tipo: ["criar", "alterar", "inativar"],
       pedido_compra_status: [
         "rascunho",
         "aprovado",
