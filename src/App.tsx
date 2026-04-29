@@ -44,6 +44,7 @@ import CentrosCusto from "./pages/controladoria/CentrosCusto";
 import LinhasDRE from "./pages/controladoria/DRE";
 import Classificadores from "./pages/controladoria/Classificadores";
 import PlanejadorOBZ from "./pages/controladoria/PlanejadorOBZ";
+import Orcamento from "./pages/Orcamento";
 
 const queryClient = new QueryClient();
 
@@ -95,6 +96,7 @@ const App = () => (
             <Route path="co/dre" element={<LinhasDRE />} />
             <Route path="co/classificadores" element={<Classificadores />} />
             <Route path="co/obz" element={<PlanejadorOBZ />} />
+            <Route path="orcamento" element={<Orcamento />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
