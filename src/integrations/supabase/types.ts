@@ -456,13 +456,160 @@ export type Database = {
           },
         ]
       }
+      conta_bancaria: {
+        Row: {
+          agencia: string
+          ativa: boolean
+          banco_codigo: string
+          banco_nome: string
+          conta: string
+          conta_contabil_id: string | null
+          created_at: string
+          digito: string | null
+          empresa_id: string
+          id: string
+          observacoes: string | null
+          tipo: Database["public"]["Enums"]["banco_tipo"]
+          titular: string | null
+          updated_at: string
+        }
+        Insert: {
+          agencia: string
+          ativa?: boolean
+          banco_codigo: string
+          banco_nome: string
+          conta: string
+          conta_contabil_id?: string | null
+          created_at?: string
+          digito?: string | null
+          empresa_id: string
+          id?: string
+          observacoes?: string | null
+          tipo?: Database["public"]["Enums"]["banco_tipo"]
+          titular?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agencia?: string
+          ativa?: boolean
+          banco_codigo?: string
+          banco_nome?: string
+          conta?: string
+          conta_contabil_id?: string | null
+          created_at?: string
+          digito?: string | null
+          empresa_id?: string
+          id?: string
+          observacoes?: string | null
+          tipo?: Database["public"]["Enums"]["banco_tipo"]
+          titular?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conta_bancaria_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conta_contabil: {
+        Row: {
+          ativo: boolean
+          centro_custo_padrao: string | null
+          classificacao: string
+          conta_reduzida: number
+          created_at: string
+          descricao: string
+          dre_linha_id: string | null
+          empresa_id: string
+          entra_fluxo: boolean
+          entra_orcamento: boolean
+          exige_contrato: Database["public"]["Enums"]["conta_exige_contrato"]
+          grupo_dre: Database["public"]["Enums"]["conta_grupo_dre"]
+          id: string
+          master_id: string | null
+          natureza: Database["public"]["Enums"]["conta_natureza"]
+          parent_id: string | null
+          saldo_inicial: number
+          tipo: Database["public"]["Enums"]["conta_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          centro_custo_padrao?: string | null
+          classificacao: string
+          conta_reduzida: number
+          created_at?: string
+          descricao: string
+          dre_linha_id?: string | null
+          empresa_id: string
+          entra_fluxo?: boolean
+          entra_orcamento?: boolean
+          exige_contrato?: Database["public"]["Enums"]["conta_exige_contrato"]
+          grupo_dre?: Database["public"]["Enums"]["conta_grupo_dre"]
+          id?: string
+          master_id?: string | null
+          natureza: Database["public"]["Enums"]["conta_natureza"]
+          parent_id?: string | null
+          saldo_inicial?: number
+          tipo: Database["public"]["Enums"]["conta_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          centro_custo_padrao?: string | null
+          classificacao?: string
+          conta_reduzida?: number
+          created_at?: string
+          descricao?: string
+          dre_linha_id?: string | null
+          empresa_id?: string
+          entra_fluxo?: boolean
+          entra_orcamento?: boolean
+          exige_contrato?: Database["public"]["Enums"]["conta_exige_contrato"]
+          grupo_dre?: Database["public"]["Enums"]["conta_grupo_dre"]
+          id?: string
+          master_id?: string | null
+          natureza?: Database["public"]["Enums"]["conta_natureza"]
+          parent_id?: string | null
+          saldo_inicial?: number
+          tipo?: Database["public"]["Enums"]["conta_tipo"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conta_contabil_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conta_contabil_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conta_contabil_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dre_linhas: {
         Row: {
           ativo: boolean
           codigo: string
           created_at: string
           descricao: string
-          empresa_id: string
+          empresa_id: string | null
           id: string
           natureza: Database["public"]["Enums"]["dre_natureza"]
           nivel: number
@@ -475,7 +622,7 @@ export type Database = {
           codigo: string
           created_at?: string
           descricao: string
-          empresa_id: string
+          empresa_id?: string | null
           id?: string
           natureza: Database["public"]["Enums"]["dre_natureza"]
           nivel?: number
@@ -488,7 +635,7 @@ export type Database = {
           codigo?: string
           created_at?: string
           descricao?: string
-          empresa_id?: string
+          empresa_id?: string | null
           id?: string
           natureza?: Database["public"]["Enums"]["dre_natureza"]
           nivel?: number
@@ -887,6 +1034,78 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_ia_contexto_empresa"
             referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      plano_contas_master: {
+        Row: {
+          ativo: boolean
+          centro_custo_padrao: string | null
+          classificacao: string
+          conta_reduzida: number
+          created_at: string
+          descricao: string
+          dre_linha_id: string | null
+          entra_fluxo: boolean
+          entra_orcamento: boolean
+          exige_contrato: Database["public"]["Enums"]["conta_exige_contrato"]
+          grupo_dre: Database["public"]["Enums"]["conta_grupo_dre"]
+          id: string
+          natureza: Database["public"]["Enums"]["conta_natureza"]
+          parent_id: string | null
+          tipo: Database["public"]["Enums"]["conta_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          centro_custo_padrao?: string | null
+          classificacao: string
+          conta_reduzida: number
+          created_at?: string
+          descricao: string
+          dre_linha_id?: string | null
+          entra_fluxo?: boolean
+          entra_orcamento?: boolean
+          exige_contrato?: Database["public"]["Enums"]["conta_exige_contrato"]
+          grupo_dre?: Database["public"]["Enums"]["conta_grupo_dre"]
+          id?: string
+          natureza: Database["public"]["Enums"]["conta_natureza"]
+          parent_id?: string | null
+          tipo: Database["public"]["Enums"]["conta_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          centro_custo_padrao?: string | null
+          classificacao?: string
+          conta_reduzida?: number
+          created_at?: string
+          descricao?: string
+          dre_linha_id?: string | null
+          entra_fluxo?: boolean
+          entra_orcamento?: boolean
+          exige_contrato?: Database["public"]["Enums"]["conta_exige_contrato"]
+          grupo_dre?: Database["public"]["Enums"]["conta_grupo_dre"]
+          id?: string
+          natureza?: Database["public"]["Enums"]["conta_natureza"]
+          parent_id?: string | null
+          tipo?: Database["public"]["Enums"]["conta_tipo"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_contas_master_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_contas_master_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas_master"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1308,6 +1527,7 @@ export type Database = {
       }
     }
     Functions: {
+      aplicar_plano_mestre: { Args: { _empresa_id: string }; Returns: number }
       get_user_empresa: { Args: { _user_id: string }; Returns: string }
       has_permission: {
         Args: {
@@ -1346,7 +1566,12 @@ export type Database = {
         | "diretor_adm"
         | "diretor_op"
         | "visitante"
+      banco_tipo: "corrente" | "poupanca" | "aplicacao" | "vinculada"
       cc_tipo: "adm" | "operacional"
+      conta_exige_contrato: "sim" | "nao" | "opcional"
+      conta_grupo_dre: "balanco" | "balanco_gerencial" | "dre"
+      conta_natureza: "D" | "C"
+      conta_tipo: "sintetica" | "analitica"
       dre_natureza:
         | "receita"
         | "deducao"
@@ -1509,7 +1734,12 @@ export const Constants = {
         "diretor_op",
         "visitante",
       ],
+      banco_tipo: ["corrente", "poupanca", "aplicacao", "vinculada"],
       cc_tipo: ["adm", "operacional"],
+      conta_exige_contrato: ["sim", "nao", "opcional"],
+      conta_grupo_dre: ["balanco", "balanco_gerencial", "dre"],
+      conta_natureza: ["D", "C"],
+      conta_tipo: ["sintetica", "analitica"],
       dre_natureza: [
         "receita",
         "deducao",
