@@ -395,6 +395,165 @@ export type Database = {
         }
         Relationships: []
       }
+      obz_periodos: {
+        Row: {
+          created_at: string
+          id: string
+          mes: number
+          status: Database["public"]["Enums"]["periodo_status"]
+          updated_at: string
+          versao_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mes: number
+          status?: Database["public"]["Enums"]["periodo_status"]
+          updated_at?: string
+          versao_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mes?: number
+          status?: Database["public"]["Enums"]["periodo_status"]
+          updated_at?: string
+          versao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obz_periodos_versao_id_fkey"
+            columns: ["versao_id"]
+            isOneToOne: false
+            referencedRelation: "obz_versoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      obz_valores: {
+        Row: {
+          centro_custo_id: string | null
+          classificadores: Json
+          created_at: string
+          dre_linha_id: string
+          id: string
+          memoria_calculo: string | null
+          periodo_id: string
+          updated_at: string
+          valor: number
+          versao_id: string
+        }
+        Insert: {
+          centro_custo_id?: string | null
+          classificadores?: Json
+          created_at?: string
+          dre_linha_id: string
+          id?: string
+          memoria_calculo?: string | null
+          periodo_id: string
+          updated_at?: string
+          valor?: number
+          versao_id: string
+        }
+        Update: {
+          centro_custo_id?: string | null
+          classificadores?: Json
+          created_at?: string
+          dre_linha_id?: string
+          id?: string
+          memoria_calculo?: string | null
+          periodo_id?: string
+          updated_at?: string
+          valor?: number
+          versao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obz_valores_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "obz_valores_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "obz_valores_periodo_id_fkey"
+            columns: ["periodo_id"]
+            isOneToOne: false
+            referencedRelation: "obz_periodos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "obz_valores_versao_id_fkey"
+            columns: ["versao_id"]
+            isOneToOne: false
+            referencedRelation: "obz_versoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      obz_versoes: {
+        Row: {
+          ano: number
+          aprovado_em: string | null
+          aprovado_por: string | null
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          revisao: number
+          status: Database["public"]["Enums"]["obz_status"]
+          updated_at: string
+          versao: number
+        }
+        Insert: {
+          ano: number
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          nome: string
+          revisao?: number
+          status?: Database["public"]["Enums"]["obz_status"]
+          updated_at?: string
+          versao: number
+        }
+        Update: {
+          ano?: number
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          revisao?: number
+          status?: Database["public"]["Enums"]["obz_status"]
+          updated_at?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obz_versoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           ativo: boolean
@@ -536,6 +695,8 @@ export type Database = {
         | "resultado"
         | "tributo"
         | "financeiro"
+      obz_status: "rascunho" | "em_aprovacao" | "aprovada" | "arquivada"
+      periodo_status: "aberto" | "fechado"
       regime_tributario: "lucro_real" | "lucro_presumido" | "simples_nacional"
     }
     CompositeTypes: {
@@ -695,6 +856,8 @@ export const Constants = {
         "tributo",
         "financeiro",
       ],
+      obz_status: ["rascunho", "em_aprovacao", "aprovada", "arquivada"],
+      periodo_status: ["aberto", "fechado"],
       regime_tributario: ["lucro_real", "lucro_presumido", "simples_nacional"],
     },
   },
