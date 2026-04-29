@@ -239,6 +239,66 @@ export type Database = {
         }
         Relationships: []
       }
+      base_dissidio_categoria: {
+        Row: {
+          ativo: boolean
+          cbo: string | null
+          codigo: string
+          created_at: string
+          data_base_mes: number | null
+          empresa_id: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          sindicato: string | null
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cbo?: string | null
+          codigo: string
+          created_at?: string
+          data_base_mes?: number | null
+          empresa_id?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          sindicato?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cbo?: string | null
+          codigo?: string
+          created_at?: string
+          data_base_mes?: number | null
+          empresa_id?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          sindicato?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "base_dissidio_categoria_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "base_dissidio_categoria_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       centros_custo: {
         Row: {
           ativo: boolean
@@ -603,6 +663,306 @@ export type Database = {
           },
         ]
       }
+      contrato: {
+        Row: {
+          centro_custo_id: string | null
+          created_at: string
+          empresa_id: string
+          faturamento_mensal: number
+          gestor: string | null
+          id: string
+          licitacao_id: string | null
+          numero: string
+          objeto: string
+          observacoes: string | null
+          orgao: string
+          origem_licitacao_texto: string | null
+          status: Database["public"]["Enums"]["contrato_status"]
+          updated_at: string
+          valor_total: number
+          vigencia_fim: string
+          vigencia_inicio: string
+        }
+        Insert: {
+          centro_custo_id?: string | null
+          created_at?: string
+          empresa_id: string
+          faturamento_mensal?: number
+          gestor?: string | null
+          id?: string
+          licitacao_id?: string | null
+          numero: string
+          objeto: string
+          observacoes?: string | null
+          orgao: string
+          origem_licitacao_texto?: string | null
+          status?: Database["public"]["Enums"]["contrato_status"]
+          updated_at?: string
+          valor_total?: number
+          vigencia_fim: string
+          vigencia_inicio: string
+        }
+        Update: {
+          centro_custo_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          faturamento_mensal?: number
+          gestor?: string | null
+          id?: string
+          licitacao_id?: string | null
+          numero?: string
+          objeto?: string
+          observacoes?: string | null
+          orgao?: string
+          origem_licitacao_texto?: string | null
+          status?: Database["public"]["Enums"]["contrato_status"]
+          updated_at?: string
+          valor_total?: number
+          vigencia_fim?: string
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "contrato_licitacao_id_fkey"
+            columns: ["licitacao_id"]
+            isOneToOne: false
+            referencedRelation: "licitacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contrato_comprovacao: {
+        Row: {
+          anexo_id: string | null
+          contrato_id: string
+          created_at: string
+          data_documento: string
+          descricao: string | null
+          id: string
+          numero: string
+          observacoes: string | null
+          tipo: Database["public"]["Enums"]["comprovacao_tipo"]
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          anexo_id?: string | null
+          contrato_id: string
+          created_at?: string
+          data_documento: string
+          descricao?: string | null
+          id?: string
+          numero: string
+          observacoes?: string | null
+          tipo: Database["public"]["Enums"]["comprovacao_tipo"]
+          updated_at?: string
+          valor?: number
+        }
+        Update: {
+          anexo_id?: string | null
+          contrato_id?: string
+          created_at?: string
+          data_documento?: string
+          descricao?: string | null
+          id?: string
+          numero?: string
+          observacoes?: string | null
+          tipo?: Database["public"]["Enums"]["comprovacao_tipo"]
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_comprovacao_anexo_id_fkey"
+            columns: ["anexo_id"]
+            isOneToOne: false
+            referencedRelation: "anexos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_comprovacao_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contrato_dissidio: {
+        Row: {
+          aplicado: boolean
+          base_calculo: Database["public"]["Enums"]["dissidio_base_calculo"]
+          base_dissidio_id: string | null
+          competencia: string
+          contrato_id: string
+          contrato_posto_id: string | null
+          created_at: string
+          criterio: Database["public"]["Enums"]["dissidio_criterio"]
+          documento_referencia: string | null
+          id: string
+          indice_referencia: string | null
+          observacoes: string | null
+          percentual: number
+          updated_at: string
+          valor_fixo: number
+        }
+        Insert: {
+          aplicado?: boolean
+          base_calculo?: Database["public"]["Enums"]["dissidio_base_calculo"]
+          base_dissidio_id?: string | null
+          competencia: string
+          contrato_id: string
+          contrato_posto_id?: string | null
+          created_at?: string
+          criterio: Database["public"]["Enums"]["dissidio_criterio"]
+          documento_referencia?: string | null
+          id?: string
+          indice_referencia?: string | null
+          observacoes?: string | null
+          percentual?: number
+          updated_at?: string
+          valor_fixo?: number
+        }
+        Update: {
+          aplicado?: boolean
+          base_calculo?: Database["public"]["Enums"]["dissidio_base_calculo"]
+          base_dissidio_id?: string | null
+          competencia?: string
+          contrato_id?: string
+          contrato_posto_id?: string | null
+          created_at?: string
+          criterio?: Database["public"]["Enums"]["dissidio_criterio"]
+          documento_referencia?: string | null
+          id?: string
+          indice_referencia?: string | null
+          observacoes?: string | null
+          percentual?: number
+          updated_at?: string
+          valor_fixo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_dissidio_base_dissidio_id_fkey"
+            columns: ["base_dissidio_id"]
+            isOneToOne: false
+            referencedRelation: "base_dissidio_categoria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_dissidio_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_dissidio_contrato_posto_id_fkey"
+            columns: ["contrato_posto_id"]
+            isOneToOne: false
+            referencedRelation: "contrato_posto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contrato_posto: {
+        Row: {
+          ativo: boolean
+          base_dissidio_id: string | null
+          cargo: string
+          contrato_id: string
+          created_at: string
+          epis: number
+          id: string
+          insalubridade_pct: number
+          jornada: Database["public"]["Enums"]["posto_jornada"]
+          local: string | null
+          observacoes: string | null
+          periculosidade_pct: number
+          quantidade: number
+          salario_base: number
+          uniformes: number
+          updated_at: string
+          va: number
+          vt: number
+        }
+        Insert: {
+          ativo?: boolean
+          base_dissidio_id?: string | null
+          cargo: string
+          contrato_id: string
+          created_at?: string
+          epis?: number
+          id?: string
+          insalubridade_pct?: number
+          jornada?: Database["public"]["Enums"]["posto_jornada"]
+          local?: string | null
+          observacoes?: string | null
+          periculosidade_pct?: number
+          quantidade?: number
+          salario_base?: number
+          uniformes?: number
+          updated_at?: string
+          va?: number
+          vt?: number
+        }
+        Update: {
+          ativo?: boolean
+          base_dissidio_id?: string | null
+          cargo?: string
+          contrato_id?: string
+          created_at?: string
+          epis?: number
+          id?: string
+          insalubridade_pct?: number
+          jornada?: Database["public"]["Enums"]["posto_jornada"]
+          local?: string | null
+          observacoes?: string | null
+          periculosidade_pct?: number
+          quantidade?: number
+          salario_base?: number
+          uniformes?: number
+          updated_at?: string
+          va?: number
+          vt?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_posto_base_dissidio_id_fkey"
+            columns: ["base_dissidio_id"]
+            isOneToOne: false
+            referencedRelation: "base_dissidio_categoria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_posto_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dre_linhas: {
         Row: {
           ativo: boolean
@@ -868,6 +1228,66 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ia_provedores"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      licitacao: {
+        Row: {
+          abertura: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          modalidade: string | null
+          numero: string
+          objeto: string
+          observacoes: string | null
+          orgao: string
+          status: Database["public"]["Enums"]["licitacao_status"]
+          updated_at: string
+          valor_estimado: number
+        }
+        Insert: {
+          abertura?: string | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          modalidade?: string | null
+          numero: string
+          objeto: string
+          observacoes?: string | null
+          orgao: string
+          status?: Database["public"]["Enums"]["licitacao_status"]
+          updated_at?: string
+          valor_estimado?: number
+        }
+        Update: {
+          abertura?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          modalidade?: string | null
+          numero?: string
+          objeto?: string
+          observacoes?: string | null
+          orgao?: string
+          status?: Database["public"]["Enums"]["licitacao_status"]
+          updated_at?: string
+          valor_estimado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "licitacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "licitacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
           },
         ]
       }
@@ -1568,10 +1988,27 @@ export type Database = {
         | "visitante"
       banco_tipo: "corrente" | "poupanca" | "aplicacao" | "vinculada"
       cc_tipo: "adm" | "operacional"
+      comprovacao_tipo:
+        | "empenho"
+        | "ordem_servico"
+        | "aditivo"
+        | "apostilamento"
+        | "nota_fiscal"
+        | "contrato_assinado"
+        | "publicacao_doe"
+        | "outro"
       conta_exige_contrato: "sim" | "nao" | "opcional"
       conta_grupo_dre: "balanco" | "balanco_gerencial" | "dre"
       conta_natureza: "D" | "C"
       conta_tipo: "sintetica" | "analitica"
+      contrato_status: "implantacao" | "ativo" | "suspenso" | "encerrado"
+      dissidio_base_calculo: "salario_base" | "total_remuneracao" | "posto"
+      dissidio_criterio:
+        | "indice"
+        | "percentual_fixo"
+        | "cct"
+        | "acordo_coletivo"
+        | "judicial"
       dre_natureza:
         | "receita"
         | "deducao"
@@ -1581,10 +2018,25 @@ export type Database = {
         | "tributo"
         | "financeiro"
       ia_status: "pendente" | "processando" | "concluida" | "erro" | "cancelada"
+      licitacao_status:
+        | "rascunho"
+        | "oportunidade"
+        | "em_andamento"
+        | "vencida"
+        | "perdida"
+        | "cancelada"
       lote_origem: "manual" | "erp" | "extrato_bancario" | "planilha" | "api"
       lote_status: "pendente" | "processado" | "erro" | "cancelado"
       obz_status: "rascunho" | "em_aprovacao" | "aprovada" | "arquivada"
       periodo_status: "aberto" | "fechado"
+      posto_jornada:
+        | "12x36"
+        | "8h"
+        | "6h"
+        | "4h"
+        | "escala_5x2"
+        | "escala_6x1"
+        | "outra"
       regime_tributario: "lucro_real" | "lucro_presumido" | "simples_nacional"
     }
     CompositeTypes: {
@@ -1736,10 +2188,29 @@ export const Constants = {
       ],
       banco_tipo: ["corrente", "poupanca", "aplicacao", "vinculada"],
       cc_tipo: ["adm", "operacional"],
+      comprovacao_tipo: [
+        "empenho",
+        "ordem_servico",
+        "aditivo",
+        "apostilamento",
+        "nota_fiscal",
+        "contrato_assinado",
+        "publicacao_doe",
+        "outro",
+      ],
       conta_exige_contrato: ["sim", "nao", "opcional"],
       conta_grupo_dre: ["balanco", "balanco_gerencial", "dre"],
       conta_natureza: ["D", "C"],
       conta_tipo: ["sintetica", "analitica"],
+      contrato_status: ["implantacao", "ativo", "suspenso", "encerrado"],
+      dissidio_base_calculo: ["salario_base", "total_remuneracao", "posto"],
+      dissidio_criterio: [
+        "indice",
+        "percentual_fixo",
+        "cct",
+        "acordo_coletivo",
+        "judicial",
+      ],
       dre_natureza: [
         "receita",
         "deducao",
@@ -1750,10 +2221,27 @@ export const Constants = {
         "financeiro",
       ],
       ia_status: ["pendente", "processando", "concluida", "erro", "cancelada"],
+      licitacao_status: [
+        "rascunho",
+        "oportunidade",
+        "em_andamento",
+        "vencida",
+        "perdida",
+        "cancelada",
+      ],
       lote_origem: ["manual", "erp", "extrato_bancario", "planilha", "api"],
       lote_status: ["pendente", "processado", "erro", "cancelado"],
       obz_status: ["rascunho", "em_aprovacao", "aprovada", "arquivada"],
       periodo_status: ["aberto", "fechado"],
+      posto_jornada: [
+        "12x36",
+        "8h",
+        "6h",
+        "4h",
+        "escala_5x2",
+        "escala_6x1",
+        "outra",
+      ],
       regime_tributario: ["lucro_real", "lucro_presumido", "simples_nacional"],
     },
   },
