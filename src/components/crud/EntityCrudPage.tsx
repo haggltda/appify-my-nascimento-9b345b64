@@ -34,7 +34,6 @@ interface Props {
   table: string;
   title: string;
   description?: string;
-  icon?: ReactNode;
   fields: FieldDef[];
   columns: ColumnDef[];
   orderBy?: string;
