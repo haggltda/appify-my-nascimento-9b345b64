@@ -155,15 +155,76 @@ const controladoriaOrcModule: ModuleDef = {
   ],
 };
 
-// Todos os módulos do ERP — Licitações + Controladoria & Orçamento ativos
+// Suprimentos
+const suprimentosModule: ModuleDef = {
+  id: "suprimentos", label: "Suprimentos", description: "Compras, fornecedores, requisições",
+  icon: ShoppingCart, basePath: "/app/suprimentos", status: "active",
+  groups: [{
+    label: "Operação", defaultOpen: true,
+    items: [
+      { label: "Fornecedores", to: "/app/suprimentos/fornecedores", icon: Building2 },
+      { label: "Produtos & Serviços", to: "/app/suprimentos/produtos", icon: PackageCheck },
+      { label: "Requisições", to: "/app/suprimentos/requisicoes", icon: ListChecks },
+      { label: "Pedidos de Compra", to: "/app/suprimentos/pedidos", icon: ShoppingCart },
+    ],
+  }],
+};
+
+// Financeiro
+const financeiroModule: ModuleDef = {
+  id: "financeiro", label: "Financeiro", description: "Contas, movimentos bancários",
+  icon: Wallet, basePath: "/app/financeiro", status: "active",
+  groups: [{
+    label: "Operação Financeira", defaultOpen: true,
+    items: [
+      { label: "Contas a Pagar", to: "/app/financeiro/contas-pagar", icon: TrendingUp },
+      { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
+      { label: "Movimentos Bancários", to: "/app/financeiro/movimentos", icon: Wallet },
+    ],
+  }],
+};
+
+// Contábil
+const contabilModule: ModuleDef = {
+  id: "contabil", label: "Contábil", description: "Lançamentos e partidas",
+  icon: BookOpen, basePath: "/app/contabil", status: "active",
+  groups: [{
+    label: "Escrituração", defaultOpen: true,
+    items: [{ label: "Lançamentos", to: "/app/contabil/lancamentos", icon: BookOpen }],
+  }],
+};
+
+// RH
+const rhModule: ModuleDef = {
+  id: "rh", label: "Recursos Humanos", description: "Colaboradores e alocações",
+  icon: Users2, basePath: "/app/rh", status: "active",
+  groups: [{
+    label: "Pessoas", defaultOpen: true,
+    items: [
+      { label: "Colaboradores", to: "/app/rh/colaboradores", icon: Users2 },
+      { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
+    ],
+  }],
+};
+
+// BI
+const biModule: ModuleDef = {
+  id: "bi", label: "BI & Analytics", description: "Dashboards consolidados",
+  icon: BarChart3, basePath: "/app/bi", status: "active",
+  groups: [{
+    label: "Painéis", defaultOpen: true,
+    items: [{ label: "Resumo do Grupo", to: "/app/bi", icon: BarChart3 }],
+  }],
+};
+
 const erpModules: ModuleDef[] = [
   licitacoesModule,
   controladoriaOrcModule,
-  { id: "financeiro", label: "Financeiro", description: "Contas a pagar/receber, fluxo de caixa", icon: Wallet, basePath: "/app/financeiro", status: "soon" },
-  { id: "contabil", label: "Contábil", description: "Lançamentos, balancetes, SPED", icon: BookOpen, basePath: "/app/contabil", status: "soon" },
-  { id: "suprimentos", label: "Suprimentos", description: "Compras, fornecedores, estoque", icon: ShoppingCart, basePath: "/app/suprimentos", status: "soon" },
-  { id: "rh", label: "Recursos Humanos", description: "Folha, ponto, benefícios", icon: Users2, basePath: "/app/rh", status: "soon" },
-  { id: "bi", label: "BI & Analytics", description: "Dashboards consolidados", icon: BarChart3, basePath: "/app/bi", status: "soon" },
+  suprimentosModule,
+  financeiroModule,
+  contabilModule,
+  rhModule,
+  biModule,
 ];
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
