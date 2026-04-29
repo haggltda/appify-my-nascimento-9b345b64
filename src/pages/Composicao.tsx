@@ -250,32 +250,56 @@ export default function Composicao() {
             </div>
           </section>
 
-          {/* Tabs */}
-          <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-surface-sunken p-1">
-            {abas.map((a) => {
-              const ativa = abaAtiva === a.id;
-              const ok = validas[a.id];
-              const Icon = a.icon;
-              return (
-                <button
-                  key={a.id}
-                  onClick={() => setAbaAtiva(a.id)}
-                  className={`relative flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
-                    ativa
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span>{a.label}</span>
-                  {ok && (
-                    <span className="grid h-4 w-4 place-items-center rounded-full bg-success text-success-foreground">
-                      <Check className="h-2.5 w-2.5" strokeWidth={3} />
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          {/* Tabs — Composição (entrada) + Análise */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-surface-sunken p-1">
+              {abas.filter(a => !a.isAnalytic).map((a) => {
+                const ativa = abaAtiva === a.id;
+                const ok = validas[a.id];
+                const Icon = a.icon;
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => setAbaAtiva(a.id)}
+                    className={`relative flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
+                      ativa ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{a.label}</span>
+                    {ok && (
+                      <span className="grid h-4 w-4 place-items-center rounded-full bg-success text-success-foreground">
+                        <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Dossiê analítico</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <div className="flex flex-wrap gap-1 rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5 p-1 shadow-[0_4px_14px_-6px_hsl(var(--primary)/0.25)]">
+              {abas.filter(a => a.isAnalytic).map((a) => {
+                const ativa = abaAtiva === a.id;
+                const Icon = a.icon;
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => setAbaAtiva(a.id)}
+                    className={`relative flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
+                      ativa
+                        ? "bg-card text-primary shadow-md ring-1 ring-primary/30"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{a.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Conteúdo da aba */}
