@@ -56,7 +56,7 @@ export default function Administracao() {
         </nav>
 
         <div className="space-y-5">
-          {tab === "usuarios" && <Usuarios />}
+          {tab === "usuarios" && <UsuariosReal />}
           {tab === "perfis" && <Perfis />}
           {tab === "modulos" && <ModulosMenus />}
           {tab === "permissoes" && <Permissoes />}
