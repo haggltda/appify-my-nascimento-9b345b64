@@ -16,7 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Sparkles, FileSpreadsheet } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 import {
   cicloStatusLabel,
   useCiclos,
