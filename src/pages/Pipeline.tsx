@@ -129,9 +129,9 @@ export default function Pipeline() {
       </div>
 
       {view === "kanban" ? (
-        <KanbanView data={data} currentUser={displayName} onAssume={setTarget} />
+        <KanbanView data={data} currentUser={displayName} onAssume={setTarget} onOpen={openComposicao} />
       ) : (
-        <TableView data={data} currentUser={displayName} onAssume={setTarget} />
+        <TableView data={data} currentUser={displayName} onAssume={setTarget} onOpen={openComposicao} />
       )}
 
       <AlertDialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
