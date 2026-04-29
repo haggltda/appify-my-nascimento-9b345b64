@@ -36,6 +36,7 @@ import Medicoes from "./pages/contratos/Medicoes";
 import Reajustes from "./pages/contratos/Reajustes";
 import Encerramentos from "./pages/contratos/Encerramentos";
 import { EmpresaAtivaProvider } from "./context/EmpresaAtivaContext";
+import { PermissoesProvider } from "./context/PermissoesContext";
 import Empresas from "./pages/controladoria/Empresas";
 import CentrosCusto from "./pages/controladoria/CentrosCusto";
 import LinhasDRE from "./pages/controladoria/DRE";
@@ -51,6 +52,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <DemoModeProvider>
+        <PermissoesProvider>
         <EmpresaAtivaProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
@@ -94,6 +96,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
         </EmpresaAtivaProvider>
+        </PermissoesProvider>
         </DemoModeProvider>
       </BrowserRouter>
     </TooltipProvider>
