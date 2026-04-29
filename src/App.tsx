@@ -45,6 +45,17 @@ import LinhasDRE from "./pages/controladoria/DRE";
 import Classificadores from "./pages/controladoria/Classificadores";
 import PlanejadorOBZ from "./pages/controladoria/PlanejadorOBZ";
 import Orcamento from "./pages/Orcamento";
+import Fornecedores from "./pages/suprimentos/Fornecedores";
+import ProdutosServicos from "./pages/suprimentos/ProdutosServicos";
+import Requisicoes from "./pages/suprimentos/Requisicoes";
+import PedidosCompra from "./pages/suprimentos/PedidosCompra";
+import ContasPagar from "./pages/financeiro/ContasPagar";
+import ContasReceber from "./pages/financeiro/ContasReceber";
+import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
+import Lancamentos from "./pages/contabil/Lancamentos";
+import Colaboradores from "./pages/rh/Colaboradores";
+import Alocacoes from "./pages/rh/Alocacoes";
+import BIDashboard from "./pages/bi/Dashboard";
 
 const queryClient = new QueryClient();
 
@@ -97,6 +108,22 @@ const App = () => (
             <Route path="co/classificadores" element={<Classificadores />} />
             <Route path="co/obz" element={<PlanejadorOBZ />} />
             <Route path="orcamento" element={<Orcamento />} />
+            {/* Suprimentos */}
+            <Route path="suprimentos/fornecedores" element={<Fornecedores />} />
+            <Route path="suprimentos/produtos" element={<ProdutosServicos />} />
+            <Route path="suprimentos/requisicoes" element={<Requisicoes />} />
+            <Route path="suprimentos/pedidos" element={<PedidosCompra />} />
+            {/* Financeiro */}
+            <Route path="financeiro/contas-pagar" element={<ContasPagar />} />
+            <Route path="financeiro/contas-receber" element={<ContasReceber />} />
+            <Route path="financeiro/movimentos" element={<MovimentosBancarios />} />
+            {/* Contábil */}
+            <Route path="contabil/lancamentos" element={<Lancamentos />} />
+            {/* RH */}
+            <Route path="rh/colaboradores" element={<Colaboradores />} />
+            <Route path="rh/alocacoes" element={<Alocacoes />} />
+            {/* BI */}
+            <Route path="bi" element={<BIDashboard />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
