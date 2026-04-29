@@ -7,6 +7,7 @@ import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login.tsx";
 import { AppShell } from "./components/layout/AppShell";
 import { DemoModeProvider } from "./context/DemoModeContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import PainelExecutivo from "./pages/PainelExecutivo";
 import Pipeline from "./pages/Pipeline";
 import CadastroEdital from "./pages/CadastroEdital";
@@ -57,7 +58,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/app" element={<AppShell />}>
+          <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<PainelExecutivo />} />
             <Route path="pipeline" element={<Pipeline />} />
             <Route path="editais" element={<CadastroEdital />} />
