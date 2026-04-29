@@ -39,6 +39,12 @@ export default function Pipeline() {
   const [target, setTarget] = useState<Licitacao | null>(null);
   const { user } = useAuth();
   const [displayName, setDisplayName] = useState<string>("");
+  const navigate = useNavigate();
+
+  const openComposicao = (l: Licitacao) => {
+    // Filtro híbrido: licitacao= sempre; (futuro) contrato= se vinculado
+    navigate(`/app/composicao?licitacao=${encodeURIComponent(l.id)}`);
+  };
 
   useEffect(() => {
     if (!user) return;
