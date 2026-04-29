@@ -288,7 +288,7 @@ function TableView({ data, currentUser, onAssume, onOpen }: {
           </thead>
           <tbody className="divide-y divide-border">
             {data.map((l) => (
-              <tr key={l.id} className="group cursor-pointer hover:bg-muted/40">
+              <tr key={l.id} onDoubleClick={() => onOpen(l)} className="group cursor-pointer hover:bg-muted/40" title="Duplo-clique para abrir Composição & BDI">
                 <td className="px-5 py-3">
                   <p className="font-mono text-[11px] text-muted-foreground">{l.numero}</p>
                   <p className="line-clamp-1 max-w-sm text-sm font-medium">{l.objeto}</p>
