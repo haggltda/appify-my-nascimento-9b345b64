@@ -451,6 +451,120 @@ export default function Composicao() {
             </section>
           )}
 
+          {/* === DRE da Licitação === */}
+          {abaAtiva === "dre" && (
+            <section className="card-elevated overflow-hidden">
+              <header className="flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/10 via-card to-card px-5 py-3">
+                <h2 className="flex items-center gap-2 font-display text-sm font-bold">
+                  <BarChart3 className="h-4 w-4 text-primary" /> DRE projetada da licitação · 12 meses
+                </h2>
+                <span className="chip border bg-info-soft text-info border-info/30">Projeção derivada da composição</span>
+              </header>
+              <div className="grid gap-3 p-5 sm:grid-cols-4">
+                <KpiMini label="Receita prevista (12m)" value={formatBRL(dreTotais.receitaOrc)} tone="primary" />
+                <KpiMini label="Custo total (12m)" value={formatBRL(dreTotais.custoOrc)} tone="warning" />
+                <KpiMini label="Tributos (12m)" value={formatBRL(dreTotais.tribOrc)} tone="muted" />
+                <KpiMini label="Lucro previsto (12m)" value={formatBRL(dreTotais.lucroOrc)} tone="success" />
+              </div>
+              <div className="overflow-x-auto px-5 pb-5">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <th className="px-2 py-2 text-left">Linha</th>
+                      {projecao.map(p => <th key={p.mes} className="px-2 py-2 text-right">{p.mes}</th>)}
+                      <th className="px-2 py-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-mono">
+                    <DreRow label="(+) Receita bruta" data={projecao.map(p => p.receitaOrc)} total={dreTotais.receitaOrc} tone="text-success" />
+                    <DreRow label="(−) Tributos s/ receita" data={projecao.map(p => -p.tribOrc)} total={-dreTotais.tribOrc} tone="text-muted-foreground" />
+                    <DreRow label="(−) Custo direto + indireto" data={projecao.map(p => -p.custoOrc)} total={-dreTotais.custoOrc} tone="text-destructive" />
+                    <tr className="bg-primary-soft/40 font-bold">
+                      <td className="px-2 py-2 text-left">(=) Lucro líquido</td>
+                      {projecao.map((p, i) => <td key={i} className="px-2 py-2 text-right text-primary">{formatBRL(p.lucroOrc)}</td>)}
+                      <td className="px-2 py-2 text-right text-primary">{formatBRL(dreTotais.lucroOrc)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* === Caixa Mensal === */}
+          {abaAtiva === "caixa" && (
+            <section className="card-elevated overflow-hidden">
+              <header className="flex items-center justify-between border-b border-border bg-gradient-to-r from-accent/10 via-card to-card px-5 py-3">
+                <h2 className="flex items-center gap-2 font-display text-sm font-bold">
+                  <Wallet className="h-4 w-4 text-accent" /> Caixa mensal · Orçado x Realizado
+                </h2>
+                <span className="chip border bg-warning-soft text-warning border-warning/30">Realizado: meses 1–6 (mock)</span>
+              </header>
+              <div className="overflow-x-auto p-5">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <th className="px-2 py-2 text-left">Mês</th>
+                      <th className="px-2 py-2 text-right">Receita orçada</th>
+                      <th className="px-2 py-2 text-right">Receita real</th>
+                      <th className="px-2 py-2 text-right">Custo orçado</th>
+                      <th className="px-2 py-2 text-right">Custo real</th>
+                      <th className="px-2 py-2 text-right">Caixa orçado</th>
+                      <th className="px-2 py-2 text-right">Caixa real</th>
+                      <th className="px-2 py-2 text-right">Δ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-mono">
+                    {projecao.map((p) => {
+                      const delta = p.realizado ? p.caixaReal - p.caixaOrc : 0;
+                      return (
+                        <tr key={p.mes} className="border-b border-border/60 hover:bg-muted/30">
+                          <td className="px-2 py-2 text-left font-sans font-semibold">{p.mes}</td>
+                          <td className="px-2 py-2 text-right">{formatBRL(p.receitaOrc)}</td>
+                          <td className={`px-2 py-2 text-right ${p.realizado ? "" : "text-muted-foreground/40"}`}>{p.realizado ? formatBRL(p.receitaReal) : "—"}</td>
+                          <td className="px-2 py-2 text-right text-muted-foreground">{formatBRL(p.custoOrc)}</td>
+                          <td className={`px-2 py-2 text-right ${p.realizado ? "text-muted-foreground" : "text-muted-foreground/40"}`}>{p.realizado ? formatBRL(p.custoReal) : "—"}</td>
+                          <td className="px-2 py-2 text-right font-semibold text-primary">{formatBRL(p.caixaOrc)}</td>
+                          <td className={`px-2 py-2 text-right font-semibold ${p.realizado ? "text-accent" : "text-muted-foreground/40"}`}>{p.realizado ? formatBRL(p.caixaReal) : "—"}</td>
+                          <td className={`px-2 py-2 text-right font-bold ${!p.realizado ? "text-muted-foreground/40" : delta >= 0 ? "text-success" : "text-destructive"}`}>
+                            {p.realizado ? `${delta >= 0 ? "+" : ""}${formatBRL(delta)}` : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* === Gráfico Orçado x Realizado === */}
+          {abaAtiva === "grafico" && (
+            <section className="card-elevated overflow-hidden">
+              <header className="flex items-center justify-between border-b border-border bg-gradient-to-r from-accent/10 via-card to-card px-5 py-3">
+                <h2 className="flex items-center gap-2 font-display text-sm font-bold">
+                  <LineChartIcon className="h-4 w-4 text-accent" /> Caixa da licitação — Orçado x Realizado
+                </h2>
+              </header>
+              <div className="p-5" style={{ height: 380 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={projecao} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: number) => formatBRL(v as number)}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="caixaOrc" name="Caixa orçado" fill="hsl(var(--primary))" opacity={0.85} radius={[4,4,0,0]} />
+                    <Area dataKey="caixaReal" name="Caixa realizado" fill="hsl(var(--accent))" stroke="hsl(var(--accent))" fillOpacity={0.25} />
+                    <Line type="monotone" dataKey="receitaOrc" name="Receita orçada" stroke="hsl(var(--success))" strokeWidth={2} dot={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          )}
+
           {/* Status do workflow */}
           <div className="card-elevated p-4">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
