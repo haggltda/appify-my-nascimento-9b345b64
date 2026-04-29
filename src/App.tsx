@@ -53,6 +53,7 @@ import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
 import Lancamentos from "./pages/contabil/Lancamentos";
+import PlanoContas from "./pages/contabil/PlanoContas";
 import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
 import BIDashboard from "./pages/bi/Dashboard";
