@@ -339,7 +339,7 @@ function NovaContaDialog({ contas, dreLinhas, empresaId, userId, onCreated }: Fo
           <div><Label>Grupo DRE</Label>
             <Select value={form.grupo_dre} onValueChange={(v) => setForm({ ...form, grupo_dre: v as GrupoDre })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="balanco">Balanço</SelectItem><SelectItem value="resultado">Resultado</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="balanco">Balanço</SelectItem><SelectItem value="balanco_gerencial">Balanço Gerencial</SelectItem><SelectItem value="dre">DRE</SelectItem></SelectContent>
             </Select>
           </div>
           <div><Label>Conta pai (classificação)</Label>
