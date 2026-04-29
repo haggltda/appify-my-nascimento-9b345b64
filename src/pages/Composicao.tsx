@@ -256,6 +256,14 @@ export default function Composicao() {
         }
       />
 
+      {origem === "pipeline" && (
+        <div className="card-elevated flex items-center gap-3 border-l-4 border-l-primary bg-primary/5 px-4 py-3 text-sm">
+          <span className="rounded bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">Vindo do Pipeline</span>
+          <span className="font-medium">{licitacao}</span>
+          <span className="ml-auto text-xs text-muted-foreground">Empresa: <strong className="text-foreground">{empresa}</strong></span>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Área central com abas */}
         <div className="space-y-4">
