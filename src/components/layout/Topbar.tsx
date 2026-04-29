@@ -1,15 +1,31 @@
 import { Bell, Search, PanelLeft, ChevronDown, Building2, HelpCircle, Settings, LogOut, ShieldAlert } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useDemoMode } from "@/context/DemoModeContext";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
+import { useAuth } from "@/hooks/useAuth";
+import { usePermissoes } from "@/context/PermissoesContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { empresa, empresas, setEmpresa } = useEmpresaAtiva();
   const [openSelector, setOpenSelector] = useState(false);
   const navigate = useNavigate();
   const { disableDemo } = useDemoMode();
+  const { user, signOut } = useAuth();
+  const { roles } = usePermissoes();
+  const [displayName, setDisplayName] = useState<string>("");
+
+  useEffect(() => {
+    if (!user?.id) { setDisplayName(""); return; }
+    supabase.from("profiles").select("display_name,email").eq("id", user.id).maybeSingle()
+      .then(({ data }) => setDisplayName(data?.display_name || data?.email || user.email || ""));
+  }, [user?.id, user?.email]);
+
+  const nomeExibido = displayName || user?.email?.split("@")[0] || "Usuário";
+  const iniciais = nomeExibido.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "U";
+  const roleLabel = roles?.[0] ? roles[0].replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Usuário";
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border/70 bg-surface/80 px-4 backdrop-blur-md lg:px-6">
@@ -116,19 +132,19 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
 
         <div className="mx-1 h-8 w-px bg-border" />
 
-        <button className="flex items-center gap-2.5 rounded-lg px-2 py-1 hover:bg-secondary">
+        <button className="flex items-center gap-2.5 rounded-lg px-2 py-1 hover:bg-secondary" title={user?.email ?? ""}>
           <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-primary text-sm font-semibold text-primary-foreground">
-            AC
+            {iniciais}
           </div>
           <div className="hidden text-left lg:block">
-            <p className="text-xs font-semibold leading-tight">Ana Carvalho</p>
-            <p className="text-[10px] text-muted-foreground">Analista Corporativo · {empresa.sigla}</p>
+            <p className="text-xs font-semibold leading-tight">{nomeExibido}</p>
+            <p className="text-[10px] text-muted-foreground">{roleLabel} · {empresa.sigla}</p>
           </div>
           <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground lg:block" />
         </button>
 
         <button
-          onClick={() => { disableDemo(); navigate("/login"); }}
+          onClick={async () => { await signOut(); disableDemo(); navigate("/login"); }}
           className="ml-1 flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:border-destructive/40 hover:bg-destructive-soft hover:text-destructive"
           aria-label="Sair"
           title="Sair da plataforma"

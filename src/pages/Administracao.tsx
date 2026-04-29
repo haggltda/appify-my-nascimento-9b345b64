@@ -6,6 +6,7 @@ import {
   Plus, Search, MoreVertical, CheckCircle2, XCircle, Eye, Edit, Building2, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { UsuariosReal } from "@/components/admin/UsuariosReal";
 
 type Tab =
   | "usuarios" | "perfis" | "modulos" | "permissoes" | "alcadas" | "parametros"
@@ -55,7 +56,7 @@ export default function Administracao() {
         </nav>
 
         <div className="space-y-5">
-          {tab === "usuarios" && <Usuarios />}
+          {tab === "usuarios" && <UsuariosReal />}
           {tab === "perfis" && <Perfis />}
           {tab === "modulos" && <ModulosMenus />}
           {tab === "permissoes" && <Permissoes />}
