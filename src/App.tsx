@@ -36,6 +36,7 @@ import Faturamento from "./pages/contratos/Faturamento";
 import Medicoes from "./pages/contratos/Medicoes";
 import Reajustes from "./pages/contratos/Reajustes";
 import Encerramentos from "./pages/contratos/Encerramentos";
+import ContratoDetalhe from "./pages/contratos/ContratoDetalhe";
 import { EmpresaAtivaProvider } from "./context/EmpresaAtivaContext";
 import { PermissoesProvider } from "./context/PermissoesContext";
 import Empresas from "./pages/controladoria/Empresas";
@@ -86,6 +87,7 @@ const App = () => (
             <Route path="contratos/medicoes" element={<Medicoes />} />
             <Route path="contratos/reajustes" element={<Reajustes />} />
             <Route path="contratos/encerramentos" element={<Encerramentos />} />
+            <Route path="contratos/:id" element={<ContratoDetalhe />} />
             <Route path="historico" element={<Historico />} />
             <Route path="administracao" element={<Administracao />} />
             <Route path="co/empresas" element={<Empresas />} />
