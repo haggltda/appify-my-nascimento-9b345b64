@@ -68,7 +68,7 @@ interface Solicitacao {
 
 export default function PlanoContas() {
   const { user } = useAuth();
-  const { roleAtivo } = usePermissoes();
+  const { roles } = usePermissoes();
   const { data: empresaId } = useEmpresaId();
   const qc = useQueryClient();
   const [tab, setTab] = useState("plano");
