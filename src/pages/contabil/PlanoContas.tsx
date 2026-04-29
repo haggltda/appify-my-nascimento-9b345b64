@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useEmpresaId } from "@/hooks/useEmpresaId";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/context/PermissoesContext";
@@ -21,7 +22,7 @@ import { Plus, Pencil, PowerOff, CheckCircle2, XCircle, Clock, BookOpen } from "
 type ContaTipo = "sintetica" | "analitica";
 type ContaNatureza = "D" | "C";
 type ExigeContrato = "sim" | "nao" | "opcional";
-type GrupoDre = "balanco" | "resultado";
+type GrupoDre = "balanco" | "balanco_gerencial" | "dre";
 type SolicTipo = "criar" | "alterar" | "inativar";
 type SolicStatus = "pendente" | "aprovada" | "rejeitada" | "aplicada" | "erro";
 
@@ -73,7 +74,7 @@ export default function PlanoContas() {
   const qc = useQueryClient();
   const [tab, setTab] = useState("plano");
 
-  const podeAprovar = ["admin", "controladoria", "diretor_adm"].includes(roleAtivo);
+  const podeAprovar = (roles ?? []).some((r: string) => ["admin", "controladoria", "diretor_adm"].includes(r));
 
   const contasQ = useQuery({
     queryKey: ["conta_contabil", empresaId],
@@ -277,7 +278,7 @@ function NovaContaDialog({ contas, dreLinhas, empresaId, userId, onCreated }: Fo
       toast({ title: "Campos obrigatórios", description: "Classificação, descrição e justificativa.", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.from("plano_contas_solicitacao").insert({
+    const payload: Database["public"]["Tables"]["plano_contas_solicitacao"]["Insert"] = {
       empresa_id: empresaId,
       tipo: "criar",
       classificacao: form.classificacao,
@@ -293,7 +294,8 @@ function NovaContaDialog({ contas, dreLinhas, empresaId, userId, onCreated }: Fo
       ativo: true,
       justificativa: form.justificativa,
       solicitado_por: userId,
-    });
+    };
+    const { error } = await supabase.from("plano_contas_solicitacao").insert(payload);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
       return;
@@ -337,7 +339,7 @@ function NovaContaDialog({ contas, dreLinhas, empresaId, userId, onCreated }: Fo
           <div><Label>Grupo DRE</Label>
             <Select value={form.grupo_dre} onValueChange={(v) => setForm({ ...form, grupo_dre: v as GrupoDre })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="balanco">Balanço</SelectItem><SelectItem value="resultado">Resultado</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="balanco">Balanço</SelectItem><SelectItem value="balanco_gerencial">Balanço Gerencial</SelectItem><SelectItem value="dre">DRE</SelectItem></SelectContent>
             </Select>
           </div>
           <div><Label>Conta pai (classificação)</Label>
@@ -393,7 +395,7 @@ function AlterarContaDialog({ conta, contas, dreLinhas, empresaId, userId, onCre
       toast({ title: "Justificativa obrigatória", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.from("plano_contas_solicitacao").insert({
+    const payload: Database["public"]["Tables"]["plano_contas_solicitacao"]["Insert"] = {
       empresa_id: empresaId,
       tipo: "alterar",
       conta_contabil_id: conta.id,
@@ -407,7 +409,8 @@ function AlterarContaDialog({ conta, contas, dreLinhas, empresaId, userId, onCre
       grupo_dre: form.grupo_dre,
       justificativa: form.justificativa,
       solicitado_por: userId,
-    });
+    };
+    const { error } = await supabase.from("plano_contas_solicitacao").insert(payload);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Solicitação enviada" });
     setOpen(false);
@@ -448,7 +451,7 @@ function AlterarContaDialog({ conta, contas, dreLinhas, empresaId, userId, onCre
           <div><Label>Grupo DRE</Label>
             <Select value={form.grupo_dre} onValueChange={(v) => setForm({ ...form, grupo_dre: v as GrupoDre })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="balanco">Balanço</SelectItem><SelectItem value="resultado">Resultado</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="balanco">Balanço</SelectItem><SelectItem value="balanco_gerencial">Balanço Gerencial</SelectItem><SelectItem value="dre">DRE</SelectItem></SelectContent>
             </Select>
           </div>
           <div className="col-span-2 flex items-center gap-6">
@@ -470,7 +473,7 @@ function InativarConta({ conta, empresaId, userId, onCreated }: { conta: Conta; 
   const [motivo, setMotivo] = useState("");
   const enviar = async () => {
     if (!motivo) { toast({ title: "Justificativa obrigatória", variant: "destructive" }); return; }
-    const { error } = await supabase.from("plano_contas_solicitacao").insert({
+    const payload: Database["public"]["Tables"]["plano_contas_solicitacao"]["Insert"] = {
       empresa_id: empresaId,
       tipo: "inativar",
       conta_contabil_id: conta.id,
@@ -478,7 +481,8 @@ function InativarConta({ conta, empresaId, userId, onCreated }: { conta: Conta; 
       ativo: false,
       justificativa: motivo,
       solicitado_por: userId,
-    });
+    };
+    const { error } = await supabase.from("plano_contas_solicitacao").insert(payload);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Solicitação enviada" });
     setMotivo("");
