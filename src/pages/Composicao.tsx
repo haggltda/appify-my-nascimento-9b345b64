@@ -106,20 +106,75 @@ export default function Composicao() {
 
   const totais = useMemo(() => {
     const totalEncargosPct = verbas.reduce((a, v) => a + v.percentual, 0);
-    const custoDiretoMes = postos.reduce((s, p) => {
-      const beneficios = p.va + p.vt + p.uniformes + p.epis;
+    const beneficiosMes = postos.reduce((s, p) => s + (p.va + p.vt + p.uniformes + p.epis) * p.qtd, 0);
+    const folhaMes = postos.reduce((s, p) => {
       const folha = p.salario * (1 + totalEncargosPct / 100);
       const insalub = (p.salario * p.insalubridade) / 100;
-      return s + (folha + beneficios + insalub) * p.qtd;
+      return s + (folha + insalub) * p.qtd;
     }, 0);
+    const custoDiretoMes = folhaMes + beneficiosMes;
     const indiretos = (custoDiretoMes * custoIndireto) / 100;
     const subtotal = custoDiretoMes + indiretos;
     const trib = (subtotal * tributos) / 100;
     const lucro = (subtotal * margem) / 100;
     const total = subtotal + trib + lucro;
     const bdi = custoDiretoMes > 0 ? ((total - custoDiretoMes) / custoDiretoMes) * 100 : 0;
-    return { custoDiretoMes, indiretos, subtotal, trib, lucro, total, bdi, totalEncargosPct };
+    return { custoDiretoMes, folhaMes, beneficiosMes, indiretos, subtotal, trib, lucro, total, bdi, totalEncargosPct };
   }, [postos, margem, tributos, custoIndireto, verbas]);
+
+  // Projeção 12 meses — DRE e Caixa (orçado x realizado mock derivado)
+  const projecao = useMemo(() => {
+    const seed = postos.length + Math.round(margem * 10);
+    const rand = (i: number) => {
+      const x = Math.sin((seed + i) * 12.9898) * 43758.5453;
+      return x - Math.floor(x);
+    };
+    return MESES.map((mes, i) => {
+      const receita = totais.total;
+      const folha = totais.folhaMes;
+      const beneficios = totais.beneficiosMes;
+      const indiretos = totais.indiretos;
+      const tributos = totais.trib;
+      const custoTotal = folha + beneficios + indiretos;
+      const lucroOrcado = receita - custoTotal - tributos;
+      // Realizado: meses passados (i<6) com variação ±10%
+      const realizado = i < 6;
+      const fatorRec = 1 + (rand(i) - 0.5) * 0.18;
+      const fatorCusto = 1 + (rand(i + 50) - 0.5) * 0.12;
+      const recReal = realizado ? receita * fatorRec : 0;
+      const custoReal = realizado ? custoTotal * fatorCusto : 0;
+      const tribReal = realizado ? tributos * fatorRec : 0;
+      const lucroReal = realizado ? recReal - custoReal - tribReal : 0;
+      return {
+        mes,
+        receitaOrc: receita,
+        custoOrc: custoTotal,
+        tribOrc: tributos,
+        lucroOrc: lucroOrcado,
+        receitaReal: recReal,
+        custoReal,
+        tribReal,
+        lucroReal,
+        caixaOrc: receita - custoTotal - tributos,
+        caixaReal: realizado ? recReal - custoReal - tribReal : 0,
+        realizado,
+      };
+    });
+  }, [totais, postos.length, margem]);
+
+  const dreTotais = useMemo(() => {
+    const sum = (k: keyof typeof projecao[number]) => projecao.reduce((s, p) => s + (p[k] as number), 0);
+    return {
+      receitaOrc: sum("receitaOrc"),
+      custoOrc: sum("custoOrc"),
+      tribOrc: sum("tribOrc"),
+      lucroOrc: sum("lucroOrc"),
+      receitaReal: sum("receitaReal"),
+      custoReal: sum("custoReal"),
+      tribReal: sum("tribReal"),
+      lucroReal: sum("lucroReal"),
+    };
+  }, [projecao]);
 
   const addPosto = () => {
     setPostos((p) => [
