@@ -3461,6 +3461,10 @@ export type Database = {
         | "diretor_adm"
         | "diretor_op"
         | "visitante"
+        | "comprador"
+        | "almoxarife"
+        | "gestor_cc"
+        | "fiscal_recebedor"
       aprov_decisao: "pendente" | "aprovado" | "rejeitado" | "devolvido"
       banco_tipo: "corrente" | "poupanca" | "aplicacao" | "vinculada"
       cc_tipo: "adm" | "operacional"
@@ -3710,6 +3714,10 @@ export const Constants = {
         "diretor_adm",
         "diretor_op",
         "visitante",
+        "comprador",
+        "almoxarife",
+        "gestor_cc",
+        "fiscal_recebedor",
       ],
       aprov_decisao: ["pendente", "aprovado", "rejeitado", "devolvido"],
       banco_tipo: ["corrente", "poupanca", "aplicacao", "vinculada"],
