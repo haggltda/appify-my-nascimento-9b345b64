@@ -1,12 +1,75 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
-import { licitacoes, statusOrdem, statusLabel, formatBRL, formatDate, type StatusLicitacao } from "@/data/licitacoes";
-import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical } from "lucide-react";
+import { licitacoes as licitacoesBase, statusOrdem, statusLabel, formatBRL, formatDate, type StatusLicitacao, type Licitacao } from "@/data/licitacoes";
+import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical, UserCheck, Hand } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+
+const STORAGE_KEY = "pipeline_responsaveis_v1";
+
+function loadOverrides(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveOverrides(map: Record<string, string>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+}
 
 export default function Pipeline() {
   const [view, setView] = useState<"kanban" | "tabela">("kanban");
+  const [overrides, setOverrides] = useState<Record<string, string>>(() => loadOverrides());
+  const [target, setTarget] = useState<Licitacao | null>(null);
+  const { user } = useAuth();
+  const [displayName, setDisplayName] = useState<string>("");
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("display_name, email")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setDisplayName(data?.display_name || data?.email || user.email || "Você");
+      });
+  }, [user]);
+
+  const data = useMemo<Licitacao[]>(
+    () => licitacoesBase.map((l) => (overrides[l.id] ? { ...l, responsavel: overrides[l.id] } : l)),
+    [overrides]
+  );
+
+  const handleConfirmAssume = () => {
+    if (!target) return;
+    if (!user) {
+      toast({ title: "Faça login", description: "Você precisa estar autenticado para assumir um processo.", variant: "destructive" });
+      setTarget(null);
+      return;
+    }
+    const nome = displayName || user.email || "Você";
+    const next = { ...overrides, [target.id]: nome };
+    setOverrides(next);
+    saveOverrides(next);
+    toast({ title: "Processo assumido", description: `Você é o responsável por ${target.numero}.` });
+    setTarget(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -58,7 +121,36 @@ export default function Pipeline() {
         <FilterPill label="Período" value="Últimos 90 dias" icon={<Calendar className="h-3 w-3" />} />
       </div>
 
-      {view === "kanban" ? <KanbanView /> : <TableView />}
+      {view === "kanban" ? (
+        <KanbanView data={data} currentUser={displayName} onAssume={setTarget} />
+      ) : (
+        <TableView data={data} currentUser={displayName} onAssume={setTarget} />
+      )}
+
+      <AlertDialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Assumir processo de licitação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {target && (
+                <>
+                  Você está prestes a assumir como <strong>responsável</strong> pelo processo{" "}
+                  <span className="font-mono">{target.numero}</span> — {target.objeto}.
+                  <br />
+                  <br />
+                  Responsável atual: <strong>{target.responsavel}</strong>.
+                  <br />
+                  Novo responsável: <strong>{displayName || "Você"}</strong>.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAssume}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -73,13 +165,49 @@ function FilterPill({ label, value, icon }: { label: string; value: string; icon
   );
 }
 
-function KanbanView() {
+function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
+  licitacao: Licitacao;
+  currentUser: string;
+  onAssume: (l: Licitacao) => void;
+  compact?: boolean;
+}) {
+  const isMine = currentUser && licitacao.responsavel === currentUser;
+  if (isMine) {
+    return (
+      <span className={cn(
+        "inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 font-medium text-primary",
+        compact ? "text-[10px]" : "text-xs"
+      )}>
+        <UserCheck className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
+        Você é o responsável
+      </span>
+    );
+  }
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onAssume(licitacao); }}
+      className={cn(
+        "btn-relief inline-flex items-center gap-1 rounded-md bg-gradient-accent font-semibold text-accent-foreground transition hover:opacity-90",
+        compact ? "h-6 px-2 text-[10px]" : "h-7 px-2.5 text-xs"
+      )}
+    >
+      <Hand className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
+      Assumir
+    </button>
+  );
+}
+
+function KanbanView({ data, currentUser, onAssume }: {
+  data: Licitacao[];
+  currentUser: string;
+  onAssume: (l: Licitacao) => void;
+}) {
   const cols: StatusLicitacao[] = ["oportunidade", "em_analise", "parecer_tecnico", "controladoria", "aprovacao_diretoria", "pregao", "vencida"];
   return (
     <div className="overflow-x-auto pb-4 scroll-elegant">
       <div className="flex gap-4" style={{ minWidth: cols.length * 300 }}>
         {cols.map((s) => {
-          const items = licitacoes.filter((l) => l.status === s);
+          const items = data.filter((l) => l.status === s);
           return (
             <div key={s} className="w-[300px] shrink-0">
               <div className="mb-3 flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 shadow-sm">
@@ -113,6 +241,9 @@ function KanbanView() {
                       <span>{l.responsavel}</span>
                       <span className="inline-flex items-center gap-1"><Calendar className="h-2.5 w-2.5" /> {formatDate(l.prazo)}</span>
                     </div>
+                    <div className="mt-2.5 flex justify-end border-t border-border pt-2">
+                      <AssumirButton licitacao={l} currentUser={currentUser} onAssume={onAssume} compact />
+                    </div>
                   </article>
                 ))}
               </div>
@@ -124,7 +255,11 @@ function KanbanView() {
   );
 }
 
-function TableView() {
+function TableView({ data, currentUser, onAssume }: {
+  data: Licitacao[];
+  currentUser: string;
+  onAssume: (l: Licitacao) => void;
+}) {
   return (
     <div className="card-elevated overflow-hidden">
       <div className="overflow-x-auto">
@@ -138,11 +273,12 @@ function TableView() {
               <th className="px-3 py-3 text-left">Criticidade</th>
               <th className="px-3 py-3 text-right">Valor</th>
               <th className="px-3 py-3 text-left">Responsável</th>
-              <th className="px-5 py-3 text-right">Prazo</th>
+              <th className="px-3 py-3 text-right">Prazo</th>
+              <th className="px-5 py-3 text-center">Ação</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {licitacoes.map((l) => (
+            {data.map((l) => (
               <tr key={l.id} className="group cursor-pointer hover:bg-muted/40">
                 <td className="px-5 py-3">
                   <p className="font-mono text-[11px] text-muted-foreground">{l.numero}</p>
@@ -159,14 +295,17 @@ function TableView() {
                 <td className="px-3 py-3"><CriticidadeChip value={l.criticidade} /></td>
                 <td className="px-3 py-3 text-right font-mono text-xs font-semibold">{formatBRL(l.valorEstimado)}</td>
                 <td className="px-3 py-3 text-xs">{l.responsavel}</td>
-                <td className="px-5 py-3 text-right text-xs text-muted-foreground">{formatDate(l.prazo)}</td>
+                <td className="px-3 py-3 text-right text-xs text-muted-foreground">{formatDate(l.prazo)}</td>
+                <td className="px-5 py-3 text-center">
+                  <AssumirButton licitacao={l} currentUser={currentUser} onAssume={onAssume} />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <div className="flex items-center justify-between border-t border-border px-5 py-3 text-xs text-muted-foreground">
-        <span>Mostrando 1–{licitacoes.length} de {licitacoes.length} processos</span>
+        <span>Mostrando 1–{data.length} de {data.length} processos</span>
         <div className="flex items-center gap-1">
           <button className="rounded border border-border px-2 py-1 hover:bg-secondary">Anterior</button>
           <button className="rounded bg-primary px-2 py-1 text-primary-foreground">1</button>
