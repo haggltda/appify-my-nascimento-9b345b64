@@ -5,13 +5,15 @@ import { RoleGate } from "@/components/RoleGate";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+type Regime = "lucro_real" | "lucro_presumido" | "simples_nacional";
+
 type Empresa = {
   id: string;
   codigo: string;
   razao_social: string;
   nome_fantasia: string | null;
   cnpj: string;
-  regime: string;
+  regime: Regime;
   ativa: boolean;
 };
 
@@ -155,12 +157,12 @@ export default function Empresas() {
               <Field label="Regime">
                 <select
                   value={editing.regime}
-                  onChange={(e) => setEditing({ ...editing, regime: e.target.value })}
+                  onChange={(e) => setEditing({ ...editing, regime: e.target.value as Regime })}
                   className="input-base"
                 >
                   <option value="lucro_real">Lucro Real</option>
                   <option value="lucro_presumido">Lucro Presumido</option>
-                  <option value="simples">Simples</option>
+                  <option value="simples_nacional">Simples Nacional</option>
                 </select>
               </Field>
               <label className="flex items-center gap-2 text-sm">
