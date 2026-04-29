@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { centrosCustoADM, centrosCustoContratuais, proximoCodigoContratual, empresasGrupo } from "@/data/controladoria";
-import { Lock, Building2, FileBadge } from "lucide-react";
+import { Lock, Building2, FileBadge, Plus, PowerOff } from "lucide-react";
+import { RoleGate } from "@/components/RoleGate";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CentrosCusto() {
   return (
