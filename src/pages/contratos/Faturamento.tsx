@@ -1,28 +1,35 @@
 import { PageHeader } from "@/components/layout/PageHeader";
-import { contratos, formatBRL } from "@/data/contratos";
+import { useContratos, formatBRL } from "@/hooks/useContratos";
 import { CalendarRange, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 
 const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export default function Faturamento() {
+  const { data: contratos = [], isLoading } = useContratos();
+  const ativos = contratos.filter((c) => c.status === "ativo" || c.status === "implantacao");
+
+  const previstoMes = ativos.reduce((acc, c) => acc + Number(c.faturamento_mensal ?? 0), 0);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Cronograma de Faturamento"
+        module="Contratos"
         breadcrumb={["Contratos", "Faturamento"]}
-        subtitle="Visão consolidada das parcelas mensais por contrato — emissão, envio e liquidação."
+        subtitle="Visão consolidada das parcelas mensais por contrato — tabela de cronograma chega no próximo bloco."
       />
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Kpi label="Previsto no mês" v="R$ 12,8M" />
-        <Kpi label="Faturado" v="R$ 8,4M" t="success" />
-        <Kpi label="A emitir" v="R$ 4,4M" t="warning" />
-        <Kpi label="Atrasado" v="R$ 0,3M" t="destructive" />
+        <Kpi label="Previsto no mês" v={formatBRL(previstoMes)} />
+        <Kpi label="Faturado" v="—" t="success" />
+        <Kpi label="A emitir" v="—" t="warning" />
+        <Kpi label="Atrasado" v="—" t="destructive" />
       </div>
 
       <div className="card-elevated overflow-hidden">
         <header className="border-b border-border px-5 py-3">
-          <h3 className="font-display text-sm font-bold">Calendário de parcelas — exercício 2025</h3>
+          <h3 className="font-display text-sm font-bold">Calendário de parcelas — exercício {new Date().getFullYear()}</h3>
+          <p className="text-xs text-muted-foreground">Visualização simulada com base no faturamento mensal de cada contrato. A integração definitiva virá com `cronograma_faturamento` no Bloco Orçamento.</p>
         </header>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -35,15 +42,22 @@ export default function Faturamento() {
               </tr>
             </thead>
             <tbody>
-              {contratos.map((c) => (
+              {isLoading && (
+                <tr><td colSpan={13} className="px-4 py-8 text-center text-muted-foreground">Carregando…</td></tr>
+              )}
+              {!isLoading && ativos.length === 0 && (
+                <tr><td colSpan={13} className="px-4 py-8 text-center text-muted-foreground">Nenhum contrato ativo.</td></tr>
+              )}
+              {ativos.map((c) => (
                 <tr key={c.id} className="border-t border-border">
                   <td className="sticky left-0 bg-card px-4 py-3">
                     <p className="font-semibold">{c.numero}</p>
-                    <p className="text-[11px] text-muted-foreground">{formatBRL(c.faturamentoMensal)}/mês</p>
+                    <p className="text-[11px] text-muted-foreground">{formatBRL(Number(c.faturamento_mensal))}/mês</p>
                   </td>
                   {meses.map((_, i) => {
-                    const status = i < 3 ? "ok" : i < 5 ? "now" : i < 8 ? "wait" : "future";
-                    const map: any = {
+                    const mesAtual = new Date().getMonth();
+                    const status = i < mesAtual ? "ok" : i === mesAtual ? "now" : i <= mesAtual + 2 ? "wait" : "future";
+                    const map: Record<string, string> = {
                       ok: "bg-success-soft text-success",
                       now: "bg-warning-soft text-warning",
                       wait: "bg-info-soft text-info",

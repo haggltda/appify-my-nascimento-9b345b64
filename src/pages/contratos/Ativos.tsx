@@ -1,17 +1,30 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { contratos, formatBRL, statusContratoLabel } from "@/data/contratos";
+import { useContratos, formatBRL, statusLabel } from "@/hooks/useContratos";
 import { Building2, Search, Filter, Download, ArrowUpRight } from "lucide-react";
 
 export default function ContratosAtivos() {
   const [q, setQ] = useState("");
-  const list = contratos.filter((c) => c.objeto.toLowerCase().includes(q.toLowerCase()) || c.numero.toLowerCase().includes(q.toLowerCase()));
+  const { data: contratos = [], isLoading } = useContratos();
+  const list = contratos.filter(
+    (c) =>
+      c.objeto.toLowerCase().includes(q.toLowerCase()) ||
+      c.numero.toLowerCase().includes(q.toLowerCase())
+  );
+
+  const ativos = contratos.filter((c) => c.status === "ativo").length;
+  const implantacao = contratos.filter((c) => c.status === "implantacao").length;
+  const faturamentoMensal = contratos
+    .filter((c) => c.status === "ativo" || c.status === "implantacao")
+    .reduce((acc, c) => acc + Number(c.faturamento_mensal ?? 0), 0);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Contratos Ativos"
         breadcrumb={["Contratos", "Ativos"]}
+        module="Contratos"
         subtitle="Carteira completa de contratos vigentes, suspensos e em implantação."
         actions={
           <>
@@ -26,10 +39,10 @@ export default function ContratosAtivos() {
       />
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Kpi label="Contratos ativos" v="18" />
-        <Kpi label="Em implantação" v="3" />
-        <Kpi label="Faturamento mensal" v="R$ 12,8M" />
-        <Kpi label="Reajustes pendentes" v="4" t="warning" />
+        <Kpi label="Contratos ativos" v={String(ativos)} />
+        <Kpi label="Em implantação" v={String(implantacao)} />
+        <Kpi label="Faturamento mensal" v={formatBRL(faturamentoMensal)} />
+        <Kpi label="Total na carteira" v={String(contratos.length)} />
       </div>
 
       <div className="card-elevated overflow-hidden">
@@ -39,7 +52,7 @@ export default function ContratosAtivos() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar por número, objeto ou órgão..."
+              placeholder="Buscar por número ou objeto..."
               className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary"
             />
           </div>
@@ -54,19 +67,26 @@ export default function ContratosAtivos() {
               <tr className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-3">Contrato</th>
                 <th className="px-4 py-3">Objeto</th>
-                <th className="px-4 py-3">Órgão / Empresa</th>
+                <th className="px-4 py-3">Órgão</th>
                 <th className="px-4 py-3">Vigência</th>
                 <th className="px-4 py-3 text-right">Valor</th>
-                <th className="px-4 py-3 text-right">Postos</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
+              {isLoading && (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Carregando contratos…</td></tr>
+              )}
+              {!isLoading && list.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Nenhum contrato cadastrado ainda.</td></tr>
+              )}
               {list.map((c) => (
                 <tr key={c.id} className="border-t border-border hover:bg-muted/30">
                   <td className="px-4 py-3">
-                    <p className="font-mono text-[11px] text-muted-foreground">{c.origemLicitacao}</p>
+                    {c.origem_licitacao_texto && (
+                      <p className="font-mono text-[11px] text-muted-foreground">{c.origem_licitacao_texto}</p>
+                    )}
                     <p className="font-semibold">{c.numero}</p>
                   </td>
                   <td className="px-4 py-3 max-w-xs">
@@ -75,23 +95,23 @@ export default function ContratosAtivos() {
                       <span className="line-clamp-2">{c.objeto}</span>
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-muted-foreground">{c.orgao}</td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    <p>{c.orgao}</p>
-                    <p className="text-[11px]">Empresa {c.empresa}</p>
+                    <p>{new Date(c.vigencia_inicio).toLocaleDateString("pt-BR")}</p>
+                    <p className="text-[11px]">até {new Date(c.vigencia_fim).toLocaleDateString("pt-BR")}</p>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    <p>{new Date(c.vigenciaInicio).toLocaleDateString("pt-BR")}</p>
-                    <p className="text-[11px]">até {new Date(c.vigenciaFim).toLocaleDateString("pt-BR")}</p>
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono font-semibold">{formatBRL(c.valorTotal)}</td>
-                  <td className="px-4 py-3 text-right">{c.postos}</td>
+                  <td className="px-4 py-3 text-right font-mono font-semibold">{formatBRL(Number(c.valor_total))}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={c.status} />
                   </td>
                   <td className="px-4 py-3">
-                    <button className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
+                    <Link
+                      to={`/app/contratos/${c.id}`}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label="Abrir contrato"
+                    >
                       <ArrowUpRight className="h-4 w-4" />
-                    </button>
+                    </Link>
                   </td>
                 </tr>
               ))}
@@ -112,12 +132,16 @@ function Kpi({ label, v, t = "primary" }: { label: string; v: string; t?: string
   );
 }
 
-function StatusBadge({ status }: { status: keyof typeof statusContratoLabel }) {
+function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     ativo: "bg-success-soft text-success",
     implantacao: "bg-info-soft text-info",
     suspenso: "bg-warning-soft text-warning",
     encerrado: "bg-muted text-muted-foreground",
   };
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${map[status]}`}>{statusContratoLabel[status]}</span>;
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${map[status] ?? "bg-muted"}`}>
+      {statusLabel[status] ?? status}
+    </span>
+  );
 }
