@@ -1,42 +1,91 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { centrosCustoADM, centrosCustoContratuais, proximoCodigoContratual, empresasGrupo } from "@/data/controladoria";
-import { Lock, Building2, FileBadge, Plus, PowerOff } from "lucide-react";
+import { Building2, Plus, PowerOff, Loader2, FileBadge } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-type CCContrat = (typeof centrosCustoContratuais)[number];
+type CCTipo = "adm" | "operacional";
+
+type CentroCusto = {
+  id: string;
+  empresa_id: string;
+  codigo: string;
+  nome: string;
+  tipo: CCTipo;
+  responsavel: string | null;
+  ativo: boolean;
+};
+
+type Empresa = { id: string; codigo: string; razao_social: string };
 
 export default function CentrosCusto() {
   const { toast } = useToast();
-  const [lista, setLista] = useState<CCContrat[]>(centrosCustoContratuais);
-  const [draft, setDraft] = useState({
-    empresaId: empresasGrupo[0].id,
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [lista, setLista] = useState<CentroCusto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [draft, setDraft] = useState<{ empresa_id: string; codigo: string; nome: string; tipo: CCTipo; responsavel: string }>({
+    empresa_id: "",
+    codigo: "",
     nome: "",
-    contratoNumero: "",
+    tipo: "adm",
+    responsavel: "",
   });
 
-  const addCC = () => {
-    if (!draft.nome.trim() || !draft.contratoNumero.trim()) {
-      toast({ title: "Campos obrigatórios", description: "Informe nome e contrato.", variant: "destructive" });
+  const fetchAll = async () => {
+    setLoading(true);
+    const [emp, cc] = await Promise.all([
+      supabase.from("empresas").select("id, codigo, razao_social").order("codigo"),
+      supabase.from("centros_custo").select("*").order("codigo"),
+    ]);
+    if (emp.error) toast({ title: "Erro empresas", description: emp.error.message, variant: "destructive" });
+    if (cc.error) toast({ title: "Erro centros de custo", description: cc.error.message, variant: "destructive" });
+    setEmpresas(emp.data ?? []);
+    setLista((cc.data ?? []) as CentroCusto[]);
+    if (!draft.empresa_id && emp.data?.[0]) {
+      setDraft((d) => ({ ...d, empresa_id: emp.data![0].id }));
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const adicionar = async () => {
+    if (!draft.codigo.trim() || !draft.nome.trim() || !draft.empresa_id) {
+      toast({ title: "Campos obrigatórios", description: "Empresa, código e nome.", variant: "destructive" });
       return;
     }
-    const ano = new Date().getFullYear();
-    const codigo = proximoCodigoContratual(draft.empresaId, ano);
-    const seq = lista.filter((c) => c.empresaId === draft.empresaId && c.ano === ano).length + 1;
-    setLista((s) => [
-      ...s,
-      { codigo, nome: draft.nome, empresaId: draft.empresaId, contratoNumero: draft.contratoNumero, ano, sequencial: seq, status: "ativo" },
-    ]);
-    setDraft({ empresaId: empresasGrupo[0].id, nome: "", contratoNumero: "" });
-    toast({ title: "CC criado", description: codigo });
+    const { error } = await supabase.from("centros_custo").insert({
+      empresa_id: draft.empresa_id,
+      codigo: draft.codigo,
+      nome: draft.nome,
+      tipo: draft.tipo,
+      responsavel: draft.responsavel || null,
+      ativo: true,
+    });
+    if (error) {
+      toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "CC criado", description: draft.codigo });
+    setDraft({ empresa_id: empresas[0]?.id ?? "", codigo: "", nome: "", tipo: "adm", responsavel: "" });
+    fetchAll();
   };
-  const toggle = (codigo: string) =>
-    setLista((s) =>
-      s.map((c) =>
-        c.codigo === codigo ? { ...c, status: c.status === "ativo" ? "encerrado" : "ativo" } : c,
-      ),
-    );
+
+  const toggle = async (cc: CentroCusto) => {
+    const { error } = await supabase
+      .from("centros_custo")
+      .update({ ativo: !cc.ativo })
+      .eq("id", cc.id);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      return;
+    }
+    fetchAll();
+  };
+
+  const adm = lista.filter((c) => c.tipo === "adm");
+  const op = lista.filter((c) => c.tipo === "operacional");
 
   return (
     <div>
@@ -44,144 +93,139 @@ export default function CentrosCusto() {
         module="Controladoria & Orçamento"
         breadcrumb={["Cadastros Mestres", "Centros de Custo"]}
         title="Centros de Custo"
-        subtitle="ADM fixos (catálogo congelado) e contratuais com CRUD restrito a Controladoria."
+        subtitle="Cadastro de CCs administrativos e operacionais por empresa. CRUD restrito à Controladoria."
       />
 
-      <section className="mb-8">
-        <header className="mb-3 flex items-center gap-2">
-          <Lock className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Administrativos — catálogo travado ({centrosCustoADM.length})
-          </h2>
-        </header>
-        <div className="card-elevated overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+        </div>
+      ) : (
+        <>
+          <RoleGate acao="incluir" modulo="centros_custo">
+            <section className="card-elevated mb-6 p-4">
+              <header className="mb-3 flex items-center gap-2">
+                <Plus className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-semibold">Novo centro de custo</h2>
+              </header>
+              <div className="grid gap-2 sm:grid-cols-[160px_140px_1fr_140px_180px_auto]">
+                <select
+                  value={draft.empresa_id}
+                  onChange={(e) => setDraft((d) => ({ ...d, empresa_id: e.target.value }))}
+                  className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+                >
+                  {empresas.map((e) => <option key={e.id} value={e.id}>{e.codigo}</option>)}
+                </select>
+                <input
+                  placeholder="Código"
+                  value={draft.codigo}
+                  onChange={(e) => setDraft((d) => ({ ...d, codigo: e.target.value }))}
+                  className="h-9 rounded-md border border-border bg-card px-3 text-sm"
+                />
+                <input
+                  placeholder="Nome do CC"
+                  value={draft.nome}
+                  onChange={(e) => setDraft((d) => ({ ...d, nome: e.target.value }))}
+                  className="h-9 rounded-md border border-border bg-card px-3 text-sm"
+                />
+                <select
+                  value={draft.tipo}
+                  onChange={(e) => setDraft((d) => ({ ...d, tipo: e.target.value as CCTipo }))}
+                  className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+                >
+                  <option value="adm">Administrativo</option>
+                  <option value="operacional">Operacional</option>
+                </select>
+                <input
+                  placeholder="Responsável"
+                  value={draft.responsavel}
+                  onChange={(e) => setDraft((d) => ({ ...d, responsavel: e.target.value }))}
+                  className="h-9 rounded-md border border-border bg-card px-3 text-sm"
+                />
+                <button
+                  data-write
+                  onClick={adicionar}
+                  className="btn-relief inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar
+                </button>
+              </div>
+            </section>
+          </RoleGate>
+
+          <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} onToggle={toggle} />
+          <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} onToggle={toggle} />
+        </>
+      )}
+    </div>
+  );
+}
+
+function CCSection({
+  titulo, icone, lista, empresas, onToggle,
+}: {
+  titulo: string;
+  icone: React.ReactNode;
+  lista: CentroCusto[];
+  empresas: Empresa[];
+  onToggle: (cc: CentroCusto) => void;
+}) {
+  const empresaCodigo = (id: string) => empresas.find((e) => e.id === id)?.codigo ?? "—";
+  return (
+    <section className="mb-6">
+      <header className="mb-3 flex items-center gap-2">
+        {icone}
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</h2>
+      </header>
+      <div className="card-elevated overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-4 py-2 text-left">Código</th>
+              <th className="px-4 py-2 text-left">Nome</th>
+              <th className="px-4 py-2 text-left">Empresa</th>
+              <th className="px-4 py-2 text-left">Responsável</th>
+              <th className="px-4 py-2 text-left">Status</th>
+              <th className="px-4 py-2 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lista.length === 0 ? (
               <tr>
-                <th className="px-4 py-2 text-left">Código</th>
-                <th className="px-4 py-2 text-left">Nome</th>
-                <th className="px-4 py-2 text-left">Natureza</th>
+                <td colSpan={6} className="px-4 py-6 text-center text-xs text-muted-foreground">
+                  Nenhum centro de custo cadastrado.
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {centrosCustoADM.map((c) => (
-                <tr key={c.codigo} className="border-t border-border/60">
+            ) : (
+              lista.map((c) => (
+                <tr key={c.id} className="border-t border-border/60">
                   <td className="px-4 py-2 font-mono text-xs font-semibold text-primary">{c.codigo}</td>
                   <td className="px-4 py-2">{c.nome}</td>
+                  <td className="px-4 py-2 font-mono text-xs">{empresaCodigo(c.empresa_id)}</td>
+                  <td className="px-4 py-2 text-xs">{c.responsavel ?? "—"}</td>
                   <td className="px-4 py-2">
-                    <span className="rounded bg-primary-soft px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                      {c.natureza}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="mb-8">
-        <header className="mb-3 flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-accent" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Contratuais — CRUD restrito ({lista.length})
-          </h2>
-        </header>
-
-        <RoleGate acao="incluir" modulo="centros_custo">
-          <div className="card-elevated mb-3 grid gap-2 p-3 sm:grid-cols-[160px_1fr_180px_auto]">
-            <select
-              value={draft.empresaId}
-              onChange={(e) => setDraft((d) => ({ ...d, empresaId: e.target.value }))}
-              className="h-9 rounded-md border border-border bg-card px-2 text-sm"
-            >
-              {empresasGrupo.map((e) => <option key={e.id} value={e.id}>{e.sigla}</option>)}
-            </select>
-            <input
-              placeholder="Nome do CC"
-              value={draft.nome}
-              onChange={(e) => setDraft((d) => ({ ...d, nome: e.target.value }))}
-              className="h-9 rounded-md border border-border bg-card px-3 text-sm"
-            />
-            <input
-              placeholder="Nº contrato"
-              value={draft.contratoNumero}
-              onChange={(e) => setDraft((d) => ({ ...d, contratoNumero: e.target.value }))}
-              className="h-9 rounded-md border border-border bg-card px-3 text-sm"
-            />
-            <button
-              onClick={addCC}
-              data-write
-              className="btn-relief inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground"
-            >
-              <Plus className="h-3.5 w-3.5" /> Novo CC
-            </button>
-          </div>
-        </RoleGate>
-
-        <div className="card-elevated overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2 text-left">Código</th>
-                <th className="px-4 py-2 text-left">Nome</th>
-                <th className="px-4 py-2 text-left">Empresa</th>
-                <th className="px-4 py-2 text-left">Contrato</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lista.map((c) => (
-                <tr key={c.codigo} className="border-t border-border/60">
-                  <td className="px-4 py-2 font-mono text-xs font-semibold text-accent">{c.codigo}</td>
-                  <td className="px-4 py-2">{c.nome}</td>
-                  <td className="px-4 py-2">{c.empresaId}</td>
-                  <td className="px-4 py-2 font-mono text-xs">{c.contratoNumero}</td>
-                  <td className="px-4 py-2">
-                    <span className={c.status === "ativo" ? "chip bg-success-soft text-success" : "chip bg-muted text-muted-foreground"}>
-                      {c.status}
+                    <span className={c.ativo ? "chip bg-success-soft text-success" : "chip bg-muted text-muted-foreground"}>
+                      {c.ativo ? "ativo" : "inativo"}
                     </span>
                   </td>
                   <td className="px-4 py-2 text-right">
                     <RoleGate acao="alterar" modulo="centros_custo">
                       <button
                         data-write
-                        onClick={() => toggle(c.codigo)}
+                        onClick={() => onToggle(c)}
                         className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
                       >
                         <PowerOff className="h-3 w-3" />
-                        {c.status === "ativo" ? "Desativar" : "Reativar"}
+                        {c.ativo ? "Desativar" : "Reativar"}
                       </button>
                     </RoleGate>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="card-elevated p-5">
-        <header className="mb-3 flex items-center gap-2">
-          <FileBadge className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Regra de codificação</h2>
-        </header>
-        <p className="font-mono text-sm text-foreground">
-          CC.CONTR.&lt;EMPRESA&gt;.&lt;ANO&gt;.&lt;SEQUENCIAL&gt;
-        </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Próximos códigos disponíveis (simulação para 2026):
-        </p>
-        <ul className="mt-2 grid gap-1 text-sm md:grid-cols-2 lg:grid-cols-3">
-          {empresasGrupo.map((e) => (
-            <li key={e.id} className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-1.5">
-              <span className="font-medium text-muted-foreground">{e.sigla}</span>
-              <span className="font-mono text-xs text-primary">{proximoCodigoContratual(e.id, 2026)}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </div>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
