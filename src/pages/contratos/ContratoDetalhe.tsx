@@ -22,7 +22,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, FileText, TrendingUp, Wallet, Briefcase, Receipt } from "lucide-react";
+import { ArrowLeft, Plus, FileText, TrendingUp, Wallet, Briefcase, Receipt, Sparkles, Lock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useGerarOrcamento, useOrcamentoContratoByContrato, useLinhasOrcamento, useFluxoContrato, useCiclos } from "@/hooks/useOrcamento";
 import {
   formatBRL,
   statusLabel,
@@ -89,17 +91,17 @@ export default function ContratoDetalhe() {
           <TabsTrigger value="comprovantes"><Receipt className="mr-1.5 h-3.5 w-3.5" /> Comprovantes</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="orcamento" className="mt-4">
-          <Placeholder titulo="Orçamento contratual" descricao="Linhas L01–L14 por competência. Disponível após implementação do Bloco Orçamento." />
+        <TabsContent value="orcamento" className="mt-4 space-y-4">
+          <OrcamentoTab contratoId={contrato.id} />
           <PostosTab contratoId={contrato.id} />
         </TabsContent>
 
         <TabsContent value="dre" className="mt-4">
-          <Placeholder titulo="DRE do contrato" descricao="View vw_dre_contrato — dependerá do Bloco Orçamento + Realizado." />
+          <DRETab contratoId={contrato.id} />
         </TabsContent>
 
         <TabsContent value="fluxo" className="mt-4">
-          <Placeholder titulo="Fluxo de Caixa Projetado" descricao="Tabela cronograma_faturamento — será criada no Bloco Orçamento." />
+          <FluxoTab contratoId={contrato.id} />
         </TabsContent>
 
         <TabsContent value="dissidio" className="mt-4">
@@ -551,6 +553,217 @@ function Field({ label, children, full }: { label: string; children: React.React
     <div className={`space-y-1 ${full ? "col-span-2" : ""}`}>
       <Label className="text-xs">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+/* ============================== ORÇAMENTO ============================== */
+function OrcamentoTab({ contratoId }: { contratoId: string }) {
+  const { data: ciclos = [] } = useCiclos();
+  const [cicloId, setCicloId] = useState<string>("");
+  const cicloAtivo = cicloId || ciclos[0]?.id;
+  const { data: orc } = useOrcamentoContratoByContrato(contratoId, cicloAtivo);
+  const { data: linhas = [] } = useLinhasOrcamento(orc?.id);
+  const gerar = useGerarOrcamento();
+  const { toast } = useToast();
+
+  const matriz = useMemo(() => {
+    const map = new Map<string, { dre: any; valores: Record<string, { v: number; locked: boolean }> }>();
+    const competencias = new Set<string>();
+    linhas.forEach((l: any) => {
+      const key = l.dre_linha_id;
+      const c = l.competencia.slice(0, 7);
+      competencias.add(c);
+      if (!map.has(key)) map.set(key, { dre: l.dre, valores: {} });
+      const cur = map.get(key)!.valores[c] ?? { v: 0, locked: false };
+      cur.v += Number(l.valor_previsto);
+      cur.locked = cur.locked || l.locked;
+      map.get(key)!.valores[c] = cur;
+    });
+    const compsArr = Array.from(competencias).sort();
+    const rows = Array.from(map.values()).sort((a, b) => (a.dre?.ordem ?? 0) - (b.dre?.ordem ?? 0));
+    return { rows, comps: compsArr };
+  }, [linhas]);
+
+  async function handleGerar() {
+    if (!cicloAtivo) {
+      toast({ title: "Crie um ciclo orçamentário primeiro", variant: "destructive" });
+      return;
+    }
+    try {
+      const r = await gerar.mutateAsync({ contrato_id: contratoId, ciclo_id: cicloAtivo });
+      toast({ title: "Orçamento gerado", description: `${r.meses_gerados} meses · margem ${formatBRL(Number(r.margem))}` });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    }
+  }
+
+  return (
+    <div className="card-elevated overflow-hidden">
+      <header className="flex items-center justify-between border-b border-border px-5 py-3 gap-3">
+        <div>
+          <h3 className="font-display text-sm font-bold">Orçamento contratual</h3>
+          <p className="text-xs text-muted-foreground">Linhas DRE × competência. 🔒 indica linha gerada e travada.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={cicloAtivo ?? ""} onValueChange={setCicloId}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Selecione o ciclo" /></SelectTrigger>
+            <SelectContent>
+              {ciclos.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button size="sm" onClick={handleGerar} disabled={gerar.isPending || !cicloAtivo}>
+            <Sparkles className="mr-1 h-3.5 w-3.5" /> {orc ? "Regerar" : "Gerar"}
+          </Button>
+        </div>
+      </header>
+      {orc && (
+        <div className="grid grid-cols-3 gap-px bg-border">
+          <div className="bg-card p-3"><p className="text-[10px] uppercase text-muted-foreground">Receita orçada</p><p className="font-mono text-sm">{formatBRL(Number(orc.valor_receita_total))}</p></div>
+          <div className="bg-card p-3"><p className="text-[10px] uppercase text-muted-foreground">Custo orçado</p><p className="font-mono text-sm">{formatBRL(Number(orc.valor_custo_total))}</p></div>
+          <div className="bg-card p-3"><p className="text-[10px] uppercase text-muted-foreground">Margem</p><p className={`font-mono text-sm ${Number(orc.margem_estimada) >= 0 ? "text-success" : "text-destructive"}`}>{formatBRL(Number(orc.margem_estimada))}</p></div>
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="sticky left-0 bg-muted/50 px-4 py-2.5">Linha DRE</th>
+              {matriz.comps.map((c) => <th key={c} className="px-2 py-2.5 text-right whitespace-nowrap">{c.slice(5)}/{c.slice(2, 4)}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {matriz.rows.length === 0 && <tr><td colSpan={matriz.comps.length + 1} className="px-4 py-8 text-center text-muted-foreground">Nenhuma linha — clique em Gerar.</td></tr>}
+            {matriz.rows.map((r, i) => (
+              <tr key={i} className="border-t border-border">
+                <td className="sticky left-0 bg-card px-4 py-2 text-xs font-medium">
+                  <span className="text-muted-foreground mr-1">{r.dre?.codigo}</span>{r.dre?.descricao}
+                </td>
+                {matriz.comps.map((c) => {
+                  const cell = r.valores[c];
+                  return (
+                    <td key={c} className="px-2 py-2 text-right font-mono text-xs">
+                      {cell ? (
+                        <span className="inline-flex items-center gap-1">
+                          {cell.locked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                          {formatBRL(cell.v)}
+                        </span>
+                      ) : "—"}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== DRE ============================== */
+function DRETab({ contratoId }: { contratoId: string }) {
+  const { data: orc } = useOrcamentoContratoByContrato(contratoId);
+  const { data: linhas = [] } = useLinhasOrcamento(orc?.id);
+
+  // Agrupa por natureza × competência
+  const byNature = new Map<string, Record<string, number>>();
+  const comps = new Set<string>();
+  linhas.forEach((l: any) => {
+    const c = l.competencia.slice(0, 7);
+    comps.add(c);
+    const nat = l.dre?.natureza ?? "outros";
+    if (!byNature.has(nat)) byNature.set(nat, {});
+    byNature.get(nat)![c] = (byNature.get(nat)![c] ?? 0) + Number(l.valor_previsto);
+  });
+  const compsArr = Array.from(comps).sort();
+  const naturezas = ["receita", "deducao", "custo", "despesa"];
+  const sinal: Record<string, number> = { receita: 1, deducao: -1, custo: -1, despesa: -1 };
+
+  if (!orc) return <div className="card-elevated p-6 text-sm text-muted-foreground">Gere o orçamento na aba Orçamento.</div>;
+
+  return (
+    <div className="card-elevated overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="sticky left-0 bg-muted/50 px-4 py-2.5">Grupo</th>
+            {compsArr.map((c) => <th key={c} className="px-2 py-2.5 text-right">{c.slice(5)}/{c.slice(2, 4)}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {naturezas.map((nat) => {
+            const row = byNature.get(nat);
+            if (!row) return null;
+            return (
+              <tr key={nat} className="border-t border-border">
+                <td className="sticky left-0 bg-card px-4 py-2 text-xs font-semibold capitalize">{nat}</td>
+                {compsArr.map((c) => (
+                  <td key={c} className="px-2 py-2 text-right font-mono text-xs">{formatBRL((row[c] ?? 0) * sinal[nat])}</td>
+                ))}
+              </tr>
+            );
+          })}
+          <tr className="border-t-2 border-foreground/30 bg-muted/30">
+            <td className="sticky left-0 bg-muted/30 px-4 py-2 text-xs font-bold">Resultado</td>
+            {compsArr.map((c) => {
+              const total = naturezas.reduce((acc, nat) => acc + (byNature.get(nat)?.[c] ?? 0) * sinal[nat], 0);
+              return <td key={c} className={`px-2 py-2 text-right font-mono text-xs font-bold ${total >= 0 ? "text-success" : "text-destructive"}`}>{formatBRL(total)}</td>;
+            })}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ============================== FLUXO ============================== */
+function FluxoTab({ contratoId }: { contratoId: string }) {
+  const { data: fluxo = [], isLoading } = useFluxoContrato(contratoId);
+
+  // Agrupa por mês
+  const map = new Map<string, { entrada: number; saida: number }>();
+  fluxo.forEach((f: any) => {
+    const c = f.data_prevista.slice(0, 7);
+    if (!map.has(c)) map.set(c, { entrada: 0, saida: 0 });
+    const slot = map.get(c)!;
+    if (f.tipo === "entrada") slot.entrada += Number(f.valor);
+    else slot.saida += Number(f.valor);
+  });
+  const meses = Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+
+  if (isLoading) return <div className="card-elevated p-6 text-sm text-muted-foreground">Carregando…</div>;
+  if (fluxo.length === 0) return <div className="card-elevated p-6 text-sm text-muted-foreground">Sem fluxo projetado. Gere o orçamento.</div>;
+
+  let saldo = 0;
+  return (
+    <div className="card-elevated overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+          <tr>
+            <th className="px-4 py-2.5">Competência</th>
+            <th className="px-4 py-2.5 text-right">Entradas</th>
+            <th className="px-4 py-2.5 text-right">Saídas</th>
+            <th className="px-4 py-2.5 text-right">Líquido</th>
+            <th className="px-4 py-2.5 text-right">Saldo acumulado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {meses.map(([c, v]) => {
+            const liq = v.entrada - v.saida;
+            saldo += liq;
+            return (
+              <tr key={c} className="border-t border-border">
+                <td className="px-4 py-2 font-mono text-xs">{c}</td>
+                <td className="px-4 py-2 text-right font-mono text-xs text-success">{formatBRL(v.entrada)}</td>
+                <td className="px-4 py-2 text-right font-mono text-xs text-destructive">{formatBRL(v.saida)}</td>
+                <td className={`px-4 py-2 text-right font-mono text-xs ${liq >= 0 ? "text-success" : "text-destructive"}`}>{formatBRL(liq)}</td>
+                <td className={`px-4 py-2 text-right font-mono text-xs font-semibold ${saldo >= 0 ? "text-foreground" : "text-destructive"}`}>{formatBRL(saldo)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
