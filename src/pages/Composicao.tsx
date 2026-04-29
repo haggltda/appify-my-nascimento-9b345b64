@@ -13,9 +13,24 @@ import {
   MapPin,
   Plus,
   Trash2,
+  BarChart3,
+  Wallet,
+  LineChart as LineChartIcon,
 } from "lucide-react";
 import { formatBRL } from "@/data/contratos";
 import { toast } from "sonner";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Area,
+  Line,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 interface Posto {
   id: string;
@@ -44,12 +59,13 @@ const verbasFolhaIniciais = [
   { rubrica: "Provisão multa rescisória", percentual: 4.0 },
 ];
 
-type AbaId = "postos" | "encargos" | "insumos" | "impostos";
+type AbaId = "postos" | "encargos" | "insumos" | "impostos" | "dre" | "caixa" | "grafico";
 
 interface AbaDef {
   id: AbaId;
   label: string;
   icon: any;
+  isAnalytic?: boolean;
 }
 
 const abas: AbaDef[] = [
@@ -57,7 +73,12 @@ const abas: AbaDef[] = [
   { id: "encargos", label: "Encargos e Benefícios", icon: Calculator },
   { id: "insumos", label: "Insumos e Operação", icon: Package },
   { id: "impostos", label: "Impostos e Margem", icon: TrendingUp },
+  { id: "dre", label: "DRE da Licitação", icon: BarChart3, isAnalytic: true },
+  { id: "caixa", label: "Caixa Mensal", icon: Wallet, isAnalytic: true },
+  { id: "grafico", label: "Orçado x Realizado", icon: LineChartIcon, isAnalytic: true },
 ];
+
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export default function Composicao() {
   const [postos, setPostos] = useState<Posto[]>(postosIniciais);
@@ -74,6 +95,9 @@ export default function Composicao() {
     encargos: false,
     insumos: false,
     impostos: false,
+    dre: true,
+    caixa: true,
+    grafico: true,
   });
 
   const marcarValida = (id: AbaId) => setValidas((v) => (v[id] ? v : { ...v, [id]: true }));
@@ -82,20 +106,75 @@ export default function Composicao() {
 
   const totais = useMemo(() => {
     const totalEncargosPct = verbas.reduce((a, v) => a + v.percentual, 0);
-    const custoDiretoMes = postos.reduce((s, p) => {
-      const beneficios = p.va + p.vt + p.uniformes + p.epis;
+    const beneficiosMes = postos.reduce((s, p) => s + (p.va + p.vt + p.uniformes + p.epis) * p.qtd, 0);
+    const folhaMes = postos.reduce((s, p) => {
       const folha = p.salario * (1 + totalEncargosPct / 100);
       const insalub = (p.salario * p.insalubridade) / 100;
-      return s + (folha + beneficios + insalub) * p.qtd;
+      return s + (folha + insalub) * p.qtd;
     }, 0);
+    const custoDiretoMes = folhaMes + beneficiosMes;
     const indiretos = (custoDiretoMes * custoIndireto) / 100;
     const subtotal = custoDiretoMes + indiretos;
     const trib = (subtotal * tributos) / 100;
     const lucro = (subtotal * margem) / 100;
     const total = subtotal + trib + lucro;
     const bdi = custoDiretoMes > 0 ? ((total - custoDiretoMes) / custoDiretoMes) * 100 : 0;
-    return { custoDiretoMes, indiretos, subtotal, trib, lucro, total, bdi, totalEncargosPct };
+    return { custoDiretoMes, folhaMes, beneficiosMes, indiretos, subtotal, trib, lucro, total, bdi, totalEncargosPct };
   }, [postos, margem, tributos, custoIndireto, verbas]);
+
+  // Projeção 12 meses — DRE e Caixa (orçado x realizado mock derivado)
+  const projecao = useMemo(() => {
+    const seed = postos.length + Math.round(margem * 10);
+    const rand = (i: number) => {
+      const x = Math.sin((seed + i) * 12.9898) * 43758.5453;
+      return x - Math.floor(x);
+    };
+    return MESES.map((mes, i) => {
+      const receita = totais.total;
+      const folha = totais.folhaMes;
+      const beneficios = totais.beneficiosMes;
+      const indiretos = totais.indiretos;
+      const tributos = totais.trib;
+      const custoTotal = folha + beneficios + indiretos;
+      const lucroOrcado = receita - custoTotal - tributos;
+      // Realizado: meses passados (i<6) com variação ±10%
+      const realizado = i < 6;
+      const fatorRec = 1 + (rand(i) - 0.5) * 0.18;
+      const fatorCusto = 1 + (rand(i + 50) - 0.5) * 0.12;
+      const recReal = realizado ? receita * fatorRec : 0;
+      const custoReal = realizado ? custoTotal * fatorCusto : 0;
+      const tribReal = realizado ? tributos * fatorRec : 0;
+      const lucroReal = realizado ? recReal - custoReal - tribReal : 0;
+      return {
+        mes,
+        receitaOrc: receita,
+        custoOrc: custoTotal,
+        tribOrc: tributos,
+        lucroOrc: lucroOrcado,
+        receitaReal: recReal,
+        custoReal,
+        tribReal,
+        lucroReal,
+        caixaOrc: receita - custoTotal - tributos,
+        caixaReal: realizado ? recReal - custoReal - tribReal : 0,
+        realizado,
+      };
+    });
+  }, [totais, postos.length, margem]);
+
+  const dreTotais = useMemo(() => {
+    const sum = (k: keyof typeof projecao[number]) => projecao.reduce((s, p) => s + (p[k] as number), 0);
+    return {
+      receitaOrc: sum("receitaOrc"),
+      custoOrc: sum("custoOrc"),
+      tribOrc: sum("tribOrc"),
+      lucroOrc: sum("lucroOrc"),
+      receitaReal: sum("receitaReal"),
+      custoReal: sum("custoReal"),
+      tribReal: sum("tribReal"),
+      lucroReal: sum("lucroReal"),
+    };
+  }, [projecao]);
 
   const addPosto = () => {
     setPostos((p) => [
@@ -124,7 +203,7 @@ export default function Composicao() {
       description: `${licitacao} · BDI ${totais.bdi.toFixed(2)}% · ${formatBRL(totais.total)}/mês`,
     });
     // Reset (volta para grid inicial = aba postos)
-    setValidas({ postos: false, encargos: false, insumos: false, impostos: false });
+    setValidas({ postos: false, encargos: false, insumos: false, impostos: false, dre: true, caixa: true, grafico: true });
     setAbaAtiva("postos");
   };
 
@@ -171,32 +250,56 @@ export default function Composicao() {
             </div>
           </section>
 
-          {/* Tabs */}
-          <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-surface-sunken p-1">
-            {abas.map((a) => {
-              const ativa = abaAtiva === a.id;
-              const ok = validas[a.id];
-              const Icon = a.icon;
-              return (
-                <button
-                  key={a.id}
-                  onClick={() => setAbaAtiva(a.id)}
-                  className={`relative flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
-                    ativa
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span>{a.label}</span>
-                  {ok && (
-                    <span className="grid h-4 w-4 place-items-center rounded-full bg-success text-success-foreground">
-                      <Check className="h-2.5 w-2.5" strokeWidth={3} />
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          {/* Tabs — Composição (entrada) + Análise */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-surface-sunken p-1">
+              {abas.filter(a => !a.isAnalytic).map((a) => {
+                const ativa = abaAtiva === a.id;
+                const ok = validas[a.id];
+                const Icon = a.icon;
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => setAbaAtiva(a.id)}
+                    className={`relative flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
+                      ativa ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{a.label}</span>
+                    {ok && (
+                      <span className="grid h-4 w-4 place-items-center rounded-full bg-success text-success-foreground">
+                        <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Dossiê analítico</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <div className="flex flex-wrap gap-1 rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5 p-1 shadow-[0_4px_14px_-6px_hsl(var(--primary)/0.25)]">
+              {abas.filter(a => a.isAnalytic).map((a) => {
+                const ativa = abaAtiva === a.id;
+                const Icon = a.icon;
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => setAbaAtiva(a.id)}
+                    className={`relative flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
+                      ativa
+                        ? "bg-card text-primary shadow-md ring-1 ring-primary/30"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{a.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Conteúdo da aba */}
@@ -348,6 +451,120 @@ export default function Composicao() {
             </section>
           )}
 
+          {/* === DRE da Licitação === */}
+          {abaAtiva === "dre" && (
+            <section className="card-elevated overflow-hidden">
+              <header className="flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/10 via-card to-card px-5 py-3">
+                <h2 className="flex items-center gap-2 font-display text-sm font-bold">
+                  <BarChart3 className="h-4 w-4 text-primary" /> DRE projetada da licitação · 12 meses
+                </h2>
+                <span className="chip border bg-info-soft text-info border-info/30">Projeção derivada da composição</span>
+              </header>
+              <div className="grid gap-3 p-5 sm:grid-cols-4">
+                <KpiMini label="Receita prevista (12m)" value={formatBRL(dreTotais.receitaOrc)} tone="primary" />
+                <KpiMini label="Custo total (12m)" value={formatBRL(dreTotais.custoOrc)} tone="warning" />
+                <KpiMini label="Tributos (12m)" value={formatBRL(dreTotais.tribOrc)} tone="muted" />
+                <KpiMini label="Lucro previsto (12m)" value={formatBRL(dreTotais.lucroOrc)} tone="success" />
+              </div>
+              <div className="overflow-x-auto px-5 pb-5">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <th className="px-2 py-2 text-left">Linha</th>
+                      {projecao.map(p => <th key={p.mes} className="px-2 py-2 text-right">{p.mes}</th>)}
+                      <th className="px-2 py-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-mono">
+                    <DreRow label="(+) Receita bruta" data={projecao.map(p => p.receitaOrc)} total={dreTotais.receitaOrc} tone="text-success" />
+                    <DreRow label="(−) Tributos s/ receita" data={projecao.map(p => -p.tribOrc)} total={-dreTotais.tribOrc} tone="text-muted-foreground" />
+                    <DreRow label="(−) Custo direto + indireto" data={projecao.map(p => -p.custoOrc)} total={-dreTotais.custoOrc} tone="text-destructive" />
+                    <tr className="bg-primary-soft/40 font-bold">
+                      <td className="px-2 py-2 text-left">(=) Lucro líquido</td>
+                      {projecao.map((p, i) => <td key={i} className="px-2 py-2 text-right text-primary">{formatBRL(p.lucroOrc)}</td>)}
+                      <td className="px-2 py-2 text-right text-primary">{formatBRL(dreTotais.lucroOrc)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* === Caixa Mensal === */}
+          {abaAtiva === "caixa" && (
+            <section className="card-elevated overflow-hidden">
+              <header className="flex items-center justify-between border-b border-border bg-gradient-to-r from-accent/10 via-card to-card px-5 py-3">
+                <h2 className="flex items-center gap-2 font-display text-sm font-bold">
+                  <Wallet className="h-4 w-4 text-accent" /> Caixa mensal · Orçado x Realizado
+                </h2>
+                <span className="chip border bg-warning-soft text-warning border-warning/30">Realizado: meses 1–6 (mock)</span>
+              </header>
+              <div className="overflow-x-auto p-5">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <th className="px-2 py-2 text-left">Mês</th>
+                      <th className="px-2 py-2 text-right">Receita orçada</th>
+                      <th className="px-2 py-2 text-right">Receita real</th>
+                      <th className="px-2 py-2 text-right">Custo orçado</th>
+                      <th className="px-2 py-2 text-right">Custo real</th>
+                      <th className="px-2 py-2 text-right">Caixa orçado</th>
+                      <th className="px-2 py-2 text-right">Caixa real</th>
+                      <th className="px-2 py-2 text-right">Δ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-mono">
+                    {projecao.map((p) => {
+                      const delta = p.realizado ? p.caixaReal - p.caixaOrc : 0;
+                      return (
+                        <tr key={p.mes} className="border-b border-border/60 hover:bg-muted/30">
+                          <td className="px-2 py-2 text-left font-sans font-semibold">{p.mes}</td>
+                          <td className="px-2 py-2 text-right">{formatBRL(p.receitaOrc)}</td>
+                          <td className={`px-2 py-2 text-right ${p.realizado ? "" : "text-muted-foreground/40"}`}>{p.realizado ? formatBRL(p.receitaReal) : "—"}</td>
+                          <td className="px-2 py-2 text-right text-muted-foreground">{formatBRL(p.custoOrc)}</td>
+                          <td className={`px-2 py-2 text-right ${p.realizado ? "text-muted-foreground" : "text-muted-foreground/40"}`}>{p.realizado ? formatBRL(p.custoReal) : "—"}</td>
+                          <td className="px-2 py-2 text-right font-semibold text-primary">{formatBRL(p.caixaOrc)}</td>
+                          <td className={`px-2 py-2 text-right font-semibold ${p.realizado ? "text-accent" : "text-muted-foreground/40"}`}>{p.realizado ? formatBRL(p.caixaReal) : "—"}</td>
+                          <td className={`px-2 py-2 text-right font-bold ${!p.realizado ? "text-muted-foreground/40" : delta >= 0 ? "text-success" : "text-destructive"}`}>
+                            {p.realizado ? `${delta >= 0 ? "+" : ""}${formatBRL(delta)}` : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* === Gráfico Orçado x Realizado === */}
+          {abaAtiva === "grafico" && (
+            <section className="card-elevated overflow-hidden">
+              <header className="flex items-center justify-between border-b border-border bg-gradient-to-r from-accent/10 via-card to-card px-5 py-3">
+                <h2 className="flex items-center gap-2 font-display text-sm font-bold">
+                  <LineChartIcon className="h-4 w-4 text-accent" /> Caixa da licitação — Orçado x Realizado
+                </h2>
+              </header>
+              <div className="p-5" style={{ height: 380 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={projecao} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: number) => formatBRL(v as number)}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="caixaOrc" name="Caixa orçado" fill="hsl(var(--primary))" opacity={0.85} radius={[4,4,0,0]} />
+                    <Area dataKey="caixaReal" name="Caixa realizado" fill="hsl(var(--accent))" stroke="hsl(var(--accent))" fillOpacity={0.25} />
+                    <Line type="monotone" dataKey="receitaOrc" name="Receita orçada" stroke="hsl(var(--success))" strokeWidth={2} dot={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          )}
+
           {/* Status do workflow */}
           <div className="card-elevated p-4">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -466,5 +683,31 @@ function Row({ label, v, bold, muted, accent, highlight }: any) {
       <span className={muted ? "text-muted-foreground" : ""}>{label}</span>
       <span className={`font-mono ${bold ? "font-bold" : ""} ${accent ? "text-accent font-semibold" : ""} ${highlight ? "text-primary font-display text-lg font-bold" : ""}`}>{v}</span>
     </div>
+  );
+}
+
+function KpiMini({ label, value, tone }: { label: string; value: string; tone: "primary" | "warning" | "success" | "muted" }) {
+  const map = {
+    primary: "from-primary/15 to-primary/5 text-primary border-primary/20",
+    warning: "from-warning/15 to-warning/5 text-warning border-warning/20",
+    success: "from-success/15 to-success/5 text-success border-success/20",
+    muted: "from-muted to-muted/40 text-foreground border-border",
+  } as const;
+  return (
+    <div className={`rounded-lg border bg-gradient-to-br p-3 shadow-[0_2px_8px_-3px_hsl(var(--foreground)/0.08)] ${map[tone]}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{label}</p>
+      <p className="mt-1 font-display text-lg font-bold">{value}</p>
+    </div>
+  );
+}
+
+function DreRow({ label, data, total, tone }: { label: string; data: number[]; total: number; tone: string }) {
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  return (
+    <tr className="border-b border-border/60 hover:bg-muted/30">
+      <td className="px-2 py-1.5 text-left font-sans">{label}</td>
+      {data.map((v, i) => <td key={i} className={`px-2 py-1.5 text-right ${tone}`}>{fmt(v)}</td>)}
+      <td className={`px-2 py-1.5 text-right font-bold ${tone}`}>{fmt(total)}</td>
+    </tr>
   );
 }

@@ -1,10 +1,24 @@
+import { useMemo } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
-import { licitacoes, formatBRL, formatDate, statusLabel } from "@/data/licitacoes";
+import { licitacoes, formatBRL, formatDate, statusLabel, statusOrdem } from "@/data/licitacoes";
 import {
   ArrowUpRight, AlertTriangle, Clock, FileText, Gavel, Trophy, XCircle,
-  TrendingUp, Sparkles, Filter, Download, Plus, ChevronRight,
+  TrendingUp, Sparkles, Filter, Download, Plus, ChevronRight, Users, Target, BarChart3,
 } from "lucide-react";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  PieChart as RPieChart, Pie, Cell, LineChart, Line,
+} from "recharts";
+
+const CHART_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "hsl(var(--success))",
+  "hsl(var(--warning))",
+  "hsl(var(--info))",
+  "hsl(var(--destructive))",
+];
 
 export default function PainelExecutivo() {
   const total = licitacoes.length;
@@ -16,6 +30,45 @@ export default function PainelExecutivo() {
   const valorPipeline = licitacoes
     .filter((l) => !["perdida", "vencida"].includes(l.status))
     .reduce((acc, l) => acc + l.valorEstimado, 0);
+
+  // === Agregações analíticas ===
+  const porAnalista = useMemo(() => {
+    const map = new Map<string, { responsavel: string; qtd: number; valor: number; vitorias: number; perdidas: number }>();
+    licitacoes.forEach((l) => {
+      const cur = map.get(l.responsavel) || { responsavel: l.responsavel, qtd: 0, valor: 0, vitorias: 0, perdidas: 0 };
+      cur.qtd++;
+      cur.valor += l.valorEstimado;
+      if (l.status === "vencida") cur.vitorias++;
+      if (l.status === "perdida") cur.perdidas++;
+      map.set(l.responsavel, cur);
+    });
+    return Array.from(map.values())
+      .map((a) => ({ ...a, taxa: a.vitorias + a.perdidas > 0 ? (a.vitorias / (a.vitorias + a.perdidas)) * 100 : 0 }))
+      .sort((a, b) => b.valor - a.valor);
+  }, []);
+
+  const porModalidade = useMemo(() => {
+    const map = new Map<string, number>();
+    licitacoes.forEach((l) => map.set(l.modalidade, (map.get(l.modalidade) || 0) + l.valorEstimado));
+    return Array.from(map, ([modalidade, valor]) => ({ modalidade, valor }));
+  }, []);
+
+  const funilEtapas = useMemo(
+    () => statusOrdem.map((s) => ({
+      etapa: statusLabel[s].length > 14 ? statusLabel[s].slice(0, 12) + "…" : statusLabel[s],
+      qtd: licitacoes.filter((l) => l.status === s).length,
+    })).filter(e => e.qtd > 0),
+    []
+  );
+
+  const evolucaoMensal = useMemo(() => {
+    // Mock derivado: 6 meses retroativos
+    const base = valorPipeline / 6;
+    return ["Nov", "Dez", "Jan", "Fev", "Mar", "Abr"].map((mes, i) => {
+      const fator = 0.7 + (i * 0.08) + Math.sin(i) * 0.05;
+      return { mes, valor: Math.round(base * fator), processos: 8 + i * 2 };
+    });
+  }, [valorPipeline]);
 
   return (
     <div className="space-y-6">
@@ -56,6 +109,117 @@ export default function PainelExecutivo() {
           icon={<Trophy className="h-4 w-4" />} tone="success"
         />
       </div>
+
+      {/* === Analytics Grid === */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        <ChartCard
+          title="Valor de pipeline por analista"
+          subtitle="Soma do valor estimado das oportunidades sob responsabilidade"
+          icon={<Users className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={porAnalista} layout="vertical" margin={{ left: 10, right: 12, top: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+              <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
+              <YAxis type="category" dataKey="responsavel" stroke="hsl(var(--muted-foreground))" fontSize={11} width={110} />
+              <Tooltip
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: number) => formatBRL(v as number)}
+              />
+              <Bar dataKey="valor" name="Valor" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Quantidade de processos por analista"
+          subtitle="Carga de trabalho atual por responsável"
+          icon={<BarChart3 className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={porAnalista} margin={{ left: 0, right: 8, top: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="responsavel" stroke="hsl(var(--muted-foreground))" fontSize={10} angle={-15} textAnchor="end" height={50} />
+              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} allowDecimals={false} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+              <Bar dataKey="qtd" name="Processos" fill="hsl(var(--accent))" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Taxa de sucesso por analista"
+          subtitle="Vitórias / (vitórias + perdidas) — apenas processos finalizados"
+          icon={<Target className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={porAnalista} margin={{ left: 0, right: 8, top: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="responsavel" stroke="hsl(var(--muted-foreground))" fontSize={10} angle={-15} textAnchor="end" height={50} />
+              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+              <Tooltip
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: number) => `${(v as number).toFixed(1)}%`}
+              />
+              <Bar dataKey="taxa" name="Taxa de sucesso" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Valor por modalidade"
+          subtitle="Distribuição do pipeline por tipo de processo licitatório"
+          icon={<Gavel className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <RPieChart>
+              <Pie data={porModalidade} dataKey="valor" nameKey="modalidade" cx="50%" cy="50%" outerRadius={90} innerRadius={50} paddingAngle={2}>
+                {porModalidade.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              </Pie>
+              <Tooltip
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: number) => formatBRL(v as number)}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+            </RPieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Funil de conversão por etapa"
+          subtitle="Volume de processos em cada fase do fluxo"
+          icon={<TrendingUp className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={funilEtapas} margin={{ left: 0, right: 8, top: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="etapa" stroke="hsl(var(--muted-foreground))" fontSize={10} angle={-25} textAnchor="end" height={70} />
+              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} allowDecimals={false} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+              <Bar dataKey="qtd" name="Processos" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Evolução do pipeline (6 meses)"
+          subtitle="Valor agregado e número de processos por mês"
+          icon={<Sparkles className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={evolucaoMensal} margin={{ left: 0, right: 12, top: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+              <YAxis yAxisId="l" stroke="hsl(var(--primary))" fontSize={10} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
+              <YAxis yAxisId="r" orientation="right" stroke="hsl(var(--accent))" fontSize={10} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line yAxisId="l" type="monotone" dataKey="valor" name="Valor (R$)" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line yAxisId="r" type="monotone" dataKey="processos" name="Processos" stroke="hsl(var(--accent))" strokeWidth={2.5} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </section>
 
       {/* Status grid */}
       <section className="card-elevated">
@@ -186,6 +350,25 @@ function KpiCard({
       </div>
       <p className="mt-3 font-display text-3xl font-bold tracking-tight">{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{delta}</p>
+    </div>
+  );
+}
+
+function ChartCard({ title, subtitle, icon, children }: { title: string; subtitle: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="card-floating overflow-hidden p-0">
+      <header className="flex items-start justify-between border-b border-border bg-gradient-to-br from-card to-muted/30 px-5 py-3.5">
+        <div className="flex items-start gap-2.5">
+          <span className="mt-0.5 grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary shadow-[0_2px_6px_-2px_hsl(var(--primary)/0.4)]">
+            {icon}
+          </span>
+          <div>
+            <h3 className="font-display text-sm font-bold leading-tight">{title}</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>
+          </div>
+        </div>
+      </header>
+      <div className="p-4">{children}</div>
     </div>
   );
 }
