@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Save, Send, Paperclip, Building2, FileText, AlertCircle, CalendarDays } from "lucide-react";
+import { Save, Send, Paperclip, Building2, FileText, AlertCircle, CalendarDays, FileCheck2, ShieldCheck } from "lucide-react";
+
+type DocsTab = "edital" | "empresa";
 
 export default function CadastroEdital() {
+  const [docsTab, setDocsTab] = useState<DocsTab>("edital");
   return (
     <div className="space-y-6">
       <PageHeader
@@ -54,14 +58,35 @@ export default function CadastroEdital() {
           </Section>
 
           <Section title="Anexos & observações" icon={<Paperclip className="h-4 w-4" />}>
-            <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 p-6 text-center">
-              <Paperclip className="mx-auto h-6 w-6 text-muted-foreground" />
-              <p className="mt-2 text-sm font-semibold">Arraste arquivos ou clique para enviar</p>
-              <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX, XLSX, ZIP — máx. 50MB por arquivo</p>
-              <button type="button" className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
-                Selecionar arquivos
-              </button>
+            <div className="flex gap-1 rounded-lg border border-border bg-surface-sunken p-1">
+              <TabBtn active={docsTab === "edital"} onClick={() => setDocsTab("edital")} icon={<FileCheck2 className="h-3.5 w-3.5" />}>
+                Documentos do Edital
+              </TabBtn>
+              <TabBtn active={docsTab === "empresa"} onClick={() => setDocsTab("empresa")} icon={<ShieldCheck className="h-3.5 w-3.5" />}>
+                Documentos da Empresa
+              </TabBtn>
             </div>
+
+            {docsTab === "edital" ? (
+              <DocsZone
+                title="Edital, anexos e ementas"
+                subtitle="Edital base, termo de referência, planilhas de quantitativos, minuta de contrato, esclarecimentos."
+                hints={["Edital integral (PDF)", "Termo de Referência", "Planilha de quantitativos", "Minuta de contrato", "Anexos técnicos / impugnações"]}
+              />
+            ) : (
+              <DocsZone
+                title="Habilitação da empresa"
+                subtitle="Documentação corporativa exigida para participação: jurídica, fiscal, técnica e econômico-financeira."
+                hints={[
+                  "Contrato social consolidado",
+                  "Certidões negativas (Federal · Estadual · Municipal · FGTS · Trabalhista)",
+                  "Atestados de capacidade técnica",
+                  "Balanço patrimonial e DRE assinados",
+                  "ART/RRT e registro CREA/CAU",
+                  "Declarações (ME/EPP, menor, idoneidade)",
+                ]}
+              />
+            )}
             <Textarea label="Observações" rows={3} placeholder="Informações relevantes para a equipe de análise." />
           </Section>
         </form>
@@ -125,6 +150,49 @@ function Textarea({ label, ...props }: React.TextareaHTMLAttributes<HTMLTextArea
       <span className="mb-1.5 block text-xs font-semibold">{label}</span>
       <textarea {...props} className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30" />
     </label>
+  );
+}
+function TabBtn({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
+        active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+function DocsZone({ title, subtitle, hints }: { title: string; subtitle: string; hints: string[] }) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 p-6 text-center">
+        <Paperclip className="mx-auto h-6 w-6 text-muted-foreground" />
+        <p className="mt-2 text-sm font-semibold">Arraste arquivos ou clique para enviar</p>
+        <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX, XLSX, ZIP — máx. 50MB por arquivo</p>
+        <button type="button" className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
+          Selecionar arquivos
+        </button>
+      </div>
+      <div className="rounded-md border border-border bg-card/60 p-3">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Sugestões de itens esperados</p>
+        <ul className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+          {hints.map((h) => (
+            <li key={h} className="flex items-start gap-1.5">
+              <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/60" />
+              {h}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
