@@ -22,7 +22,7 @@ import { Plus, Pencil, PowerOff, CheckCircle2, XCircle, Clock, BookOpen } from "
 type ContaTipo = "sintetica" | "analitica";
 type ContaNatureza = "D" | "C";
 type ExigeContrato = "sim" | "nao" | "opcional";
-type GrupoDre = "balanco" | "resultado";
+type GrupoDre = "balanco" | "balanco_gerencial" | "dre";
 type SolicTipo = "criar" | "alterar" | "inativar";
 type SolicStatus = "pendente" | "aprovada" | "rejeitada" | "aplicada" | "erro";
 
