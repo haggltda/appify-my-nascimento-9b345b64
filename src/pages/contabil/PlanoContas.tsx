@@ -277,7 +277,7 @@ function NovaContaDialog({ contas, dreLinhas, empresaId, userId, onCreated }: Fo
       toast({ title: "Campos obrigatórios", description: "Classificação, descrição e justificativa.", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.from("plano_contas_solicitacao").insert({
+    const payload: Database["public"]["Tables"]["plano_contas_solicitacao"]["Insert"] = {
       empresa_id: empresaId,
       tipo: "criar",
       classificacao: form.classificacao,
@@ -293,7 +293,8 @@ function NovaContaDialog({ contas, dreLinhas, empresaId, userId, onCreated }: Fo
       ativo: true,
       justificativa: form.justificativa,
       solicitado_por: userId,
-    });
+    };
+    const { error } = await supabase.from("plano_contas_solicitacao").insert(payload);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
       return;
