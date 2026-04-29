@@ -1,15 +1,31 @@
 import { Bell, Search, PanelLeft, ChevronDown, Building2, HelpCircle, Settings, LogOut, ShieldAlert } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useDemoMode } from "@/context/DemoModeContext";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
+import { useAuth } from "@/hooks/useAuth";
+import { usePermissoes } from "@/context/PermissoesContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { empresa, empresas, setEmpresa } = useEmpresaAtiva();
   const [openSelector, setOpenSelector] = useState(false);
   const navigate = useNavigate();
   const { disableDemo } = useDemoMode();
+  const { user, signOut } = useAuth();
+  const { roles } = usePermissoes();
+  const [displayName, setDisplayName] = useState<string>("");
+
+  useEffect(() => {
+    if (!user?.id) { setDisplayName(""); return; }
+    supabase.from("profiles").select("display_name,email").eq("id", user.id).maybeSingle()
+      .then(({ data }) => setDisplayName(data?.display_name || data?.email || user.email || ""));
+  }, [user?.id, user?.email]);
+
+  const nomeExibido = displayName || user?.email?.split("@")[0] || "Usuário";
+  const iniciais = nomeExibido.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "U";
+  const roleLabel = roles?.[0] ? roles[0].replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Usuário";
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border/70 bg-surface/80 px-4 backdrop-blur-md lg:px-6">
