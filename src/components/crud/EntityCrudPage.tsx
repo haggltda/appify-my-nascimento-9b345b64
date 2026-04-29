@@ -48,7 +48,7 @@ interface Props {
 }
 
 export function EntityCrudPage({
-  table, title, description, icon, fields, columns, orderBy, ascending, filter, defaults = {}, headerExtra,
+  table, title, description, fields, columns, orderBy, ascending, filter, defaults = {}, headerExtra,
 }: Props) {
   const { data: rows = [], isLoading } = useList<any>(table, { orderBy, ascending });
   const upsert = useUpsert(table);
@@ -81,7 +81,7 @@ export function EntityCrudPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title={title} description={description} icon={icon} actions={
+      <PageHeader title={title} subtitle={description} actions={
         <div className="flex gap-2">
           {headerExtra}
           <Dialog open={open} onOpenChange={setOpen}>
