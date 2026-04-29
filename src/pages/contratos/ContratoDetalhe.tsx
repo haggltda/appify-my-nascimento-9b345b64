@@ -89,17 +89,17 @@ export default function ContratoDetalhe() {
           <TabsTrigger value="comprovantes"><Receipt className="mr-1.5 h-3.5 w-3.5" /> Comprovantes</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="orcamento" className="mt-4">
-          <Placeholder titulo="Orçamento contratual" descricao="Linhas L01–L14 por competência. Disponível após implementação do Bloco Orçamento." />
+        <TabsContent value="orcamento" className="mt-4 space-y-4">
+          <OrcamentoTab contratoId={contrato.id} />
           <PostosTab contratoId={contrato.id} />
         </TabsContent>
 
         <TabsContent value="dre" className="mt-4">
-          <Placeholder titulo="DRE do contrato" descricao="View vw_dre_contrato — dependerá do Bloco Orçamento + Realizado." />
+          <DRETab contratoId={contrato.id} />
         </TabsContent>
 
         <TabsContent value="fluxo" className="mt-4">
-          <Placeholder titulo="Fluxo de Caixa Projetado" descricao="Tabela cronograma_faturamento — será criada no Bloco Orçamento." />
+          <FluxoTab contratoId={contrato.id} />
         </TabsContent>
 
         <TabsContent value="dissidio" className="mt-4">
