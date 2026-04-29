@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { licitacoes as licitacoesBase } from "@/data/licitacoes";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   PieChart,
