@@ -87,7 +87,7 @@ export default function Orcamento() {
 
 function NovoCicloDialog() {
   const [open, setOpen] = useState(false);
-  const empresa = useEmpresaAtiva();
+  const [empresaId, setEmpresaId] = useState<string | null>(null);
   const create = useCreateCiclo();
   const { toast } = useToast();
   const [form, setForm] = useState({
@@ -97,14 +97,23 @@ function NovoCicloDialog() {
     data_fim: `${new Date().getFullYear() + 1}-12-31`,
   });
 
+  useEffect(() => {
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+      const { data: p } = await supabase.from("profiles").select("empresa_id").eq("id", u.user.id).maybeSingle();
+      if (p?.empresa_id) setEmpresaId(p.empresa_id);
+    })();
+  }, []);
+
   async function submit() {
-    if (!empresa.empresaId) {
-      toast({ title: "Selecione uma empresa ativa", variant: "destructive" });
+    if (!empresaId) {
+      toast({ title: "Seu usuário não tem empresa associada", variant: "destructive" });
       return;
     }
     try {
       await create.mutateAsync({
-        empresa_id: empresa.empresaId,
+        empresa_id: empresaId,
         ano: Number(form.ano),
         nome: form.nome,
         data_inicio: form.data_inicio || null,
