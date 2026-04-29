@@ -74,6 +74,109 @@ export type Database = {
           },
         ]
       }
+      aprov_etapa: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          empresa_id: string
+          id: string
+          nome: string
+          ordem: number
+          role_required: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          valor_max: number | null
+          valor_min: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          empresa_id: string
+          id?: string
+          nome: string
+          ordem: number
+          role_required: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          role_required?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number | null
+        }
+        Relationships: []
+      }
+      aprov_instancia: {
+        Row: {
+          comentario: string | null
+          created_at: string
+          decidido_em: string | null
+          decidido_por: string | null
+          decisao: Database["public"]["Enums"]["aprov_decisao"]
+          empresa_id: string
+          etapa_id: string
+          id: string
+          orcamento_contrato_id: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          comentario?: string | null
+          created_at?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          decisao?: Database["public"]["Enums"]["aprov_decisao"]
+          empresa_id: string
+          etapa_id: string
+          id?: string
+          orcamento_contrato_id: string
+          ordem: number
+          updated_at?: string
+        }
+        Update: {
+          comentario?: string | null
+          created_at?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          decisao?: Database["public"]["Enums"]["aprov_decisao"]
+          empresa_id?: string
+          etapa_id?: string
+          id?: string
+          orcamento_contrato_id?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aprov_instancia_etapa_id_fkey"
+            columns: ["etapa_id"]
+            isOneToOne: false
+            referencedRelation: "aprov_etapa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aprov_instancia_orcamento_contrato_id_fkey"
+            columns: ["orcamento_contrato_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aprov_instancia_orcamento_contrato_id_fkey"
+            columns: ["orcamento_contrato_id"]
+            isOneToOne: false
+            referencedRelation: "vw_dre_contrato"
+            referencedColumns: ["orcamento_contrato_id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           diff: Json | null
@@ -963,6 +1066,82 @@ export type Database = {
           },
         ]
       }
+      cronograma_faturamento: {
+        Row: {
+          competencia: string
+          contrato_id: string
+          created_at: string
+          data_emissao_prevista: string | null
+          data_recebimento_previsto: string | null
+          empresa_id: string
+          id: string
+          numero_nf: string | null
+          observacoes: string | null
+          orcamento_contrato_id: string | null
+          status: Database["public"]["Enums"]["cronograma_status"]
+          updated_at: string
+          valor_emitido: number
+          valor_previsto: number
+          valor_recebido: number
+        }
+        Insert: {
+          competencia: string
+          contrato_id: string
+          created_at?: string
+          data_emissao_prevista?: string | null
+          data_recebimento_previsto?: string | null
+          empresa_id: string
+          id?: string
+          numero_nf?: string | null
+          observacoes?: string | null
+          orcamento_contrato_id?: string | null
+          status?: Database["public"]["Enums"]["cronograma_status"]
+          updated_at?: string
+          valor_emitido?: number
+          valor_previsto?: number
+          valor_recebido?: number
+        }
+        Update: {
+          competencia?: string
+          contrato_id?: string
+          created_at?: string
+          data_emissao_prevista?: string | null
+          data_recebimento_previsto?: string | null
+          empresa_id?: string
+          id?: string
+          numero_nf?: string | null
+          observacoes?: string | null
+          orcamento_contrato_id?: string | null
+          status?: Database["public"]["Enums"]["cronograma_status"]
+          updated_at?: string
+          valor_emitido?: number
+          valor_previsto?: number
+          valor_recebido?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cronograma_faturamento_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cronograma_faturamento_orcamento_contrato_id_fkey"
+            columns: ["orcamento_contrato_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cronograma_faturamento_orcamento_contrato_id_fkey"
+            columns: ["orcamento_contrato_id"]
+            isOneToOne: false
+            referencedRelation: "vw_dre_contrato"
+            referencedColumns: ["orcamento_contrato_id"]
+          },
+        ]
+      }
       dre_linhas: {
         Row: {
           ativo: boolean
@@ -1062,6 +1241,70 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      fluxo_caixa_projetado: {
+        Row: {
+          contrato_id: string | null
+          created_at: string
+          data_prevista: string
+          descricao: string | null
+          empresa_id: string
+          id: string
+          orcamento_contrato_id: string | null
+          origem: string | null
+          tipo: Database["public"]["Enums"]["fluxo_tipo"]
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          contrato_id?: string | null
+          created_at?: string
+          data_prevista: string
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          orcamento_contrato_id?: string | null
+          origem?: string | null
+          tipo: Database["public"]["Enums"]["fluxo_tipo"]
+          updated_at?: string
+          valor?: number
+        }
+        Update: {
+          contrato_id?: string | null
+          created_at?: string
+          data_prevista?: string
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          orcamento_contrato_id?: string | null
+          origem?: string | null
+          tipo?: Database["public"]["Enums"]["fluxo_tipo"]
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fluxo_caixa_projetado_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fluxo_caixa_projetado_orcamento_contrato_id_fkey"
+            columns: ["orcamento_contrato_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fluxo_caixa_projetado_orcamento_contrato_id_fkey"
+            columns: ["orcamento_contrato_id"]
+            isOneToOne: false
+            referencedRelation: "vw_dre_contrato"
+            referencedColumns: ["orcamento_contrato_id"]
+          },
+        ]
       }
       ia_feedback: {
         Row: {
@@ -1457,6 +1700,221 @@ export type Database = {
           },
         ]
       }
+      orcamento_ciclo: {
+        Row: {
+          ano: number
+          created_at: string
+          data_fim: string | null
+          data_inicio: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          observacoes: string | null
+          status: Database["public"]["Enums"]["orcamento_ciclo_status"]
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          empresa_id: string
+          id?: string
+          nome: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["orcamento_ciclo_status"]
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["orcamento_ciclo_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      orcamento_contrato: {
+        Row: {
+          ciclo_id: string
+          contrato_id: string
+          created_at: string
+          empresa_id: string
+          gerado_em: string | null
+          gerado_por: string | null
+          id: string
+          margem_estimada: number
+          observacoes: string | null
+          status: Database["public"]["Enums"]["orcamento_contrato_status"]
+          updated_at: string
+          valor_custo_total: number
+          valor_receita_total: number
+        }
+        Insert: {
+          ciclo_id: string
+          contrato_id: string
+          created_at?: string
+          empresa_id: string
+          gerado_em?: string | null
+          gerado_por?: string | null
+          id?: string
+          margem_estimada?: number
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["orcamento_contrato_status"]
+          updated_at?: string
+          valor_custo_total?: number
+          valor_receita_total?: number
+        }
+        Update: {
+          ciclo_id?: string
+          contrato_id?: string
+          created_at?: string
+          empresa_id?: string
+          gerado_em?: string | null
+          gerado_por?: string | null
+          id?: string
+          margem_estimada?: number
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["orcamento_contrato_status"]
+          updated_at?: string
+          valor_custo_total?: number
+          valor_receita_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_contrato_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_ciclo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_contrato_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamento_contrato_linha: {
+        Row: {
+          centro_custo_id: string | null
+          competencia: string
+          created_at: string
+          dre_linha_id: string
+          empresa_id: string
+          id: string
+          locked: boolean
+          memoria_calculo: string | null
+          orcamento_contrato_id: string
+          source: Database["public"]["Enums"]["orcamento_linha_source"]
+          updated_at: string
+          valor_previsto: number
+        }
+        Insert: {
+          centro_custo_id?: string | null
+          competencia: string
+          created_at?: string
+          dre_linha_id: string
+          empresa_id: string
+          id?: string
+          locked?: boolean
+          memoria_calculo?: string | null
+          orcamento_contrato_id: string
+          source?: Database["public"]["Enums"]["orcamento_linha_source"]
+          updated_at?: string
+          valor_previsto?: number
+        }
+        Update: {
+          centro_custo_id?: string | null
+          competencia?: string
+          created_at?: string
+          dre_linha_id?: string
+          empresa_id?: string
+          id?: string
+          locked?: boolean
+          memoria_calculo?: string | null
+          orcamento_contrato_id?: string
+          source?: Database["public"]["Enums"]["orcamento_linha_source"]
+          updated_at?: string
+          valor_previsto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_contrato_linha_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_contrato_linha_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_contrato_linha_orcamento_contrato_id_fkey"
+            columns: ["orcamento_contrato_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_contrato_linha_orcamento_contrato_id_fkey"
+            columns: ["orcamento_contrato_id"]
+            isOneToOne: false
+            referencedRelation: "vw_dre_contrato"
+            referencedColumns: ["orcamento_contrato_id"]
+          },
+        ]
+      }
+      parametro_orcamento: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          id: string
+          observacoes: string | null
+          pct_encargos_sociais: number
+          pct_fgts: number
+          pct_lucro_meta: number
+          pct_provisoes: number
+          pct_tributos_receita: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          id?: string
+          observacoes?: string | null
+          pct_encargos_sociais?: number
+          pct_fgts?: number
+          pct_lucro_meta?: number
+          pct_provisoes?: number
+          pct_tributos_receita?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          observacoes?: string | null
+          pct_encargos_sociais?: number
+          pct_fgts?: number
+          pct_lucro_meta?: number
+          pct_provisoes?: number
+          pct_tributos_receita?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       plano_contas_master: {
         Row: {
           ativo: boolean
@@ -1783,6 +2241,59 @@ export type Database = {
         }
         Relationships: []
       }
+      solicitacao_desbloqueio: {
+        Row: {
+          comentario_decisor: string | null
+          created_at: string
+          decidido_em: string | null
+          decidido_por: string | null
+          empresa_id: string
+          id: string
+          linha_id: string
+          motivo: string
+          novo_valor: number | null
+          solicitado_por: string
+          status: Database["public"]["Enums"]["desbloqueio_status"]
+          updated_at: string
+        }
+        Insert: {
+          comentario_decisor?: string | null
+          created_at?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          empresa_id: string
+          id?: string
+          linha_id: string
+          motivo: string
+          novo_valor?: number | null
+          solicitado_por: string
+          status?: Database["public"]["Enums"]["desbloqueio_status"]
+          updated_at?: string
+        }
+        Update: {
+          comentario_decisor?: string | null
+          created_at?: string
+          decidido_em?: string | null
+          decidido_por?: string | null
+          empresa_id?: string
+          id?: string
+          linha_id?: string
+          motivo?: string
+          novo_valor?: number | null
+          solicitado_por?: string
+          status?: Database["public"]["Enums"]["desbloqueio_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacao_desbloqueio_linha_id_fkey"
+            columns: ["linha_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_contrato_linha"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1945,9 +2456,50 @@ export type Database = {
           },
         ]
       }
+      vw_dre_contrato: {
+        Row: {
+          ciclo_id: string | null
+          competencia: string | null
+          contrato_id: string | null
+          dre_codigo: string | null
+          dre_descricao: string | null
+          dre_linha_id: string | null
+          dre_natureza: Database["public"]["Enums"]["dre_natureza"] | null
+          empresa_id: string | null
+          orcamento_contrato_id: string | null
+          valor_previsto: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_contrato_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_ciclo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_contrato_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_contrato_linha_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       aplicar_plano_mestre: { Args: { _empresa_id: string }; Returns: number }
+      gerar_orcamento_contrato: {
+        Args: { _ciclo_id: string; _contrato_id: string }
+        Returns: Json
+      }
       get_user_empresa: { Args: { _user_id: string }; Returns: string }
       has_permission: {
         Args: {
@@ -1986,6 +2538,7 @@ export type Database = {
         | "diretor_adm"
         | "diretor_op"
         | "visitante"
+      aprov_decisao: "pendente" | "aprovado" | "rejeitado" | "devolvido"
       banco_tipo: "corrente" | "poupanca" | "aplicacao" | "vinculada"
       cc_tipo: "adm" | "operacional"
       comprovacao_tipo:
@@ -2002,6 +2555,13 @@ export type Database = {
       conta_natureza: "D" | "C"
       conta_tipo: "sintetica" | "analitica"
       contrato_status: "implantacao" | "ativo" | "suspenso" | "encerrado"
+      cronograma_status:
+        | "previsto"
+        | "emitido"
+        | "recebido"
+        | "atrasado"
+        | "cancelado"
+      desbloqueio_status: "pendente" | "aprovado" | "rejeitado"
       dissidio_base_calculo: "salario_base" | "total_remuneracao" | "posto"
       dissidio_criterio:
         | "indice"
@@ -2017,6 +2577,7 @@ export type Database = {
         | "resultado"
         | "tributo"
         | "financeiro"
+      fluxo_tipo: "entrada" | "saida"
       ia_status: "pendente" | "processando" | "concluida" | "erro" | "cancelada"
       licitacao_status:
         | "rascunho"
@@ -2028,6 +2589,24 @@ export type Database = {
       lote_origem: "manual" | "erp" | "extrato_bancario" | "planilha" | "api"
       lote_status: "pendente" | "processado" | "erro" | "cancelado"
       obz_status: "rascunho" | "em_aprovacao" | "aprovada" | "arquivada"
+      orcamento_ciclo_status:
+        | "aberto"
+        | "em_aprovacao"
+        | "aprovado"
+        | "encerrado"
+      orcamento_contrato_status:
+        | "rascunho"
+        | "em_aprovacao"
+        | "aprovado"
+        | "rejeitado"
+        | "encerrado"
+      orcamento_linha_source:
+        | "licitacao"
+        | "obz"
+        | "manual"
+        | "recorrente"
+        | "dissidio"
+        | "calculado"
       periodo_status: "aberto" | "fechado"
       posto_jornada:
         | "12x36"
@@ -2186,6 +2765,7 @@ export const Constants = {
         "diretor_op",
         "visitante",
       ],
+      aprov_decisao: ["pendente", "aprovado", "rejeitado", "devolvido"],
       banco_tipo: ["corrente", "poupanca", "aplicacao", "vinculada"],
       cc_tipo: ["adm", "operacional"],
       comprovacao_tipo: [
@@ -2203,6 +2783,14 @@ export const Constants = {
       conta_natureza: ["D", "C"],
       conta_tipo: ["sintetica", "analitica"],
       contrato_status: ["implantacao", "ativo", "suspenso", "encerrado"],
+      cronograma_status: [
+        "previsto",
+        "emitido",
+        "recebido",
+        "atrasado",
+        "cancelado",
+      ],
+      desbloqueio_status: ["pendente", "aprovado", "rejeitado"],
       dissidio_base_calculo: ["salario_base", "total_remuneracao", "posto"],
       dissidio_criterio: [
         "indice",
@@ -2220,6 +2808,7 @@ export const Constants = {
         "tributo",
         "financeiro",
       ],
+      fluxo_tipo: ["entrada", "saida"],
       ia_status: ["pendente", "processando", "concluida", "erro", "cancelada"],
       licitacao_status: [
         "rascunho",
@@ -2232,6 +2821,27 @@ export const Constants = {
       lote_origem: ["manual", "erp", "extrato_bancario", "planilha", "api"],
       lote_status: ["pendente", "processado", "erro", "cancelado"],
       obz_status: ["rascunho", "em_aprovacao", "aprovada", "arquivada"],
+      orcamento_ciclo_status: [
+        "aberto",
+        "em_aprovacao",
+        "aprovado",
+        "encerrado",
+      ],
+      orcamento_contrato_status: [
+        "rascunho",
+        "em_aprovacao",
+        "aprovado",
+        "rejeitado",
+        "encerrado",
+      ],
+      orcamento_linha_source: [
+        "licitacao",
+        "obz",
+        "manual",
+        "recorrente",
+        "dissidio",
+        "calculado",
+      ],
       periodo_status: ["aberto", "fechado"],
       posto_jornada: [
         "12x36",
