@@ -110,6 +110,117 @@ export default function PainelExecutivo() {
         />
       </div>
 
+      {/* === Analytics Grid === */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        <ChartCard
+          title="Valor de pipeline por analista"
+          subtitle="Soma do valor estimado das oportunidades sob responsabilidade"
+          icon={<Users className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={porAnalista} layout="vertical" margin={{ left: 10, right: 12, top: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+              <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
+              <YAxis type="category" dataKey="responsavel" stroke="hsl(var(--muted-foreground))" fontSize={11} width={110} />
+              <Tooltip
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: number) => formatBRL(v as number)}
+              />
+              <Bar dataKey="valor" name="Valor" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Quantidade de processos por analista"
+          subtitle="Carga de trabalho atual por responsável"
+          icon={<BarChart3 className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={porAnalista} margin={{ left: 0, right: 8, top: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="responsavel" stroke="hsl(var(--muted-foreground))" fontSize={10} angle={-15} textAnchor="end" height={50} />
+              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} allowDecimals={false} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+              <Bar dataKey="qtd" name="Processos" fill="hsl(var(--accent))" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Taxa de sucesso por analista"
+          subtitle="Vitórias / (vitórias + perdidas) — apenas processos finalizados"
+          icon={<Target className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={porAnalista} margin={{ left: 0, right: 8, top: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="responsavel" stroke="hsl(var(--muted-foreground))" fontSize={10} angle={-15} textAnchor="end" height={50} />
+              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+              <Tooltip
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: number) => `${(v as number).toFixed(1)}%`}
+              />
+              <Bar dataKey="taxa" name="Taxa de sucesso" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Valor por modalidade"
+          subtitle="Distribuição do pipeline por tipo de processo licitatório"
+          icon={<Gavel className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <RPieChart>
+              <Pie data={porModalidade} dataKey="valor" nameKey="modalidade" cx="50%" cy="50%" outerRadius={90} innerRadius={50} paddingAngle={2}>
+                {porModalidade.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              </Pie>
+              <Tooltip
+                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                formatter={(v: number) => formatBRL(v as number)}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+            </RPieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Funil de conversão por etapa"
+          subtitle="Volume de processos em cada fase do fluxo"
+          icon={<TrendingUp className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={funilEtapas} margin={{ left: 0, right: 8, top: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="etapa" stroke="hsl(var(--muted-foreground))" fontSize={10} angle={-25} textAnchor="end" height={70} />
+              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} allowDecimals={false} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+              <Bar dataKey="qtd" name="Processos" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard
+          title="Evolução do pipeline (6 meses)"
+          subtitle="Valor agregado e número de processos por mês"
+          icon={<Sparkles className="h-3.5 w-3.5" />}
+        >
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={evolucaoMensal} margin={{ left: 0, right: 12, top: 6, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+              <YAxis yAxisId="l" stroke="hsl(var(--primary))" fontSize={10} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
+              <YAxis yAxisId="r" orientation="right" stroke="hsl(var(--accent))" fontSize={10} />
+              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line yAxisId="l" type="monotone" dataKey="valor" name="Valor (R$)" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3 }} />
+              <Line yAxisId="r" type="monotone" dataKey="processos" name="Processos" stroke="hsl(var(--accent))" strokeWidth={2.5} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </section>
+
       {/* Status grid */}
       <section className="card-elevated">
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
