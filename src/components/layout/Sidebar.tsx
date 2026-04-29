@@ -70,17 +70,16 @@ const licitacoesModule: ModuleDef = {
         { label: "Pipeline", to: "/app/pipeline", icon: FolderKanban, badge: "32" },
       ],
     },
-    {
-      label: "Operação",
-      defaultOpen: true,
-      items: [
-        { label: "Cadastro de Editais", to: "/app/editais", icon: FileText },
-        { label: "Documentos", to: "/app/documentos", icon: ScrollText },
-        { label: "Triagem & IA", to: "/app/triagem", icon: Sparkles },
-        { label: "Composição & BDI", to: "/app/composicao", icon: PieChart },
-        { label: "Custos & BDI (Data Grid)", to: "/app/custos-bdi", icon: Calculator },
-      ],
-    },
+      {
+        label: "Operação",
+        defaultOpen: true,
+        items: [
+          { label: "Cadastro de Editais", to: "/app/editais", icon: FileText },
+          { label: "Documentos", to: "/app/documentos", icon: ScrollText },
+          { label: "Triagem & IA", to: "/app/triagem", icon: Sparkles },
+          { label: "Composição & BDI", to: "/app/composicao", icon: PieChart },
+        ],
+      },
     {
       label: "Análise & Decisão",
       defaultOpen: true,
@@ -95,14 +94,14 @@ const licitacoesModule: ModuleDef = {
         { label: "Aprovações", to: "/app/aprovacoes", icon: CheckCircle2, badge: "7" },
       ],
     },
-    {
-      label: "Disputa & Resultado",
-      items: [
-        { label: "Pregão & Lances", to: "/app/pregao", icon: Gavel },
-        { label: "Resultado", to: "/app/resultado", icon: Trophy },
-        { label: "Prontas p/ Contrato", to: "/app/prontas-contrato", icon: PackageCheck },
-      ],
-    },
+      {
+        label: "Pregão & Encaminhamento",
+        items: [
+          { label: "Pregão & Lances", to: "/app/pregao", icon: Gavel },
+          { label: "Resultado Final", to: "/app/resultado", icon: Trophy },
+          { label: "Prontas p/ Contrato", to: "/app/prontas-contrato", icon: PackageCheck },
+        ],
+      },
     {
       label: "Contratos",
       items: [
