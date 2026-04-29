@@ -204,10 +204,11 @@ function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
   );
 }
 
-function KanbanView({ data, currentUser, onAssume }: {
+function KanbanView({ data, currentUser, onAssume, onOpen }: {
   data: Licitacao[];
   currentUser: string;
   onAssume: (l: Licitacao) => void;
+  onOpen: (l: Licitacao) => void;
 }) {
   const cols: StatusLicitacao[] = ["oportunidade", "em_analise", "parecer_tecnico", "controladoria", "aprovacao_diretoria", "pregao", "vencida"];
   return (
