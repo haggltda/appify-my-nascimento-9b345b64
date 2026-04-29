@@ -108,6 +108,22 @@ const App = () => (
             <Route path="co/classificadores" element={<Classificadores />} />
             <Route path="co/obz" element={<PlanejadorOBZ />} />
             <Route path="orcamento" element={<Orcamento />} />
+            {/* Suprimentos */}
+            <Route path="suprimentos/fornecedores" element={<Fornecedores />} />
+            <Route path="suprimentos/produtos" element={<ProdutosServicos />} />
+            <Route path="suprimentos/requisicoes" element={<Requisicoes />} />
+            <Route path="suprimentos/pedidos" element={<PedidosCompra />} />
+            {/* Financeiro */}
+            <Route path="financeiro/contas-pagar" element={<ContasPagar />} />
+            <Route path="financeiro/contas-receber" element={<ContasReceber />} />
+            <Route path="financeiro/movimentos" element={<MovimentosBancarios />} />
+            {/* Contábil */}
+            <Route path="contabil/lancamentos" element={<Lancamentos />} />
+            {/* RH */}
+            <Route path="rh/colaboradores" element={<Colaboradores />} />
+            <Route path="rh/alocacoes" element={<Alocacoes />} />
+            {/* BI */}
+            <Route path="bi" element={<BIDashboard />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
