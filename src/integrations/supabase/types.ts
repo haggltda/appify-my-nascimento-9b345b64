@@ -2877,58 +2877,206 @@ export type Database = {
         Row: {
           aprovado_em: string | null
           aprovado_por: string | null
+          categoria_gasto: string | null
           centro_custo_id: string | null
           contrato_id: string | null
           created_at: string
           data_necessidade: string | null
           data_solicitacao: string
+          dre_linha_id: string | null
           empresa_id: string
           id: string
           justificativa: string | null
           numero: string
           observacoes: string | null
+          prioridade: Database["public"]["Enums"]["rc_prioridade"]
           solicitante: string | null
+          solicitante_id: string | null
           status: Database["public"]["Enums"]["req_compra_status"]
+          status_v2: Database["public"]["Enums"]["rc_status_v2"]
+          tipo: Database["public"]["Enums"]["rc_tipo"]
           updated_at: string
           valor_estimado: number
         }
         Insert: {
           aprovado_em?: string | null
           aprovado_por?: string | null
+          categoria_gasto?: string | null
           centro_custo_id?: string | null
           contrato_id?: string | null
           created_at?: string
           data_necessidade?: string | null
           data_solicitacao?: string
+          dre_linha_id?: string | null
           empresa_id: string
           id?: string
           justificativa?: string | null
           numero: string
           observacoes?: string | null
+          prioridade?: Database["public"]["Enums"]["rc_prioridade"]
           solicitante?: string | null
+          solicitante_id?: string | null
           status?: Database["public"]["Enums"]["req_compra_status"]
+          status_v2?: Database["public"]["Enums"]["rc_status_v2"]
+          tipo?: Database["public"]["Enums"]["rc_tipo"]
           updated_at?: string
           valor_estimado?: number
         }
         Update: {
           aprovado_em?: string | null
           aprovado_por?: string | null
+          categoria_gasto?: string | null
           centro_custo_id?: string | null
           contrato_id?: string | null
           created_at?: string
           data_necessidade?: string | null
           data_solicitacao?: string
+          dre_linha_id?: string | null
           empresa_id?: string
           id?: string
           justificativa?: string | null
           numero?: string
           observacoes?: string | null
+          prioridade?: Database["public"]["Enums"]["rc_prioridade"]
           solicitante?: string | null
+          solicitante_id?: string | null
           status?: Database["public"]["Enums"]["req_compra_status"]
+          status_v2?: Database["public"]["Enums"]["rc_status_v2"]
+          tipo?: Database["public"]["Enums"]["rc_tipo"]
           updated_at?: string
           valor_estimado?: number
         }
         Relationships: []
+      }
+      requisicao_compra_item: {
+        Row: {
+          created_at: string
+          descricao: string
+          id: string
+          observacoes: string | null
+          preco_estimado: number
+          produto_servico_id: string | null
+          quantidade: number
+          requisicao_id: string
+          unidade: string
+          updated_at: string
+          valor_total: number | null
+        }
+        Insert: {
+          created_at?: string
+          descricao: string
+          id?: string
+          observacoes?: string | null
+          preco_estimado?: number
+          produto_servico_id?: string | null
+          quantidade?: number
+          requisicao_id: string
+          unidade?: string
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Update: {
+          created_at?: string
+          descricao?: string
+          id?: string
+          observacoes?: string | null
+          preco_estimado?: number
+          produto_servico_id?: string | null
+          quantidade?: number
+          requisicao_id?: string
+          unidade?: string
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicao_compra_item_produto_servico_id_fkey"
+            columns: ["produto_servico_id"]
+            isOneToOne: false
+            referencedRelation: "produto_servico"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requisicao_compra_item_requisicao_id_fkey"
+            columns: ["requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "requisicao_compra"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requisicao_compra_log: {
+        Row: {
+          created_at: string
+          evento: string
+          id: string
+          payload: Json
+          requisicao_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          evento: string
+          id?: string
+          payload?: Json
+          requisicao_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          evento?: string
+          id?: string
+          payload?: Json
+          requisicao_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicao_compra_log_requisicao_id_fkey"
+            columns: ["requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "requisicao_compra"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requisicao_compra_status_hist: {
+        Row: {
+          created_at: string
+          id: string
+          motivo: string | null
+          requisicao_id: string
+          status_anterior: Database["public"]["Enums"]["rc_status_v2"] | null
+          status_novo: Database["public"]["Enums"]["rc_status_v2"]
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          requisicao_id: string
+          status_anterior?: Database["public"]["Enums"]["rc_status_v2"] | null
+          status_novo: Database["public"]["Enums"]["rc_status_v2"]
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          requisicao_id?: string
+          status_anterior?: Database["public"]["Enums"]["rc_status_v2"] | null
+          status_novo?: Database["public"]["Enums"]["rc_status_v2"]
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requisicao_compra_status_hist_requisicao_id_fkey"
+            columns: ["requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "requisicao_compra"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_permissions: {
         Row: {
@@ -3558,6 +3706,23 @@ export type Database = {
         | "escala_6x1"
         | "outra"
       prod_serv_tipo: "produto" | "servico"
+      rc_prioridade: "baixa" | "normal" | "alta" | "urgente"
+      rc_status_v2:
+        | "rascunho"
+        | "enviada"
+        | "em_validacao_estoque"
+        | "parcialmente_atendida_por_estoque"
+        | "aguardando_budget"
+        | "bloqueada_sem_budget"
+        | "aguardando_aprovacao"
+        | "aprovada"
+        | "em_compras"
+        | "pedido_gerado"
+        | "parcialmente_atendida"
+        | "atendida_total"
+        | "cancelada"
+        | "rejeitada"
+      rc_tipo: "material" | "servico" | "custo_direto" | "administrativo"
       regime_tributario: "lucro_real" | "lucro_presumido" | "simples_nacional"
       req_compra_status:
         | "rascunho"
@@ -3822,6 +3987,24 @@ export const Constants = {
         "outra",
       ],
       prod_serv_tipo: ["produto", "servico"],
+      rc_prioridade: ["baixa", "normal", "alta", "urgente"],
+      rc_status_v2: [
+        "rascunho",
+        "enviada",
+        "em_validacao_estoque",
+        "parcialmente_atendida_por_estoque",
+        "aguardando_budget",
+        "bloqueada_sem_budget",
+        "aguardando_aprovacao",
+        "aprovada",
+        "em_compras",
+        "pedido_gerado",
+        "parcialmente_atendida",
+        "atendida_total",
+        "cancelada",
+        "rejeitada",
+      ],
+      rc_tipo: ["material", "servico", "custo_direto", "administrativo"],
       regime_tributario: ["lucro_real", "lucro_presumido", "simples_nacional"],
       req_compra_status: [
         "rascunho",
