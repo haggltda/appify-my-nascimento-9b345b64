@@ -83,10 +83,28 @@ const abas: AbaDef[] = [
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export default function Composicao() {
+  const [searchParams] = useSearchParams();
+  const licitacaoIdParam = searchParams.get("licitacao");
+  const contratoIdParam = searchParams.get("contrato");
   const [postos, setPostos] = useState<Posto[]>(postosIniciais);
   const [verbas, setVerbas] = useState(verbasFolhaIniciais);
-  const [empresa] = useState("NSV — Nascimento Serviços Ltda.");
-  const [licitacao] = useState("PE 044/2025 · Limpeza urbana e coleta seletiva");
+  const [empresa, setEmpresa] = useState("NSV — Nascimento Serviços Ltda.");
+  const [licitacao, setLicitacao] = useState("PE 044/2025 · Limpeza urbana e coleta seletiva");
+  const [origem, setOrigem] = useState<"manual" | "pipeline">("manual");
+
+  useEffect(() => {
+    if (!licitacaoIdParam && !contratoIdParam) return;
+    const l = licitacoesBase.find((x) => x.id === licitacaoIdParam);
+    if (l) {
+      setLicitacao(`${l.numero} · ${l.objeto}`);
+      setEmpresa(l.empresa);
+      setOrigem("pipeline");
+    } else if (contratoIdParam) {
+      setLicitacao(`Contrato ${contratoIdParam}`);
+      setOrigem("pipeline");
+    }
+  }, [licitacaoIdParam, contratoIdParam]);
+
   const [margem, setMargem] = useState(12);
   const [tributos, setTributos] = useState(14.25);
   const [custoIndireto, setCustoIndireto] = useState(8.5);
