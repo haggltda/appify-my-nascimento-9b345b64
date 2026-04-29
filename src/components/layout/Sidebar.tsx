@@ -190,7 +190,10 @@ const contabilModule: ModuleDef = {
   icon: BookOpen, basePath: "/app/contabil", status: "active",
   groups: [{
     label: "Escrituração", defaultOpen: true,
-    items: [{ label: "Lançamentos", to: "/app/contabil/lancamentos", icon: BookOpen }],
+    items: [
+      { label: "Lançamentos", to: "/app/contabil/lancamentos", icon: BookOpen },
+      { label: "Plano de Contas", to: "/app/contabil/plano-contas", icon: BookOpen },
+    ],
   }],
 };
 
