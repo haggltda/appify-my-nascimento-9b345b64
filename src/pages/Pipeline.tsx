@@ -263,10 +263,11 @@ function KanbanView({ data, currentUser, onAssume, onOpen }: {
   );
 }
 
-function TableView({ data, currentUser, onAssume }: {
+function TableView({ data, currentUser, onAssume, onOpen }: {
   data: Licitacao[];
   currentUser: string;
   onAssume: (l: Licitacao) => void;
+  onOpen: (l: Licitacao) => void;
 }) {
   return (
     <div className="card-elevated overflow-hidden">
