@@ -473,7 +473,7 @@ function InativarConta({ conta, empresaId, userId, onCreated }: { conta: Conta; 
   const [motivo, setMotivo] = useState("");
   const enviar = async () => {
     if (!motivo) { toast({ title: "Justificativa obrigatória", variant: "destructive" }); return; }
-    const { error } = await supabase.from("plano_contas_solicitacao").insert({
+    const payload: Database["public"]["Tables"]["plano_contas_solicitacao"]["Insert"] = {
       empresa_id: empresaId,
       tipo: "inativar",
       conta_contabil_id: conta.id,
@@ -481,7 +481,8 @@ function InativarConta({ conta, empresaId, userId, onCreated }: { conta: Conta; 
       ativo: false,
       justificativa: motivo,
       solicitado_por: userId,
-    });
+    };
+    const { error } = await supabase.from("plano_contas_solicitacao").insert(payload);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Solicitação enviada" });
     setMotivo("");
