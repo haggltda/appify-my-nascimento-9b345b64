@@ -74,9 +74,9 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
     const key = `gn:sess:${user.id}`;
     if (sessionStorage.getItem(key)) return;
     (async () => {
-      const { data } = await supabase
-        .from("sessoes_ativas" as any)
-        .insert({ user_id: user.id, user_agent: navigator.userAgent } as any)
+      const { data } = await (supabase as any)
+        .from("sessoes_ativas")
+        .insert({ user_id: user.id, user_agent: navigator.userAgent })
         .select("id")
         .maybeSingle();
       if (data?.id) sessionStorage.setItem(key, data.id);
