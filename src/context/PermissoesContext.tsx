@@ -1,4 +1,7 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useDemoMode } from "@/context/DemoModeContext";
 
 export type Role =
   | "admin"
@@ -20,53 +23,113 @@ export type Acao =
   | "exportar"
   | "executar_ia";
 
-// Matriz mock — em produção virá de tabela `role_permissions`
-const matriz: Record<Role, Partial<Record<string, Acao[]>>> = {
-  admin: { "*": ["visualizar", "incluir", "alterar", "excluir", "aprovar", "exportar", "executar_ia"] },
-  controladoria: {
-    "*": ["visualizar", "exportar"],
-    empresas: ["visualizar", "alterar", "exportar"],
-    centros_custo: ["visualizar", "incluir", "alterar", "excluir", "exportar"],
-    obz: ["visualizar", "incluir", "alterar", "aprovar", "exportar"],
-  },
-  comercial: { "*": ["visualizar"], editais: ["visualizar", "incluir", "alterar", "exportar"] },
-  operacional: { "*": ["visualizar"], contratos: ["visualizar", "alterar"] },
-  juridico: { "*": ["visualizar"], pareceres: ["visualizar", "incluir", "alterar"] },
-  sst: { "*": ["visualizar"], pareceres: ["visualizar", "incluir", "alterar"] },
-  diretor_adm: { "*": ["visualizar", "aprovar", "exportar"] },
-  diretor_op: { "*": ["visualizar", "aprovar", "exportar"] },
-  visitante: { "*": ["visualizar"] },
-};
-
 interface PermissoesCtx {
+  /** Role principal (a primeira retornada). */
   role: Role;
-  setRole: (r: Role) => void;
+  /** Todas as roles do usuário. */
+  roles: Role[];
+  /** Empresa do usuário (do profile). */
+  empresaId: string | null;
+  /** True se carregando. */
+  loading: boolean;
+  /** Verifica permissão localmente. */
   can: (acao: Acao, modulo?: string) => boolean;
+  /** Define manualmente o role (usado no modo demo). */
+  setRole: (r: Role) => void;
 }
 
 const Ctx = createContext<PermissoesCtx | null>(null);
 
 export function PermissoesProvider({ children }: { children: ReactNode }) {
-  const [role, setRole] = useState<Role>(() => {
+  const { user } = useAuth();
+  const { isDemo } = useDemoMode();
+
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [permissoes, setPermissoes] = useState<Array<{ modulo: string; acao: Acao }>>([]);
+  const [empresaId, setEmpresaId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [demoRole, setDemoRole] = useState<Role>(() => {
     if (typeof window === "undefined") return "admin";
-    return (localStorage.getItem("gn:role") as Role) ?? "admin";
+    return ((localStorage.getItem("gn:role") as Role) ?? "admin");
   });
 
-  const value = useMemo<PermissoesCtx>(
-    () => ({
-      role,
-      setRole: (r) => {
-        setRole(r);
-        try { localStorage.setItem("gn:role", r); } catch { /* noop */ }
-      },
-      can: (acao, modulo) => {
-        const perfil = matriz[role];
-        const acoes = (modulo && perfil[modulo]) ?? perfil["*"] ?? [];
-        return acoes.includes(acao);
-      },
-    }),
-    [role],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+
+      // Modo demo (visitante sem login): aplica role do localStorage
+      if (!user) {
+        if (!cancelled) {
+          setRoles(isDemo ? [demoRole] : []);
+          setPermissoes([]);
+          setEmpresaId(null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      // 1) Roles
+      const { data: rolesData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      const userRoles = ((rolesData ?? []).map((r) => r.role)) as Role[];
+
+      // 2) Empresa
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("empresa_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      // 3) Permissões matriz
+      const { data: permsData } = await supabase
+        .from("role_permissions")
+        .select("modulo, acao, role")
+        .in("role", userRoles.length ? userRoles : ["visitante"]);
+
+      if (!cancelled) {
+        setRoles(userRoles.length ? userRoles : ["visitante"]);
+        setEmpresaId(profile?.empresa_id ?? null);
+        setPermissoes(
+          (permsData ?? []).map((p) => ({ modulo: p.modulo, acao: p.acao as Acao })),
+        );
+        setLoading(false);
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
+  }, [user, isDemo, demoRole]);
+
+  const value = useMemo<PermissoesCtx>(() => ({
+    role: roles[0] ?? "visitante",
+    roles,
+    empresaId,
+    loading,
+    setRole: (r) => {
+      setDemoRole(r);
+      try { localStorage.setItem("gn:role", r); } catch { /* noop */ }
+    },
+    can: (acao, modulo) => {
+      // Admin sempre pode
+      if (roles.includes("admin")) return true;
+
+      // Modo demo sem login: usa demoRole local
+      if (!user && isDemo) {
+        if (demoRole === "admin") return true;
+        if (demoRole === "visitante") return acao === "visualizar";
+        return acao === "visualizar" || acao === "exportar";
+      }
+
+      // Verifica matriz vinda do Supabase
+      return permissoes.some(
+        (p) => p.acao === acao && (p.modulo === modulo || p.modulo === "*"),
+      );
+    },
+  }), [roles, empresaId, loading, permissoes, user, isDemo, demoRole]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
