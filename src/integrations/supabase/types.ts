@@ -221,6 +221,13 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "centros_custo_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
         ]
       }
       classificador_valores: {
@@ -300,6 +307,13 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "classificadores_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
         ]
       }
       conciliacao_regras: {
@@ -373,6 +387,13 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "conciliacao_regras_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
         ]
       }
       dre_linhas: {
@@ -422,6 +443,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "empresas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_linhas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
           },
           {
             foreignKeyName: "dre_linhas_parent_id_fkey"
@@ -625,6 +653,13 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "obz_versoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
         ]
       }
       profiles: {
@@ -664,11 +699,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "profiles_empresa_fk"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
             foreignKeyName: "profiles_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
           },
         ]
       }
@@ -753,6 +802,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "realizado_lancamentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
             foreignKeyName: "realizado_lancamentos_lote_id_fkey"
             columns: ["lote_id"]
             isOneToOne: false
@@ -827,6 +883,13 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "realizado_lotes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
         ]
       }
       role_permissions: {
@@ -876,7 +939,145 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_dre_comparativo: {
+        Row: {
+          ano: number | null
+          centro_custo_id: string | null
+          dre_linha_id: string | null
+          empresa_id: string | null
+          mes: number | null
+          valor_orcado: number | null
+          valor_realizado: number | null
+          variacao_abs: number | null
+          variacao_pct: number | null
+        }
+        Relationships: []
+      }
+      v_fluxo_caixa_mensal: {
+        Row: {
+          ano: number | null
+          empresa_id: string | null
+          entradas: number | null
+          mes: number | null
+          saidas: number | null
+          saldo: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "realizado_lancamentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "realizado_lancamentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      v_ia_contexto_empresa: {
+        Row: {
+          ano_referencia: number | null
+          codigo: string | null
+          empresa_id: string | null
+          entradas_ytd: number | null
+          orcado_ytd: number | null
+          razao_social: string | null
+          realizado_ytd: number | null
+          saidas_ytd: number | null
+          saldo_ytd: number | null
+          variacao_abs_ytd: number | null
+        }
+        Relationships: []
+      }
+      v_obz_mensal: {
+        Row: {
+          ano: number | null
+          centro_custo_id: string | null
+          dre_linha_id: string | null
+          empresa_id: string | null
+          mes: number | null
+          revisao: number | null
+          valor_orcado: number | null
+          versao: number | null
+          versao_status: Database["public"]["Enums"]["obz_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "obz_valores_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "obz_valores_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "obz_versoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "obz_versoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      v_realizado_mensal: {
+        Row: {
+          ano: number | null
+          centro_custo_id: string | null
+          dre_linha_id: string | null
+          empresa_id: string | null
+          mes: number | null
+          qtd_lancamentos: number | null
+          valor_realizado: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "realizado_lancamentos_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "realizado_lancamentos_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "realizado_lancamentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "realizado_lancamentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_user_empresa: { Args: { _user_id: string }; Returns: string }
