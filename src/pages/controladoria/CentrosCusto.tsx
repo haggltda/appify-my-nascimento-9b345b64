@@ -21,10 +21,12 @@ export default function CentrosCusto() {
       toast({ title: "Campos obrigatórios", description: "Informe nome e contrato.", variant: "destructive" });
       return;
     }
-    const codigo = proximoCodigoContratual(draft.empresaId, new Date().getFullYear());
+    const ano = new Date().getFullYear();
+    const codigo = proximoCodigoContratual(draft.empresaId, ano);
+    const seq = lista.filter((c) => c.empresaId === draft.empresaId && c.ano === ano).length + 1;
     setLista((s) => [
       ...s,
-      { codigo, nome: draft.nome, empresaId: draft.empresaId, contratoNumero: draft.contratoNumero, status: "ativo" } as CCContrat,
+      { codigo, nome: draft.nome, empresaId: draft.empresaId, contratoNumero: draft.contratoNumero, ano, sequencial: seq, status: "ativo" },
     ]);
     setDraft({ empresaId: empresasGrupo[0].id, nome: "", contratoNumero: "" });
     toast({ title: "CC criado", description: codigo });
@@ -32,7 +34,7 @@ export default function CentrosCusto() {
   const toggle = (codigo: string) =>
     setLista((s) =>
       s.map((c) =>
-        c.codigo === codigo ? { ...c, status: c.status === "ativo" ? "inativo" : "ativo" } : c,
+        c.codigo === codigo ? { ...c, status: c.status === "ativo" ? "encerrado" : "ativo" } : c,
       ),
     );
 
