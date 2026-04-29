@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      anexos: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          enviado_por: string | null
+          id: string
+          mime_type: string | null
+          modulo: string
+          nome: string
+          observacoes: string | null
+          registro_id: string | null
+          storage_path: string
+          tamanho_bytes: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          enviado_por?: string | null
+          id?: string
+          mime_type?: string | null
+          modulo: string
+          nome: string
+          observacoes?: string | null
+          registro_id?: string | null
+          storage_path: string
+          tamanho_bytes: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          enviado_por?: string | null
+          id?: string
+          mime_type?: string | null
+          modulo?: string
+          nome?: string
+          observacoes?: string | null
+          registro_id?: string | null
+          storage_path?: string
+          tamanho_bytes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anexos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anexos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           diff: Json | null
@@ -495,6 +555,174 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      ia_feedback: {
+        Row: {
+          comentario: string | null
+          created_at: string
+          id: string
+          triagem_id: string
+          user_id: string
+          util: boolean
+        }
+        Insert: {
+          comentario?: string | null
+          created_at?: string
+          id?: string
+          triagem_id: string
+          user_id: string
+          util: boolean
+        }
+        Update: {
+          comentario?: string | null
+          created_at?: string
+          id?: string
+          triagem_id?: string
+          user_id?: string
+          util?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_feedback_triagem_id_fkey"
+            columns: ["triagem_id"]
+            isOneToOne: false
+            referencedRelation: "ia_triagens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ia_provedores: {
+        Row: {
+          ativo: boolean
+          base_url: string | null
+          codigo: string
+          config: Json
+          created_at: string
+          id: string
+          is_default: boolean
+          modelo_default: string
+          nome: string
+          ordem: number
+          secret_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          base_url?: string | null
+          codigo: string
+          config?: Json
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          modelo_default: string
+          nome: string
+          ordem?: number
+          secret_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          base_url?: string | null
+          codigo?: string
+          config?: Json
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          modelo_default?: string
+          nome?: string
+          ordem?: number
+          secret_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ia_triagens: {
+        Row: {
+          contexto: Json
+          created_at: string
+          custo_usd: number | null
+          duracao_ms: number | null
+          empresa_id: string
+          erro_msg: string | null
+          id: string
+          modelo: string
+          modulo: string
+          prompt: string
+          provedor_id: string
+          registro_id: string | null
+          resposta: string | null
+          resposta_estruturada: Json | null
+          solicitado_por: string | null
+          status: Database["public"]["Enums"]["ia_status"]
+          tokens_input: number | null
+          tokens_output: number | null
+          updated_at: string
+        }
+        Insert: {
+          contexto?: Json
+          created_at?: string
+          custo_usd?: number | null
+          duracao_ms?: number | null
+          empresa_id: string
+          erro_msg?: string | null
+          id?: string
+          modelo: string
+          modulo: string
+          prompt: string
+          provedor_id: string
+          registro_id?: string | null
+          resposta?: string | null
+          resposta_estruturada?: Json | null
+          solicitado_por?: string | null
+          status?: Database["public"]["Enums"]["ia_status"]
+          tokens_input?: number | null
+          tokens_output?: number | null
+          updated_at?: string
+        }
+        Update: {
+          contexto?: Json
+          created_at?: string
+          custo_usd?: number | null
+          duracao_ms?: number | null
+          empresa_id?: string
+          erro_msg?: string | null
+          id?: string
+          modelo?: string
+          modulo?: string
+          prompt?: string
+          provedor_id?: string
+          registro_id?: string | null
+          resposta?: string | null
+          resposta_estruturada?: Json | null
+          solicitado_por?: string | null
+          status?: Database["public"]["Enums"]["ia_status"]
+          tokens_input?: number | null
+          tokens_output?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_triagens_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_triagens_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "ia_triagens_provedor_id_fkey"
+            columns: ["provedor_id"]
+            isOneToOne: false
+            referencedRelation: "ia_provedores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       obz_periodos: {
         Row: {
@@ -1096,6 +1324,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      storage_path_empresa: { Args: { _name: string }; Returns: string }
     }
     Enums: {
       app_acao:
@@ -1126,6 +1355,7 @@ export type Database = {
         | "resultado"
         | "tributo"
         | "financeiro"
+      ia_status: "pendente" | "processando" | "concluida" | "erro" | "cancelada"
       lote_origem: "manual" | "erp" | "extrato_bancario" | "planilha" | "api"
       lote_status: "pendente" | "processado" | "erro" | "cancelado"
       obz_status: "rascunho" | "em_aprovacao" | "aprovada" | "arquivada"
@@ -1289,6 +1519,7 @@ export const Constants = {
         "tributo",
         "financeiro",
       ],
+      ia_status: ["pendente", "processando", "concluida", "erro", "cancelada"],
       lote_origem: ["manual", "erp", "extrato_bancario", "planilha", "api"],
       lote_status: ["pendente", "processado", "erro", "cancelado"],
       obz_status: ["rascunho", "em_aprovacao", "aprovada", "arquivada"],
