@@ -1,8 +1,11 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { empresasGrupo } from "@/data/controladoria";
-import { ShieldAlert, CheckCircle2 } from "lucide-react";
+import { ShieldAlert, CheckCircle2, Pencil } from "lucide-react";
+import { RoleGate } from "@/components/RoleGate";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Empresas() {
+  const { toast } = useToast();
   return (
     <div>
       <PageHeader
