@@ -73,7 +73,7 @@ export default function PlanoContas() {
   const qc = useQueryClient();
   const [tab, setTab] = useState("plano");
 
-  const podeAprovar = ["admin", "controladoria", "diretor_adm"].includes(roleAtivo);
+  const podeAprovar = (roles ?? []).some((r: string) => ["admin", "controladoria", "diretor_adm"].includes(r));
 
   const contasQ = useQuery({
     queryKey: ["conta_contabil", empresaId],
