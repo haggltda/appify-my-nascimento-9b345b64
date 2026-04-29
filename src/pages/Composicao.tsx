@@ -13,9 +13,24 @@ import {
   MapPin,
   Plus,
   Trash2,
+  BarChart3,
+  Wallet,
+  LineChart as LineChartIcon,
 } from "lucide-react";
 import { formatBRL } from "@/data/contratos";
 import { toast } from "sonner";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Area,
+  Line,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 interface Posto {
   id: string;
@@ -44,12 +59,13 @@ const verbasFolhaIniciais = [
   { rubrica: "Provisão multa rescisória", percentual: 4.0 },
 ];
 
-type AbaId = "postos" | "encargos" | "insumos" | "impostos";
+type AbaId = "postos" | "encargos" | "insumos" | "impostos" | "dre" | "caixa" | "grafico";
 
 interface AbaDef {
   id: AbaId;
   label: string;
   icon: any;
+  isAnalytic?: boolean;
 }
 
 const abas: AbaDef[] = [
@@ -57,7 +73,12 @@ const abas: AbaDef[] = [
   { id: "encargos", label: "Encargos e Benefícios", icon: Calculator },
   { id: "insumos", label: "Insumos e Operação", icon: Package },
   { id: "impostos", label: "Impostos e Margem", icon: TrendingUp },
+  { id: "dre", label: "DRE da Licitação", icon: BarChart3, isAnalytic: true },
+  { id: "caixa", label: "Caixa Mensal", icon: Wallet, isAnalytic: true },
+  { id: "grafico", label: "Orçado x Realizado", icon: LineChartIcon, isAnalytic: true },
 ];
+
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export default function Composicao() {
   const [postos, setPostos] = useState<Posto[]>(postosIniciais);
