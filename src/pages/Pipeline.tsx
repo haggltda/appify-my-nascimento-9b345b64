@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
 import { licitacoes as licitacoesBase, statusOrdem, statusLabel, formatBRL, formatDate, type StatusLicitacao, type Licitacao } from "@/data/licitacoes";
@@ -38,6 +39,12 @@ export default function Pipeline() {
   const [target, setTarget] = useState<Licitacao | null>(null);
   const { user } = useAuth();
   const [displayName, setDisplayName] = useState<string>("");
+  const navigate = useNavigate();
+
+  const openComposicao = (l: Licitacao) => {
+    // Filtro híbrido: licitacao= sempre; (futuro) contrato= se vinculado
+    navigate(`/app/composicao?licitacao=${encodeURIComponent(l.id)}`);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -122,9 +129,9 @@ export default function Pipeline() {
       </div>
 
       {view === "kanban" ? (
-        <KanbanView data={data} currentUser={displayName} onAssume={setTarget} />
+        <KanbanView data={data} currentUser={displayName} onAssume={setTarget} onOpen={openComposicao} />
       ) : (
-        <TableView data={data} currentUser={displayName} onAssume={setTarget} />
+        <TableView data={data} currentUser={displayName} onAssume={setTarget} onOpen={openComposicao} />
       )}
 
       <AlertDialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
@@ -197,10 +204,11 @@ function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
   );
 }
 
-function KanbanView({ data, currentUser, onAssume }: {
+function KanbanView({ data, currentUser, onAssume, onOpen }: {
   data: Licitacao[];
   currentUser: string;
   onAssume: (l: Licitacao) => void;
+  onOpen: (l: Licitacao) => void;
 }) {
   const cols: StatusLicitacao[] = ["oportunidade", "em_analise", "parecer_tecnico", "controladoria", "aprovacao_diretoria", "pregao", "vencida"];
   return (
@@ -224,7 +232,7 @@ function KanbanView({ data, currentUser, onAssume }: {
                   </div>
                 )}
                 {items.map((l) => (
-                  <article key={l.id} className="card-floating cursor-pointer p-3.5 hover:border-primary/40">
+                  <article key={l.id} onDoubleClick={() => onOpen(l)} className="card-floating cursor-pointer p-3.5 hover:border-primary/40" title="Duplo-clique para abrir Composição & BDI">
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-mono text-[11px] text-muted-foreground">{l.numero}</p>
                       <CriticidadeChip value={l.criticidade} />
@@ -255,10 +263,11 @@ function KanbanView({ data, currentUser, onAssume }: {
   );
 }
 
-function TableView({ data, currentUser, onAssume }: {
+function TableView({ data, currentUser, onAssume, onOpen }: {
   data: Licitacao[];
   currentUser: string;
   onAssume: (l: Licitacao) => void;
+  onOpen: (l: Licitacao) => void;
 }) {
   return (
     <div className="card-elevated overflow-hidden">
@@ -279,7 +288,7 @@ function TableView({ data, currentUser, onAssume }: {
           </thead>
           <tbody className="divide-y divide-border">
             {data.map((l) => (
-              <tr key={l.id} className="group cursor-pointer hover:bg-muted/40">
+              <tr key={l.id} onDoubleClick={() => onOpen(l)} className="group cursor-pointer hover:bg-muted/40" title="Duplo-clique para abrir Composição & BDI">
                 <td className="px-5 py-3">
                   <p className="font-mono text-[11px] text-muted-foreground">{l.numero}</p>
                   <p className="line-clamp-1 max-w-sm text-sm font-medium">{l.objeto}</p>

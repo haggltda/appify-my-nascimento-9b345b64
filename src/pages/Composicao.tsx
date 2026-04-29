@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { licitacoes as licitacoesBase } from "@/data/licitacoes";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   PieChart,
@@ -81,10 +83,28 @@ const abas: AbaDef[] = [
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export default function Composicao() {
+  const [searchParams] = useSearchParams();
+  const licitacaoIdParam = searchParams.get("licitacao");
+  const contratoIdParam = searchParams.get("contrato");
   const [postos, setPostos] = useState<Posto[]>(postosIniciais);
   const [verbas, setVerbas] = useState(verbasFolhaIniciais);
-  const [empresa] = useState("NSV — Nascimento Serviços Ltda.");
-  const [licitacao] = useState("PE 044/2025 · Limpeza urbana e coleta seletiva");
+  const [empresa, setEmpresa] = useState("NSV — Nascimento Serviços Ltda.");
+  const [licitacao, setLicitacao] = useState("PE 044/2025 · Limpeza urbana e coleta seletiva");
+  const [origem, setOrigem] = useState<"manual" | "pipeline">("manual");
+
+  useEffect(() => {
+    if (!licitacaoIdParam && !contratoIdParam) return;
+    const l = licitacoesBase.find((x) => x.id === licitacaoIdParam);
+    if (l) {
+      setLicitacao(`${l.numero} · ${l.objeto}`);
+      setEmpresa(l.empresa);
+      setOrigem("pipeline");
+    } else if (contratoIdParam) {
+      setLicitacao(`Contrato ${contratoIdParam}`);
+      setOrigem("pipeline");
+    }
+  }, [licitacaoIdParam, contratoIdParam]);
+
   const [margem, setMargem] = useState(12);
   const [tributos, setTributos] = useState(14.25);
   const [custoIndireto, setCustoIndireto] = useState(8.5);
@@ -235,6 +255,14 @@ export default function Composicao() {
           </>
         }
       />
+
+      {origem === "pipeline" && (
+        <div className="card-elevated flex items-center gap-3 border-l-4 border-l-primary bg-primary/5 px-4 py-3 text-sm">
+          <span className="rounded bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">Vindo do Pipeline</span>
+          <span className="font-medium">{licitacao}</span>
+          <span className="ml-auto text-xs text-muted-foreground">Empresa: <strong className="text-foreground">{empresa}</strong></span>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Área central com abas */}
