@@ -3999,6 +3999,8 @@ export type Database = {
           id: string
           layout_detectado_id: string | null
           layout_score: number | null
+          linhas_inseridas: number | null
+          materializado_em: string | null
           metadata: Json | null
           mime_type: string | null
           nome_original: string
@@ -4014,6 +4016,8 @@ export type Database = {
           id?: string
           layout_detectado_id?: string | null
           layout_score?: number | null
+          linhas_inseridas?: number | null
+          materializado_em?: string | null
           metadata?: Json | null
           mime_type?: string | null
           nome_original: string
@@ -4029,6 +4033,8 @@ export type Database = {
           id?: string
           layout_detectado_id?: string | null
           layout_score?: number | null
+          linhas_inseridas?: number | null
+          materializado_em?: string | null
           metadata?: Json | null
           mime_type?: string | null
           nome_original?: string
@@ -9966,6 +9972,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      integration_approve_batch: {
+        Args: { p_batch_id: string }
+        Returns: undefined
+      }
+      integration_materialize_staging: {
+        Args: { p_batch_file_id: string; p_rows: Json }
+        Returns: Json
+      }
+      integration_reject_batch: {
+        Args: { p_batch_id: string; p_motivo?: string }
+        Returns: undefined
+      }
       layout_aprovar_versao: { Args: { _versao_id: string }; Returns: Json }
       layout_nova_versao: { Args: { _layout_id: string }; Returns: Json }
       layout_rejeitar_versao: {
@@ -10042,6 +10060,7 @@ export type Database = {
         Returns: Json
       }
       titulo_receber_marcar_vencidos: { Args: never; Returns: number }
+      unaccent_safe: { Args: { t: string }; Returns: string }
     }
     Enums: {
       almox_tipo: "matriz" | "deposito" | "obra" | "veiculo" | "outro"
