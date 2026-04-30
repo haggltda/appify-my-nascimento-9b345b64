@@ -215,6 +215,7 @@ const contabilModule: ModuleDef = {
     items: [
       { label: "Lançamentos", to: "/app/contabil/lancamentos", icon: BookOpen },
       { label: "Plano de Contas", to: "/app/contabil/plano-contas", icon: BookOpen },
+      { label: "Contabilidade Avançada", to: "/app/contabil/avancada", icon: BookOpen },
     ],
   }],
 };
