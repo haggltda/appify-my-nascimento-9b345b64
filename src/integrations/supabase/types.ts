@@ -3629,37 +3629,49 @@ export type Database = {
       }
       lancamento_contabil: {
         Row: {
+          competencia: string | null
           created_at: string
+          created_by: string | null
           data_lancamento: string
           empresa_id: string
           historico: string
           id: string
           numero: string
           origem: string | null
+          origem_id: string | null
+          origem_tipo: string | null
           status: Database["public"]["Enums"]["lanc_status"]
           updated_at: string
           valor_total: number
         }
         Insert: {
+          competencia?: string | null
           created_at?: string
+          created_by?: string | null
           data_lancamento?: string
           empresa_id: string
           historico: string
           id?: string
           numero: string
           origem?: string | null
+          origem_id?: string | null
+          origem_tipo?: string | null
           status?: Database["public"]["Enums"]["lanc_status"]
           updated_at?: string
           valor_total?: number
         }
         Update: {
+          competencia?: string | null
           created_at?: string
+          created_by?: string | null
           data_lancamento?: string
           empresa_id?: string
           historico?: string
           id?: string
           numero?: string
           origem?: string | null
+          origem_id?: string | null
+          origem_tipo?: string | null
           status?: Database["public"]["Enums"]["lanc_status"]
           updated_at?: string
           valor_total?: number
@@ -6045,6 +6057,87 @@ export type Database = {
           },
         ]
       }
+      regra_contabilizacao: {
+        Row: {
+          ativo: boolean
+          centro_custo_padrao: string | null
+          conta_credito_id: string | null
+          conta_debito_id: string | null
+          created_at: string
+          descricao: string
+          empresa_id: string
+          evento: Database["public"]["Enums"]["regra_evento"]
+          filtro: Json | null
+          id: string
+          prioridade: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          centro_custo_padrao?: string | null
+          conta_credito_id?: string | null
+          conta_debito_id?: string | null
+          created_at?: string
+          descricao: string
+          empresa_id: string
+          evento: Database["public"]["Enums"]["regra_evento"]
+          filtro?: Json | null
+          id?: string
+          prioridade?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          centro_custo_padrao?: string | null
+          conta_credito_id?: string | null
+          conta_debito_id?: string | null
+          created_at?: string
+          descricao?: string
+          empresa_id?: string
+          evento?: Database["public"]["Enums"]["regra_evento"]
+          filtro?: Json | null
+          id?: string
+          prioridade?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regra_contabilizacao_conta_credito_id_fkey"
+            columns: ["conta_credito_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regra_contabilizacao_conta_debito_id_fkey"
+            columns: ["conta_debito_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regra_contabilizacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regra_contabilizacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "regra_contabilizacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       regua_cobranca: {
         Row: {
           aplicar_para: string
@@ -7961,6 +8054,28 @@ export type Database = {
         Args: { _competencia: string; _empresa_id: string }
         Returns: Json
       }
+      balancete: {
+        Args: { _data_fim: string; _data_ini: string; _empresa_id: string }
+        Returns: {
+          classificacao: string
+          conta_id: string
+          credito: number
+          debito: number
+          descricao: string
+          natureza: string
+          saldo: number
+        }[]
+      }
+      balanco_patrimonial: {
+        Args: { _data_corte: string; _empresa_id: string }
+        Returns: {
+          classificacao: string
+          conta_id: string
+          descricao: string
+          grupo: string
+          saldo: number
+        }[]
+      }
       cnab_gerar_remessa: {
         Args: { _conta_bancaria_id: string; _titulo_ids: string[] }
         Returns: Json
@@ -7979,6 +8094,15 @@ export type Database = {
         Returns: Json
       }
       conciliacao_auto_match: { Args: { _empresa_id: string }; Returns: Json }
+      contabilizar_baixa_pagar: {
+        Args: { _titulo_id: string }
+        Returns: string
+      }
+      contabilizar_baixa_receber: {
+        Args: { _baixa_id: string }
+        Returns: string
+      }
+      contabilizar_nota_fiscal: { Args: { _nota_id: string }; Returns: string }
       cotacao_calcular_score: { Args: { _cotacao_id: string }; Returns: Json }
       cotacao_fechar: {
         Args: {
@@ -7988,6 +8112,16 @@ export type Database = {
           _vencedor_fornecedor_id: string
         }
         Returns: Json
+      }
+      dre_realizado: {
+        Args: { _data_fim: string; _data_ini: string; _empresa_id: string }
+        Returns: {
+          classificacao: string
+          conta_id: string
+          descricao: string
+          grupo: string
+          valor: number
+        }[]
       }
       extrato_importar: {
         Args: {
@@ -8069,6 +8203,10 @@ export type Database = {
           _valor_produtos?: number
           _valor_servicos?: number
         }
+        Returns: string
+      }
+      proximo_numero_lancamento: {
+        Args: { _empresa_id: string }
         Returns: string
       }
       recebimento_confirmar: {
@@ -8382,6 +8520,14 @@ export type Database = {
         | "recebido_com_ocorrencia"
         | "cancelado"
       regime_tributario: "lucro_real" | "lucro_presumido" | "simples_nacional"
+      regra_evento:
+        | "nf_servico_autorizada"
+        | "nf_produto_autorizada"
+        | "baixa_receber"
+        | "baixa_pagar"
+        | "impostos_faturamento"
+        | "provisao_folha"
+        | "manual"
       regua_canal:
         | "email"
         | "whatsapp"
@@ -8874,6 +9020,15 @@ export const Constants = {
         "cancelado",
       ],
       regime_tributario: ["lucro_real", "lucro_presumido", "simples_nacional"],
+      regra_evento: [
+        "nf_servico_autorizada",
+        "nf_produto_autorizada",
+        "baixa_receber",
+        "baixa_pagar",
+        "impostos_faturamento",
+        "provisao_folha",
+        "manual",
+      ],
       regua_canal: [
         "email",
         "whatsapp",
