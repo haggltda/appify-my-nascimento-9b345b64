@@ -353,6 +353,22 @@ export default function BatchDetalhe() {
                 </Button>
               </>
             )}
+            {isAdmin && batch.status === "aprovado" && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={promoteBatch}
+                disabled={busyAction === "promote"}
+              >
+                {busyAction === "promote" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                Promover para tabelas finais
+              </Button>
+            )}
+            {isAdmin && (
+              <Button asChild size="sm" variant="outline">
+                <Link to="/app/integracao/aliases"><Link2 className="h-4 w-4" /> Aliases</Link>
+              </Button>
+            )}
           </div>
         }
       />
