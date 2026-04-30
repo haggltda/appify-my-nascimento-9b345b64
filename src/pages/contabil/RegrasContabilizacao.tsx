@@ -111,31 +111,42 @@ export default function RegrasContabilizacao() {
         <table className="w-full text-sm">
           <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
             <tr>
+              <th className="px-3 py-2 text-left">Código</th>
               <th className="px-3 py-2 text-left">Evento</th>
               <th className="px-3 py-2 text-left">Descrição</th>
               <th className="px-3 py-2 text-left">Débito</th>
               <th className="px-3 py-2 text-left">Crédito</th>
-              <th className="px-3 py-2 text-center">Prioridade</th>
+              <th className="px-3 py-2 text-center">Contrato</th>
+              <th className="px-3 py-2 text-center">CC</th>
+              <th className="px-3 py-2 text-center">DRE</th>
+              <th className="px-3 py-2 text-center">3-way</th>
               <th className="px-3 py-2 text-center">Ativo</th>
               <th className="px-3 py-2 text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {regrasQ.isLoading && <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>}
+            {regrasQ.isLoading && <tr><td colSpan={11} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>}
             {(regrasQ.data ?? []).length === 0 && !regrasQ.isLoading && (
-              <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Nenhuma regra configurada.</td></tr>
+              <tr><td colSpan={11} className="px-3 py-6 text-center text-muted-foreground">Nenhuma regra configurada.</td></tr>
             )}
             {(regrasQ.data ?? []).map((r: any) => (
               <tr key={r.id} className="border-t border-border/60">
-                <td className="px-3 py-2"><Badge variant="outline" className="capitalize">{r.evento.replace(/_/g, " ")}</Badge></td>
-                <td className="px-3 py-2">{r.descricao}</td>
-                <td className="px-3 py-2 text-xs">
-                  {r.conta_debito ? <><span className="font-mono">{r.conta_debito.classificacao}</span> {r.conta_debito.descricao}</> : "—"}
+                <td className="px-3 py-2 text-xs font-mono">{r.codigo_evento ?? "—"}</td>
+                <td className="px-3 py-2"><Badge variant="outline" className="capitalize">{String(r.evento).replace(/_/g, " ")}</Badge></td>
+                <td className="px-3 py-2">
+                  <div>{r.descricao}</div>
+                  {r.observacao && <div className="text-[11px] text-muted-foreground">{r.observacao}</div>}
                 </td>
                 <td className="px-3 py-2 text-xs">
-                  {r.conta_credito ? <><span className="font-mono">{r.conta_credito.classificacao}</span> {r.conta_credito.descricao}</> : "—"}
+                  {r.conta_debito ? <><span className="font-mono">{r.conta_debito.classificacao}</span> {r.conta_debito.descricao}</> : <span className="text-muted-foreground italic">não vinculada</span>}
                 </td>
-                <td className="px-3 py-2 text-center">{r.prioridade}</td>
+                <td className="px-3 py-2 text-xs">
+                  {r.conta_credito ? <><span className="font-mono">{r.conta_credito.classificacao}</span> {r.conta_credito.descricao}</> : <span className="text-muted-foreground italic">não vinculada</span>}
+                </td>
+                <td className="px-3 py-2 text-center">{r.exige_contrato ? "✓" : "—"}</td>
+                <td className="px-3 py-2 text-center">{r.exige_centro_custo ? "✓" : "—"}</td>
+                <td className="px-3 py-2 text-center">{r.entra_dre ? "✓" : "—"}</td>
+                <td className="px-3 py-2 text-center">{r.requer_3way_match ? "✓" : "—"}</td>
                 <td className="px-3 py-2 text-center">{r.ativo ? "✓" : "—"}</td>
                 <td className="px-3 py-2 text-right">
                   <Button size="sm" variant="ghost" onClick={() => remover.mutate(r.id)}><Trash2 className="h-4 w-4" /></Button>
