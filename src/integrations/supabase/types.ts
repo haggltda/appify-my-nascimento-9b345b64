@@ -7460,6 +7460,7 @@ export type Database = {
         | "gestor_cc"
         | "fiscal_recebedor"
         | "financeiro"
+        | "fiscal"
       aprov_decisao: "pendente" | "aprovado" | "rejeitado" | "devolvido"
       banco_layout_tipo:
         | "cnab240_remessa_pagamento"
@@ -7900,6 +7901,7 @@ export const Constants = {
         "gestor_cc",
         "fiscal_recebedor",
         "financeiro",
+        "fiscal",
       ],
       aprov_decisao: ["pendente", "aprovado", "rejeitado", "devolvido"],
       banco_layout_tipo: [
