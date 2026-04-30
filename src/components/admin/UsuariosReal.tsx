@@ -93,6 +93,15 @@ export function UsuariosReal() {
             {(profilesQ.data ?? []).length} usuário(s) · {(empresasQ.data ?? []).length} empresa(s)
           </p>
         </div>
+        {podeEditar && (
+          <NovoUsuarioDialog
+            empresas={empresasQ.data ?? []}
+            onCreated={() => {
+              qc.invalidateQueries({ queryKey: ["admin-profiles"] });
+              qc.invalidateQueries({ queryKey: ["all-user-roles"] });
+            }}
+          />
+        )}
       </header>
 
       <div className="border-b border-border p-3">
