@@ -109,5 +109,4 @@ export const REGIME_LABEL: Record<RegimeTributario, string> = {
   simples_nacional: "Simples Nacional",
   lucro_presumido: "Lucro Presumido",
   lucro_real: "Lucro Real",
-  mei: "MEI",
 };
