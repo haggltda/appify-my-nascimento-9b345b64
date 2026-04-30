@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      almoxarifado: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          contrato_id: string | null
+          created_at: string
+          empresa_id: string
+          endereco: string | null
+          id: string
+          is_matriz: boolean
+          nome: string
+          observacoes: string | null
+          responsavel: string | null
+          tipo: Database["public"]["Enums"]["almox_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          contrato_id?: string | null
+          created_at?: string
+          empresa_id: string
+          endereco?: string | null
+          id?: string
+          is_matriz?: boolean
+          nome: string
+          observacoes?: string | null
+          responsavel?: string | null
+          tipo?: Database["public"]["Enums"]["almox_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          contrato_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          endereco?: string | null
+          id?: string
+          is_matriz?: boolean
+          nome?: string
+          observacoes?: string | null
+          responsavel?: string | null
+          tipo?: Database["public"]["Enums"]["almox_tipo"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "almoxarifado_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alocacao_colaborador: {
         Row: {
           ativo: boolean
@@ -1395,6 +1451,344 @@ export type Database = {
         }
         Relationships: []
       }
+      estoque_lote: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          custo_unitario: number
+          data_fabricacao: string | null
+          data_validade: string | null
+          empresa_id: string
+          fornecedor_id: string | null
+          id: string
+          nf_numero: string | null
+          numero_lote: string
+          observacoes: string | null
+          produto_id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          custo_unitario?: number
+          data_fabricacao?: string | null
+          data_validade?: string | null
+          empresa_id: string
+          fornecedor_id?: string | null
+          id?: string
+          nf_numero?: string | null
+          numero_lote: string
+          observacoes?: string | null
+          produto_id: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          custo_unitario?: number
+          data_fabricacao?: string | null
+          data_validade?: string | null
+          empresa_id?: string
+          fornecedor_id?: string | null
+          id?: string
+          nf_numero?: string | null
+          numero_lote?: string
+          observacoes?: string | null
+          produto_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_lote_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_lote_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estoque_movimento: {
+        Row: {
+          almoxarifado_destino_id: string | null
+          almoxarifado_id: string
+          centro_custo_id: string | null
+          contrato_id: string | null
+          created_at: string
+          custo_unitario: number
+          data_movimento: string
+          documento: string | null
+          empresa_id: string
+          id: string
+          justificativa_negativo: string | null
+          lote_id: string | null
+          observacoes: string | null
+          origem: Database["public"]["Enums"]["estoque_mov_origem"]
+          origem_id: string | null
+          permitiu_negativo: boolean
+          produto_id: string
+          quantidade: number
+          tipo: Database["public"]["Enums"]["estoque_mov_tipo"]
+          user_id: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          almoxarifado_destino_id?: string | null
+          almoxarifado_id: string
+          centro_custo_id?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          custo_unitario?: number
+          data_movimento?: string
+          documento?: string | null
+          empresa_id: string
+          id?: string
+          justificativa_negativo?: string | null
+          lote_id?: string | null
+          observacoes?: string | null
+          origem: Database["public"]["Enums"]["estoque_mov_origem"]
+          origem_id?: string | null
+          permitiu_negativo?: boolean
+          produto_id: string
+          quantidade: number
+          tipo: Database["public"]["Enums"]["estoque_mov_tipo"]
+          user_id?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          almoxarifado_destino_id?: string | null
+          almoxarifado_id?: string
+          centro_custo_id?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          custo_unitario?: number
+          data_movimento?: string
+          documento?: string | null
+          empresa_id?: string
+          id?: string
+          justificativa_negativo?: string | null
+          lote_id?: string | null
+          observacoes?: string | null
+          origem?: Database["public"]["Enums"]["estoque_mov_origem"]
+          origem_id?: string | null
+          permitiu_negativo?: boolean
+          produto_id?: string
+          quantidade?: number
+          tipo?: Database["public"]["Enums"]["estoque_mov_tipo"]
+          user_id?: string | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_movimento_almoxarifado_destino_id_fkey"
+            columns: ["almoxarifado_destino_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_almoxarifado_id_fkey"
+            columns: ["almoxarifado_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_lote"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_movimento_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estoque_reserva: {
+        Row: {
+          almoxarifado_id: string
+          contrato_id: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          liberado_em: string | null
+          liberado_por: string | null
+          lote_id: string | null
+          observacoes: string | null
+          produto_id: string
+          quantidade: number
+          requisicao_id: string | null
+          reservado_em: string
+          reservado_por: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          almoxarifado_id: string
+          contrato_id?: string | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          liberado_em?: string | null
+          liberado_por?: string | null
+          lote_id?: string | null
+          observacoes?: string | null
+          produto_id: string
+          quantidade: number
+          requisicao_id?: string | null
+          reservado_em?: string
+          reservado_por?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          almoxarifado_id?: string
+          contrato_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          liberado_em?: string | null
+          liberado_por?: string | null
+          lote_id?: string | null
+          observacoes?: string | null
+          produto_id?: string
+          quantidade?: number
+          requisicao_id?: string | null
+          reservado_em?: string
+          reservado_por?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_reserva_almoxarifado_id_fkey"
+            columns: ["almoxarifado_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_reserva_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_reserva_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_lote"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_reserva_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_reserva_requisicao_id_fkey"
+            columns: ["requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "requisicao_compra"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estoque_saldo: {
+        Row: {
+          almoxarifado_id: string
+          created_at: string
+          custo_unitario: number
+          empresa_id: string
+          id: string
+          lote_id: string | null
+          produto_id: string
+          quantidade: number
+          quantidade_reservada: number
+          ultima_movimentacao: string | null
+          updated_at: string
+          valor_total: number | null
+        }
+        Insert: {
+          almoxarifado_id: string
+          created_at?: string
+          custo_unitario?: number
+          empresa_id: string
+          id?: string
+          lote_id?: string | null
+          produto_id: string
+          quantidade?: number
+          quantidade_reservada?: number
+          ultima_movimentacao?: string | null
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Update: {
+          almoxarifado_id?: string
+          created_at?: string
+          custo_unitario?: number
+          empresa_id?: string
+          id?: string
+          lote_id?: string | null
+          produto_id?: string
+          quantidade?: number
+          quantidade_reservada?: number
+          ultima_movimentacao?: string | null
+          updated_at?: string
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_saldo_almoxarifado_id_fkey"
+            columns: ["almoxarifado_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_saldo_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_lote"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_saldo_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fluxo_caixa_projetado: {
         Row: {
           contrato_id: string | null
@@ -2576,6 +2970,116 @@ export type Database = {
           },
         ]
       }
+      produto: {
+        Row: {
+          ativo: boolean
+          categoria_id: string | null
+          codigo: string
+          codigo_externo: string | null
+          controla_lote: boolean
+          controla_validade: boolean
+          created_at: string
+          custo_medio_atual: number
+          descricao: string
+          empresa_id: string
+          estoque_maximo: number | null
+          estoque_minimo: number
+          id: string
+          metodo_custeio: Database["public"]["Enums"]["produto_metodo_custeio"]
+          observacoes: string | null
+          preco_referencia: number
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria_id?: string | null
+          codigo: string
+          codigo_externo?: string | null
+          controla_lote?: boolean
+          controla_validade?: boolean
+          created_at?: string
+          custo_medio_atual?: number
+          descricao: string
+          empresa_id: string
+          estoque_maximo?: number | null
+          estoque_minimo?: number
+          id?: string
+          metodo_custeio?: Database["public"]["Enums"]["produto_metodo_custeio"]
+          observacoes?: string | null
+          preco_referencia?: number
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria_id?: string | null
+          codigo?: string
+          codigo_externo?: string | null
+          controla_lote?: boolean
+          controla_validade?: boolean
+          created_at?: string
+          custo_medio_atual?: number
+          descricao?: string
+          empresa_id?: string
+          estoque_maximo?: number | null
+          estoque_minimo?: number
+          id?: string
+          metodo_custeio?: Database["public"]["Enums"]["produto_metodo_custeio"]
+          observacoes?: string | null
+          preco_referencia?: number
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produto_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "produto_categoria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      produto_categoria: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          controla_lote_padrao: boolean
+          controla_validade_padrao: boolean
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          controla_lote_padrao?: boolean
+          controla_validade_padrao?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          controla_lote_padrao?: boolean
+          controla_validade_padrao?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       produto_servico: {
         Row: {
           ativo: boolean
@@ -2875,6 +3379,7 @@ export type Database = {
       }
       requisicao_compra: {
         Row: {
+          almoxarifado_destino_id: string | null
           aprovado_em: string | null
           aprovado_por: string | null
           categoria_gasto: string | null
@@ -2883,6 +3388,7 @@ export type Database = {
           created_at: string
           data_necessidade: string | null
           data_solicitacao: string
+          destino: Database["public"]["Enums"]["rc_destino"]
           dre_linha_id: string | null
           empresa_id: string
           id: string
@@ -2899,6 +3405,7 @@ export type Database = {
           valor_estimado: number
         }
         Insert: {
+          almoxarifado_destino_id?: string | null
           aprovado_em?: string | null
           aprovado_por?: string | null
           categoria_gasto?: string | null
@@ -2907,6 +3414,7 @@ export type Database = {
           created_at?: string
           data_necessidade?: string | null
           data_solicitacao?: string
+          destino?: Database["public"]["Enums"]["rc_destino"]
           dre_linha_id?: string | null
           empresa_id: string
           id?: string
@@ -2923,6 +3431,7 @@ export type Database = {
           valor_estimado?: number
         }
         Update: {
+          almoxarifado_destino_id?: string | null
           aprovado_em?: string | null
           aprovado_por?: string | null
           categoria_gasto?: string | null
@@ -2931,6 +3440,7 @@ export type Database = {
           created_at?: string
           data_necessidade?: string | null
           data_solicitacao?: string
+          destino?: Database["public"]["Enums"]["rc_destino"]
           dre_linha_id?: string | null
           empresa_id?: string
           id?: string
@@ -2946,7 +3456,15 @@ export type Database = {
           updated_at?: string
           valor_estimado?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "requisicao_compra_almoxarifado_destino_id_fkey"
+            columns: ["almoxarifado_destino_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifado"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       requisicao_compra_item: {
         Row: {
@@ -3348,6 +3866,50 @@ export type Database = {
         }
         Relationships: []
       }
+      v_estoque_consolidado: {
+        Row: {
+          abaixo_minimo: boolean | null
+          almoxarifado_id: string | null
+          almoxarifado_nome: string | null
+          categoria_id: string | null
+          custo_unitario_medio: number | null
+          empresa_id: string | null
+          estoque_maximo: number | null
+          estoque_minimo: number | null
+          is_matriz: boolean | null
+          produto_codigo: string | null
+          produto_descricao: string | null
+          produto_id: string | null
+          quantidade_disponivel: number | null
+          quantidade_reservada_total: number | null
+          quantidade_total: number | null
+          unidade: string | null
+          valor_total_estoque: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_saldo_almoxarifado_id_fkey"
+            columns: ["almoxarifado_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_saldo_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produto_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "produto_categoria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_fluxo_caixa_mensal: {
         Row: {
           ano: number | null
@@ -3590,6 +4152,7 @@ export type Database = {
       storage_path_empresa: { Args: { _name: string }; Returns: string }
     }
     Enums: {
+      almox_tipo: "matriz" | "deposito" | "obra" | "veiculo" | "outro"
       app_acao:
         | "visualizar"
         | "incluir"
@@ -3653,6 +4216,22 @@ export type Database = {
         | "resultado"
         | "tributo"
         | "financeiro"
+      estoque_mov_origem:
+        | "nf_entrada"
+        | "rc"
+        | "pedido_compra"
+        | "ajuste_manual"
+        | "transferencia"
+        | "inventario"
+        | "devolucao"
+      estoque_mov_tipo:
+        | "entrada"
+        | "saida"
+        | "transferencia"
+        | "ajuste"
+        | "reserva"
+        | "liberacao_reserva"
+        | "consumo"
       fluxo_tipo: "entrada" | "saida"
       fornecedor_tipo: "pj" | "pf"
       ia_status: "pendente" | "processando" | "concluida" | "erro" | "cancelada"
@@ -3706,6 +4285,8 @@ export type Database = {
         | "escala_6x1"
         | "outra"
       prod_serv_tipo: "produto" | "servico"
+      produto_metodo_custeio: "compra" | "medio"
+      rc_destino: "estoque" | "contrato"
       rc_prioridade: "baixa" | "normal" | "alta" | "urgente"
       rc_status_v2:
         | "rascunho"
@@ -3859,6 +4440,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      almox_tipo: ["matriz", "deposito", "obra", "veiculo", "outro"],
       app_acao: [
         "visualizar",
         "incluir",
@@ -3928,6 +4510,24 @@ export const Constants = {
         "tributo",
         "financeiro",
       ],
+      estoque_mov_origem: [
+        "nf_entrada",
+        "rc",
+        "pedido_compra",
+        "ajuste_manual",
+        "transferencia",
+        "inventario",
+        "devolucao",
+      ],
+      estoque_mov_tipo: [
+        "entrada",
+        "saida",
+        "transferencia",
+        "ajuste",
+        "reserva",
+        "liberacao_reserva",
+        "consumo",
+      ],
       fluxo_tipo: ["entrada", "saida"],
       fornecedor_tipo: ["pj", "pf"],
       ia_status: ["pendente", "processando", "concluida", "erro", "cancelada"],
@@ -3987,6 +4587,8 @@ export const Constants = {
         "outra",
       ],
       prod_serv_tipo: ["produto", "servico"],
+      produto_metodo_custeio: ["compra", "medio"],
+      rc_destino: ["estoque", "contrato"],
       rc_prioridade: ["baixa", "normal", "alta", "urgente"],
       rc_status_v2: [
         "rascunho",
