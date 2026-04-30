@@ -257,6 +257,16 @@ const biModule: ModuleDef = {
   }],
 };
 
+// Integração & Migração (somente admin)
+const integracaoModule: ModuleDef = {
+  id: "integracao", label: "Integração & Migração", description: "Lotes de planilhas → ERP",
+  icon: DatabaseZap, basePath: "/app/integracao", status: "active",
+  groups: [{
+    label: "Cargas", defaultOpen: true,
+    items: [{ label: "Lotes de Integração", to: "/app/integracao", icon: DatabaseZap }],
+  }],
+};
+
 const erpModules: ModuleDef[] = [
   licitacoesModule,
   controladoriaOrcModule,
