@@ -263,7 +263,7 @@ function BaixaDialog({ titulo, onClose }: { titulo: any; onClose: (ok: boolean) 
             <Label>Valor recebido</Label>
             <Input type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} />
           </div>
-          <div><Label>Data</Label><Input type="date" value={data} onChange={(e) => setData(e.target.value)} /></div>
+          <div><Label>Data</Label><Input type="date" value={dataBaixa} onChange={(e) => setDataBaixa(e.target.value)} /></div>
           <div>
             <Label>Meio</Label>
             <Select value={meio} onValueChange={setMeio}>
