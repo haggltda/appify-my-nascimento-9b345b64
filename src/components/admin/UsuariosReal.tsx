@@ -289,3 +289,167 @@ function EditarUsuarioDialog({
     </Dialog>
   );
 }
+
+function NovoUsuarioDialog({
+  empresas, onCreated,
+}: {
+  empresas: { id: string; codigo: string; razao_social: string }[];
+  onCreated: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [empresaId, setEmpresaId] = useState<string>("_none");
+  const [selectedRoles, setSelectedRoles] = useState<Role[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => {
+    setDisplayName(""); setEmail(""); setPassword("");
+    setEmpresaId("_none"); setSelectedRoles([]); setShowPwd(false);
+  };
+
+  const toggleRole = (r: Role) => {
+    setSelectedRoles((prev) => prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]);
+  };
+
+  const gerarSenha = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    let s = "";
+    for (let i = 0; i < 12; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    setPassword(s);
+    setShowPwd(true);
+  };
+
+  const criar = async () => {
+    if (!email.trim()) {
+      toast({ title: "E-mail obrigatório", variant: "destructive" });
+      return;
+    }
+    if (password.length < 6) {
+      toast({ title: "Senha deve ter ao menos 6 caracteres", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-create-user", {
+        body: {
+          email: email.trim(),
+          password,
+          display_name: displayName.trim() || null,
+          empresa_id: empresaId === "_none" ? null : empresaId,
+          roles: selectedRoles,
+        },
+      });
+      if (error) {
+        // Tenta extrair mensagem do corpo
+        const ctx = (error as any).context;
+        let msg = error.message;
+        try {
+          if (ctx && typeof ctx.json === "function") {
+            const j = await ctx.json();
+            if (j?.error) msg = j.error;
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      toast({ title: "Usuário criado", description: email });
+      reset();
+      setOpen(false);
+      onCreated();
+    } catch (e: any) {
+      const m = e?.message ?? "Falha ao criar usuário";
+      toast({
+        title: /already|registered|exists|duplic/i.test(m) ? "E-mail já cadastrado" : "Erro ao criar usuário",
+        description: m,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-1.5">
+          <UserPlus className="h-3.5 w-3.5" /> Novo usuário
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Novo usuário</DialogTitle>
+          <DialogDescription>
+            Cria o acesso e vincula perfil(is) e empresa. Apenas administradores.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Nome completo</Label>
+            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ex.: Messias Souza" />
+          </div>
+          <div>
+            <Label>E-mail corporativo *</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.com.br" />
+          </div>
+          <div>
+            <Label>Senha temporária *</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type={showPwd ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <Button type="button" variant="outline" onClick={gerarSenha}>Gerar</Button>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Compartilhe a senha com o usuário; ele poderá alterá-la depois.
+            </p>
+          </div>
+          <div>
+            <Label>Empresa vinculada</Label>
+            <Select value={empresaId} onValueChange={setEmpresaId}>
+              <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_none">— Sem vínculo —</SelectItem>
+                {empresas.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Perfis (roles)</Label>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {ROLES.map((r) => (
+                <label key={r} className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
+                  <Checkbox checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
+                  <span className="font-medium">{r}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
+          <Button onClick={criar} disabled={saving}>
+            {saving ? "Criando…" : "Criar usuário"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
