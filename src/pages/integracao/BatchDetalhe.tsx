@@ -408,7 +408,7 @@ export default function BatchDetalhe() {
                     <TableHead>Layout detectado</TableHead>
                     <TableHead>Aba</TableHead>
                     <TableHead className="text-right">Linhas</TableHead>
-                    <TableHead className="text-right">Tamanho</TableHead>
+                    <TableHead className="text-right">Materializado</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -423,6 +423,7 @@ export default function BatchDetalhe() {
                   {files.map((f) => {
                     const lay = f.layout_detectado_id ? layouts[f.layout_detectado_id] : null;
                     const totalRows = (f.metadata?.total_rows_arquivo as number | undefined) ?? null;
+                    const isMaterialized = !!f.materializado_em;
                     return (
                       <TableRow key={f.id}>
                         <TableCell>
@@ -454,14 +455,34 @@ export default function BatchDetalhe() {
                         <TableCell className="text-xs">{f.sheet_name ?? "—"}</TableCell>
                         <TableCell className="text-right tabular-nums text-xs">{totalRows ?? "—"}</TableCell>
                         <TableCell className="text-right tabular-nums text-xs">
-                          {f.tamanho_bytes ? `${(f.tamanho_bytes / 1024).toFixed(1)} KB` : "—"}
+                          {isMaterialized ? (
+                            <span className="text-emerald-600">{f.linhas_inseridas ?? 0} linhas</span>
+                          ) : "—"}
                         </TableCell>
                         <TableCell>
-                          {isAdmin && (
-                            <Button variant="ghost" size="sm" onClick={() => removeFile(f)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
+                          <div className="flex items-center justify-end gap-1">
+                            {isAdmin && lay && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => materializeFile(f)}
+                                disabled={busyAction === f.id}
+                                title={isMaterialized ? "Re-materializar (limpa validações)" : "Validar e enviar para staging"}
+                              >
+                                {busyAction === f.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <PlayCircle className="h-4 w-4" />
+                                )}
+                                {isMaterialized ? "Re-materializar" : "Materializar"}
+                              </Button>
+                            )}
+                            {isAdmin && (
+                              <Button variant="ghost" size="sm" onClick={() => removeFile(f)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -469,6 +490,84 @@ export default function BatchDetalhe() {
                 </TableBody>
               </Table>
             </div>
+          </Card>
+
+          {/* Validações */}
+          <Card className="p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <ListChecks className="h-4 w-4" /> Validações ({validations.length})
+              </h3>
+              <div className="flex items-center gap-1 text-xs">
+                <button
+                  onClick={() => setFilterSeverity("all")}
+                  className={`rounded px-2 py-1 ${filterSeverity === "all" ? "bg-muted font-medium" : "text-muted-foreground"}`}
+                >Todas</button>
+                <button
+                  onClick={() => setFilterSeverity("bloqueante")}
+                  className={`rounded px-2 py-1 ${filterSeverity === "bloqueante" ? "bg-destructive/15 text-destructive font-medium" : "text-muted-foreground"}`}
+                >Bloqueante ({counts.bloqueante})</button>
+                <button
+                  onClick={() => setFilterSeverity("alerta")}
+                  className={`rounded px-2 py-1 ${filterSeverity === "alerta" ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 font-medium" : "text-muted-foreground"}`}
+                >Alerta ({counts.alerta})</button>
+                <button
+                  onClick={() => setFilterSeverity("informativo")}
+                  className={`rounded px-2 py-1 ${filterSeverity === "informativo" ? "bg-muted font-medium" : "text-muted-foreground"}`}
+                >Info ({counts.informativo})</button>
+              </div>
+            </div>
+
+            {filteredValidations.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">
+                {validations.length === 0
+                  ? "Nenhuma validação registrada. Materialize um arquivo para gerar resultados."
+                  : "Nenhum resultado para este filtro."}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-24">Severidade</TableHead>
+                      <TableHead className="w-20">Linha</TableHead>
+                      <TableHead className="w-40">Regra / Campo</TableHead>
+                      <TableHead>Mensagem</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredValidations.slice(0, 200).map((v) => (
+                      <TableRow key={v.id}>
+                        <TableCell>
+                          <Badge
+                            className={
+                              v.severidade === "bloqueante"
+                                ? "bg-destructive/15 text-destructive"
+                                : v.severidade === "alerta"
+                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                                  : "bg-muted text-muted-foreground"
+                            }
+                          >
+                            {v.severidade}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs tabular-nums">{v.linha_origem ?? "—"}</TableCell>
+                        <TableCell className="text-xs">
+                          <p className="font-medium">{v.rule_codigo}</p>
+                          {v.campo && <p className="text-muted-foreground">{v.campo}</p>}
+                        </TableCell>
+                        <TableCell className="text-xs">{v.mensagem}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {filteredValidations.length > 200 && (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    Mostrando 200 de {filteredValidations.length} resultados.
+                  </p>
+                )}
+              </div>
+            )}
           </Card>
         </div>
       </div>
