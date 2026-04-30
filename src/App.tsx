@@ -68,6 +68,7 @@ import PlanoContas from "./pages/contabil/PlanoContas";
 import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
 import BIDashboard from "./pages/bi/Dashboard";
+import Fiscal from "./pages/Fiscal";
 
 const queryClient = new QueryClient();
 
