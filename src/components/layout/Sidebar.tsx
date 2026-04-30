@@ -334,7 +334,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       )}
 
       <nav className="mt-2 flex-1 overflow-y-auto scroll-elegant px-2 py-1">
-        {erpModules.map((mod) => (
+        {visibleModules.map((mod) => (
           <ModuleEntry
             key={mod.id}
             mod={mod}
