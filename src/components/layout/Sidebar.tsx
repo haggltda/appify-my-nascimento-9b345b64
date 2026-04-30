@@ -259,6 +259,7 @@ const erpModules: ModuleDef[] = [
   controladoriaOrcModule,
   suprimentosModule,
   financeiroModule,
+  fiscalModule,
   contabilModule,
   rhModule,
   biModule,
