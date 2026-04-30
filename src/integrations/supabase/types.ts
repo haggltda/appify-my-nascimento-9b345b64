@@ -820,11 +820,20 @@ export type Database = {
           ativa: boolean
           banco_codigo: string
           banco_nome: string
+          cnab_carteira: string | null
+          cnab_codigo_empresa: string | null
+          cnab_codigo_remessa: string | null
+          cnab_convenio: string | null
+          cnab_layout: string
+          cnab_proxima_sequencia: number
+          cnab_proximo_lote: number
           conta: string
           conta_contabil_id: string | null
           created_at: string
           digito: string | null
+          empresa_cnpj: string | null
           empresa_id: string
+          empresa_nome: string | null
           id: string
           observacoes: string | null
           tipo: Database["public"]["Enums"]["banco_tipo"]
@@ -836,11 +845,20 @@ export type Database = {
           ativa?: boolean
           banco_codigo: string
           banco_nome: string
+          cnab_carteira?: string | null
+          cnab_codigo_empresa?: string | null
+          cnab_codigo_remessa?: string | null
+          cnab_convenio?: string | null
+          cnab_layout?: string
+          cnab_proxima_sequencia?: number
+          cnab_proximo_lote?: number
           conta: string
           conta_contabil_id?: string | null
           created_at?: string
           digito?: string | null
+          empresa_cnpj?: string | null
           empresa_id: string
+          empresa_nome?: string | null
           id?: string
           observacoes?: string | null
           tipo?: Database["public"]["Enums"]["banco_tipo"]
@@ -852,11 +870,20 @@ export type Database = {
           ativa?: boolean
           banco_codigo?: string
           banco_nome?: string
+          cnab_carteira?: string | null
+          cnab_codigo_empresa?: string | null
+          cnab_codigo_remessa?: string | null
+          cnab_convenio?: string | null
+          cnab_layout?: string
+          cnab_proxima_sequencia?: number
+          cnab_proximo_lote?: number
           conta?: string
           conta_contabil_id?: string | null
           created_at?: string
           digito?: string | null
+          empresa_cnpj?: string | null
           empresa_id?: string
+          empresa_nome?: string | null
           id?: string
           observacoes?: string | null
           tipo?: Database["public"]["Enums"]["banco_tipo"]
@@ -4316,6 +4343,146 @@ export type Database = {
           },
         ]
       }
+      remessa_cnab: {
+        Row: {
+          arquivo_conteudo: string | null
+          arquivo_nome: string | null
+          banco_codigo: string
+          conta_bancaria_id: string
+          created_at: string
+          data_envio: string | null
+          data_geracao: string
+          empresa_id: string
+          gerada_por: string | null
+          id: string
+          layout: string
+          numero: string
+          observacoes: string | null
+          qtd_titulos: number
+          retorno_arquivo_nome: string | null
+          retorno_processado_em: string | null
+          sequencia_arquivo: number
+          status: Database["public"]["Enums"]["remessa_status"]
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          arquivo_conteudo?: string | null
+          arquivo_nome?: string | null
+          banco_codigo: string
+          conta_bancaria_id: string
+          created_at?: string
+          data_envio?: string | null
+          data_geracao?: string
+          empresa_id: string
+          gerada_por?: string | null
+          id?: string
+          layout?: string
+          numero?: string
+          observacoes?: string | null
+          qtd_titulos?: number
+          retorno_arquivo_nome?: string | null
+          retorno_processado_em?: string | null
+          sequencia_arquivo: number
+          status?: Database["public"]["Enums"]["remessa_status"]
+          updated_at?: string
+          valor_total?: number
+        }
+        Update: {
+          arquivo_conteudo?: string | null
+          arquivo_nome?: string | null
+          banco_codigo?: string
+          conta_bancaria_id?: string
+          created_at?: string
+          data_envio?: string | null
+          data_geracao?: string
+          empresa_id?: string
+          gerada_por?: string | null
+          id?: string
+          layout?: string
+          numero?: string
+          observacoes?: string | null
+          qtd_titulos?: number
+          retorno_arquivo_nome?: string | null
+          retorno_processado_em?: string | null
+          sequencia_arquivo?: number
+          status?: Database["public"]["Enums"]["remessa_status"]
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remessa_cnab_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "conta_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_cnab_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_cnab_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "remessa_cnab_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      remessa_cnab_titulo: {
+        Row: {
+          ordem: number
+          remessa_id: string
+          retorno_msg: string | null
+          retorno_status: string | null
+          titulo_id: string
+          valor_remessa: number
+        }
+        Insert: {
+          ordem?: number
+          remessa_id: string
+          retorno_msg?: string | null
+          retorno_status?: string | null
+          titulo_id: string
+          valor_remessa: number
+        }
+        Update: {
+          ordem?: number
+          remessa_id?: string
+          retorno_msg?: string | null
+          retorno_status?: string | null
+          titulo_id?: string
+          valor_remessa?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remessa_cnab_titulo_remessa_id_fkey"
+            columns: ["remessa_id"]
+            isOneToOne: false
+            referencedRelation: "remessa_cnab"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_cnab_titulo_titulo_id_fkey"
+            columns: ["titulo_id"]
+            isOneToOne: false
+            referencedRelation: "titulo_pagar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requisicao_compra: {
         Row: {
           almoxarifado_destino_id: string | null
@@ -4916,19 +5083,30 @@ export type Database = {
       titulo_pagar: {
         Row: {
           centro_custo_id: string | null
+          codigo_barras: string | null
           competencia: string
           conta_bancaria_id: string | null
           conta_contabil_id: string | null
           created_at: string
+          data_agendamento: string | null
           data_emissao: string
           data_pagamento: string | null
           data_vencimento: string
           empresa_id: string
+          forma_pagamento: Database["public"]["Enums"]["forma_pagamento"] | null
           fornecedor_id: string | null
           id: string
+          linha_digitavel: string | null
+          nf_entrada_id: string | null
+          nosso_numero: string | null
           numero_documento: string
           observacoes: string | null
+          parcela_num: number
+          parcela_total: number
           pedido_id: string | null
+          pix_chave: string | null
+          remessa_id: string | null
+          remessa_status: Database["public"]["Enums"]["titulo_remessa_status"]
           status: Database["public"]["Enums"]["titulo_status"]
           updated_at: string
           valor: number
@@ -4936,19 +5114,32 @@ export type Database = {
         }
         Insert: {
           centro_custo_id?: string | null
+          codigo_barras?: string | null
           competencia: string
           conta_bancaria_id?: string | null
           conta_contabil_id?: string | null
           created_at?: string
+          data_agendamento?: string | null
           data_emissao?: string
           data_pagamento?: string | null
           data_vencimento: string
           empresa_id: string
+          forma_pagamento?:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           fornecedor_id?: string | null
           id?: string
+          linha_digitavel?: string | null
+          nf_entrada_id?: string | null
+          nosso_numero?: string | null
           numero_documento: string
           observacoes?: string | null
+          parcela_num?: number
+          parcela_total?: number
           pedido_id?: string | null
+          pix_chave?: string | null
+          remessa_id?: string | null
+          remessa_status?: Database["public"]["Enums"]["titulo_remessa_status"]
           status?: Database["public"]["Enums"]["titulo_status"]
           updated_at?: string
           valor?: number
@@ -4956,25 +5147,53 @@ export type Database = {
         }
         Update: {
           centro_custo_id?: string | null
+          codigo_barras?: string | null
           competencia?: string
           conta_bancaria_id?: string | null
           conta_contabil_id?: string | null
           created_at?: string
+          data_agendamento?: string | null
           data_emissao?: string
           data_pagamento?: string | null
           data_vencimento?: string
           empresa_id?: string
+          forma_pagamento?:
+            | Database["public"]["Enums"]["forma_pagamento"]
+            | null
           fornecedor_id?: string | null
           id?: string
+          linha_digitavel?: string | null
+          nf_entrada_id?: string | null
+          nosso_numero?: string | null
           numero_documento?: string
           observacoes?: string | null
+          parcela_num?: number
+          parcela_total?: number
           pedido_id?: string | null
+          pix_chave?: string | null
+          remessa_id?: string | null
+          remessa_status?: Database["public"]["Enums"]["titulo_remessa_status"]
           status?: Database["public"]["Enums"]["titulo_status"]
           updated_at?: string
           valor?: number
           valor_pago?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "titulo_pagar_nf_entrada_id_fkey"
+            columns: ["nf_entrada_id"]
+            isOneToOne: false
+            referencedRelation: "nf_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "titulo_pagar_remessa_fk"
+            columns: ["remessa_id"]
+            isOneToOne: false
+            referencedRelation: "remessa_cnab"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       titulo_receber: {
         Row: {
@@ -5339,6 +5558,10 @@ export type Database = {
     }
     Functions: {
       aplicar_plano_mestre: { Args: { _empresa_id: string }; Returns: number }
+      cnab_gerar_remessa: {
+        Args: { _conta_bancaria_id: string; _titulo_ids: string[] }
+        Returns: Json
+      }
       cotacao_calcular_score: { Args: { _cotacao_id: string }; Returns: Json }
       cotacao_fechar: {
         Args: {
@@ -5369,12 +5592,22 @@ export type Database = {
         }
         Returns: boolean
       }
+      nf_gerar_titulos: { Args: { _nf_id: string }; Returns: Json }
       nf_lancar_estoque: { Args: { _nf_id: string }; Returns: Json }
       recebimento_confirmar: {
         Args: { _recebimento_id: string }
         Returns: Json
       }
       storage_path_empresa: { Args: { _name: string }; Returns: string }
+      titulo_agendar: {
+        Args: {
+          _conta_bancaria_id: string
+          _data_pgto: string
+          _forma?: Database["public"]["Enums"]["forma_pagamento"]
+          _titulo_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       almox_tipo: "matriz" | "deposito" | "obra" | "veiculo" | "outro"
@@ -5470,6 +5703,14 @@ export type Database = {
         | "liberacao_reserva"
         | "consumo"
       fluxo_tipo: "entrada" | "saida"
+      forma_pagamento:
+        | "boleto"
+        | "ted"
+        | "pix"
+        | "transferencia"
+        | "dinheiro"
+        | "cheque"
+        | "debito_automatico"
       fornecedor_tipo: "pj" | "pf"
       ia_status: "pendente" | "processando" | "concluida" | "erro" | "cancelada"
       lanc_status: "rascunho" | "efetivado" | "estornado"
@@ -5574,6 +5815,12 @@ export type Database = {
         | "recebido_com_ocorrencia"
         | "cancelado"
       regime_tributario: "lucro_real" | "lucro_presumido" | "simples_nacional"
+      remessa_status:
+        | "gerada"
+        | "enviada"
+        | "processada"
+        | "rejeitada"
+        | "cancelada"
       req_compra_status:
         | "rascunho"
         | "enviada"
@@ -5585,7 +5832,14 @@ export type Database = {
       sup_aprov_modo: "todos" | "qualquer" | "quorum"
       sup_aprov_status: "aberta" | "aprovada" | "rejeitada" | "cancelada"
       sup_aprov_voto_tipo: "aprovado" | "rejeitado"
-      titulo_status: "aberto" | "parcial" | "pago" | "cancelado" | "vencido"
+      titulo_remessa_status: "nao_enviado" | "enviado" | "pago" | "rejeitado"
+      titulo_status:
+        | "aberto"
+        | "parcial"
+        | "pago"
+        | "cancelado"
+        | "vencido"
+        | "agendado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5816,6 +6070,15 @@ export const Constants = {
         "consumo",
       ],
       fluxo_tipo: ["entrada", "saida"],
+      forma_pagamento: [
+        "boleto",
+        "ted",
+        "pix",
+        "transferencia",
+        "dinheiro",
+        "cheque",
+        "debito_automatico",
+      ],
       fornecedor_tipo: ["pj", "pf"],
       ia_status: ["pendente", "processando", "concluida", "erro", "cancelada"],
       lanc_status: ["rascunho", "efetivado", "estornado"],
@@ -5932,6 +6195,13 @@ export const Constants = {
         "cancelado",
       ],
       regime_tributario: ["lucro_real", "lucro_presumido", "simples_nacional"],
+      remessa_status: [
+        "gerada",
+        "enviada",
+        "processada",
+        "rejeitada",
+        "cancelada",
+      ],
       req_compra_status: [
         "rascunho",
         "enviada",
@@ -5944,7 +6214,15 @@ export const Constants = {
       sup_aprov_modo: ["todos", "qualquer", "quorum"],
       sup_aprov_status: ["aberta", "aprovada", "rejeitada", "cancelada"],
       sup_aprov_voto_tipo: ["aprovado", "rejeitado"],
-      titulo_status: ["aberto", "parcial", "pago", "cancelado", "vencido"],
+      titulo_remessa_status: ["nao_enviado", "enviado", "pago", "rejeitado"],
+      titulo_status: [
+        "aberto",
+        "parcial",
+        "pago",
+        "cancelado",
+        "vencido",
+        "agendado",
+      ],
     },
   },
 } as const
