@@ -148,7 +148,13 @@ export default function BatchDetalhe() {
         }
 
         setProgress(`${file.name}: enviando para storage...`);
-        const path = `${empresaId}/${batch.id}/${hash}-${file.name}`;
+        // Sanitize filename for Supabase Storage (no accents, spaces, or special chars)
+        const safeName = file.name
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-zA-Z0-9._-]+/g, "_")
+          .replace(/_+/g, "_");
+        const path = `${empresaId}/${batch.id}/${hash}-${safeName}`;
         const up = await supabase.storage.from("integration-uploads").upload(path, file, {
           upsert: false,
           contentType: file.type || undefined,
