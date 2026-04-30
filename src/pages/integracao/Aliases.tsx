@@ -53,7 +53,7 @@ const TIPO_CFG: Record<AliasTipo, {
     idCol: "centro_custo_id",
     label: "Centros de custo",
     loadOptions: async (empresaId) => {
-      const { data } = await supabase.from("centro_custo")
+      const { data } = await supabase.from("centros_custo")
         .select("id, codigo, nome").eq("empresa_id", empresaId).limit(500);
       return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} — ${c.nome}` }));
     },
@@ -63,7 +63,7 @@ const TIPO_CFG: Record<AliasTipo, {
     idCol: "empresa_destino_id",
     label: "Empresas",
     loadOptions: async () => {
-      const { data } = await supabase.from("empresa").select("id, nome_fantasia, razao_social").limit(500);
+      const { data } = await supabase.from("empresas").select("id, nome_fantasia, razao_social").limit(500);
       return (data ?? []).map((e: any) => ({ id: e.id, label: e.nome_fantasia ?? e.razao_social }));
     },
   },
@@ -81,10 +81,10 @@ const TIPO_CFG: Record<AliasTipo, {
     table: "integration_alias_formas_pagamento",
     idCol: "forma_pagamento_id",
     label: "Formas de pagamento",
-    loadOptions: async (empresaId) => {
-      const { data } = await supabase.from("forma_pagamento")
-        .select("id, codigo, descricao").eq("empresa_id", empresaId).limit(500);
-      return (data ?? []).map((f: any) => ({ id: f.id, label: `${f.codigo} — ${f.descricao}` }));
+    loadOptions: async () => {
+      // forma_pagamento é um enum no banco — apresentamos os valores como opções
+      const enumVals = ["boleto","ted","pix","transferencia","dinheiro","cheque","debito_automatico"];
+      return enumVals.map((v) => ({ id: v, label: v }));
     },
   },
 };
