@@ -219,6 +219,18 @@ const contabilModule: ModuleDef = {
   }],
 };
 
+// Fiscal
+const fiscalModule: ModuleDef = {
+  id: "fiscal", label: "Fiscal & Tributário", description: "NFS-e, NF-e e apuração",
+  icon: Receipt, basePath: "/app/fiscal", status: "active",
+  groups: [{
+    label: "Emissão & Apuração", defaultOpen: true,
+    items: [
+      { label: "Notas / Apuração / Config", to: "/app/fiscal", icon: Receipt },
+    ],
+  }],
+};
+
 // RH
 const rhModule: ModuleDef = {
   id: "rh", label: "Recursos Humanos", description: "Colaboradores e alocações",
