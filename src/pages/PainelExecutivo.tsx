@@ -95,27 +95,25 @@ export default function PainelExecutivo() {
   }, [valorPipeline]);
 
   return (
-    <div className="-m-4 rounded-xl bg-gradient-to-br from-[hsl(220_45%_11%)] via-[hsl(222_40%_9%)] to-[hsl(220_50%_8%)] p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8">
-      <div className="space-y-6 text-slate-100">
-        <div className="rounded-xl bg-white/[0.03] px-4 py-3 ring-1 ring-white/10 backdrop-blur">
-          <PageHeader
-            title="Painel Executivo"
-            subtitle="Visão consolidada multi-CNPJ. Indicadores em tempo real, alertas críticos e pendências por etapa do fluxo."
-            actions={
-              <>
-                <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 text-xs font-medium text-slate-100 shadow-sm transition hover:bg-white/10">
-                  <Filter className="h-3.5 w-3.5" /> Filtros
-                </button>
-                <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 text-xs font-medium text-slate-100 shadow-sm transition hover:bg-white/10">
-                  <Download className="h-3.5 w-3.5" /> Exportar
-                </button>
-                <button className="inline-flex h-9 items-center gap-2 rounded-lg bg-gradient-to-r from-[hsl(var(--accent))] to-[hsl(var(--accent)/0.8)] px-3.5 text-xs font-semibold text-accent-foreground shadow-md shadow-black/40 transition hover:brightness-110">
-                  <Plus className="h-3.5 w-3.5" /> Nova Oportunidade
-                </button>
-              </>
-            }
-          />
-        </div>
+    <div className="-m-4 min-h-screen rounded-xl bg-slate-50 p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8">
+      <div className="space-y-5 text-slate-900">
+        <PageHeader
+          title="Painel Executivo"
+          subtitle="Visão consolidada multi-CNPJ. Indicadores em tempo real, alertas críticos e pendências por etapa do fluxo."
+          actions={
+            <>
+              <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100">
+                <Filter className="h-3.5 w-3.5" /> Filtros
+              </button>
+              <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100">
+                <Download className="h-3.5 w-3.5" /> Exportar
+              </button>
+              <button className="inline-flex h-9 items-center gap-2 rounded-lg bg-gradient-to-r from-[hsl(var(--accent))] to-[hsl(var(--accent)/0.85)] px-3.5 text-xs font-semibold text-accent-foreground shadow-md transition hover:brightness-110">
+                <Plus className="h-3.5 w-3.5" /> Nova Oportunidade
+              </button>
+            </>
+          }
+        />
 
         {/* KPIs */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
