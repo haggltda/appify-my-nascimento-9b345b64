@@ -16,6 +16,7 @@ import {
   PlayCircle, ThumbsUp, ThumbsDown, ListChecks, Upload, Link2, Database, ShieldCheck, Sparkles,
 } from "lucide-react";
 import { sha256OfFile, parseSpreadsheet, detectLayout, type LayoutFingerprint, type LayoutMatch } from "@/lib/integracao/parser";
+import { BatchStepper } from "./BatchStepper";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_EXT = [".xlsx", ".xls", ".csv"];
