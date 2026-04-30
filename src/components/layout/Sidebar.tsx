@@ -36,7 +36,9 @@ import {
   Settings,
   BookOpen,
   ClipboardCheck,
+  DatabaseZap,
 } from "lucide-react";
+import { usePermissoes } from "@/context/PermissoesContext";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
