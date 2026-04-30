@@ -1407,6 +1407,7 @@ export type Database = {
       }
       colaborador: {
         Row: {
+          batch_id: string | null
           cargo: string | null
           cpf: string
           created_at: string
@@ -1424,6 +1425,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          batch_id?: string | null
           cargo?: string | null
           cpf: string
           created_at?: string
@@ -1441,6 +1443,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          batch_id?: string | null
           cargo?: string | null
           cpf?: string
           created_at?: string
@@ -1457,7 +1460,15 @@ export type Database = {
           telefone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "colaborador_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conciliacao_match: {
         Row: {
@@ -1945,6 +1956,7 @@ export type Database = {
       }
       contrato: {
         Row: {
+          batch_id: string | null
           centro_custo_id: string | null
           created_at: string
           empresa_id: string
@@ -1964,6 +1976,7 @@ export type Database = {
           vigencia_inicio: string
         }
         Insert: {
+          batch_id?: string | null
           centro_custo_id?: string | null
           created_at?: string
           empresa_id: string
@@ -1983,6 +1996,7 @@ export type Database = {
           vigencia_inicio: string
         }
         Update: {
+          batch_id?: string | null
           centro_custo_id?: string | null
           created_at?: string
           empresa_id?: string
@@ -2002,6 +2016,13 @@ export type Database = {
           vigencia_inicio?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "contrato_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contrato_centro_custo_id_fkey"
             columns: ["centro_custo_id"]
@@ -3339,6 +3360,7 @@ export type Database = {
       }
       fluxo_caixa_projetado: {
         Row: {
+          batch_id: string | null
           contrato_id: string | null
           created_at: string
           data_prevista: string
@@ -3352,6 +3374,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          batch_id?: string | null
           contrato_id?: string | null
           created_at?: string
           data_prevista: string
@@ -3365,6 +3388,7 @@ export type Database = {
           valor?: number
         }
         Update: {
+          batch_id?: string | null
           contrato_id?: string | null
           created_at?: string
           data_prevista?: string
@@ -3378,6 +3402,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "fluxo_caixa_projetado_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fluxo_caixa_projetado_contrato_id_fkey"
             columns: ["contrato_id"]
@@ -3627,6 +3658,996 @@ export type Database = {
           },
         ]
       }
+      integration_alias_bancos: {
+        Row: {
+          alias: string
+          conta_bancaria_id: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          origem: string | null
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Insert: {
+          alias: string
+          conta_bancaria_id?: string | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Update: {
+          alias?: string
+          conta_bancaria_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_alias_bancos_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "conta_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_bancos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_bancos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_alias_bancos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      integration_alias_centros_custo: {
+        Row: {
+          alias: string
+          centro_custo_id: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          origem: string | null
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Insert: {
+          alias: string
+          centro_custo_id?: string | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Update: {
+          alias?: string
+          centro_custo_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_alias_centros_custo_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_centros_custo_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_centros_custo_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_alias_centros_custo_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      integration_alias_contratos: {
+        Row: {
+          alias: string
+          contrato_id: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          origem: string | null
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Insert: {
+          alias: string
+          contrato_id?: string | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Update: {
+          alias?: string
+          contrato_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_alias_contratos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_contratos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_contratos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_alias_contratos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      integration_alias_empresas: {
+        Row: {
+          alias: string
+          created_at: string
+          empresa_alvo_id: string | null
+          empresa_id: string
+          id: string
+          origem: string | null
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          empresa_alvo_id?: string | null
+          empresa_id: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          empresa_alvo_id?: string | null
+          empresa_id?: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_alias_empresas_empresa_alvo_id_fkey"
+            columns: ["empresa_alvo_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_empresas_empresa_alvo_id_fkey"
+            columns: ["empresa_alvo_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_alias_empresas_empresa_alvo_id_fkey"
+            columns: ["empresa_alvo_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_alias_empresas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_empresas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_alias_empresas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      integration_alias_formas_pagamento: {
+        Row: {
+          alias: string
+          created_at: string
+          empresa_id: string
+          forma_pagamento: string | null
+          id: string
+          origem: string | null
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          empresa_id: string
+          forma_pagamento?: string | null
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          empresa_id?: string
+          forma_pagamento?: string | null
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_alias_formas_pagamento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_formas_pagamento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_alias_formas_pagamento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      integration_batch_files: {
+        Row: {
+          batch_id: string
+          created_at: string
+          empresa_id: string
+          hash_sha256: string
+          id: string
+          layout_detectado_id: string | null
+          layout_score: number | null
+          metadata: Json | null
+          mime_type: string | null
+          nome_original: string
+          sheet_name: string | null
+          storage_path: string
+          tamanho_bytes: number | null
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          empresa_id: string
+          hash_sha256: string
+          id?: string
+          layout_detectado_id?: string | null
+          layout_score?: number | null
+          metadata?: Json | null
+          mime_type?: string | null
+          nome_original: string
+          sheet_name?: string | null
+          storage_path: string
+          tamanho_bytes?: number | null
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          empresa_id?: string
+          hash_sha256?: string
+          id?: string
+          layout_detectado_id?: string | null
+          layout_score?: number | null
+          metadata?: Json | null
+          mime_type?: string | null
+          nome_original?: string
+          sheet_name?: string | null
+          storage_path?: string
+          tamanho_bytes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_batch_files_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_batch_files_layout_detectado_id_fkey"
+            columns: ["layout_detectado_id"]
+            isOneToOne: false
+            referencedRelation: "integration_layouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_batches: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          codigo: string
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          enviado_por: string | null
+          id: string
+          layout_id: string | null
+          linhas_invalidas: number | null
+          linhas_validas: number | null
+          metadata: Json | null
+          observacoes: string | null
+          status: Database["public"]["Enums"]["integ_batch_status"]
+          total_linhas: number | null
+          updated_at: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          enviado_por?: string | null
+          id?: string
+          layout_id?: string | null
+          linhas_invalidas?: number | null
+          linhas_validas?: number | null
+          metadata?: Json | null
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["integ_batch_status"]
+          total_linhas?: number | null
+          updated_at?: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          enviado_por?: string | null
+          id?: string
+          layout_id?: string | null
+          linhas_invalidas?: number | null
+          linhas_validas?: number | null
+          metadata?: Json | null
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["integ_batch_status"]
+          total_linhas?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_batches_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_batches_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_batches_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_batches_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "integration_layouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_layout_columns: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          formato: string | null
+          id: string
+          layout_id: string
+          nome_destino: string
+          nome_origem: string
+          obrigatorio: boolean
+          observacao: string | null
+          ordem: number
+          tipo_dado: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          formato?: string | null
+          id?: string
+          layout_id: string
+          nome_destino: string
+          nome_origem: string
+          obrigatorio?: boolean
+          observacao?: string | null
+          ordem?: number
+          tipo_dado: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          formato?: string | null
+          id?: string
+          layout_id?: string
+          nome_destino?: string
+          nome_origem?: string
+          obrigatorio?: boolean
+          observacao?: string | null
+          ordem?: number
+          tipo_dado?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_layout_columns_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "integration_layouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_layout_fingerprints: {
+        Row: {
+          arquivo_pattern: string | null
+          colunas_obrigatorias: string[]
+          created_at: string
+          id: string
+          layout_id: string
+          peso: number
+          sheet_pattern: string | null
+        }
+        Insert: {
+          arquivo_pattern?: string | null
+          colunas_obrigatorias?: string[]
+          created_at?: string
+          id?: string
+          layout_id: string
+          peso?: number
+          sheet_pattern?: string | null
+        }
+        Update: {
+          arquivo_pattern?: string | null
+          colunas_obrigatorias?: string[]
+          created_at?: string
+          id?: string
+          layout_id?: string
+          peso?: number
+          sheet_pattern?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_layout_fingerprints_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "integration_layouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_layouts: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string | null
+          destino_tabela: string
+          id: string
+          nome: string
+          staging_tabela: string
+          updated_at: string
+          versao: number
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          destino_tabela: string
+          id?: string
+          nome: string
+          staging_tabela: string
+          updated_at?: string
+          versao?: number
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          destino_tabela?: string
+          id?: string
+          nome?: string
+          staging_tabela?: string
+          updated_at?: string
+          versao?: number
+        }
+        Relationships: []
+      }
+      integration_load_run_items: {
+        Row: {
+          acao: string
+          created_at: string
+          destino_id: string | null
+          destino_tabela: string
+          empresa_id: string
+          erro: string | null
+          id: string
+          load_run_id: string
+          staging_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          destino_id?: string | null
+          destino_tabela: string
+          empresa_id: string
+          erro?: string | null
+          id?: string
+          load_run_id: string
+          staging_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          destino_id?: string | null
+          destino_tabela?: string
+          empresa_id?: string
+          erro?: string | null
+          id?: string
+          load_run_id?: string
+          staging_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_load_run_items_load_run_id_fkey"
+            columns: ["load_run_id"]
+            isOneToOne: false
+            referencedRelation: "integration_load_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_load_runs: {
+        Row: {
+          batch_id: string
+          created_at: string
+          empresa_id: string
+          executado_por: string | null
+          finalizado_em: string | null
+          id: string
+          iniciado_em: string | null
+          layout_id: string | null
+          observacoes: string | null
+          status: Database["public"]["Enums"]["integ_load_status"]
+          total_atualizados: number | null
+          total_erros: number | null
+          total_ignorados: number | null
+          total_inseridos: number | null
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          empresa_id: string
+          executado_por?: string | null
+          finalizado_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          layout_id?: string | null
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["integ_load_status"]
+          total_atualizados?: number | null
+          total_erros?: number | null
+          total_ignorados?: number | null
+          total_inseridos?: number | null
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          empresa_id?: string
+          executado_por?: string | null
+          finalizado_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          layout_id?: string | null
+          observacoes?: string | null
+          status?: Database["public"]["Enums"]["integ_load_status"]
+          total_atualizados?: number | null
+          total_erros?: number | null
+          total_ignorados?: number | null
+          total_inseridos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_load_runs_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_load_runs_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "integration_layouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_map_classificacao_contabil: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          centro_custo_origem: string | null
+          classificacao_origem: string
+          conta_contabil_id: string | null
+          created_at: string
+          direto_indireto: string | null
+          empresa_id: string
+          fixo_variavel: string | null
+          id: string
+          status: Database["public"]["Enums"]["integ_alias_status"]
+          sugestao_motivo: string | null
+          tipo_gasto: string | null
+          tipo_origem: string | null
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          centro_custo_origem?: string | null
+          classificacao_origem: string
+          conta_contabil_id?: string | null
+          created_at?: string
+          direto_indireto?: string | null
+          empresa_id: string
+          fixo_variavel?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+          sugestao_motivo?: string | null
+          tipo_gasto?: string | null
+          tipo_origem?: string | null
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          centro_custo_origem?: string | null
+          classificacao_origem?: string
+          conta_contabil_id?: string | null
+          created_at?: string
+          direto_indireto?: string | null
+          empresa_id?: string
+          fixo_variavel?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+          sugestao_motivo?: string | null
+          tipo_gasto?: string | null
+          tipo_origem?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_map_classificacao_contabil_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_map_classificacao_contabil_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_map_classificacao_contabil_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_map_classificacao_contabil_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      integration_parse_runs: {
+        Row: {
+          batch_file_id: string
+          created_at: string
+          empresa_id: string
+          erro_mensagem: string | null
+          finalizado_em: string | null
+          id: string
+          iniciado_em: string
+          perfil_colunas: Json | null
+          preview_amostra: Json | null
+          status: string
+          total_linhas: number | null
+        }
+        Insert: {
+          batch_file_id: string
+          created_at?: string
+          empresa_id: string
+          erro_mensagem?: string | null
+          finalizado_em?: string | null
+          id?: string
+          iniciado_em?: string
+          perfil_colunas?: Json | null
+          preview_amostra?: Json | null
+          status?: string
+          total_linhas?: number | null
+        }
+        Update: {
+          batch_file_id?: string
+          created_at?: string
+          empresa_id?: string
+          erro_mensagem?: string | null
+          finalizado_em?: string | null
+          id?: string
+          iniciado_em?: string
+          perfil_colunas?: Json | null
+          preview_amostra?: Json | null
+          status?: string
+          total_linhas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_parse_runs_batch_file_id_fkey"
+            columns: ["batch_file_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batch_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_reprocess_requests: {
+        Row: {
+          batch_id: string
+          created_at: string
+          empresa_id: string
+          id: string
+          motivo: string
+          novo_batch_id: string | null
+          solicitado_por: string | null
+          status: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          motivo: string
+          novo_batch_id?: string | null
+          solicitado_por?: string | null
+          status?: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          motivo?: string
+          novo_batch_id?: string | null
+          solicitado_por?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_reprocess_requests_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_reprocess_requests_novo_batch_id_fkey"
+            columns: ["novo_batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_validation_results: {
+        Row: {
+          batch_id: string
+          campo: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          linha_origem: number | null
+          mensagem: string
+          resolvido: boolean
+          rule_codigo: string
+          severidade: Database["public"]["Enums"]["integ_validation_severity"]
+          valor_recebido: string | null
+        }
+        Insert: {
+          batch_id: string
+          campo?: string | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          linha_origem?: number | null
+          mensagem: string
+          resolvido?: boolean
+          rule_codigo: string
+          severidade: Database["public"]["Enums"]["integ_validation_severity"]
+          valor_recebido?: string | null
+        }
+        Update: {
+          batch_id?: string
+          campo?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          linha_origem?: number | null
+          mensagem?: string
+          resolvido?: boolean
+          rule_codigo?: string
+          severidade?: Database["public"]["Enums"]["integ_validation_severity"]
+          valor_recebido?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_validation_results_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_validation_rules: {
+        Row: {
+          ativo: boolean
+          campo: string | null
+          codigo: string
+          created_at: string
+          descricao: string
+          expressao: string | null
+          id: string
+          layout_id: string | null
+          severidade: Database["public"]["Enums"]["integ_validation_severity"]
+        }
+        Insert: {
+          ativo?: boolean
+          campo?: string | null
+          codigo: string
+          created_at?: string
+          descricao: string
+          expressao?: string | null
+          id?: string
+          layout_id?: string | null
+          severidade?: Database["public"]["Enums"]["integ_validation_severity"]
+        }
+        Update: {
+          ativo?: boolean
+          campo?: string | null
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          expressao?: string | null
+          id?: string
+          layout_id?: string | null
+          severidade?: Database["public"]["Enums"]["integ_validation_severity"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_validation_rules_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "integration_layouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lancamento_contabil: {
         Row: {
           competencia: string | null
@@ -3722,6 +4743,7 @@ export type Database = {
       licitacao: {
         Row: {
           abertura: string | null
+          batch_id: string | null
           created_at: string
           empresa_id: string
           id: string
@@ -3730,12 +4752,14 @@ export type Database = {
           objeto: string
           observacoes: string | null
           orgao: string
+          origem_carga: string | null
           status: Database["public"]["Enums"]["licitacao_status"]
           updated_at: string
           valor_estimado: number
         }
         Insert: {
           abertura?: string | null
+          batch_id?: string | null
           created_at?: string
           empresa_id: string
           id?: string
@@ -3744,12 +4768,14 @@ export type Database = {
           objeto: string
           observacoes?: string | null
           orgao: string
+          origem_carga?: string | null
           status?: Database["public"]["Enums"]["licitacao_status"]
           updated_at?: string
           valor_estimado?: number
         }
         Update: {
           abertura?: string | null
+          batch_id?: string | null
           created_at?: string
           empresa_id?: string
           id?: string
@@ -3758,11 +4784,19 @@ export type Database = {
           objeto?: string
           observacoes?: string | null
           orgao?: string
+          origem_carga?: string | null
           status?: Database["public"]["Enums"]["licitacao_status"]
           updated_at?: string
           valor_estimado?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "licitacao_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "licitacao_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -5750,6 +6784,7 @@ export type Database = {
       }
       realizado_lancamentos: {
         Row: {
+          batch_id: string | null
           centro_custo_id: string | null
           classificadores: Json
           contraparte: string | null
@@ -5765,10 +6800,12 @@ export type Database = {
           lote_id: string | null
           observacoes: string | null
           origem_externa_id: string | null
+          pendente_conta_contabil: boolean
           updated_at: string
           valor: number
         }
         Insert: {
+          batch_id?: string | null
           centro_custo_id?: string | null
           classificadores?: Json
           contraparte?: string | null
@@ -5784,10 +6821,12 @@ export type Database = {
           lote_id?: string | null
           observacoes?: string | null
           origem_externa_id?: string | null
+          pendente_conta_contabil?: boolean
           updated_at?: string
           valor: number
         }
         Update: {
+          batch_id?: string | null
           centro_custo_id?: string | null
           classificadores?: Json
           contraparte?: string | null
@@ -5803,10 +6842,18 @@ export type Database = {
           lote_id?: string | null
           observacoes?: string | null
           origem_externa_id?: string | null
+          pendente_conta_contabil?: boolean
           updated_at?: string
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "realizado_lancamentos_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "realizado_lancamentos_centro_custo_id_fkey"
             columns: ["centro_custo_id"]
@@ -7243,6 +8290,624 @@ export type Database = {
           },
         ]
       }
+      stg_clientes_cnpj: {
+        Row: {
+          batch_id: string
+          cnpj: string | null
+          contrato_origem: string | null
+          contrato_resolvido_id: string | null
+          created_at: string
+          data_fim: string | null
+          data_inicio: string | null
+          empresa_id: string
+          empresa_origem: string | null
+          erro_msg: string | null
+          filial: string | null
+          id: string
+          linha_origem: number | null
+          raw: Json | null
+          valido: boolean | null
+        }
+        Insert: {
+          batch_id: string
+          cnpj?: string | null
+          contrato_origem?: string | null
+          contrato_resolvido_id?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          empresa_id: string
+          empresa_origem?: string | null
+          erro_msg?: string | null
+          filial?: string | null
+          id?: string
+          linha_origem?: number | null
+          raw?: Json | null
+          valido?: boolean | null
+        }
+        Update: {
+          batch_id?: string
+          cnpj?: string | null
+          contrato_origem?: string | null
+          contrato_resolvido_id?: string | null
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          empresa_id?: string
+          empresa_origem?: string | null
+          erro_msg?: string | null
+          filial?: string | null
+          id?: string
+          linha_origem?: number | null
+          raw?: Json | null
+          valido?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stg_clientes_cnpj_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stg_colaboradores_ativos: {
+        Row: {
+          batch_id: string
+          cadastro: string | null
+          centro_custo_codigo: string | null
+          centro_custo_descricao: string | null
+          centro_custo_resolvido_id: string | null
+          contrato_resolvido_id: string | null
+          cpf: string | null
+          created_at: string
+          empresa_id: string
+          erro_msg: string | null
+          filial_apelido: string | null
+          id: string
+          linha_origem: number | null
+          nome: string | null
+          raw: Json | null
+          situacao: string | null
+          valido: boolean | null
+        }
+        Insert: {
+          batch_id: string
+          cadastro?: string | null
+          centro_custo_codigo?: string | null
+          centro_custo_descricao?: string | null
+          centro_custo_resolvido_id?: string | null
+          contrato_resolvido_id?: string | null
+          cpf?: string | null
+          created_at?: string
+          empresa_id: string
+          erro_msg?: string | null
+          filial_apelido?: string | null
+          id?: string
+          linha_origem?: number | null
+          nome?: string | null
+          raw?: Json | null
+          situacao?: string | null
+          valido?: boolean | null
+        }
+        Update: {
+          batch_id?: string
+          cadastro?: string | null
+          centro_custo_codigo?: string | null
+          centro_custo_descricao?: string | null
+          centro_custo_resolvido_id?: string | null
+          contrato_resolvido_id?: string | null
+          cpf?: string | null
+          created_at?: string
+          empresa_id?: string
+          erro_msg?: string | null
+          filial_apelido?: string | null
+          id?: string
+          linha_origem?: number | null
+          nome?: string | null
+          raw?: Json | null
+          situacao?: string | null
+          valido?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stg_colaboradores_ativos_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stg_colaboradores_base: {
+        Row: {
+          batch_id: string
+          cadastro: string | null
+          cpf: string | null
+          created_at: string
+          empresa_id: string
+          empresa_origem: string | null
+          erro_msg: string | null
+          filial: string | null
+          id: string
+          linha_origem: number | null
+          nome: string | null
+          raw: Json | null
+          situacao: string | null
+          valido: boolean | null
+        }
+        Insert: {
+          batch_id: string
+          cadastro?: string | null
+          cpf?: string | null
+          created_at?: string
+          empresa_id: string
+          empresa_origem?: string | null
+          erro_msg?: string | null
+          filial?: string | null
+          id?: string
+          linha_origem?: number | null
+          nome?: string | null
+          raw?: Json | null
+          situacao?: string | null
+          valido?: boolean | null
+        }
+        Update: {
+          batch_id?: string
+          cadastro?: string | null
+          cpf?: string | null
+          created_at?: string
+          empresa_id?: string
+          empresa_origem?: string | null
+          erro_msg?: string | null
+          filial?: string | null
+          id?: string
+          linha_origem?: number | null
+          nome?: string | null
+          raw?: Json | null
+          situacao?: string | null
+          valido?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stg_colaboradores_base_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stg_contratos_custos_long: {
+        Row: {
+          batch_id: string
+          cenario: string | null
+          componente_custo: string | null
+          contrato_origem: string | null
+          contrato_resolvido_id: string | null
+          created_at: string
+          empresa_id: string
+          erro_msg: string | null
+          id: string
+          linha_origem: number | null
+          posto_origem: string | null
+          posto_resolvido_id: string | null
+          raw: Json | null
+          servico_origem: string | null
+          valido: boolean | null
+          valor: number | null
+        }
+        Insert: {
+          batch_id: string
+          cenario?: string | null
+          componente_custo?: string | null
+          contrato_origem?: string | null
+          contrato_resolvido_id?: string | null
+          created_at?: string
+          empresa_id: string
+          erro_msg?: string | null
+          id?: string
+          linha_origem?: number | null
+          posto_origem?: string | null
+          posto_resolvido_id?: string | null
+          raw?: Json | null
+          servico_origem?: string | null
+          valido?: boolean | null
+          valor?: number | null
+        }
+        Update: {
+          batch_id?: string
+          cenario?: string | null
+          componente_custo?: string | null
+          contrato_origem?: string | null
+          contrato_resolvido_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          erro_msg?: string | null
+          id?: string
+          linha_origem?: number | null
+          posto_origem?: string | null
+          posto_resolvido_id?: string | null
+          raw?: Json | null
+          servico_origem?: string | null
+          valido?: boolean | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stg_contratos_custos_long_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stg_contratos_custos_wide: {
+        Row: {
+          batch_id: string
+          cenario: string | null
+          cliente: string | null
+          contrato: string | null
+          created_at: string
+          empresa_id: string
+          empresa_origem: string | null
+          id: string
+          linha_origem: number | null
+          posto: string | null
+          quantidade: number | null
+          raw: Json | null
+          servico: string | null
+          status: string | null
+          valores: Json | null
+          vigencia: string | null
+        }
+        Insert: {
+          batch_id: string
+          cenario?: string | null
+          cliente?: string | null
+          contrato?: string | null
+          created_at?: string
+          empresa_id: string
+          empresa_origem?: string | null
+          id?: string
+          linha_origem?: number | null
+          posto?: string | null
+          quantidade?: number | null
+          raw?: Json | null
+          servico?: string | null
+          status?: string | null
+          valores?: Json | null
+          vigencia?: string | null
+        }
+        Update: {
+          batch_id?: string
+          cenario?: string | null
+          cliente?: string | null
+          contrato?: string | null
+          created_at?: string
+          empresa_id?: string
+          empresa_origem?: string | null
+          id?: string
+          linha_origem?: number | null
+          posto?: string | null
+          quantidade?: number | null
+          raw?: Json | null
+          servico?: string | null
+          status?: string | null
+          valores?: Json | null
+          vigencia?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stg_contratos_custos_wide_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stg_contratos_master: {
+        Row: {
+          batch_id: string
+          cidade: string | null
+          contrato_nome: string | null
+          contrato_resolvido_id: string | null
+          created_at: string
+          data_inicio: string | null
+          empresa_id: string
+          erro_msg: string | null
+          id: string
+          linha_origem: number | null
+          numero_edital: string | null
+          quant_funcionarios: number | null
+          raw: Json | null
+          responsavel: string | null
+          valido: boolean | null
+          valor_mensal: number | null
+        }
+        Insert: {
+          batch_id: string
+          cidade?: string | null
+          contrato_nome?: string | null
+          contrato_resolvido_id?: string | null
+          created_at?: string
+          data_inicio?: string | null
+          empresa_id: string
+          erro_msg?: string | null
+          id?: string
+          linha_origem?: number | null
+          numero_edital?: string | null
+          quant_funcionarios?: number | null
+          raw?: Json | null
+          responsavel?: string | null
+          valido?: boolean | null
+          valor_mensal?: number | null
+        }
+        Update: {
+          batch_id?: string
+          cidade?: string | null
+          contrato_nome?: string | null
+          contrato_resolvido_id?: string | null
+          created_at?: string
+          data_inicio?: string | null
+          empresa_id?: string
+          erro_msg?: string | null
+          id?: string
+          linha_origem?: number | null
+          numero_edital?: string | null
+          quant_funcionarios?: number | null
+          raw?: Json | null
+          responsavel?: string | null
+          valido?: boolean | null
+          valor_mensal?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stg_contratos_master_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stg_fluxo_caixa_projetado: {
+        Row: {
+          batch_id: string
+          cenario: string | null
+          centro_custo_resolvido_id: string | null
+          classificacao: string | null
+          contrato_resolvido_id: string | null
+          created_at: string
+          data_prevista: string | null
+          empresa_id: string
+          erro_msg: string | null
+          id: string
+          id_origem: string | null
+          linha_origem: number | null
+          raw: Json | null
+          tipo: string | null
+          valido: boolean | null
+          valor: number | null
+          valor_orcado: number | null
+        }
+        Insert: {
+          batch_id: string
+          cenario?: string | null
+          centro_custo_resolvido_id?: string | null
+          classificacao?: string | null
+          contrato_resolvido_id?: string | null
+          created_at?: string
+          data_prevista?: string | null
+          empresa_id: string
+          erro_msg?: string | null
+          id?: string
+          id_origem?: string | null
+          linha_origem?: number | null
+          raw?: Json | null
+          tipo?: string | null
+          valido?: boolean | null
+          valor?: number | null
+          valor_orcado?: number | null
+        }
+        Update: {
+          batch_id?: string
+          cenario?: string | null
+          centro_custo_resolvido_id?: string | null
+          classificacao?: string | null
+          contrato_resolvido_id?: string | null
+          created_at?: string
+          data_prevista?: string | null
+          empresa_id?: string
+          erro_msg?: string | null
+          id?: string
+          id_origem?: string | null
+          linha_origem?: number | null
+          raw?: Json | null
+          tipo?: string | null
+          valido?: boolean | null
+          valor?: number | null
+          valor_orcado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stg_fluxo_caixa_projetado_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stg_fluxo_caixa_realizado: {
+        Row: {
+          banco_origem: string | null
+          batch_id: string
+          centro_custo_origem: string | null
+          centro_custo_resolvido_id: string | null
+          classificacao: string | null
+          conta_bancaria_resolvida_id: string | null
+          conta_contabil_resolvida_id: string | null
+          contrato_resolvido_id: string | null
+          created_at: string
+          data_lancamento: string | null
+          empresa_id: string
+          empresa_origem: string | null
+          erro_msg: string | null
+          flag_categoria_ambigua: boolean | null
+          forma_pagamento_origem: string | null
+          historico: string | null
+          id: string
+          id_origem: string | null
+          linha_origem: number | null
+          numero_parcela: number | null
+          observacao_categoria_original: string | null
+          pendente_conta_contabil: boolean | null
+          raw: Json | null
+          recorrencia_tipo: string | null
+          tipo: string | null
+          valido: boolean | null
+          valor: number | null
+        }
+        Insert: {
+          banco_origem?: string | null
+          batch_id: string
+          centro_custo_origem?: string | null
+          centro_custo_resolvido_id?: string | null
+          classificacao?: string | null
+          conta_bancaria_resolvida_id?: string | null
+          conta_contabil_resolvida_id?: string | null
+          contrato_resolvido_id?: string | null
+          created_at?: string
+          data_lancamento?: string | null
+          empresa_id: string
+          empresa_origem?: string | null
+          erro_msg?: string | null
+          flag_categoria_ambigua?: boolean | null
+          forma_pagamento_origem?: string | null
+          historico?: string | null
+          id?: string
+          id_origem?: string | null
+          linha_origem?: number | null
+          numero_parcela?: number | null
+          observacao_categoria_original?: string | null
+          pendente_conta_contabil?: boolean | null
+          raw?: Json | null
+          recorrencia_tipo?: string | null
+          tipo?: string | null
+          valido?: boolean | null
+          valor?: number | null
+        }
+        Update: {
+          banco_origem?: string | null
+          batch_id?: string
+          centro_custo_origem?: string | null
+          centro_custo_resolvido_id?: string | null
+          classificacao?: string | null
+          conta_bancaria_resolvida_id?: string | null
+          conta_contabil_resolvida_id?: string | null
+          contrato_resolvido_id?: string | null
+          created_at?: string
+          data_lancamento?: string | null
+          empresa_id?: string
+          empresa_origem?: string | null
+          erro_msg?: string | null
+          flag_categoria_ambigua?: boolean | null
+          forma_pagamento_origem?: string | null
+          historico?: string | null
+          id?: string
+          id_origem?: string | null
+          linha_origem?: number | null
+          numero_parcela?: number | null
+          observacao_categoria_original?: string | null
+          pendente_conta_contabil?: boolean | null
+          raw?: Json | null
+          recorrencia_tipo?: string | null
+          tipo?: string | null
+          valido?: boolean | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stg_fluxo_caixa_realizado_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stg_licitacoes: {
+        Row: {
+          batch_id: string
+          cidade: string | null
+          created_at: string
+          data_sessao: string | null
+          edital: string | null
+          empresa_id: string
+          empresa_obs: string | null
+          erro_msg: string | null
+          fase: string | null
+          horario: string | null
+          id: string
+          linha_origem: number | null
+          objeto: string | null
+          raw: Json | null
+          status_obs: string | null
+          uf: string | null
+          valido: boolean | null
+        }
+        Insert: {
+          batch_id: string
+          cidade?: string | null
+          created_at?: string
+          data_sessao?: string | null
+          edital?: string | null
+          empresa_id: string
+          empresa_obs?: string | null
+          erro_msg?: string | null
+          fase?: string | null
+          horario?: string | null
+          id?: string
+          linha_origem?: number | null
+          objeto?: string | null
+          raw?: Json | null
+          status_obs?: string | null
+          uf?: string | null
+          valido?: boolean | null
+        }
+        Update: {
+          batch_id?: string
+          cidade?: string | null
+          created_at?: string
+          data_sessao?: string | null
+          edital?: string | null
+          empresa_id?: string
+          empresa_obs?: string | null
+          erro_msg?: string | null
+          fase?: string | null
+          horario?: string | null
+          id?: string
+          linha_origem?: number | null
+          objeto?: string | null
+          raw?: Json | null
+          status_obs?: string | null
+          uf?: string | null
+          valido?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stg_licitacoes_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "integration_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sup_aprov_aprovador: {
         Row: {
           created_at: string
@@ -8524,6 +10189,26 @@ export type Database = {
         | "das"
         | "inss"
         | "irrf"
+      integ_alias_status: "pendente" | "sugerido" | "aprovado" | "rejeitado"
+      integ_batch_status:
+        | "rascunho"
+        | "aguardando_validacao"
+        | "validando"
+        | "com_erros"
+        | "pronto_para_carga"
+        | "aprovado"
+        | "carregando"
+        | "carregado"
+        | "rejeitado"
+        | "reprocessando"
+        | "arquivado"
+      integ_load_status:
+        | "pendente"
+        | "em_execucao"
+        | "concluido"
+        | "falhou"
+        | "revertido"
+      integ_validation_severity: "bloqueante" | "alerta" | "informativo"
       integracao_ambiente: "sandbox" | "producao"
       integracao_bancaria_tipo:
         | "manual"
@@ -9022,6 +10707,28 @@ export const Constants = {
         "inss",
         "irrf",
       ],
+      integ_alias_status: ["pendente", "sugerido", "aprovado", "rejeitado"],
+      integ_batch_status: [
+        "rascunho",
+        "aguardando_validacao",
+        "validando",
+        "com_erros",
+        "pronto_para_carga",
+        "aprovado",
+        "carregando",
+        "carregado",
+        "rejeitado",
+        "reprocessando",
+        "arquivado",
+      ],
+      integ_load_status: [
+        "pendente",
+        "em_execucao",
+        "concluido",
+        "falhou",
+        "revertido",
+      ],
+      integ_validation_severity: ["bloqueante", "alerta", "informativo"],
       integracao_ambiente: ["sandbox", "producao"],
       integracao_bancaria_tipo: [
         "manual",
