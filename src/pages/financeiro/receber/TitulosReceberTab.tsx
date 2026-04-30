@@ -243,7 +243,7 @@ function BaixaDialog({ titulo, onClose }: { titulo: any; onClose: (ok: boolean) 
         _observacoes: obs || null,
       });
       if (error) throw error;
-      return data;
+      return result;
     },
     onSuccess: () => { toast.success("Baixa registrada"); onClose(true); },
     onError: (e: any) => toast.error(e.message),
