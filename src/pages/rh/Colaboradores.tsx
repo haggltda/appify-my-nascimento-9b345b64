@@ -54,10 +54,11 @@ function FluxoIntegracaoAviso() {
 }
 
 export default function Colaboradores() {
-  const { data: rows = [], isLoading, refetch } = useList<Colaborador>("colaborador", { orderBy: "nome", ascending: true });
+  const { data: rows = [], isLoading, refetch } = useList<Colaborador>("colaborador", { orderBy: "nome", ascending: true, limit: 5000 });
   const remove = useRemove("colaborador");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Colaborador> | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const fotoUrl = (path?: string | null) =>
     path ? supabase.storage.from(FOTO_BUCKET).getPublicUrl(path).data.publicUrl : null;
@@ -71,7 +72,12 @@ export default function Colaboradores() {
         title="Colaboradores"
         subtitle="Cadastro de colaboradores ativos da empresa."
         actions={
-          <Button onClick={openNew}><Plus className="mr-2 h-4 w-4" /> Novo</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setReportOpen(true)} disabled={rows.length === 0}>
+              <FileDown className="mr-2 h-4 w-4" /> Relatório PDF
+            </Button>
+            <Button onClick={openNew}><Plus className="mr-2 h-4 w-4" /> Novo</Button>
+          </div>
         }
       />
 
