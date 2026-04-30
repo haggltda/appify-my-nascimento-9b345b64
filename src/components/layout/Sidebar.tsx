@@ -201,6 +201,7 @@ const financeiroModule: ModuleDef = {
       { label: "Contas a Pagar", to: "/app/financeiro/contas-pagar", icon: TrendingUp },
       { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
       { label: "Movimentos Bancários", to: "/app/financeiro/movimentos", icon: Wallet },
+      { label: "Integração Bancária", to: "/app/financeiro/integracao-bancaria", icon: Wallet },
     ],
   }],
 };

@@ -61,6 +61,7 @@ import Cotacoes from "./pages/suprimentos/Cotacoes";
 import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
+import IntegracaoBancaria from "./pages/financeiro/IntegracaoBancaria";
 import Lancamentos from "./pages/contabil/Lancamentos";
 import PlanoContas from "./pages/contabil/PlanoContas";
 import Colaboradores from "./pages/rh/Colaboradores";
@@ -136,6 +137,7 @@ const App = () => (
             <Route path="financeiro/contas-pagar" element={<ContasPagar />} />
             <Route path="financeiro/contas-receber" element={<ContasReceber />} />
             <Route path="financeiro/movimentos" element={<MovimentosBancarios />} />
+            <Route path="financeiro/integracao-bancaria" element={<IntegracaoBancaria />} />
             {/* Contábil */}
             <Route path="contabil/lancamentos" element={<Lancamentos />} />
             <Route path="contabil/plano-contas" element={<PlanoContas />} />
