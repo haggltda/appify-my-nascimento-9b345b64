@@ -1,0 +1,198 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useEmpresaId } from "@/hooks/useEmpresaId";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import { Plus, Trash2 } from "lucide-react";
+
+const EVENTOS = [
+  { value: "nf_servico_autorizada", label: "NF de Serviço autorizada" },
+  { value: "nf_produto_autorizada", label: "NF de Produto autorizada" },
+  { value: "baixa_receber", label: "Baixa de título a receber" },
+  { value: "baixa_pagar", label: "Pagamento de título" },
+  { value: "impostos_faturamento", label: "Impostos sobre faturamento" },
+  { value: "provisao_folha", label: "Provisão de folha" },
+  { value: "manual", label: "Manual" },
+];
+
+interface Conta { id: string; classificacao: string; descricao: string; tipo: string; }
+
+export default function RegrasContabilizacao() {
+  const { data: empresaId } = useEmpresaId();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const contasQ = useQuery({
+    queryKey: ["conta_contabil_analitica", empresaId],
+    enabled: !!empresaId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("conta_contabil")
+        .select("id,classificacao,descricao,tipo")
+        .eq("empresa_id", empresaId!)
+        .eq("tipo", "analitica")
+        .eq("ativo", true)
+        .order("classificacao");
+      if (error) throw error;
+      return (data ?? []) as Conta[];
+    },
+  });
+
+  const regrasQ = useQuery({
+    queryKey: ["regra_contabilizacao", empresaId],
+    enabled: !!empresaId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("regra_contabilizacao")
+        .select("*, conta_debito:conta_debito_id(classificacao,descricao), conta_credito:conta_credito_id(classificacao,descricao)")
+        .eq("empresa_id", empresaId!)
+        .order("evento")
+        .order("prioridade");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const remover = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("regra_contabilizacao").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Regra removida" });
+      qc.invalidateQueries({ queryKey: ["regra_contabilizacao"] });
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  if (!empresaId) {
+    return <div className="card-elevated p-6 text-sm text-muted-foreground">Selecione uma empresa.</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Regras de Contabilização Automática</h2>
+          <p className="text-sm text-muted-foreground">
+            Define a partida (D/C) gerada automaticamente para cada evento financeiro/fiscal.
+          </p>
+        </div>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-2"><Plus className="h-4 w-4" />Nova regra</Button>
+          </DialogTrigger>
+          <NovaRegraForm empresaId={empresaId} contas={contasQ.data ?? []} onClose={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["regra_contabilizacao"] }); }} />
+        </Dialog>
+      </div>
+
+      <div className="card-elevated overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">Evento</th>
+              <th className="px-3 py-2 text-left">Descrição</th>
+              <th className="px-3 py-2 text-left">Débito</th>
+              <th className="px-3 py-2 text-left">Crédito</th>
+              <th className="px-3 py-2 text-center">Prioridade</th>
+              <th className="px-3 py-2 text-center">Ativo</th>
+              <th className="px-3 py-2 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {regrasQ.isLoading && <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Carregando…</td></tr>}
+            {(regrasQ.data ?? []).length === 0 && !regrasQ.isLoading && (
+              <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Nenhuma regra configurada.</td></tr>
+            )}
+            {(regrasQ.data ?? []).map((r: any) => (
+              <tr key={r.id} className="border-t border-border/60">
+                <td className="px-3 py-2"><Badge variant="outline" className="capitalize">{r.evento.replace(/_/g, " ")}</Badge></td>
+                <td className="px-3 py-2">{r.descricao}</td>
+                <td className="px-3 py-2 text-xs">
+                  {r.conta_debito ? <><span className="font-mono">{r.conta_debito.classificacao}</span> {r.conta_debito.descricao}</> : "—"}
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {r.conta_credito ? <><span className="font-mono">{r.conta_credito.classificacao}</span> {r.conta_credito.descricao}</> : "—"}
+                </td>
+                <td className="px-3 py-2 text-center">{r.prioridade}</td>
+                <td className="px-3 py-2 text-center">{r.ativo ? "✓" : "—"}</td>
+                <td className="px-3 py-2 text-right">
+                  <Button size="sm" variant="ghost" onClick={() => remover.mutate(r.id)}><Trash2 className="h-4 w-4" /></Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function NovaRegraForm({ empresaId, contas, onClose }: { empresaId: string; contas: Conta[]; onClose: () => void }) {
+  const [form, setForm] = useState({
+    evento: "nf_servico_autorizada",
+    descricao: "",
+    conta_debito_id: "",
+    conta_credito_id: "",
+    prioridade: 100,
+    ativo: true,
+  });
+
+  const salvar = async () => {
+    if (!form.descricao || !form.conta_debito_id || !form.conta_credito_id) {
+      toast({ title: "Preencha descrição e ambas as contas", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from("regra_contabilizacao").insert({
+      empresa_id: empresaId,
+      evento: form.evento as any,
+      descricao: form.descricao,
+      conta_debito_id: form.conta_debito_id,
+      conta_credito_id: form.conta_credito_id,
+      prioridade: form.prioridade,
+      ativo: form.ativo,
+    });
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Regra criada" });
+    onClose();
+  };
+
+  return (
+    <DialogContent className="max-w-2xl">
+      <DialogHeader><DialogTitle>Nova regra de contabilização</DialogTitle></DialogHeader>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <Label>Evento</Label>
+          <Select value={form.evento} onValueChange={(v) => setForm({ ...form, evento: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>{EVENTOS.map(e => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="col-span-2"><Label>Descrição (histórico padrão)</Label>
+          <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Receita de serviços prestados" /></div>
+        <div className="col-span-2"><Label>Conta DÉBITO</Label>
+          <Select value={form.conta_debito_id} onValueChange={(v) => setForm({ ...form, conta_debito_id: v })}>
+            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>{contas.map(c => <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="col-span-2"><Label>Conta CRÉDITO</Label>
+          <Select value={form.conta_credito_id} onValueChange={(v) => setForm({ ...form, conta_credito_id: v })}>
+            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>{contas.map(c => <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div><Label>Prioridade</Label><Input type="number" value={form.prioridade} onChange={(e) => setForm({ ...form, prioridade: Number(e.target.value) })} /></div>
+        <div className="flex items-end gap-2"><Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} /><Label>Ativo</Label></div>
+      </div>
+      <DialogFooter><Button onClick={salvar}>Salvar</Button></DialogFooter>
+    </DialogContent>
+  );
+}
