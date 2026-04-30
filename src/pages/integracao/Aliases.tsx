@@ -22,12 +22,11 @@ interface AliasRow {
   alias: string;
   status: "pendente" | "resolvido" | "ignorado";
   resolvido_em: string | null;
-  // dynamic id columns
   contrato_id?: string | null;
   centro_custo_id?: string | null;
   empresa_destino_id?: string | null;
   banco_id?: string | null;
-  forma_pagamento_id?: string | null;
+  forma_pagamento?: string | null;
 }
 
 interface InternalOption { id: string; label: string; }
