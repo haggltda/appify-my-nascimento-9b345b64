@@ -57,6 +57,7 @@ import MovimentosEstoque from "./pages/suprimentos/MovimentosEstoque";
 import NFEntrada from "./pages/suprimentos/NFEntrada";
 import AprovacoesCompras from "./pages/suprimentos/AprovacoesCompras";
 import Recebimentos from "./pages/suprimentos/Recebimentos";
+import Cotacoes from "./pages/suprimentos/Cotacoes";
 import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
