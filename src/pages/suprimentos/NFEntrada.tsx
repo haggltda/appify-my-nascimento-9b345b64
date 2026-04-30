@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useList } from "@/hooks/useGenericCrud";
-import { Upload, FileText, CheckCircle2, XCircle, AlertTriangle, PackageCheck, Eye, Loader2 } from "lucide-react";
+import { Upload, FileText, CheckCircle2, XCircle, AlertTriangle, PackageCheck, Eye, Loader2, FilePlus2 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/components/crud/EntityCrudPage";
 
@@ -54,6 +54,7 @@ export default function NFEntrada() {
   });
 
   const [openImport, setOpenImport] = useState(false);
+  const [openManual, setOpenManual] = useState(false);
   const [openDetail, setOpenDetail] = useState(false);
   const [nfSelecionada, setNfSelecionada] = useState<any>(null);
   const [filtroStatus, setFiltroStatus] = useState("todos");
@@ -61,6 +62,47 @@ export default function NFEntrada() {
   const [importForm, setImportForm] = useState<any>({ destino: "estoque" });
   const [xmlContent, setXmlContent] = useState<string>("");
   const [importing, setImporting] = useState(false);
+  const [manualForm, setManualForm] = useState<any>({ serie: "1", data_emissao: new Date().toISOString().slice(0, 10) });
+
+  const { data: pcsAprovados = [] } = useQuery<any[]>({
+    queryKey: ["pedido_compra", "aprovados"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("pedido_compra")
+        .select("id, numero, fornecedor_id, valor_total, status")
+        .in("status", ["aprovado", "enviado", "recebido_parcial", "recebido_total"])
+        .order("numero", { ascending: false }).limit(200);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: fornecedores = [] } = useList<any>("fornecedor", { orderBy: "razao_social", ascending: true });
+
+  const lancarManual = useMutation({
+    mutationFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const empresa_id = (await (supabase as any).from("profiles").select("empresa_id").eq("id", u.user?.id).maybeSingle()).data?.empresa_id;
+      const payload: any = {
+        ...manualForm,
+        origem: "manual",
+        status: "validada",
+        empresa_id,
+        chave_acesso: manualForm.chave_acesso || `MANUAL-${Date.now()}`,
+      };
+      const { data, error } = await (supabase as any).from("nf_entrada").insert([payload]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (nf: any) => {
+      toast.success(`NF manual criada: ${nf.numero}. Adicione os itens em "Detalhes".`);
+      qc.invalidateQueries({ queryKey: ["nf_entrada"] });
+      setOpenManual(false);
+      setManualForm({ serie: "1", data_emissao: new Date().toISOString().slice(0, 10) });
+      setNfSelecionada(nf);
+      setOpenDetail(true);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao lançar NF manual"),
+  });
 
   const filtradas = useMemo(() => nfs.filter((n) => {
     if (filtroStatus !== "todos" && n.status !== filtroStatus) return false;
