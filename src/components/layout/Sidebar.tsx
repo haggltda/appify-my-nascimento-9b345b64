@@ -263,7 +263,10 @@ const integracaoModule: ModuleDef = {
   icon: DatabaseZap, basePath: "/app/integracao", status: "active",
   groups: [{
     label: "Cargas", defaultOpen: true,
-    items: [{ label: "Lotes de Integração", to: "/app/integracao", icon: DatabaseZap }],
+    items: [
+      { label: "Lotes de Integração", to: "/app/integracao", icon: DatabaseZap },
+      { label: "Aliases (De/Para)", to: "/app/integracao/aliases", icon: ListChecks },
+    ],
   }],
 };
 
