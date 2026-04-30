@@ -52,7 +52,7 @@ interface BatchFile {
 interface ValidationResult {
   id: string;
   rule_codigo: string;
-  severidade: "info" | "aviso" | "erro";
+  severidade: "informativo" | "alerta" | "bloqueante";
   linha_origem: number | null;
   campo: string | null;
   mensagem: string;
@@ -89,7 +89,7 @@ export default function BatchDetalhe() {
   const [editObs, setEditObs] = useState("");
   const [validations, setValidations] = useState<ValidationResult[]>([]);
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [filterSeverity, setFilterSeverity] = useState<"all" | "erro" | "aviso" | "info">("all");
+  const [filterSeverity, setFilterSeverity] = useState<"all" | "bloqueante" | "alerta" | "informativo">("all");
 
   const load = useCallback(async () => {
     if (!id) return;
