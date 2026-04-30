@@ -46,6 +46,12 @@ export default function CadastroEdital() {
               <Input label="Setor" placeholder="Saneamento básico" />
               <Input label="Portal de divulgação" placeholder="ComprasNet · BEC · Licitações-e" />
             </Grid>
+            <Textarea
+              label="Local real da prestação de serviço"
+              rows={2}
+              name="local_prestacao"
+              placeholder="Ex.: ETE Barueri — Av. das Nações 1.200, galpão 3, turnos A e B. Inclui coleta nos setores 12, 14 e 18 da zona oeste."
+            />
           </Section>
 
           <Section title="Datas e prazos" icon={<CalendarDays className="h-4 w-4" />}>
