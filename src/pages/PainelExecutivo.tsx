@@ -84,6 +84,16 @@ export default function PainelExecutivo() {
     });
   }, [valorPipeline]);
 
+  // === Faturamento Diário (mock visual) ===
+  const faturamentoDiario = useMemo(() => {
+    const dias = Array.from({ length: 14 }, (_, i) => i + 1);
+    const baseDia = Math.max(120_000, valorPipeline / 450);
+    return dias.map((d) => {
+      const fator = 0.55 + Math.cos(d / 2.1) * 0.3 + (d % 7 === 0 ? 0.5 : 0);
+      return { dia: `${String(d).padStart(2, "0")}/04`, valor: Math.round(baseDia * (1 + fator)) };
+    });
+  }, [valorPipeline]);
+
   return (
     <div className="-m-4 rounded-xl bg-gradient-to-br from-[hsl(220_45%_11%)] via-[hsl(222_40%_9%)] to-[hsl(220_50%_8%)] p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8">
       <div className="space-y-6 text-slate-100">
