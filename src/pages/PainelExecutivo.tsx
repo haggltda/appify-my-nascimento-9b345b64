@@ -470,7 +470,7 @@ function KpiCard({
     success: "text-success-foreground",
   } as const;
   return (
-    <div className="group relative overflow-hidden rounded-xl bg-white p-5 text-slate-900 shadow-lg shadow-black/40 ring-1 ring-white/10 transition-transform hover:-translate-y-0.5">
+    <div className="group relative overflow-hidden rounded-xl bg-white p-5 text-slate-900 shadow-md ring-1 ring-slate-200 transition-transform hover:-translate-y-0.5 hover:shadow-lg">
       <div className="flex items-start justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
         <div className={`grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br ${map[tone]} ${iconText[tone]} shadow-md`}>
