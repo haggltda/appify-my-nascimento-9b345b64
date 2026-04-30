@@ -164,10 +164,18 @@ function NovaRegraForm({ empresaId, contas, onClose }: { empresaId: string; cont
   const [form, setForm] = useState({
     evento: "nf_servico_autorizada",
     descricao: "",
+    codigo_evento: "",
+    gatilho: "",
+    observacao: "",
     conta_debito_id: "",
     conta_credito_id: "",
     prioridade: 100,
     ativo: true,
+    exige_contrato: false,
+    exige_centro_custo: false,
+    entra_dre: true,
+    requer_3way_match: false,
+    requer_pedido: false,
   });
 
   const salvar = async () => {
@@ -179,18 +187,26 @@ function NovaRegraForm({ empresaId, contas, onClose }: { empresaId: string; cont
       empresa_id: empresaId,
       evento: form.evento as any,
       descricao: form.descricao,
+      codigo_evento: form.codigo_evento || null,
+      gatilho: form.gatilho || null,
+      observacao: form.observacao || null,
       conta_debito_id: form.conta_debito_id,
       conta_credito_id: form.conta_credito_id,
       prioridade: form.prioridade,
       ativo: form.ativo,
-    });
+      exige_contrato: form.exige_contrato,
+      exige_centro_custo: form.exige_centro_custo,
+      entra_dre: form.entra_dre,
+      requer_3way_match: form.requer_3way_match,
+      requer_pedido: form.requer_pedido,
+    } as any);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Regra criada" });
     onClose();
   };
 
   return (
-    <DialogContent className="max-w-2xl">
+    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
       <DialogHeader><DialogTitle>Nova regra de contabilização</DialogTitle></DialogHeader>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
@@ -200,22 +216,51 @@ function NovaRegraForm({ empresaId, contas, onClose }: { empresaId: string; cont
             <SelectContent>{EVENTOS.map(e => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="col-span-2"><Label>Descrição (histórico padrão)</Label>
-          <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Receita de serviços prestados" /></div>
-        <div className="col-span-2"><Label>Conta DÉBITO</Label>
+        <div>
+          <Label>Código (ex.: EVT-005)</Label>
+          <Input value={form.codigo_evento} onChange={(e) => setForm({ ...form, codigo_evento: e.target.value })} placeholder="EVT-XXX" />
+        </div>
+        <div>
+          <Label>Prioridade</Label>
+          <Input type="number" value={form.prioridade} onChange={(e) => setForm({ ...form, prioridade: Number(e.target.value) })} />
+        </div>
+        <div className="col-span-2">
+          <Label>Descrição (histórico padrão)</Label>
+          <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} placeholder="Receita de serviços prestados" />
+        </div>
+        <div className="col-span-2">
+          <Label>Gatilho (quando esta regra dispara)</Label>
+          <Input value={form.gatilho} onChange={(e) => setForm({ ...form, gatilho: e.target.value })} placeholder="Ex.: NF saída autorizada" />
+        </div>
+        <div className="col-span-2">
+          <Label>Conta DÉBITO</Label>
           <Select value={form.conta_debito_id} onValueChange={(v) => setForm({ ...form, conta_debito_id: v })}>
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>{contas.map(c => <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div className="col-span-2"><Label>Conta CRÉDITO</Label>
+        <div className="col-span-2">
+          <Label>Conta CRÉDITO</Label>
           <Select value={form.conta_credito_id} onValueChange={(v) => setForm({ ...form, conta_credito_id: v })}>
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>{contas.map(c => <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div><Label>Prioridade</Label><Input type="number" value={form.prioridade} onChange={(e) => setForm({ ...form, prioridade: Number(e.target.value) })} /></div>
-        <div className="flex items-end gap-2"><Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} /><Label>Ativo</Label></div>
+
+        <div className="col-span-2 grid grid-cols-2 gap-2 rounded-md border border-border/60 p-3">
+          <div className="col-span-2 text-xs font-medium text-muted-foreground">Regras de validação / segregação</div>
+          <div className="flex items-center gap-2"><Switch checked={form.exige_contrato} onCheckedChange={(v) => setForm({ ...form, exige_contrato: v })} /><Label>Exige contrato</Label></div>
+          <div className="flex items-center gap-2"><Switch checked={form.exige_centro_custo} onCheckedChange={(v) => setForm({ ...form, exige_centro_custo: v })} /><Label>Exige centro de custo</Label></div>
+          <div className="flex items-center gap-2"><Switch checked={form.entra_dre} onCheckedChange={(v) => setForm({ ...form, entra_dre: v })} /><Label>Afeta DRE (não só balanço/caixa)</Label></div>
+          <div className="flex items-center gap-2"><Switch checked={form.requer_pedido} onCheckedChange={(v) => setForm({ ...form, requer_pedido: v })} /><Label>Requer pedido vinculado</Label></div>
+          <div className="flex items-center gap-2"><Switch checked={form.requer_3way_match} onCheckedChange={(v) => setForm({ ...form, requer_3way_match: v })} /><Label>Requer 3-way match</Label></div>
+          <div className="flex items-center gap-2"><Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} /><Label>Ativo</Label></div>
+        </div>
+
+        <div className="col-span-2">
+          <Label>Observação</Label>
+          <Input value={form.observacao} onChange={(e) => setForm({ ...form, observacao: e.target.value })} placeholder="Notas auxiliares" />
+        </div>
       </div>
       <DialogFooter><Button onClick={salvar}>Salvar</Button></DialogFooter>
     </DialogContent>
