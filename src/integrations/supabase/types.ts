@@ -1268,6 +1268,345 @@ export type Database = {
           },
         ]
       }
+      cotacao: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          empresa_id: string
+          fechado_em: string | null
+          fechado_por: string | null
+          id: string
+          justificativa_dispensa: string | null
+          motivo_dispensa: string | null
+          numero: string
+          pedido_compra_ids: string[] | null
+          prazo_resposta: string | null
+          status: Database["public"]["Enums"]["cotacao_status"]
+          titulo: string
+          updated_at: string
+          vencedor_fornecedor_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          empresa_id: string
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          justificativa_dispensa?: string | null
+          motivo_dispensa?: string | null
+          numero?: string
+          pedido_compra_ids?: string[] | null
+          prazo_resposta?: string | null
+          status?: Database["public"]["Enums"]["cotacao_status"]
+          titulo: string
+          updated_at?: string
+          vencedor_fornecedor_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          empresa_id?: string
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          justificativa_dispensa?: string | null
+          motivo_dispensa?: string | null
+          numero?: string
+          pedido_compra_ids?: string[] | null
+          prazo_resposta?: string | null
+          status?: Database["public"]["Enums"]["cotacao_status"]
+          titulo?: string
+          updated_at?: string
+          vencedor_fornecedor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "cotacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "cotacao_vencedor_fornecedor_id_fkey"
+            columns: ["vencedor_fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cotacao_fornecedor: {
+        Row: {
+          convidado_em: string
+          cotacao_id: string
+          fornecedor_id: string
+          id: string
+          observacoes: string | null
+          respondido_em: string | null
+          status: Database["public"]["Enums"]["cotacao_fornecedor_status"]
+        }
+        Insert: {
+          convidado_em?: string
+          cotacao_id: string
+          fornecedor_id: string
+          id?: string
+          observacoes?: string | null
+          respondido_em?: string | null
+          status?: Database["public"]["Enums"]["cotacao_fornecedor_status"]
+        }
+        Update: {
+          convidado_em?: string
+          cotacao_id?: string
+          fornecedor_id?: string
+          id?: string
+          observacoes?: string | null
+          respondido_em?: string | null
+          status?: Database["public"]["Enums"]["cotacao_fornecedor_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_fornecedor_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_fornecedor_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cotacao_item: {
+        Row: {
+          cotacao_id: string
+          created_at: string
+          descricao: string
+          id: string
+          observacoes: string | null
+          ordem: number
+          produto_servico_id: string | null
+          quantidade: number
+          rc_item_id: string | null
+          unidade: string | null
+        }
+        Insert: {
+          cotacao_id: string
+          created_at?: string
+          descricao: string
+          id?: string
+          observacoes?: string | null
+          ordem?: number
+          produto_servico_id?: string | null
+          quantidade: number
+          rc_item_id?: string | null
+          unidade?: string | null
+        }
+        Update: {
+          cotacao_id?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          observacoes?: string | null
+          ordem?: number
+          produto_servico_id?: string | null
+          quantidade?: number
+          rc_item_id?: string | null
+          unidade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_item_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_item_rc_item_id_fkey"
+            columns: ["rc_item_id"]
+            isOneToOne: false
+            referencedRelation: "requisicao_compra_item"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cotacao_proposta: {
+        Row: {
+          condicoes_pagamento: string | null
+          cotacao_fornecedor_id: string
+          cotacao_id: string
+          fornecedor_id: string
+          id: string
+          observacoes: string | null
+          prazo_entrega_dias: number | null
+          prazo_pagamento_dias: number | null
+          ranking: number | null
+          registrado_em: string
+          registrado_por: string | null
+          score: number | null
+          validade_dias: number | null
+          valor_frete: number
+          valor_total: number
+        }
+        Insert: {
+          condicoes_pagamento?: string | null
+          cotacao_fornecedor_id: string
+          cotacao_id: string
+          fornecedor_id: string
+          id?: string
+          observacoes?: string | null
+          prazo_entrega_dias?: number | null
+          prazo_pagamento_dias?: number | null
+          ranking?: number | null
+          registrado_em?: string
+          registrado_por?: string | null
+          score?: number | null
+          validade_dias?: number | null
+          valor_frete?: number
+          valor_total?: number
+        }
+        Update: {
+          condicoes_pagamento?: string | null
+          cotacao_fornecedor_id?: string
+          cotacao_id?: string
+          fornecedor_id?: string
+          id?: string
+          observacoes?: string | null
+          prazo_entrega_dias?: number | null
+          prazo_pagamento_dias?: number | null
+          ranking?: number | null
+          registrado_em?: string
+          registrado_por?: string | null
+          score?: number | null
+          validade_dias?: number | null
+          valor_frete?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_proposta_cotacao_fornecedor_id_fkey"
+            columns: ["cotacao_fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao_fornecedor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_proposta_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_proposta_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cotacao_proposta_item: {
+        Row: {
+          cotacao_item_id: string
+          desconto_pct: number | null
+          id: string
+          ipi_pct: number | null
+          marca: string | null
+          observacoes: string | null
+          preco_unitario: number
+          proposta_id: string
+        }
+        Insert: {
+          cotacao_item_id: string
+          desconto_pct?: number | null
+          id?: string
+          ipi_pct?: number | null
+          marca?: string | null
+          observacoes?: string | null
+          preco_unitario?: number
+          proposta_id: string
+        }
+        Update: {
+          cotacao_item_id?: string
+          desconto_pct?: number | null
+          id?: string
+          ipi_pct?: number | null
+          marca?: string | null
+          observacoes?: string | null
+          preco_unitario?: number
+          proposta_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_proposta_item_cotacao_item_id_fkey"
+            columns: ["cotacao_item_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_proposta_item_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao_proposta"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cotacao_rc: {
+        Row: {
+          cotacao_id: string
+          requisicao_id: string
+        }
+        Insert: {
+          cotacao_id: string
+          requisicao_id: string
+        }
+        Update: {
+          cotacao_id?: string
+          requisicao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_rc_cotacao_id_fkey"
+            columns: ["cotacao_id"]
+            isOneToOne: false
+            referencedRelation: "cotacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotacao_rc_requisicao_id_fkey"
+            columns: ["requisicao_id"]
+            isOneToOne: false
+            referencedRelation: "requisicao_compra"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cronograma_faturamento: {
         Row: {
           competencia: string
@@ -2960,6 +3299,70 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_dre_contrato"
             referencedColumns: ["orcamento_contrato_id"]
+          },
+        ]
+      }
+      parametro_cotacao: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          id: string
+          min_propostas: number
+          permite_emergencia: boolean
+          permite_fornecedor_exclusivo: boolean
+          peso_prazo_entrega: number
+          peso_prazo_pagamento: number
+          peso_preco: number
+          updated_at: string
+          valor_dispensa: number
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          id?: string
+          min_propostas?: number
+          permite_emergencia?: boolean
+          permite_fornecedor_exclusivo?: boolean
+          peso_prazo_entrega?: number
+          peso_prazo_pagamento?: number
+          peso_preco?: number
+          updated_at?: string
+          valor_dispensa?: number
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          min_propostas?: number
+          permite_emergencia?: boolean
+          permite_fornecedor_exclusivo?: boolean
+          peso_prazo_entrega?: number
+          peso_prazo_pagamento?: number
+          peso_preco?: number
+          updated_at?: string
+          valor_dispensa?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parametro_cotacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parametro_cotacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "parametro_cotacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
           },
         ]
       }
@@ -4936,6 +5339,16 @@ export type Database = {
     }
     Functions: {
       aplicar_plano_mestre: { Args: { _empresa_id: string }; Returns: number }
+      cotacao_calcular_score: { Args: { _cotacao_id: string }; Returns: Json }
+      cotacao_fechar: {
+        Args: {
+          _cotacao_id: string
+          _justificativa?: string
+          _motivo_dispensa?: string
+          _vencedor_fornecedor_id: string
+        }
+        Returns: Json
+      }
       gerar_orcamento_contrato: {
         Args: { _ciclo_id: string; _contrato_id: string }
         Returns: Json
@@ -5006,6 +5419,18 @@ export type Database = {
       conta_natureza: "D" | "C"
       conta_tipo: "sintetica" | "analitica"
       contrato_status: "implantacao" | "ativo" | "suspenso" | "encerrado"
+      cotacao_fornecedor_status:
+        | "convidado"
+        | "respondeu"
+        | "recusou"
+        | "vencedor"
+        | "perdedor"
+      cotacao_status:
+        | "rascunho"
+        | "aberta"
+        | "em_analise"
+        | "fechada"
+        | "cancelada"
       cronograma_status:
         | "previsto"
         | "emitido"
@@ -5333,6 +5758,20 @@ export const Constants = {
       conta_natureza: ["D", "C"],
       conta_tipo: ["sintetica", "analitica"],
       contrato_status: ["implantacao", "ativo", "suspenso", "encerrado"],
+      cotacao_fornecedor_status: [
+        "convidado",
+        "respondeu",
+        "recusou",
+        "vencedor",
+        "perdedor",
+      ],
+      cotacao_status: [
+        "rascunho",
+        "aberta",
+        "em_analise",
+        "fechada",
+        "cancelada",
+      ],
       cronograma_status: [
         "previsto",
         "emitido",
