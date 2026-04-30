@@ -13,6 +13,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Loader2, Trash2,
+  PlayCircle, ThumbsUp, ThumbsDown, ListChecks,
 } from "lucide-react";
 import { sha256OfFile, parseSpreadsheet, detectLayout, type LayoutFingerprint, type LayoutMatch } from "@/lib/integracao/parser";
 
@@ -44,6 +45,20 @@ interface BatchFile {
   layout_score: number | null;
   metadata: any;
   created_at: string;
+  materializado_em?: string | null;
+  linhas_inseridas?: number | null;
+}
+
+interface ValidationResult {
+  id: string;
+  rule_codigo: string;
+  severidade: "informativo" | "alerta" | "bloqueante";
+  linha_origem: number | null;
+  campo: string | null;
+  mensagem: string;
+  valor_recebido: string | null;
+  resolvido: boolean;
+  created_at: string;
 }
 
 interface LayoutMeta {
@@ -72,15 +87,19 @@ export default function BatchDetalhe() {
   const [dragOver, setDragOver] = useState(false);
   const [editDesc, setEditDesc] = useState("");
   const [editObs, setEditObs] = useState("");
+  const [validations, setValidations] = useState<ValidationResult[]>([]);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [filterSeverity, setFilterSeverity] = useState<"all" | "bloqueante" | "alerta" | "informativo">("all");
 
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const [batchRes, filesRes, layoutsRes, fpRes] = await Promise.all([
+    const [batchRes, filesRes, layoutsRes, fpRes, valRes] = await Promise.all([
       supabase.from("integration_batches").select("*").eq("id", id).maybeSingle(),
       supabase.from("integration_batch_files").select("*").eq("batch_id", id).order("created_at", { ascending: true }),
       supabase.from("integration_layouts").select("id, codigo, nome, staging_tabela, destino_tabela").eq("ativo", true),
       supabase.from("integration_layout_fingerprints").select("layout_id, arquivo_pattern, sheet_pattern, colunas_obrigatorias, peso"),
+      supabase.from("integration_validation_results").select("*").eq("batch_id", id).order("linha_origem", { ascending: true }).limit(1000),
     ]);
 
     if (batchRes.error || !batchRes.data) {
@@ -96,6 +115,7 @@ export default function BatchDetalhe() {
     (layoutsRes.data ?? []).forEach((l: any) => { lmap[l.id] = l; });
     setLayouts(lmap);
     setFingerprints((fpRes.data ?? []) as LayoutFingerprint[]);
+    setValidations((valRes.data ?? []) as ValidationResult[]);
     setLoading(false);
   }, [id, toast]);
 
