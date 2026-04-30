@@ -49,6 +49,11 @@ import Fornecedores from "./pages/suprimentos/Fornecedores";
 import ProdutosServicos from "./pages/suprimentos/ProdutosServicos";
 import Requisicoes from "./pages/suprimentos/Requisicoes";
 import PedidosCompra from "./pages/suprimentos/PedidosCompra";
+import Almoxarifados from "./pages/suprimentos/Almoxarifados";
+import CategoriasProduto from "./pages/suprimentos/CategoriasProduto";
+import Produtos from "./pages/suprimentos/Produtos";
+import Estoque from "./pages/suprimentos/Estoque";
+import MovimentosEstoque from "./pages/suprimentos/MovimentosEstoque";
 import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
@@ -111,7 +116,12 @@ const App = () => (
             <Route path="orcamento" element={<Orcamento />} />
             {/* Suprimentos */}
             <Route path="suprimentos/fornecedores" element={<Fornecedores />} />
-            <Route path="suprimentos/produtos" element={<ProdutosServicos />} />
+            <Route path="suprimentos/produtos-servicos" element={<ProdutosServicos />} />
+            <Route path="suprimentos/produtos" element={<Produtos />} />
+            <Route path="suprimentos/categorias" element={<CategoriasProduto />} />
+            <Route path="suprimentos/almoxarifados" element={<Almoxarifados />} />
+            <Route path="suprimentos/estoque" element={<Estoque />} />
+            <Route path="suprimentos/movimentos" element={<MovimentosEstoque />} />
             <Route path="suprimentos/requisicoes" element={<Requisicoes />} />
             <Route path="suprimentos/pedidos" element={<PedidosCompra />} />
             {/* Financeiro */}

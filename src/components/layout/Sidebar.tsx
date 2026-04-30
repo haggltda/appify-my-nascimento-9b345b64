@@ -157,17 +157,33 @@ const controladoriaOrcModule: ModuleDef = {
 
 // Suprimentos
 const suprimentosModule: ModuleDef = {
-  id: "suprimentos", label: "Suprimentos", description: "Compras, fornecedores, requisições",
+  id: "suprimentos", label: "Suprimentos", description: "Compras, estoque, requisições",
   icon: ShoppingCart, basePath: "/app/suprimentos", status: "active",
-  groups: [{
-    label: "Operação", defaultOpen: true,
-    items: [
-      { label: "Fornecedores", to: "/app/suprimentos/fornecedores", icon: Building2 },
-      { label: "Produtos & Serviços", to: "/app/suprimentos/produtos", icon: PackageCheck },
-      { label: "Requisições", to: "/app/suprimentos/requisicoes", icon: ListChecks },
-      { label: "Pedidos de Compra", to: "/app/suprimentos/pedidos", icon: ShoppingCart },
-    ],
-  }],
+  groups: [
+    {
+      label: "Cadastros", defaultOpen: true,
+      items: [
+        { label: "Fornecedores", to: "/app/suprimentos/fornecedores", icon: Building2 },
+        { label: "Catálogo de Produtos", to: "/app/suprimentos/produtos", icon: PackageCheck },
+        { label: "Categorias", to: "/app/suprimentos/categorias", icon: FolderKanban },
+        { label: "Almoxarifados", to: "/app/suprimentos/almoxarifados", icon: Home },
+      ],
+    },
+    {
+      label: "Estoque", defaultOpen: true,
+      items: [
+        { label: "Saldos & Alertas", to: "/app/suprimentos/estoque", icon: PackageCheck },
+        { label: "Movimentações", to: "/app/suprimentos/movimentos", icon: History },
+      ],
+    },
+    {
+      label: "Compras", defaultOpen: true,
+      items: [
+        { label: "Requisições", to: "/app/suprimentos/requisicoes", icon: ListChecks },
+        { label: "Pedidos de Compra", to: "/app/suprimentos/pedidos", icon: ShoppingCart },
+      ],
+    },
+  ],
 };
 
 // Financeiro
