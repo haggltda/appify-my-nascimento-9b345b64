@@ -5043,6 +5043,117 @@ export type Database = {
           },
         ]
       }
+      parametro_fiscal: {
+        Row: {
+          ativo: boolean
+          centro_custo_padrao_id: string | null
+          conta_contabil_padrao_imposto_id: string | null
+          created_at: string
+          created_by: string | null
+          creditavel_pis_cofins: boolean
+          empresa_id: string
+          id: string
+          municipio_prestacao: string | null
+          municipio_tomador: string | null
+          observacoes: string | null
+          regime_tributario: string
+          regra_cofins: Json
+          regra_folha_cpp_rat_terceiros: Json
+          regra_irpj_csll: Json
+          regra_iss: Json
+          regra_pis: Json
+          regra_retencao_inss: Json
+          regra_retencao_irrf_csrf: Json
+          updated_at: string
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          ativo?: boolean
+          centro_custo_padrao_id?: string | null
+          conta_contabil_padrao_imposto_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          creditavel_pis_cofins?: boolean
+          empresa_id: string
+          id?: string
+          municipio_prestacao?: string | null
+          municipio_tomador?: string | null
+          observacoes?: string | null
+          regime_tributario: string
+          regra_cofins?: Json
+          regra_folha_cpp_rat_terceiros?: Json
+          regra_irpj_csll?: Json
+          regra_iss?: Json
+          regra_pis?: Json
+          regra_retencao_inss?: Json
+          regra_retencao_irrf_csrf?: Json
+          updated_at?: string
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          ativo?: boolean
+          centro_custo_padrao_id?: string | null
+          conta_contabil_padrao_imposto_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          creditavel_pis_cofins?: boolean
+          empresa_id?: string
+          id?: string
+          municipio_prestacao?: string | null
+          municipio_tomador?: string | null
+          observacoes?: string | null
+          regime_tributario?: string
+          regra_cofins?: Json
+          regra_folha_cpp_rat_terceiros?: Json
+          regra_irpj_csll?: Json
+          regra_iss?: Json
+          regra_pis?: Json
+          regra_retencao_inss?: Json
+          regra_retencao_irrf_csrf?: Json
+          updated_at?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parametro_fiscal_centro_custo_padrao_id_fkey"
+            columns: ["centro_custo_padrao_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parametro_fiscal_conta_contabil_padrao_imposto_id_fkey"
+            columns: ["conta_contabil_padrao_imposto_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parametro_fiscal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parametro_fiscal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "parametro_fiscal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       parametro_integracao_bancaria: {
         Row: {
           baixa_automatica: boolean
@@ -6061,43 +6172,67 @@ export type Database = {
         Row: {
           ativo: boolean
           centro_custo_padrao: string | null
+          codigo_evento: string | null
           conta_credito_id: string | null
           conta_debito_id: string | null
           created_at: string
           descricao: string
           empresa_id: string
+          entra_dre: boolean
           evento: Database["public"]["Enums"]["regra_evento"]
+          exige_centro_custo: boolean
+          exige_contrato: boolean
           filtro: Json | null
+          gatilho: string | null
           id: string
+          observacao: string | null
           prioridade: number
+          requer_3way_match: boolean
+          requer_pedido: boolean
           updated_at: string
         }
         Insert: {
           ativo?: boolean
           centro_custo_padrao?: string | null
+          codigo_evento?: string | null
           conta_credito_id?: string | null
           conta_debito_id?: string | null
           created_at?: string
           descricao: string
           empresa_id: string
+          entra_dre?: boolean
           evento: Database["public"]["Enums"]["regra_evento"]
+          exige_centro_custo?: boolean
+          exige_contrato?: boolean
           filtro?: Json | null
+          gatilho?: string | null
           id?: string
+          observacao?: string | null
           prioridade?: number
+          requer_3way_match?: boolean
+          requer_pedido?: boolean
           updated_at?: string
         }
         Update: {
           ativo?: boolean
           centro_custo_padrao?: string | null
+          codigo_evento?: string | null
           conta_credito_id?: string | null
           conta_debito_id?: string | null
           created_at?: string
           descricao?: string
           empresa_id?: string
+          entra_dre?: boolean
           evento?: Database["public"]["Enums"]["regra_evento"]
+          exige_centro_custo?: boolean
+          exige_contrato?: boolean
           filtro?: Json | null
+          gatilho?: string | null
           id?: string
+          observacao?: string | null
           prioridade?: number
+          requer_3way_match?: boolean
+          requer_pedido?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -8528,6 +8663,20 @@ export type Database = {
         | "impostos_faturamento"
         | "provisao_folha"
         | "manual"
+        | "nf_entrada_estoque"
+        | "nf_entrada_consumo_contrato"
+        | "nf_entrada_servico_admin"
+        | "pagamento_folha"
+        | "recolhimento_encargos_folha"
+        | "mutuo_intercompany_saida"
+        | "mutuo_intercompany_entrada"
+        | "rateio_admin_intercompany"
+        | "baixa_estoque_contrato"
+        | "provisao_irpj_csll"
+        | "provisao_ferias_13"
+        | "retencao_faturamento"
+        | "imposto_recuperavel"
+        | "imposto_nao_recuperavel"
       regua_canal:
         | "email"
         | "whatsapp"
@@ -9028,6 +9177,20 @@ export const Constants = {
         "impostos_faturamento",
         "provisao_folha",
         "manual",
+        "nf_entrada_estoque",
+        "nf_entrada_consumo_contrato",
+        "nf_entrada_servico_admin",
+        "pagamento_folha",
+        "recolhimento_encargos_folha",
+        "mutuo_intercompany_saida",
+        "mutuo_intercompany_entrada",
+        "rateio_admin_intercompany",
+        "baixa_estoque_contrato",
+        "provisao_irpj_csll",
+        "provisao_ferias_13",
+        "retencao_faturamento",
+        "imposto_recuperavel",
+        "imposto_nao_recuperavel",
       ],
       regua_canal: [
         "email",
