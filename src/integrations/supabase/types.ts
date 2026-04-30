@@ -290,6 +290,139 @@ export type Database = {
           },
         ]
       }
+      apuracao_imposto: {
+        Row: {
+          aliquota: number
+          base_calculo: number
+          calculado_em: string | null
+          calculado_por: string | null
+          competencia: string
+          created_at: string
+          data_pagamento: string | null
+          empresa_id: string
+          id: string
+          imposto: Database["public"]["Enums"]["imposto_tipo"]
+          observacoes: string | null
+          regime: Database["public"]["Enums"]["regime_tributario"]
+          status: Database["public"]["Enums"]["apuracao_status"]
+          updated_at: string
+          valor_a_pagar: number
+          valor_devido: number
+          valor_pago: number | null
+          valor_retido: number
+          vencimento: string | null
+        }
+        Insert: {
+          aliquota?: number
+          base_calculo?: number
+          calculado_em?: string | null
+          calculado_por?: string | null
+          competencia: string
+          created_at?: string
+          data_pagamento?: string | null
+          empresa_id: string
+          id?: string
+          imposto: Database["public"]["Enums"]["imposto_tipo"]
+          observacoes?: string | null
+          regime: Database["public"]["Enums"]["regime_tributario"]
+          status?: Database["public"]["Enums"]["apuracao_status"]
+          updated_at?: string
+          valor_a_pagar?: number
+          valor_devido?: number
+          valor_pago?: number | null
+          valor_retido?: number
+          vencimento?: string | null
+        }
+        Update: {
+          aliquota?: number
+          base_calculo?: number
+          calculado_em?: string | null
+          calculado_por?: string | null
+          competencia?: string
+          created_at?: string
+          data_pagamento?: string | null
+          empresa_id?: string
+          id?: string
+          imposto?: Database["public"]["Enums"]["imposto_tipo"]
+          observacoes?: string | null
+          regime?: Database["public"]["Enums"]["regime_tributario"]
+          status?: Database["public"]["Enums"]["apuracao_status"]
+          updated_at?: string
+          valor_a_pagar?: number
+          valor_devido?: number
+          valor_pago?: number | null
+          valor_retido?: number
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apuracao_imposto_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "apuracao_imposto_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "apuracao_imposto_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      apuracao_imposto_item: {
+        Row: {
+          apuracao_id: string
+          base: number
+          created_at: string
+          descricao: string | null
+          id: string
+          nota_fiscal_id: string | null
+          valor: number
+        }
+        Insert: {
+          apuracao_id: string
+          base?: number
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nota_fiscal_id?: string | null
+          valor?: number
+        }
+        Update: {
+          apuracao_id?: string
+          base?: number
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nota_fiscal_id?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apuracao_imposto_item_apuracao_id_fkey"
+            columns: ["apuracao_id"]
+            isOneToOne: false
+            referencedRelation: "apuracao_imposto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "apuracao_imposto_item_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "nota_fiscal"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           diff: Json | null
@@ -903,6 +1036,27 @@ export type Database = {
             referencedColumns: ["empresa_id"]
           },
         ]
+      }
+      cfop: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          descricao: string
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          descricao: string
+          tipo: string
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          descricao?: string
+          tipo?: string
+        }
+        Relationships: []
       }
       classificador_valores: {
         Row: {
@@ -2582,6 +2736,109 @@ export type Database = {
           },
         ]
       }
+      empresa_fiscal_config: {
+        Row: {
+          aliq_cofins: number | null
+          aliq_csll_presuncao: number | null
+          aliq_irpj_presuncao: number | null
+          aliq_iss: number | null
+          aliq_pis: number | null
+          aliq_simples_efetiva: number | null
+          ambiente: Database["public"]["Enums"]["nfsai_ambiente"]
+          anexo_simples: string | null
+          cnae_principal: string | null
+          created_at: string
+          empresa_id: string
+          faixa_simples: number | null
+          id: string
+          inscricao_estadual: string | null
+          inscricao_municipal: string | null
+          nfe_provedor: string | null
+          nfe_proximo_numero: number | null
+          nfe_serie: string | null
+          nfse_provedor: string | null
+          nfse_proximo_numero: number | null
+          nfse_serie: string | null
+          nfse_token_secret_name: string | null
+          regime: Database["public"]["Enums"]["regime_tributario"]
+          updated_at: string
+        }
+        Insert: {
+          aliq_cofins?: number | null
+          aliq_csll_presuncao?: number | null
+          aliq_irpj_presuncao?: number | null
+          aliq_iss?: number | null
+          aliq_pis?: number | null
+          aliq_simples_efetiva?: number | null
+          ambiente?: Database["public"]["Enums"]["nfsai_ambiente"]
+          anexo_simples?: string | null
+          cnae_principal?: string | null
+          created_at?: string
+          empresa_id: string
+          faixa_simples?: number | null
+          id?: string
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
+          nfe_provedor?: string | null
+          nfe_proximo_numero?: number | null
+          nfe_serie?: string | null
+          nfse_provedor?: string | null
+          nfse_proximo_numero?: number | null
+          nfse_serie?: string | null
+          nfse_token_secret_name?: string | null
+          regime?: Database["public"]["Enums"]["regime_tributario"]
+          updated_at?: string
+        }
+        Update: {
+          aliq_cofins?: number | null
+          aliq_csll_presuncao?: number | null
+          aliq_irpj_presuncao?: number | null
+          aliq_iss?: number | null
+          aliq_pis?: number | null
+          aliq_simples_efetiva?: number | null
+          ambiente?: Database["public"]["Enums"]["nfsai_ambiente"]
+          anexo_simples?: string | null
+          cnae_principal?: string | null
+          created_at?: string
+          empresa_id?: string
+          faixa_simples?: number | null
+          id?: string
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
+          nfe_provedor?: string | null
+          nfe_proximo_numero?: number | null
+          nfe_serie?: string | null
+          nfse_provedor?: string | null
+          nfse_proximo_numero?: number | null
+          nfse_serie?: string | null
+          nfse_token_secret_name?: string | null
+          regime?: Database["public"]["Enums"]["regime_tributario"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empresa_fiscal_config_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "empresa_fiscal_config_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "empresa_fiscal_config_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
           ativa: boolean
@@ -4003,6 +4260,325 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_bi_resumo_empresa"
             referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      nota_fiscal: {
+        Row: {
+          ambiente: Database["public"]["Enums"]["nfsai_ambiente"]
+          base_calculo: number | null
+          cancelada_em: string | null
+          cancelada_por: string | null
+          cancelamento_motivo: string | null
+          codigo_servico: string | null
+          codigo_verificacao: string | null
+          competencia: string
+          contrato_id: string | null
+          created_at: string
+          data_emissao: string | null
+          discriminacao: string | null
+          emitida_por: string | null
+          empresa_id: string
+          id: string
+          iss_retido: boolean | null
+          link_pdf: string | null
+          link_xml: string | null
+          medicao_id: string | null
+          numero: number | null
+          observacoes: string | null
+          origem: Database["public"]["Enums"]["nfsai_origem"]
+          protocolo: string | null
+          rejeicao_motivo: string | null
+          serie: string | null
+          status: Database["public"]["Enums"]["nfsai_status"]
+          tipo: Database["public"]["Enums"]["nfsai_tipo"]
+          titulo_receber_id: string | null
+          tomador_documento: string
+          tomador_email: string | null
+          tomador_endereco: Json | null
+          tomador_municipio: string | null
+          tomador_nome: string
+          tomador_uf: string | null
+          updated_at: string
+          valor_cofins: number | null
+          valor_csll: number | null
+          valor_desconto: number | null
+          valor_inss: number | null
+          valor_irrf: number | null
+          valor_iss: number | null
+          valor_liquido: number | null
+          valor_pis: number | null
+          valor_produtos: number | null
+          valor_servicos: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          ambiente?: Database["public"]["Enums"]["nfsai_ambiente"]
+          base_calculo?: number | null
+          cancelada_em?: string | null
+          cancelada_por?: string | null
+          cancelamento_motivo?: string | null
+          codigo_servico?: string | null
+          codigo_verificacao?: string | null
+          competencia?: string
+          contrato_id?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          discriminacao?: string | null
+          emitida_por?: string | null
+          empresa_id: string
+          id?: string
+          iss_retido?: boolean | null
+          link_pdf?: string | null
+          link_xml?: string | null
+          medicao_id?: string | null
+          numero?: number | null
+          observacoes?: string | null
+          origem?: Database["public"]["Enums"]["nfsai_origem"]
+          protocolo?: string | null
+          rejeicao_motivo?: string | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["nfsai_status"]
+          tipo: Database["public"]["Enums"]["nfsai_tipo"]
+          titulo_receber_id?: string | null
+          tomador_documento: string
+          tomador_email?: string | null
+          tomador_endereco?: Json | null
+          tomador_municipio?: string | null
+          tomador_nome: string
+          tomador_uf?: string | null
+          updated_at?: string
+          valor_cofins?: number | null
+          valor_csll?: number | null
+          valor_desconto?: number | null
+          valor_inss?: number | null
+          valor_irrf?: number | null
+          valor_iss?: number | null
+          valor_liquido?: number | null
+          valor_pis?: number | null
+          valor_produtos?: number | null
+          valor_servicos?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          ambiente?: Database["public"]["Enums"]["nfsai_ambiente"]
+          base_calculo?: number | null
+          cancelada_em?: string | null
+          cancelada_por?: string | null
+          cancelamento_motivo?: string | null
+          codigo_servico?: string | null
+          codigo_verificacao?: string | null
+          competencia?: string
+          contrato_id?: string | null
+          created_at?: string
+          data_emissao?: string | null
+          discriminacao?: string | null
+          emitida_por?: string | null
+          empresa_id?: string
+          id?: string
+          iss_retido?: boolean | null
+          link_pdf?: string | null
+          link_xml?: string | null
+          medicao_id?: string | null
+          numero?: number | null
+          observacoes?: string | null
+          origem?: Database["public"]["Enums"]["nfsai_origem"]
+          protocolo?: string | null
+          rejeicao_motivo?: string | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["nfsai_status"]
+          tipo?: Database["public"]["Enums"]["nfsai_tipo"]
+          titulo_receber_id?: string | null
+          tomador_documento?: string
+          tomador_email?: string | null
+          tomador_endereco?: Json | null
+          tomador_municipio?: string | null
+          tomador_nome?: string
+          tomador_uf?: string | null
+          updated_at?: string
+          valor_cofins?: number | null
+          valor_csll?: number | null
+          valor_desconto?: number | null
+          valor_inss?: number | null
+          valor_irrf?: number | null
+          valor_iss?: number | null
+          valor_liquido?: number | null
+          valor_pis?: number | null
+          valor_produtos?: number | null
+          valor_servicos?: number | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nota_fiscal_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nota_fiscal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nota_fiscal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "nota_fiscal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "nota_fiscal_titulo_receber_id_fkey"
+            columns: ["titulo_receber_id"]
+            isOneToOne: false
+            referencedRelation: "titulo_receber"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nota_fiscal_evento: {
+        Row: {
+          created_at: string
+          id: string
+          nota_fiscal_id: string
+          payload: Json | null
+          status_anterior: Database["public"]["Enums"]["nfsai_status"] | null
+          status_novo: Database["public"]["Enums"]["nfsai_status"] | null
+          tipo: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nota_fiscal_id: string
+          payload?: Json | null
+          status_anterior?: Database["public"]["Enums"]["nfsai_status"] | null
+          status_novo?: Database["public"]["Enums"]["nfsai_status"] | null
+          tipo: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nota_fiscal_id?: string
+          payload?: Json | null
+          status_anterior?: Database["public"]["Enums"]["nfsai_status"] | null
+          status_novo?: Database["public"]["Enums"]["nfsai_status"] | null
+          tipo?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nota_fiscal_evento_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "nota_fiscal"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nota_fiscal_item: {
+        Row: {
+          aliq_cofins: number | null
+          aliq_iss: number | null
+          aliq_pis: number | null
+          cfop: string | null
+          created_at: string
+          descricao: string
+          id: string
+          ncm: string | null
+          nota_fiscal_id: string
+          ordem: number
+          produto_id: string | null
+          quantidade: number
+          servico_municipal_id: string | null
+          unidade: string | null
+          valor_cofins: number | null
+          valor_iss: number | null
+          valor_pis: number | null
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          aliq_cofins?: number | null
+          aliq_iss?: number | null
+          aliq_pis?: number | null
+          cfop?: string | null
+          created_at?: string
+          descricao: string
+          id?: string
+          ncm?: string | null
+          nota_fiscal_id: string
+          ordem?: number
+          produto_id?: string | null
+          quantidade?: number
+          servico_municipal_id?: string | null
+          unidade?: string | null
+          valor_cofins?: number | null
+          valor_iss?: number | null
+          valor_pis?: number | null
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Update: {
+          aliq_cofins?: number | null
+          aliq_iss?: number | null
+          aliq_pis?: number | null
+          cfop?: string | null
+          created_at?: string
+          descricao?: string
+          id?: string
+          ncm?: string | null
+          nota_fiscal_id?: string
+          ordem?: number
+          produto_id?: string | null
+          quantidade?: number
+          servico_municipal_id?: string | null
+          unidade?: string | null
+          valor_cofins?: number | null
+          valor_iss?: number | null
+          valor_pis?: number | null
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nota_fiscal_item_cfop_fkey"
+            columns: ["cfop"]
+            isOneToOne: false
+            referencedRelation: "cfop"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "nota_fiscal_item_nota_fiscal_id_fkey"
+            columns: ["nota_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "nota_fiscal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nota_fiscal_item_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nota_fiscal_item_servico_municipal_id_fkey"
+            columns: ["servico_municipal_id"]
+            isOneToOne: false
+            referencedRelation: "servico_municipal"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -6295,6 +6871,67 @@ export type Database = {
         }
         Relationships: []
       }
+      servico_municipal: {
+        Row: {
+          aliq_iss: number
+          ativo: boolean | null
+          codigo_lc116: string
+          codigo_municipal: string | null
+          created_at: string
+          descricao: string
+          empresa_id: string
+          id: string
+          iss_retido_padrao: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          aliq_iss?: number
+          ativo?: boolean | null
+          codigo_lc116: string
+          codigo_municipal?: string | null
+          created_at?: string
+          descricao: string
+          empresa_id: string
+          id?: string
+          iss_retido_padrao?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          aliq_iss?: number
+          ativo?: boolean | null
+          codigo_lc116?: string
+          codigo_municipal?: string | null
+          created_at?: string
+          descricao?: string
+          empresa_id?: string
+          id?: string
+          iss_retido_padrao?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servico_municipal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "servico_municipal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "servico_municipal_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       sessoes_ativas: {
         Row: {
           ativa: boolean
@@ -7320,6 +7957,10 @@ export type Database = {
     }
     Functions: {
       aplicar_plano_mestre: { Args: { _empresa_id: string }; Returns: number }
+      apurar_impostos_competencia: {
+        Args: { _competencia: string; _empresa_id: string }
+        Returns: Json
+      }
       cnab_gerar_remessa: {
         Args: { _conta_bancaria_id: string; _titulo_ids: string[] }
         Returns: Json
@@ -7400,6 +8041,36 @@ export type Database = {
       layout_submeter_aprovacao: { Args: { _versao_id: string }; Returns: Json }
       nf_gerar_titulos: { Args: { _nf_id: string }; Returns: Json }
       nf_lancar_estoque: { Args: { _nf_id: string }; Returns: Json }
+      nota_fiscal_autorizar: {
+        Args: {
+          _link_pdf?: string
+          _link_xml?: string
+          _nf_id: string
+          _protocolo?: string
+        }
+        Returns: undefined
+      }
+      nota_fiscal_cancelar: {
+        Args: { _motivo: string; _nf_id: string }
+        Returns: undefined
+      }
+      nota_fiscal_emitir: {
+        Args: {
+          _codigo_servico?: string
+          _contrato_id?: string
+          _discriminacao?: string
+          _empresa_id: string
+          _origem: Database["public"]["Enums"]["nfsai_origem"]
+          _tipo: Database["public"]["Enums"]["nfsai_tipo"]
+          _titulo_receber_id?: string
+          _tomador_documento: string
+          _tomador_email?: string
+          _tomador_nome: string
+          _valor_produtos?: number
+          _valor_servicos?: number
+        }
+        Returns: string
+      }
       recebimento_confirmar: {
         Args: { _recebimento_id: string }
         Returns: Json
@@ -7462,6 +8133,7 @@ export type Database = {
         | "financeiro"
         | "fiscal"
       aprov_decisao: "pendente" | "aprovado" | "rejeitado" | "devolvido"
+      apuracao_status: "aberta" | "calculada" | "fechada" | "pago" | "atrasado"
       banco_layout_tipo:
         | "cnab240_remessa_pagamento"
         | "cnab240_retorno"
@@ -7570,6 +8242,15 @@ export type Database = {
         | "debito_automatico"
       fornecedor_tipo: "pj" | "pf"
       ia_status: "pendente" | "processando" | "concluida" | "erro" | "cancelada"
+      imposto_tipo:
+        | "iss"
+        | "pis"
+        | "cofins"
+        | "irpj"
+        | "csll"
+        | "das"
+        | "inss"
+        | "irrf"
       integracao_ambiente: "sandbox" | "producao"
       integracao_bancaria_tipo:
         | "manual"
@@ -7602,6 +8283,16 @@ export type Database = {
         | "lancada_estoque"
         | "cancelada"
         | "rejeitada"
+      nfsai_ambiente: "homologacao" | "producao"
+      nfsai_origem: "titulo" | "medicao" | "avulsa" | "manual"
+      nfsai_status:
+        | "rascunho"
+        | "emitida"
+        | "autorizada"
+        | "cancelada"
+        | "rejeitada"
+        | "denegada"
+      nfsai_tipo: "nfse" | "nfe" | "nfce"
       nfse_status:
         | "rascunho"
         | "emitida"
@@ -7904,6 +8595,7 @@ export const Constants = {
         "fiscal",
       ],
       aprov_decisao: ["pendente", "aprovado", "rejeitado", "devolvido"],
+      apuracao_status: ["aberta", "calculada", "fechada", "pago", "atrasado"],
       banco_layout_tipo: [
         "cnab240_remessa_pagamento",
         "cnab240_retorno",
@@ -8025,6 +8717,16 @@ export const Constants = {
       ],
       fornecedor_tipo: ["pj", "pf"],
       ia_status: ["pendente", "processando", "concluida", "erro", "cancelada"],
+      imposto_tipo: [
+        "iss",
+        "pis",
+        "cofins",
+        "irpj",
+        "csll",
+        "das",
+        "inss",
+        "irrf",
+      ],
       integracao_ambiente: ["sandbox", "producao"],
       integracao_bancaria_tipo: [
         "manual",
@@ -8061,6 +8763,17 @@ export const Constants = {
         "cancelada",
         "rejeitada",
       ],
+      nfsai_ambiente: ["homologacao", "producao"],
+      nfsai_origem: ["titulo", "medicao", "avulsa", "manual"],
+      nfsai_status: [
+        "rascunho",
+        "emitida",
+        "autorizada",
+        "cancelada",
+        "rejeitada",
+        "denegada",
+      ],
+      nfsai_tipo: ["nfse", "nfe", "nfce"],
       nfse_status: [
         "rascunho",
         "emitida",
