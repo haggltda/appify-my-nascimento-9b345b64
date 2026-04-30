@@ -208,7 +208,7 @@ export default function TitulosReceberTab() {
 function BaixaDialog({ titulo, onClose }: { titulo: any; onClose: (ok: boolean) => void }) {
   const saldo = Number(titulo.valor) - Number(titulo.valor_recebido || 0);
   const [valor, setValor] = useState(saldo.toFixed(2));
-  const [data, setData] = useState(new Date().toISOString().slice(0, 10));
+  const [dataBaixa, setDataBaixa] = useState(new Date().toISOString().slice(0, 10));
   const [meio, setMeio] = useState<string>(titulo.meio_cobranca ?? "boleto");
   const [contaId, setContaId] = useState<string>("");
   const [juros, setJuros] = useState("0");
