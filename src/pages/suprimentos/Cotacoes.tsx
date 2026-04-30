@@ -92,7 +92,9 @@ export default function Cotacoes() {
     <div className="space-y-6 p-6">
       <PageHeader
         title="Cotações de Fornecedores"
-        description="RFQ, mapa comparativo com score ponderado e geração automática de Pedido de Compra"
+        subtitle="RFQ, mapa comparativo com score ponderado e geração automática de Pedido de Compra"
+        module="Suprimentos"
+        breadcrumb={["Cotações"]}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
