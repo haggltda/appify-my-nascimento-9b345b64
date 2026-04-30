@@ -997,6 +997,260 @@ export type Database = {
           },
         ]
       }
+      cobranca_boleto: {
+        Row: {
+          carteira: string | null
+          codigo_barras: string | null
+          conta_bancaria_id: string | null
+          created_at: string
+          empresa_id: string
+          enviado_em: string | null
+          id: string
+          instrucoes: string | null
+          linha_digitavel: string | null
+          nosso_numero: string | null
+          payload_remessa: Json | null
+          payload_retorno: Json | null
+          registrado_em: string | null
+          status_registro: Database["public"]["Enums"]["cobranca_registro_status"]
+          titulo_id: string
+          updated_at: string
+          url_pdf: string | null
+        }
+        Insert: {
+          carteira?: string | null
+          codigo_barras?: string | null
+          conta_bancaria_id?: string | null
+          created_at?: string
+          empresa_id: string
+          enviado_em?: string | null
+          id?: string
+          instrucoes?: string | null
+          linha_digitavel?: string | null
+          nosso_numero?: string | null
+          payload_remessa?: Json | null
+          payload_retorno?: Json | null
+          registrado_em?: string | null
+          status_registro?: Database["public"]["Enums"]["cobranca_registro_status"]
+          titulo_id: string
+          updated_at?: string
+          url_pdf?: string | null
+        }
+        Update: {
+          carteira?: string | null
+          codigo_barras?: string | null
+          conta_bancaria_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          enviado_em?: string | null
+          id?: string
+          instrucoes?: string | null
+          linha_digitavel?: string | null
+          nosso_numero?: string | null
+          payload_remessa?: Json | null
+          payload_retorno?: Json | null
+          registrado_em?: string | null
+          status_registro?: Database["public"]["Enums"]["cobranca_registro_status"]
+          titulo_id?: string
+          updated_at?: string
+          url_pdf?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobranca_boleto_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "conta_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobranca_boleto_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobranca_boleto_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "cobranca_boleto_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "cobranca_boleto_titulo_id_fkey"
+            columns: ["titulo_id"]
+            isOneToOne: true
+            referencedRelation: "titulo_receber"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cobranca_evento: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          id: string
+          origem: string | null
+          payload: Json | null
+          processado: boolean
+          processado_em: string | null
+          tipo: string
+          titulo_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          id?: string
+          origem?: string | null
+          payload?: Json | null
+          processado?: boolean
+          processado_em?: string | null
+          tipo: string
+          titulo_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          origem?: string | null
+          payload?: Json | null
+          processado?: boolean
+          processado_em?: string | null
+          tipo?: string
+          titulo_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobranca_evento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobranca_evento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "cobranca_evento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "cobranca_evento_titulo_id_fkey"
+            columns: ["titulo_id"]
+            isOneToOne: false
+            referencedRelation: "titulo_receber"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cobranca_pix: {
+        Row: {
+          chave_pix: string | null
+          conta_bancaria_id: string | null
+          copia_e_cola: string | null
+          created_at: string
+          e2eid: string | null
+          empresa_id: string
+          expira_em: string | null
+          expiracao_segundos: number | null
+          id: string
+          pago_em: string | null
+          payload: Json | null
+          qrcode_imagem: string | null
+          status: Database["public"]["Enums"]["pix_cobranca_status"]
+          titulo_id: string
+          txid: string
+          updated_at: string
+        }
+        Insert: {
+          chave_pix?: string | null
+          conta_bancaria_id?: string | null
+          copia_e_cola?: string | null
+          created_at?: string
+          e2eid?: string | null
+          empresa_id: string
+          expira_em?: string | null
+          expiracao_segundos?: number | null
+          id?: string
+          pago_em?: string | null
+          payload?: Json | null
+          qrcode_imagem?: string | null
+          status?: Database["public"]["Enums"]["pix_cobranca_status"]
+          titulo_id: string
+          txid: string
+          updated_at?: string
+        }
+        Update: {
+          chave_pix?: string | null
+          conta_bancaria_id?: string | null
+          copia_e_cola?: string | null
+          created_at?: string
+          e2eid?: string | null
+          empresa_id?: string
+          expira_em?: string | null
+          expiracao_segundos?: number | null
+          id?: string
+          pago_em?: string | null
+          payload?: Json | null
+          qrcode_imagem?: string | null
+          status?: Database["public"]["Enums"]["pix_cobranca_status"]
+          titulo_id?: string
+          txid?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobranca_pix_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "conta_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobranca_pix_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobranca_pix_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "cobranca_pix_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "cobranca_pix_titulo_id_fkey"
+            columns: ["titulo_id"]
+            isOneToOne: true
+            referencedRelation: "titulo_receber"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       colaborador: {
         Row: {
           cargo: string | null
@@ -3615,6 +3869,143 @@ export type Database = {
           },
         ]
       }
+      nfse: {
+        Row: {
+          aliquota_iss: number | null
+          codigo_verificacao: string | null
+          competencia: string | null
+          contrato_id: string | null
+          created_at: string
+          created_by: string | null
+          data_emissao: string
+          discriminacao: string | null
+          empresa_id: string
+          id: string
+          iss_retido: boolean | null
+          motivo_cancelamento: string | null
+          numero: string
+          pdf_url: string | null
+          protocolo: string | null
+          rps_numero: string | null
+          rps_serie: string | null
+          serie: string | null
+          status: Database["public"]["Enums"]["nfse_status"]
+          tomador_documento: string | null
+          tomador_email: string | null
+          tomador_endereco: Json | null
+          tomador_nome: string
+          updated_at: string
+          valor_cofins: number | null
+          valor_csll: number | null
+          valor_inss: number | null
+          valor_ir: number | null
+          valor_iss: number | null
+          valor_liquido: number | null
+          valor_pis: number | null
+          valor_servicos: number
+          xml_url: string | null
+        }
+        Insert: {
+          aliquota_iss?: number | null
+          codigo_verificacao?: string | null
+          competencia?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string
+          discriminacao?: string | null
+          empresa_id: string
+          id?: string
+          iss_retido?: boolean | null
+          motivo_cancelamento?: string | null
+          numero: string
+          pdf_url?: string | null
+          protocolo?: string | null
+          rps_numero?: string | null
+          rps_serie?: string | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["nfse_status"]
+          tomador_documento?: string | null
+          tomador_email?: string | null
+          tomador_endereco?: Json | null
+          tomador_nome: string
+          updated_at?: string
+          valor_cofins?: number | null
+          valor_csll?: number | null
+          valor_inss?: number | null
+          valor_ir?: number | null
+          valor_iss?: number | null
+          valor_liquido?: number | null
+          valor_pis?: number | null
+          valor_servicos: number
+          xml_url?: string | null
+        }
+        Update: {
+          aliquota_iss?: number | null
+          codigo_verificacao?: string | null
+          competencia?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_emissao?: string
+          discriminacao?: string | null
+          empresa_id?: string
+          id?: string
+          iss_retido?: boolean | null
+          motivo_cancelamento?: string | null
+          numero?: string
+          pdf_url?: string | null
+          protocolo?: string | null
+          rps_numero?: string | null
+          rps_serie?: string | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["nfse_status"]
+          tomador_documento?: string | null
+          tomador_email?: string | null
+          tomador_endereco?: Json | null
+          tomador_nome?: string
+          updated_at?: string
+          valor_cofins?: number | null
+          valor_csll?: number | null
+          valor_inss?: number | null
+          valor_ir?: number | null
+          valor_iss?: number | null
+          valor_liquido?: number | null
+          valor_pis?: number | null
+          valor_servicos?: number
+          xml_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfse_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfse_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nfse_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "nfse_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       notificacoes: {
         Row: {
           created_at: string
@@ -5078,6 +5469,208 @@ export type Database = {
           },
         ]
       }
+      regua_cobranca: {
+        Row: {
+          aplicar_para: string
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          id: string
+          nome: string
+          updated_at: string
+          valor_minimo: number | null
+        }
+        Insert: {
+          aplicar_para?: string
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          nome: string
+          updated_at?: string
+          valor_minimo?: number | null
+        }
+        Update: {
+          aplicar_para?: string
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+          valor_minimo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regua_cobranca_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regua_cobranca_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "regua_cobranca_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      regua_cobranca_etapa: {
+        Row: {
+          ativo: boolean
+          canal: Database["public"]["Enums"]["regua_canal"]
+          dias_em_relacao_vencimento: number
+          exige_aprovacao: boolean
+          id: string
+          observacao: string | null
+          ordem: number
+          regua_id: string
+          template_id: string | null
+          valor_minimo: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          canal: Database["public"]["Enums"]["regua_canal"]
+          dias_em_relacao_vencimento: number
+          exige_aprovacao?: boolean
+          id?: string
+          observacao?: string | null
+          ordem: number
+          regua_id: string
+          template_id?: string | null
+          valor_minimo?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          canal?: Database["public"]["Enums"]["regua_canal"]
+          dias_em_relacao_vencimento?: number
+          exige_aprovacao?: boolean
+          id?: string
+          observacao?: string | null
+          ordem?: number
+          regua_id?: string
+          template_id?: string | null
+          valor_minimo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regua_cobranca_etapa_regua_id_fkey"
+            columns: ["regua_id"]
+            isOneToOne: false
+            referencedRelation: "regua_cobranca"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regua_cobranca_etapa_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "template_mensagem"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      regua_cobranca_execucao: {
+        Row: {
+          agendado_para: string | null
+          assunto: string | null
+          canal: Database["public"]["Enums"]["regua_canal"]
+          conteudo: string | null
+          created_at: string
+          destinatario: string | null
+          empresa_id: string
+          erro: string | null
+          etapa_id: string | null
+          executado_em: string | null
+          executado_por: string | null
+          id: string
+          resposta: Json | null
+          status: Database["public"]["Enums"]["regua_etapa_status"]
+          titulo_id: string
+        }
+        Insert: {
+          agendado_para?: string | null
+          assunto?: string | null
+          canal: Database["public"]["Enums"]["regua_canal"]
+          conteudo?: string | null
+          created_at?: string
+          destinatario?: string | null
+          empresa_id: string
+          erro?: string | null
+          etapa_id?: string | null
+          executado_em?: string | null
+          executado_por?: string | null
+          id?: string
+          resposta?: Json | null
+          status?: Database["public"]["Enums"]["regua_etapa_status"]
+          titulo_id: string
+        }
+        Update: {
+          agendado_para?: string | null
+          assunto?: string | null
+          canal?: Database["public"]["Enums"]["regua_canal"]
+          conteudo?: string | null
+          created_at?: string
+          destinatario?: string | null
+          empresa_id?: string
+          erro?: string | null
+          etapa_id?: string | null
+          executado_em?: string | null
+          executado_por?: string | null
+          id?: string
+          resposta?: Json | null
+          status?: Database["public"]["Enums"]["regua_etapa_status"]
+          titulo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regua_cobranca_execucao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regua_cobranca_execucao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "regua_cobranca_execucao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "regua_cobranca_execucao_etapa_id_fkey"
+            columns: ["etapa_id"]
+            isOneToOne: false
+            referencedRelation: "regua_cobranca_etapa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "regua_cobranca_execucao_titulo_id_fkey"
+            columns: ["titulo_id"]
+            isOneToOne: false
+            referencedRelation: "titulo_receber"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       remessa_cnab: {
         Row: {
           arquivo_conteudo: string | null
@@ -6056,6 +6649,70 @@ export type Database = {
           },
         ]
       }
+      template_mensagem: {
+        Row: {
+          assunto: string | null
+          ativo: boolean
+          codigo: string
+          corpo: string
+          created_at: string
+          empresa_id: string | null
+          id: string
+          nome: string
+          tipo: Database["public"]["Enums"]["template_tipo"]
+          updated_at: string
+          variaveis: Json | null
+        }
+        Insert: {
+          assunto?: string | null
+          ativo?: boolean
+          codigo: string
+          corpo: string
+          created_at?: string
+          empresa_id?: string | null
+          id?: string
+          nome: string
+          tipo: Database["public"]["Enums"]["template_tipo"]
+          updated_at?: string
+          variaveis?: Json | null
+        }
+        Update: {
+          assunto?: string | null
+          ativo?: boolean
+          codigo?: string
+          corpo?: string
+          created_at?: string
+          empresa_id?: string | null
+          id?: string
+          nome?: string
+          tipo?: Database["public"]["Enums"]["template_tipo"]
+          updated_at?: string
+          variaveis?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_mensagem_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_mensagem_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "template_mensagem_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       titulo_pagar: {
         Row: {
           centro_custo_id: string | null
@@ -6180,16 +6837,29 @@ export type Database = {
           conta_contabil_id: string | null
           contrato_id: string | null
           created_at: string
+          created_by: string | null
           data_emissao: string
           data_recebimento: string | null
           data_vencimento: string
+          descricao: string | null
           empresa_id: string
           id: string
+          meio_cobranca: Database["public"]["Enums"]["titulo_receber_meio"]
+          nfse_id: string | null
+          numero: string | null
           numero_documento: string
           observacoes: string | null
+          sacado_documento: string | null
+          sacado_email: string | null
+          sacado_endereco: Json | null
+          sacado_nome: string
+          sacado_telefone: string | null
           status: Database["public"]["Enums"]["titulo_status"]
           updated_at: string
           valor: number
+          valor_desconto: number
+          valor_juros: number
+          valor_multa: number
           valor_recebido: number
         }
         Insert: {
@@ -6200,16 +6870,29 @@ export type Database = {
           conta_contabil_id?: string | null
           contrato_id?: string | null
           created_at?: string
+          created_by?: string | null
           data_emissao?: string
           data_recebimento?: string | null
           data_vencimento: string
+          descricao?: string | null
           empresa_id: string
           id?: string
+          meio_cobranca?: Database["public"]["Enums"]["titulo_receber_meio"]
+          nfse_id?: string | null
+          numero?: string | null
           numero_documento: string
           observacoes?: string | null
+          sacado_documento?: string | null
+          sacado_email?: string | null
+          sacado_endereco?: Json | null
+          sacado_nome: string
+          sacado_telefone?: string | null
           status?: Database["public"]["Enums"]["titulo_status"]
           updated_at?: string
           valor?: number
+          valor_desconto?: number
+          valor_juros?: number
+          valor_multa?: number
           valor_recebido?: number
         }
         Update: {
@@ -6220,19 +6903,122 @@ export type Database = {
           conta_contabil_id?: string | null
           contrato_id?: string | null
           created_at?: string
+          created_by?: string | null
           data_emissao?: string
           data_recebimento?: string | null
           data_vencimento?: string
+          descricao?: string | null
           empresa_id?: string
           id?: string
+          meio_cobranca?: Database["public"]["Enums"]["titulo_receber_meio"]
+          nfse_id?: string | null
+          numero?: string | null
           numero_documento?: string
           observacoes?: string | null
+          sacado_documento?: string | null
+          sacado_email?: string | null
+          sacado_endereco?: Json | null
+          sacado_nome?: string
+          sacado_telefone?: string | null
           status?: Database["public"]["Enums"]["titulo_status"]
           updated_at?: string
           valor?: number
+          valor_desconto?: number
+          valor_juros?: number
+          valor_multa?: number
           valor_recebido?: number
         }
         Relationships: []
+      }
+      titulo_receber_baixa: {
+        Row: {
+          conta_bancaria_id: string | null
+          created_at: string
+          created_by: string | null
+          data_baixa: string
+          empresa_id: string
+          id: string
+          meio: Database["public"]["Enums"]["titulo_receber_meio"]
+          movimento_bancario_id: string | null
+          observacoes: string | null
+          origem: string | null
+          titulo_id: string
+          valor: number
+          valor_desconto: number
+          valor_juros: number
+          valor_multa: number
+        }
+        Insert: {
+          conta_bancaria_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_baixa?: string
+          empresa_id: string
+          id?: string
+          meio?: Database["public"]["Enums"]["titulo_receber_meio"]
+          movimento_bancario_id?: string | null
+          observacoes?: string | null
+          origem?: string | null
+          titulo_id: string
+          valor: number
+          valor_desconto?: number
+          valor_juros?: number
+          valor_multa?: number
+        }
+        Update: {
+          conta_bancaria_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_baixa?: string
+          empresa_id?: string
+          id?: string
+          meio?: Database["public"]["Enums"]["titulo_receber_meio"]
+          movimento_bancario_id?: string | null
+          observacoes?: string | null
+          origem?: string | null
+          titulo_id?: string
+          valor?: number
+          valor_desconto?: number
+          valor_juros?: number
+          valor_multa?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "titulo_receber_baixa_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "conta_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "titulo_receber_baixa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "titulo_receber_baixa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "titulo_receber_baixa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "titulo_receber_baixa_titulo_id_fkey"
+            columns: ["titulo_id"]
+            isOneToOne: false
+            referencedRelation: "titulo_receber"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -6539,6 +7325,18 @@ export type Database = {
         Returns: Json
       }
       cnab_processar_retorno: { Args: { _retorno_id: string }; Returns: Json }
+      cobranca_gerar_boleto: {
+        Args: { _carteira?: string; _instrucoes?: string; _titulo_id: string }
+        Returns: Json
+      }
+      cobranca_gerar_pix: {
+        Args: {
+          _chave_pix?: string
+          _expiracao_segundos?: number
+          _titulo_id: string
+        }
+        Returns: Json
+      }
       conciliacao_auto_match: { Args: { _empresa_id: string }; Returns: Json }
       cotacao_calcular_score: { Args: { _cotacao_id: string }; Returns: Json }
       cotacao_fechar: {
@@ -6555,6 +7353,21 @@ export type Database = {
           _conta_bancaria_id: string
           _conteudo: string
           _formato: Database["public"]["Enums"]["retorno_formato"]
+        }
+        Returns: Json
+      }
+      faturar_contrato_competencia: {
+        Args: {
+          _competencia: string
+          _conta_bancaria_id?: string
+          _contrato_id: string
+          _data_vencimento: string
+          _descricao?: string
+          _meio_cobranca?: Database["public"]["Enums"]["titulo_receber_meio"]
+          _sacado_documento?: string
+          _sacado_email?: string
+          _sacado_nome?: string
+          _valor: number
         }
         Returns: Json
       }
@@ -6591,6 +7404,10 @@ export type Database = {
         Args: { _recebimento_id: string }
         Returns: Json
       }
+      regua_agendar_etapas: {
+        Args: { _regua_id?: string; _titulo_id: string }
+        Returns: Json
+      }
       storage_path_empresa: { Args: { _name: string }; Returns: string }
       titulo_agendar: {
         Args: {
@@ -6601,6 +7418,21 @@ export type Database = {
         }
         Returns: Json
       }
+      titulo_baixar: {
+        Args: {
+          _conta_bancaria_id?: string
+          _data_baixa?: string
+          _desconto?: number
+          _juros?: number
+          _meio?: Database["public"]["Enums"]["titulo_receber_meio"]
+          _multa?: number
+          _observacoes?: string
+          _titulo_id: string
+          _valor: number
+        }
+        Returns: Json
+      }
+      titulo_receber_marcar_vencidos: { Args: never; Returns: number }
     }
     Enums: {
       almox_tipo: "matriz" | "deposito" | "obra" | "veiculo" | "outro"
@@ -6627,6 +7459,7 @@ export type Database = {
         | "almoxarife"
         | "gestor_cc"
         | "fiscal_recebedor"
+        | "financeiro"
       aprov_decisao: "pendente" | "aprovado" | "rejeitado" | "devolvido"
       banco_layout_tipo:
         | "cnab240_remessa_pagamento"
@@ -6645,6 +7478,14 @@ export type Database = {
         | "arquivada"
       banco_tipo: "corrente" | "poupanca" | "aplicacao" | "vinculada"
       cc_tipo: "adm" | "operacional"
+      cobranca_registro_status:
+        | "pendente"
+        | "enviado"
+        | "registrado"
+        | "rejeitado"
+        | "baixado"
+        | "liquidado"
+        | "cancelado"
       colab_status: "ativo" | "afastado" | "demitido" | "ferias"
       comprovacao_tipo:
         | "empenho"
@@ -6760,6 +7601,12 @@ export type Database = {
         | "lancada_estoque"
         | "cancelada"
         | "rejeitada"
+      nfse_status:
+        | "rascunho"
+        | "emitida"
+        | "cancelada"
+        | "rejeitada"
+        | "substituida"
       obz_status: "rascunho" | "em_aprovacao" | "aprovada" | "arquivada"
       orcamento_ciclo_status:
         | "aberto"
@@ -6790,6 +7637,7 @@ export type Database = {
         | "recebido"
         | "cancelado"
       periodo_status: "aberto" | "fechado"
+      pix_cobranca_status: "ativa" | "concluida" | "removida" | "expirada"
       posto_jornada:
         | "12x36"
         | "8h"
@@ -6842,6 +7690,21 @@ export type Database = {
         | "recebido_com_ocorrencia"
         | "cancelado"
       regime_tributario: "lucro_real" | "lucro_presumido" | "simples_nacional"
+      regua_canal:
+        | "email"
+        | "whatsapp"
+        | "sms"
+        | "ligacao"
+        | "protesto"
+        | "serasa"
+        | "negativacao"
+        | "interno"
+      regua_etapa_status:
+        | "pendente"
+        | "executada"
+        | "falhou"
+        | "cancelada"
+        | "reagendada"
       remessa_metodo_envio: "download_manual" | "api" | "ftp" | "sftp"
       remessa_status:
         | "gerada"
@@ -6867,6 +7730,15 @@ export type Database = {
       sup_aprov_modo: "todos" | "qualquer" | "quorum"
       sup_aprov_status: "aberta" | "aprovada" | "rejeitada" | "cancelada"
       sup_aprov_voto_tipo: "aprovado" | "rejeitado"
+      template_tipo: "email" | "whatsapp" | "sms" | "interno"
+      titulo_receber_meio:
+        | "boleto"
+        | "pix"
+        | "ted"
+        | "dinheiro"
+        | "deposito"
+        | "cartao"
+        | "outro"
       titulo_remessa_status: "nao_enviado" | "enviado" | "pago" | "rejeitado"
       titulo_status:
         | "aberto"
@@ -7027,6 +7899,7 @@ export const Constants = {
         "almoxarife",
         "gestor_cc",
         "fiscal_recebedor",
+        "financeiro",
       ],
       aprov_decisao: ["pendente", "aprovado", "rejeitado", "devolvido"],
       banco_layout_tipo: [
@@ -7048,6 +7921,15 @@ export const Constants = {
       ],
       banco_tipo: ["corrente", "poupanca", "aplicacao", "vinculada"],
       cc_tipo: ["adm", "operacional"],
+      cobranca_registro_status: [
+        "pendente",
+        "enviado",
+        "registrado",
+        "rejeitado",
+        "baixado",
+        "liquidado",
+        "cancelado",
+      ],
       colab_status: ["ativo", "afastado", "demitido", "ferias"],
       comprovacao_tipo: [
         "empenho",
@@ -7177,6 +8059,13 @@ export const Constants = {
         "cancelada",
         "rejeitada",
       ],
+      nfse_status: [
+        "rascunho",
+        "emitida",
+        "cancelada",
+        "rejeitada",
+        "substituida",
+      ],
       obz_status: ["rascunho", "em_aprovacao", "aprovada", "arquivada"],
       orcamento_ciclo_status: [
         "aberto",
@@ -7211,6 +8100,7 @@ export const Constants = {
         "cancelado",
       ],
       periodo_status: ["aberto", "fechado"],
+      pix_cobranca_status: ["ativa", "concluida", "removida", "expirada"],
       posto_jornada: [
         "12x36",
         "8h",
@@ -7269,6 +8159,23 @@ export const Constants = {
         "cancelado",
       ],
       regime_tributario: ["lucro_real", "lucro_presumido", "simples_nacional"],
+      regua_canal: [
+        "email",
+        "whatsapp",
+        "sms",
+        "ligacao",
+        "protesto",
+        "serasa",
+        "negativacao",
+        "interno",
+      ],
+      regua_etapa_status: [
+        "pendente",
+        "executada",
+        "falhou",
+        "cancelada",
+        "reagendada",
+      ],
       remessa_metodo_envio: ["download_manual", "api", "ftp", "sftp"],
       remessa_status: [
         "gerada",
@@ -7297,6 +8204,16 @@ export const Constants = {
       sup_aprov_modo: ["todos", "qualquer", "quorum"],
       sup_aprov_status: ["aberta", "aprovada", "rejeitada", "cancelada"],
       sup_aprov_voto_tipo: ["aprovado", "rejeitado"],
+      template_tipo: ["email", "whatsapp", "sms", "interno"],
+      titulo_receber_meio: [
+        "boleto",
+        "pix",
+        "ted",
+        "dinheiro",
+        "deposito",
+        "cartao",
+        "outro",
+      ],
       titulo_remessa_status: ["nao_enviado", "enviado", "pago", "rejeitado"],
       titulo_status: [
         "aberto",

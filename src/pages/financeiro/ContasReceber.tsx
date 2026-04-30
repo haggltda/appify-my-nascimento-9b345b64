@@ -1,41 +1,53 @@
-import { EntityCrudPage, fmtBRL, fmtDate } from "@/components/crud/EntityCrudPage";
-import { Badge } from "@/components/ui/badge";
-
-const statusOpts = [
-  { value: "aberto", label: "Aberto" },
-  { value: "parcial", label: "Parcial" },
-  { value: "pago", label: "Recebido" },
-  { value: "vencido", label: "Vencido" },
-  { value: "cancelado", label: "Cancelado" },
-];
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { FileText, Receipt, QrCode, Bell } from "lucide-react";
+import TitulosReceberTab from "./receber/TitulosReceberTab";
+import FaturamentoContratoTab from "./receber/FaturamentoContratoTab";
+import CobrancaTab from "./receber/CobrancaTab";
+import ReguaCobrancaTab from "./receber/ReguaCobrancaTab";
 
 export default function ContasReceber() {
+  const [tab, setTab] = useState("titulos");
+
   return (
-    <EntityCrudPage
-      table="titulo_receber"
-      title="Contas a Receber"
-      description="Títulos a receber de clientes/contratos."
-      orderBy="data_vencimento"
-      ascending={true}
-      fields={[
-        { key: "cliente_nome", label: "Cliente", required: true },
-        { key: "numero_documento", label: "Nº Documento", required: true },
-        { key: "competencia", label: "Competência", type: "date", required: true },
-        { key: "data_emissao", label: "Emissão", type: "date" },
-        { key: "data_vencimento", label: "Vencimento", type: "date", required: true },
-        { key: "data_recebimento", label: "Recebimento", type: "date" },
-        { key: "valor", label: "Valor", type: "number", required: true, default: 0 },
-        { key: "valor_recebido", label: "Valor Recebido", type: "number", default: 0 },
-        { key: "status", label: "Status", type: "select", default: "aberto", options: statusOpts },
-        { key: "observacoes", label: "Observações", type: "textarea" },
-      ]}
-      columns={[
-        { key: "numero_documento", label: "Nº Doc" },
-        { key: "cliente_nome", label: "Cliente" },
-        { key: "data_vencimento", label: "Vencimento", render: (r) => fmtDate(r.data_vencimento) },
-        { key: "valor", label: "Valor", render: (r) => fmtBRL(r.valor) },
-        { key: "status", label: "Status", render: (r) => <Badge variant="outline">{r.status}</Badge> },
-      ]}
-    />
+    <div className="space-y-6">
+      <PageHeader
+        module="Financeiro"
+        breadcrumb={["Contas a Receber"]}
+        title="Contas a Receber"
+        subtitle="Faturamento de contratos, títulos, cobrança (boleto + PIX) e régua de inadimplência."
+      />
+
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-1 h-auto p-1">
+          <TabsTrigger value="titulos" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" /> <span className="hidden sm:inline">Títulos</span>
+          </TabsTrigger>
+          <TabsTrigger value="faturamento" className="flex items-center gap-2">
+            <Receipt className="h-4 w-4" /> <span className="hidden sm:inline">Faturamento</span>
+          </TabsTrigger>
+          <TabsTrigger value="cobranca" className="flex items-center gap-2">
+            <QrCode className="h-4 w-4" /> <span className="hidden sm:inline">Cobrança</span>
+          </TabsTrigger>
+          <TabsTrigger value="regua" className="flex items-center gap-2">
+            <Bell className="h-4 w-4" /> <span className="hidden sm:inline">Régua</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="titulos" className="mt-6">
+          <TitulosReceberTab />
+        </TabsContent>
+        <TabsContent value="faturamento" className="mt-6">
+          <FaturamentoContratoTab onFaturado={() => setTab("titulos")} />
+        </TabsContent>
+        <TabsContent value="cobranca" className="mt-6">
+          <CobrancaTab />
+        </TabsContent>
+        <TabsContent value="regua" className="mt-6">
+          <ReguaCobrancaTab />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
