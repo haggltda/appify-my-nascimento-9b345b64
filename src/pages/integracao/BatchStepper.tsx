@@ -1,12 +1,44 @@
 import { Card } from "@/components/ui/card";
-import { CheckCircle2, Database, ShieldCheck, Sparkles } from "lucide-react";
+import { CheckCircle2, Database, ShieldCheck, Sparkles, ArrowDown } from "lucide-react";
 
-export function BatchStepper({ status, blockingErrors }: { status: string; blockingErrors: number }) {
+export function BatchStepper({
+  status,
+  blockingErrors,
+  filesCount = 0,
+  materializedCount = 0,
+}: {
+  status: string;
+  blockingErrors: number;
+  filesCount?: number;
+  materializedCount?: number;
+}) {
   let current = 1;
   if (["validado_ok", "validado_com_erros", "processando"].includes(status)) current = 2;
   else if (status === "aprovado") current = 3;
   else if (status === "carregado") current = 4;
   else if (status === "rejeitado") current = 0;
+
+  // Próxima ação contextual
+  let nextAction = "";
+  if (current === 1) {
+    if (filesCount === 0) {
+      nextAction = "Envie um arquivo XLSX/CSV no painel abaixo para começar.";
+    } else if (materializedCount < filesCount) {
+      nextAction = `Clique em "Materializar" na linha do arquivo (${filesCount - materializedCount} pendente(s)) para aplicar o de-para e gerar as validações.`;
+    } else {
+      nextAction = "Arquivo materializado — aguardando consolidação do status do lote. Recarregue a página se persistir.";
+    }
+  } else if (current === 2) {
+    nextAction = blockingErrors > 0
+      ? `Resolva ${blockingErrors} erro(s) bloqueante(s) na tabela de Validações abaixo. Depois clique em "Aprovar".`
+      : 'Revise as validações e clique em "Aprovar" no topo da página.';
+  } else if (current === 3) {
+    nextAction = 'Clique em "Promover para tabelas finais" no topo para gravar nas tabelas do ERP (ex.: Colaboradores).';
+  } else if (current === 4) {
+    nextAction = "Lote concluído. Os dados já estão disponíveis nas telas finais (ex.: RH › Colaboradores).";
+  } else if (current === 0) {
+    nextAction = "Lote rejeitado. Crie um novo lote para reprocessar.";
+  }
 
   const steps = [
     { n: 1, icon: Database,    title: "Materializar",    desc: "Lê a planilha, aplica o de-para e grava em staging com validações." },
@@ -43,6 +75,16 @@ export function BatchStepper({ status, blockingErrors }: { status: string; block
           );
         })}
       </ol>
+
+      {nextAction && current !== 4 && current !== 0 && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <ArrowDown className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="text-xs">
+            <p className="font-semibold text-primary">Próxima ação</p>
+            <p className="text-foreground/80">{nextAction}</p>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
