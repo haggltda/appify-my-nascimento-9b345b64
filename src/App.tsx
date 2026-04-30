@@ -72,6 +72,7 @@ import BIDashboard from "./pages/bi/Dashboard";
 import Fiscal from "./pages/Fiscal";
 import IntegracaoBatches from "./pages/integracao/Batches";
 import BatchDetalhe from "./pages/integracao/BatchDetalhe";
+import IntegracaoAliases from "./pages/integracao/Aliases";
 
 const queryClient = new QueryClient();
 
@@ -157,6 +158,7 @@ const App = () => (
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}
             <Route path="integracao" element={<IntegracaoBatches />} />
+            <Route path="integracao/aliases" element={<IntegracaoAliases />} />
             <Route path="integracao/:id" element={<BatchDetalhe />} />
           </Route>
           <Route path="*" element={<NotFound />} />

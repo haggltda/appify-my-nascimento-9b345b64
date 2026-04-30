@@ -9985,15 +9985,25 @@ export type Database = {
         Args: { p_batch_id: string; p_motivo?: string }
         Returns: undefined
       }
-      integration_resolve_alias: {
-        Args: {
-          p_alias: string
-          p_empresa_id: string
-          p_id_interno: string
-          p_tipo: string
-        }
-        Returns: undefined
-      }
+      integration_resolve_alias:
+        | {
+            Args: {
+              p_alias: string
+              p_empresa_id: string
+              p_id_interno: string
+              p_tipo: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_alias: string
+              p_empresa_id: string
+              p_id_interno: string
+              p_tipo: string
+            }
+            Returns: undefined
+          }
       layout_aprovar_versao: { Args: { _versao_id: string }; Returns: Json }
       layout_nova_versao: { Args: { _layout_id: string }; Returns: Json }
       layout_rejeitar_versao: {
