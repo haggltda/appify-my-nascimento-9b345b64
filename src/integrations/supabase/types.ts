@@ -3678,6 +3678,241 @@ export type Database = {
           },
         ]
       }
+      recebimento_nf: {
+        Row: {
+          almoxarifado_id: string | null
+          created_at: string
+          empresa_id: string
+          finalizado_em: string | null
+          id: string
+          iniciado_em: string | null
+          nf_id: string
+          observacoes: string | null
+          recebido_por: string | null
+          status: Database["public"]["Enums"]["recebimento_status"]
+          updated_at: string
+        }
+        Insert: {
+          almoxarifado_id?: string | null
+          created_at?: string
+          empresa_id: string
+          finalizado_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          nf_id: string
+          observacoes?: string | null
+          recebido_por?: string | null
+          status?: Database["public"]["Enums"]["recebimento_status"]
+          updated_at?: string
+        }
+        Update: {
+          almoxarifado_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          finalizado_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          nf_id?: string
+          observacoes?: string | null
+          recebido_por?: string | null
+          status?: Database["public"]["Enums"]["recebimento_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recebimento_nf_almoxarifado_id_fkey"
+            columns: ["almoxarifado_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimento_nf_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimento_nf_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "recebimento_nf_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "recebimento_nf_nf_id_fkey"
+            columns: ["nf_id"]
+            isOneToOne: true
+            referencedRelation: "nf_entrada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recebimento_nf_item: {
+        Row: {
+          condicao: Database["public"]["Enums"]["recebimento_item_condicao"]
+          conferido: boolean
+          conferido_em: string | null
+          conferido_por: string | null
+          created_at: string
+          foto_url: string | null
+          id: string
+          nf_item_id: string | null
+          observacoes: string | null
+          produto_id: string | null
+          qtd_nf: number
+          qtd_recebida: number
+          recebimento_id: string
+        }
+        Insert: {
+          condicao?: Database["public"]["Enums"]["recebimento_item_condicao"]
+          conferido?: boolean
+          conferido_em?: string | null
+          conferido_por?: string | null
+          created_at?: string
+          foto_url?: string | null
+          id?: string
+          nf_item_id?: string | null
+          observacoes?: string | null
+          produto_id?: string | null
+          qtd_nf?: number
+          qtd_recebida?: number
+          recebimento_id: string
+        }
+        Update: {
+          condicao?: Database["public"]["Enums"]["recebimento_item_condicao"]
+          conferido?: boolean
+          conferido_em?: string | null
+          conferido_por?: string | null
+          created_at?: string
+          foto_url?: string | null
+          id?: string
+          nf_item_id?: string | null
+          observacoes?: string | null
+          produto_id?: string | null
+          qtd_nf?: number
+          qtd_recebida?: number
+          recebimento_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recebimento_nf_item_nf_item_id_fkey"
+            columns: ["nf_item_id"]
+            isOneToOne: false
+            referencedRelation: "nf_entrada_item"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimento_nf_item_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimento_nf_item_recebimento_id_fkey"
+            columns: ["recebimento_id"]
+            isOneToOne: false
+            referencedRelation: "recebimento_nf"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recebimento_ocorrencia: {
+        Row: {
+          aberta_em: string
+          aberta_por: string | null
+          created_at: string
+          descricao: string
+          empresa_id: string
+          id: string
+          recebimento_id: string
+          recebimento_item_id: string | null
+          resolvida_em: string | null
+          resolvida_por: string | null
+          status: Database["public"]["Enums"]["recebimento_ocorrencia_status"]
+          tipo: Database["public"]["Enums"]["recebimento_ocorrencia_tipo"]
+          tratativa: string | null
+          updated_at: string
+        }
+        Insert: {
+          aberta_em?: string
+          aberta_por?: string | null
+          created_at?: string
+          descricao: string
+          empresa_id: string
+          id?: string
+          recebimento_id: string
+          recebimento_item_id?: string | null
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          status?: Database["public"]["Enums"]["recebimento_ocorrencia_status"]
+          tipo: Database["public"]["Enums"]["recebimento_ocorrencia_tipo"]
+          tratativa?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aberta_em?: string
+          aberta_por?: string | null
+          created_at?: string
+          descricao?: string
+          empresa_id?: string
+          id?: string
+          recebimento_id?: string
+          recebimento_item_id?: string | null
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          status?: Database["public"]["Enums"]["recebimento_ocorrencia_status"]
+          tipo?: Database["public"]["Enums"]["recebimento_ocorrencia_tipo"]
+          tratativa?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recebimento_ocorrencia_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimento_ocorrencia_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "recebimento_ocorrencia_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "recebimento_ocorrencia_recebimento_id_fkey"
+            columns: ["recebimento_id"]
+            isOneToOne: false
+            referencedRelation: "recebimento_nf"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recebimento_ocorrencia_recebimento_item_id_fkey"
+            columns: ["recebimento_item_id"]
+            isOneToOne: false
+            referencedRelation: "recebimento_nf_item"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       requisicao_compra: {
         Row: {
           almoxarifado_destino_id: string | null
@@ -4722,6 +4957,10 @@ export type Database = {
         Returns: boolean
       }
       nf_lancar_estoque: { Args: { _nf_id: string }; Returns: Json }
+      recebimento_confirmar: {
+        Args: { _recebimento_id: string }
+        Returns: Json
+      }
       storage_path_empresa: { Args: { _name: string }; Returns: string }
     }
     Enums: {
@@ -4886,6 +5125,29 @@ export type Database = {
         | "cancelada"
         | "rejeitada"
       rc_tipo: "material" | "servico" | "custo_direto" | "administrativo"
+      recebimento_item_condicao:
+        | "ok"
+        | "avariado"
+        | "trocado"
+        | "faltante"
+        | "excedente"
+      recebimento_ocorrencia_status:
+        | "aberta"
+        | "em_tratativa"
+        | "resolvida"
+        | "cancelada"
+      recebimento_ocorrencia_tipo:
+        | "quantidade"
+        | "qualidade"
+        | "produto_trocado"
+        | "documento"
+        | "outro"
+      recebimento_status:
+        | "aguardando"
+        | "em_conferencia"
+        | "recebido"
+        | "recebido_com_ocorrencia"
+        | "cancelado"
       regime_tributario: "lucro_real" | "lucro_presumido" | "simples_nacional"
       req_compra_status:
         | "rascunho"
@@ -5203,6 +5465,33 @@ export const Constants = {
         "rejeitada",
       ],
       rc_tipo: ["material", "servico", "custo_direto", "administrativo"],
+      recebimento_item_condicao: [
+        "ok",
+        "avariado",
+        "trocado",
+        "faltante",
+        "excedente",
+      ],
+      recebimento_ocorrencia_status: [
+        "aberta",
+        "em_tratativa",
+        "resolvida",
+        "cancelada",
+      ],
+      recebimento_ocorrencia_tipo: [
+        "quantidade",
+        "qualidade",
+        "produto_trocado",
+        "documento",
+        "outro",
+      ],
+      recebimento_status: [
+        "aguardando",
+        "em_conferencia",
+        "recebido",
+        "recebido_com_ocorrencia",
+        "cancelado",
+      ],
       regime_tributario: ["lucro_real", "lucro_presumido", "simples_nacional"],
       req_compra_status: [
         "rascunho",
