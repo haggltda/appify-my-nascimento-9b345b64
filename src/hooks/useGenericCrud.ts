@@ -3,13 +3,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 /** Hooks genéricos para tabelas multi-tenant simples (com empresa_id). */
-export function useList<T = any>(table: string, opts?: { orderBy?: string; ascending?: boolean }) {
+export function useList<T = any>(
+  table: string,
+  opts?: { orderBy?: string; ascending?: boolean; limit?: number },
+) {
   return useQuery<T[]>({
-    queryKey: [table, "list"],
+    queryKey: [table, "list", opts?.orderBy, opts?.ascending, opts?.limit],
     queryFn: async () => {
       let q = (supabase as any).from(table).select("*");
       if (opts?.orderBy) q = q.order(opts.orderBy, { ascending: opts.ascending ?? false });
       else q = q.order("created_at", { ascending: false });
+      if (opts?.limit) q = q.limit(opts.limit);
+      else q = q.limit(5000);
       const { data, error } = await q;
       if (error) throw error;
       return (data as T[]) ?? [];

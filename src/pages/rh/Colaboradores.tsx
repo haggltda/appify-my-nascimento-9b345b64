@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Database, Pencil, Plus, ShieldCheck, Sparkles, Trash2, User2 } from "lucide-react";
+import { Database, FileDown, Pencil, Plus, ShieldCheck, Sparkles, Trash2, User2 } from "lucide-react";
 import { useList, useRemove } from "@/hooks/useGenericCrud";
 import { ColaboradorForm, type Colaborador } from "./ColaboradorForm";
+import { RelatorioColaboradoresDialog } from "./RelatorioColaboradoresDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 const FOTO_BUCKET = "colaboradores-fotos";
@@ -53,10 +54,11 @@ function FluxoIntegracaoAviso() {
 }
 
 export default function Colaboradores() {
-  const { data: rows = [], isLoading, refetch } = useList<Colaborador>("colaborador", { orderBy: "nome", ascending: true });
+  const { data: rows = [], isLoading, refetch } = useList<Colaborador>("colaborador", { orderBy: "nome", ascending: true, limit: 5000 });
   const remove = useRemove("colaborador");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Partial<Colaborador> | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const fotoUrl = (path?: string | null) =>
     path ? supabase.storage.from(FOTO_BUCKET).getPublicUrl(path).data.publicUrl : null;
@@ -70,7 +72,12 @@ export default function Colaboradores() {
         title="Colaboradores"
         subtitle="Cadastro de colaboradores ativos da empresa."
         actions={
-          <Button onClick={openNew}><Plus className="mr-2 h-4 w-4" /> Novo</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setReportOpen(true)} disabled={rows.length === 0}>
+              <FileDown className="mr-2 h-4 w-4" /> Relatório PDF
+            </Button>
+            <Button onClick={openNew}><Plus className="mr-2 h-4 w-4" /> Novo</Button>
+          </div>
         }
       />
 
@@ -143,6 +150,12 @@ export default function Colaboradores() {
         onOpenChange={setOpen}
         initial={editing}
         onSaved={() => refetch()}
+      />
+
+      <RelatorioColaboradoresDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        rows={rows}
       />
     </div>
   );
