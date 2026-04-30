@@ -148,24 +148,25 @@ export default function BatchDetalhe() {
         const totalRows = parsed.sheets.reduce((acc, s) => acc + s.totalRows, 0);
 
         setProgress(`${file.name}: registrando metadados...`);
-        const ins = await supabase.from("integration_batch_files").insert({
+        const insertPayload: any = {
           batch_id: batch.id,
           empresa_id: empresaId,
           nome_original: file.name,
           storage_path: path,
           hash_sha256: hash,
           tamanho_bytes: file.size,
-          mime_type: file.type || null,
-          sheet_name: sheet?.sheetName ?? null,
-          layout_detectado_id: best?.layout_id ?? null,
-          layout_score: best?.score ?? null,
+          mime_type: file.type || undefined,
+          sheet_name: sheet?.sheetName ?? undefined,
+          layout_detectado_id: best?.layout_id ?? undefined,
+          layout_score: best?.score ?? undefined,
           metadata: {
             sheets: parsed.sheets.map((s) => ({ name: s.sheetName, rows: s.totalRows, headers: s.headers })),
             matches: matches.slice(0, 5),
             sample: sampleRows.slice(0, 10),
             total_rows_arquivo: totalRows,
           },
-        }).select("id").single();
+        };
+        const ins = await supabase.from("integration_batch_files").insert(insertPayload).select("id").single();
         if (ins.error) throw ins.error;
 
         toast({
