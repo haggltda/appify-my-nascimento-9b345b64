@@ -34,7 +34,7 @@ const canalCor: Record<string, string> = {
 
 export default function ReguaCobrancaTab() {
   const qc = useQueryClient();
-  const empresaId = useEmpresaId();
+  const { data: empresaId = null } = useEmpresaId();
   const [reguaId, setReguaId] = useState<string>("");
   const [openNova, setOpenNova] = useState(false);
   const [openEtapa, setOpenEtapa] = useState(false);
