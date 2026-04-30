@@ -232,87 +232,151 @@ export default function NFEntrada() {
         title="NF de Entrada"
         subtitle="Importação de XML de notas fiscais e lançamento no estoque."
         actions={
-          <Dialog open={openImport} onOpenChange={setOpenImport}>
-            <DialogTrigger asChild>
-              <Button><Upload className="mr-2 h-4 w-4" /> Importar XML</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader><DialogTitle>Importar XML de NFe</DialogTitle></DialogHeader>
-              <div className="space-y-4 py-2">
-                <div
-                  onDrop={onDrop}
-                  onDragOver={(e) => e.preventDefault()}
-                  onClick={() => fileRef.current?.click()}
-                  className="border-2 border-dashed rounded-md p-8 text-center cursor-pointer hover:bg-muted/40 transition"
-                >
-                  <Upload className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
-                  <p className="font-medium">Arraste o XML aqui ou clique para selecionar</p>
-                  <p className="text-xs text-muted-foreground mt-1">Apenas arquivos .xml de NFe modelo 55</p>
-                  <input ref={fileRef} type="file" accept=".xml,application/xml,text/xml" className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-                  {xmlContent && (
-                    <p className="mt-3 text-xs text-success">✓ XML carregado ({(xmlContent.length / 1024).toFixed(1)} KB)</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+          <div className="flex gap-2">
+            <Dialog open={openManual} onOpenChange={setOpenManual}>
+              <DialogTrigger asChild>
+                <Button variant="outline"><FilePlus2 className="mr-2 h-4 w-4" /> Lançar Manual</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader><DialogTitle>Lançamento Manual de NF</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div className="rounded-md border bg-warning/10 p-3 text-xs">
+                    ⚠️ <strong>NF manual exige PC aprovado.</strong> Selecione o Pedido de Compra que originou esta nota.
+                  </div>
                   <div>
-                    <Label>Destino</Label>
-                    <Select value={importForm.destino} onValueChange={(v) => setImportForm({ ...importForm, destino: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Label>Pedido de Compra (obrigatório)</Label>
+                    <Select value={manualForm.pedido_compra_id ?? ""} onValueChange={(v) => {
+                      const pc = pcsAprovados.find((p: any) => p.id === v);
+                      setManualForm({ ...manualForm, pedido_compra_id: v, fornecedor_id: pc?.fornecedor_id, valor_total: pc?.valor_total });
+                    }}>
+                      <SelectTrigger><SelectValue placeholder="Selecione um PC aprovado" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="estoque">Estoque (almoxarifado)</SelectItem>
-                        <SelectItem value="contrato">Consumo direto contrato</SelectItem>
-                        <SelectItem value="consumo_imediato">Consumo imediato (CC)</SelectItem>
+                        {pcsAprovados.map((p: any) => (
+                          <SelectItem key={p.id} value={p.id}>PC {p.numero} — R$ {Number(p.valor_total ?? 0).toLocaleString("pt-BR")}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div><Label>Número NF</Label><Input value={manualForm.numero ?? ""} onChange={(e) => setManualForm({ ...manualForm, numero: e.target.value })} /></div>
+                    <div><Label>Série</Label><Input value={manualForm.serie} onChange={(e) => setManualForm({ ...manualForm, serie: e.target.value })} /></div>
+                    <div><Label>Data emissão</Label><Input type="date" value={manualForm.data_emissao} onChange={(e) => setManualForm({ ...manualForm, data_emissao: e.target.value })} /></div>
+                  </div>
                   <div>
-                    <Label>Almoxarifado</Label>
-                    <Select value={importForm.almoxarifado_id ?? ""} onValueChange={(v) => setImportForm({ ...importForm, almoxarifado_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Matriz (padrão)" /></SelectTrigger>
+                    <Label>Fornecedor</Label>
+                    <Select value={manualForm.fornecedor_id ?? ""} onValueChange={(v) => setManualForm({ ...manualForm, fornecedor_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>
-                        {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} — {a.nome}</SelectItem>)}
+                        {fornecedores.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.razao_social}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  {importForm.destino !== "estoque" && (
-                    <>
-                      <div>
-                        <Label>Contrato</Label>
-                        <Select value={importForm.contrato_id ?? ""} onValueChange={(v) => setImportForm({ ...importForm, contrato_id: v })}>
-                          <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                          <SelectContent>
-                            {contratos.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.numero}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Centro de Custo</Label>
-                        <Select value={importForm.centro_custo_id ?? ""} onValueChange={(v) => setImportForm({ ...importForm, centro_custo_id: v })}>
-                          <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                          <SelectContent>
-                            {ccs.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </>
-                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label>Almoxarifado</Label>
+                      <Select value={manualForm.almoxarifado_id ?? ""} onValueChange={(v) => setManualForm({ ...manualForm, almoxarifado_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Matriz (padrão)" /></SelectTrigger>
+                        <SelectContent>
+                          {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} — {a.nome}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label>Valor Total</Label><Input type="number" step="0.01" value={manualForm.valor_total ?? ""} onChange={(e) => setManualForm({ ...manualForm, valor_total: parseFloat(e.target.value) || 0 })} /></div>
+                  </div>
+                  <div><Label>Chave de Acesso (opcional)</Label><Input value={manualForm.chave_acesso ?? ""} placeholder="44 dígitos ou deixe vazio" onChange={(e) => setManualForm({ ...manualForm, chave_acesso: e.target.value })} /></div>
+                  <div><Label>Observações</Label><Input value={manualForm.observacoes ?? ""} onChange={(e) => setManualForm({ ...manualForm, observacoes: e.target.value })} /></div>
                 </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setOpenManual(false)}>Cancelar</Button>
+                  <Button onClick={() => lancarManual.mutate()}
+                    disabled={!manualForm.pedido_compra_id || !manualForm.numero || !manualForm.fornecedor_id || lancarManual.isPending}>
+                    {lancarManual.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando…</> : "Criar NF Manual"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
-                <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
-                  <p className="flex items-center gap-2"><AlertTriangle className="h-3 w-3" /> <strong>Produtos novos</strong> serão cadastrados automaticamente e marcados como "pendente revisão".</p>
-                  <p className="flex items-center gap-2"><AlertTriangle className="h-3 w-3" /> <strong>Fornecedor</strong> será criado automaticamente se o CNPJ não existir.</p>
+            <Dialog open={openImport} onOpenChange={setOpenImport}>
+              <DialogTrigger asChild>
+                <Button><Upload className="mr-2 h-4 w-4" /> Importar XML</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader><DialogTitle>Importar XML de NFe</DialogTitle></DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div
+                    onDrop={onDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    onClick={() => fileRef.current?.click()}
+                    className="border-2 border-dashed rounded-md p-8 text-center cursor-pointer hover:bg-muted/40 transition"
+                  >
+                    <Upload className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
+                    <p className="font-medium">Arraste o XML aqui ou clique para selecionar</p>
+                    <p className="text-xs text-muted-foreground mt-1">Apenas arquivos .xml de NFe modelo 55</p>
+                    <input ref={fileRef} type="file" accept=".xml,application/xml,text/xml" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+                    {xmlContent && (
+                      <p className="mt-3 text-xs text-success">✓ XML carregado ({(xmlContent.length / 1024).toFixed(1)} KB)</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Destino</Label>
+                      <Select value={importForm.destino} onValueChange={(v) => setImportForm({ ...importForm, destino: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="estoque">Estoque (almoxarifado)</SelectItem>
+                          <SelectItem value="contrato">Consumo direto contrato</SelectItem>
+                          <SelectItem value="consumo_imediato">Consumo imediato (CC)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Almoxarifado</Label>
+                      <Select value={importForm.almoxarifado_id ?? ""} onValueChange={(v) => setImportForm({ ...importForm, almoxarifado_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Matriz (padrão)" /></SelectTrigger>
+                        <SelectContent>
+                          {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} — {a.nome}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {importForm.destino !== "estoque" && (
+                      <>
+                        <div>
+                          <Label>Contrato</Label>
+                          <Select value={importForm.contrato_id ?? ""} onValueChange={(v) => setImportForm({ ...importForm, contrato_id: v })}>
+                            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                            <SelectContent>
+                              {contratos.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.numero}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Centro de Custo</Label>
+                          <Select value={importForm.centro_custo_id ?? ""} onValueChange={(v) => setImportForm({ ...importForm, centro_custo_id: v })}>
+                            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                            <SelectContent>
+                              {ccs.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+                    <p className="flex items-center gap-2"><AlertTriangle className="h-3 w-3" /> <strong>Produtos novos</strong> serão cadastrados automaticamente e marcados como "pendente revisão".</p>
+                    <p className="flex items-center gap-2"><AlertTriangle className="h-3 w-3" /> <strong>Fornecedor</strong> será criado automaticamente se o CNPJ não existir.</p>
+                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setOpenImport(false)}>Cancelar</Button>
-                <Button onClick={importar} disabled={!xmlContent || importing}>
-                  {importing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Importando…</> : "Importar"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setOpenImport(false)}>Cancelar</Button>
+                  <Button onClick={importar} disabled={!xmlContent || importing}>
+                    {importing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Importando…</> : "Importar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         }
       />
 
