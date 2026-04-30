@@ -13,7 +13,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Loader2, Trash2,
-  PlayCircle, ThumbsUp, ThumbsDown, ListChecks,
+  PlayCircle, ThumbsUp, ThumbsDown, ListChecks, Upload, Link2,
 } from "lucide-react";
 import { sha256OfFile, parseSpreadsheet, detectLayout, type LayoutFingerprint, type LayoutMatch } from "@/lib/integracao/parser";
 
@@ -289,6 +289,20 @@ export default function BatchDetalhe() {
     else { toast({ title: "Lote rejeitado" }); load(); }
   };
 
+  const promoteBatch = async () => {
+    if (!batch) return;
+    if (!confirm(`Promover lote ${batch.codigo} para as tabelas finais? Esta ação grava os registros com batch_id = ${batch.codigo}.`)) return;
+    setBusyAction("promote");
+    const { data, error } = await supabase.rpc("integration_promote_batch", { p_batch_id: batch.id });
+    setBusyAction(null);
+    if (error) toast({ title: "Falha na promoção", description: error.message, variant: "destructive" });
+    else {
+      const r = data as any;
+      toast({ title: "Lote promovido", description: r?.detalhe ?? "ok" });
+      load();
+    }
+  };
+
   const filteredValidations = filterSeverity === "all"
     ? validations
     : validations.filter((v) => v.severidade === filterSeverity);
@@ -338,6 +352,22 @@ export default function BatchDetalhe() {
                   <ThumbsDown className="h-4 w-4" /> Rejeitar
                 </Button>
               </>
+            )}
+            {isAdmin && batch.status === "aprovado" && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={promoteBatch}
+                disabled={busyAction === "promote"}
+              >
+                {busyAction === "promote" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                Promover para tabelas finais
+              </Button>
+            )}
+            {isAdmin && (
+              <Button asChild size="sm" variant="outline">
+                <Link to="/app/integracao/aliases"><Link2 className="h-4 w-4" /> Aliases</Link>
+              </Button>
             )}
           </div>
         }

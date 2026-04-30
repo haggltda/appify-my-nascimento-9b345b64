@@ -9980,8 +9980,18 @@ export type Database = {
         Args: { p_batch_file_id: string; p_rows: Json }
         Returns: Json
       }
+      integration_promote_batch: { Args: { p_batch_id: string }; Returns: Json }
       integration_reject_batch: {
         Args: { p_batch_id: string; p_motivo?: string }
+        Returns: undefined
+      }
+      integration_resolve_alias: {
+        Args: {
+          p_alias: string
+          p_empresa_id: string
+          p_id_interno: string
+          p_tipo: string
+        }
         Returns: undefined
       }
       layout_aprovar_versao: { Args: { _versao_id: string }; Returns: Json }
