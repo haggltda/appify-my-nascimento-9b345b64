@@ -141,6 +141,8 @@ const App = () => (
             <Route path="financeiro/movimentos" element={<MovimentosBancarios />} />
             <Route path="financeiro/integracao-bancaria" element={<IntegracaoBancaria />} />
             <Route path="financeiro/integracao-bancaria/builder/:contaId" element={<IntegracaoBancariaBuilder />} />
+            {/* Fiscal */}
+            <Route path="fiscal" element={<Fiscal />} />
             {/* Contábil */}
             <Route path="contabil/lancamentos" element={<Lancamentos />} />
             <Route path="contabil/plano-contas" element={<PlanoContas />} />
