@@ -1,1 +1,7 @@
 project_id = "fwmzeaztjxrxxzxzxmgc"
+
+[functions.nf-import-xml]
+verify_jwt = true
+
+[functions.nf-consultar-sefaz]
+verify_jwt = true
