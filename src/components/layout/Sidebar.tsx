@@ -181,6 +181,7 @@ const suprimentosModule: ModuleDef = {
       items: [
         { label: "Requisições", to: "/app/suprimentos/requisicoes", icon: ListChecks },
         { label: "Pedidos de Compra", to: "/app/suprimentos/pedidos", icon: ShoppingCart },
+        { label: "NF de Entrada (XML)", to: "/app/suprimentos/nf-entrada", icon: FileText },
       ],
     },
   ],
