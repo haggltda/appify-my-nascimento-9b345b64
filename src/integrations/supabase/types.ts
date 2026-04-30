@@ -4801,6 +4801,7 @@ export type Database = {
           created_at: string
           empresa_id: string
           id: string
+          local_prestacao: string | null
           modalidade: string | null
           numero: string
           objeto: string
@@ -4817,6 +4818,7 @@ export type Database = {
           created_at?: string
           empresa_id: string
           id?: string
+          local_prestacao?: string | null
           modalidade?: string | null
           numero: string
           objeto: string
@@ -4833,6 +4835,7 @@ export type Database = {
           created_at?: string
           empresa_id?: string
           id?: string
+          local_prestacao?: string | null
           modalidade?: string | null
           numero?: string
           objeto?: string
@@ -8977,6 +8980,7 @@ export type Database = {
           horario: string | null
           id: string
           linha_origem: number | null
+          local_prestacao: string | null
           objeto: string | null
           raw: Json | null
           status_obs: string | null
@@ -8996,6 +9000,7 @@ export type Database = {
           horario?: string | null
           id?: string
           linha_origem?: number | null
+          local_prestacao?: string | null
           objeto?: string | null
           raw?: Json | null
           status_obs?: string | null
@@ -9015,6 +9020,7 @@ export type Database = {
           horario?: string | null
           id?: string
           linha_origem?: number | null
+          local_prestacao?: string | null
           objeto?: string | null
           raw?: Json | null
           status_obs?: string | null
