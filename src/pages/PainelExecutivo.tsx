@@ -486,7 +486,7 @@ function KpiCard({
 
 function ChartCard({ title, subtitle, icon, children }: { title: string; subtitle: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl bg-white text-slate-900 shadow-lg shadow-black/40 ring-1 ring-white/10">
+    <div className="overflow-hidden rounded-xl bg-white text-slate-900 shadow-md ring-1 ring-slate-200">
       <header className="flex items-start justify-between border-b border-slate-200 bg-gradient-to-br from-white to-slate-50 px-5 py-3.5">
         <div className="flex items-start gap-2.5">
           <span className="mt-0.5 grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary shadow-[0_2px_6px_-2px_hsl(var(--primary)/0.4)]">
