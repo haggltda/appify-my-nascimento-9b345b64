@@ -13,7 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Banknote, Settings, Upload, RefreshCw, Plug, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { Banknote, Settings, Upload, RefreshCw, Plug, AlertTriangle, CheckCircle2, Info, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type ContaBancaria = any;
 type Retorno = any;
@@ -30,6 +31,7 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | 
 
 export default function IntegracaoBancaria() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [contas, setContas] = useState<ContaBancaria[]>([]);
   const [retornos, setRetornos] = useState<Retorno[]>([]);
@@ -187,8 +189,11 @@ export default function IntegracaoBancaria() {
                       <TableCell>{c.integracao_ambiente || "sandbox"}</TableCell>
                       <TableCell><Badge variant={STATUS_VARIANTS[c.integracao_status || "nao_configurado"]}>{c.integracao_status || "nao_configurado"}</Badge></TableCell>
                       <TableCell className="text-xs text-muted-foreground">{c.integracao_ultima_sincronia ? new Date(c.integracao_ultima_sincronia).toLocaleString() : "—"}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-2">
                         <Button variant="outline" size="sm" onClick={() => setEditConta(c)}>Configurar</Button>
+                        <Button size="sm" onClick={() => navigate(`/app/financeiro/integracao-bancaria/builder/${c.id}`)}>
+                          <Sparkles className="h-3.5 w-3.5 mr-1" /> Builder
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
