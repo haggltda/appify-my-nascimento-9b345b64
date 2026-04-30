@@ -1,26 +1,20 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
-import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff, Briefcase, Wallet, BookOpen, ShoppingCart, Users2, Calculator, UserRound, UserPlus } from "lucide-react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff, Briefcase, Wallet, BookOpen, ShoppingCart, Users2, Calculator, UserRound } from "lucide-react";
 import logoGN from "@/assets/logo-grupo-nascimento.png";
 import { useDemoMode } from "@/context/DemoModeContext";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-
-type Mode = "signin" | "signup";
 
 export default function Login() {
-  const [mode, setMode] = useState<Mode>("signin");
   const [showPwd, setShowPwd] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { enableDemo, disableDemo } = useDemoMode();
   const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
 
   if (!authLoading && user) {
     return <Navigate to="/app" replace />;
@@ -31,33 +25,14 @@ export default function Login() {
     setError(null);
     setLoading(true);
     try {
-      if (mode === "signup") {
-        const redirectUrl = `${window.location.origin}/app`;
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl,
-            data: { display_name: displayName || email.split("@")[0] },
-          },
-        });
-        if (signUpError) throw signUpError;
-        disableDemo();
-        toast({ title: "Conta criada", description: "Você já está logado." });
-        navigate("/app");
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw signInError;
-        disableDemo();
-        navigate("/app");
-      }
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) throw signInError;
+      disableDemo();
+      navigate("/app");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      // Mensagens mais amigáveis
       if (msg.includes("Invalid login credentials")) {
         setError("E-mail ou senha incorretos.");
-      } else if (msg.includes("already registered")) {
-        setError("Este e-mail já está cadastrado. Faça login.");
       } else {
         setError(msg);
       }
@@ -141,13 +116,12 @@ export default function Login() {
           <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             <ShieldCheck className="h-3 w-3 text-success" /> Acesso restrito
           </div>
-          <h2 className="font-display text-2xl font-bold">
-            {mode === "signin" ? "Acessar o ERP" : "Criar conta"}
-          </h2>
+          <h2 className="font-display text-2xl font-bold">Acessar o ERP</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "signin"
-              ? "Use suas credenciais corporativas para acessar o ERP."
-              : "Crie sua conta corporativa. Um administrador definirá seu perfil e empresa."}
+            Use suas credenciais corporativas para acessar o ERP.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Novos acessos são criados pelo administrador do sistema.
           </p>
 
           {error && (
@@ -158,19 +132,6 @@ export default function Login() {
           )}
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            {mode === "signup" && (
-              <Field label="Nome completo" icon={<UserRound className="h-4 w-4" />}>
-                <input
-                  type="text"
-                  required
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Nome Sobrenome"
-                  className="h-11 w-full rounded-lg border border-border bg-card pl-10 pr-3 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
-                />
-              </Field>
-            )}
-
             <Field label="E-mail corporativo" icon={<Mail className="h-4 w-4" />}>
               <input
                 type="email"
@@ -182,17 +143,7 @@ export default function Login() {
               />
             </Field>
 
-            <Field
-              label="Senha"
-              icon={<Lock className="h-4 w-4" />}
-              right={
-                mode === "signin" ? (
-                  <Link to="#" className="text-xs font-medium text-primary hover:underline">
-                    Recuperar senha
-                  </Link>
-                ) : null
-              }
-            >
+            <Field label="Senha" icon={<Lock className="h-4 w-4" />}>
               <input
                 type={showPwd ? "text" : "password"}
                 required
@@ -216,22 +167,10 @@ export default function Login() {
               disabled={loading}
               className="btn-relief group flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gradient-accent text-sm font-semibold text-accent-foreground transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
             >
-              {loading ? "Aguarde…" : mode === "signin" ? "Entrar na plataforma" : "Criar conta"}
+              {loading ? "Aguarde…" : "Entrar na plataforma"}
               {!loading && <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
             </button>
           </form>
-
-          <div className="mt-4 text-center text-xs text-muted-foreground">
-            {mode === "signin" ? (
-              <button onClick={() => setMode("signup")} className="font-medium text-primary hover:underline">
-                <UserPlus className="mr-1 inline h-3 w-3" /> Não tem conta? Cadastre-se
-              </button>
-            ) : (
-              <button onClick={() => setMode("signin")} className="font-medium text-primary hover:underline">
-                Já tem conta? Faça login
-              </button>
-            )}
-          </div>
 
           <div className="my-6 flex items-center gap-3 text-[10px] uppercase tracking-wider text-muted-foreground">
             <span className="h-px flex-1 bg-border" />
