@@ -2277,6 +2277,301 @@ export type Database = {
         }
         Relationships: []
       }
+      nf_entrada: {
+        Row: {
+          almoxarifado_id: string | null
+          centro_custo_id: string | null
+          cfop: string | null
+          chave_acesso: string
+          contrato_id: string | null
+          created_at: string
+          data_emissao: string
+          data_entrada: string | null
+          destino: Database["public"]["Enums"]["nf_origem_destino"]
+          empresa_id: string
+          fornecedor_cnpj: string
+          fornecedor_id: string | null
+          fornecedor_razao: string | null
+          id: string
+          importado_em: string
+          importado_por: string | null
+          lancado_em: string | null
+          lancado_por: string | null
+          modelo: string | null
+          natureza_operacao: string | null
+          numero: string
+          observacoes: string | null
+          pedido_compra_id: string | null
+          sefaz_consultado_em: string | null
+          sefaz_status: string | null
+          serie: string | null
+          status: Database["public"]["Enums"]["nf_status"]
+          updated_at: string
+          validado_em: string | null
+          validado_por: string | null
+          valor_cofins: number
+          valor_desconto: number
+          valor_frete: number
+          valor_icms: number
+          valor_ipi: number
+          valor_outras_despesas: number
+          valor_pis: number
+          valor_produtos: number
+          valor_seguro: number
+          valor_total: number
+          xml_protocolo: string | null
+          xml_storage_path: string | null
+        }
+        Insert: {
+          almoxarifado_id?: string | null
+          centro_custo_id?: string | null
+          cfop?: string | null
+          chave_acesso: string
+          contrato_id?: string | null
+          created_at?: string
+          data_emissao: string
+          data_entrada?: string | null
+          destino?: Database["public"]["Enums"]["nf_origem_destino"]
+          empresa_id: string
+          fornecedor_cnpj: string
+          fornecedor_id?: string | null
+          fornecedor_razao?: string | null
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          lancado_em?: string | null
+          lancado_por?: string | null
+          modelo?: string | null
+          natureza_operacao?: string | null
+          numero: string
+          observacoes?: string | null
+          pedido_compra_id?: string | null
+          sefaz_consultado_em?: string | null
+          sefaz_status?: string | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["nf_status"]
+          updated_at?: string
+          validado_em?: string | null
+          validado_por?: string | null
+          valor_cofins?: number
+          valor_desconto?: number
+          valor_frete?: number
+          valor_icms?: number
+          valor_ipi?: number
+          valor_outras_despesas?: number
+          valor_pis?: number
+          valor_produtos?: number
+          valor_seguro?: number
+          valor_total?: number
+          xml_protocolo?: string | null
+          xml_storage_path?: string | null
+        }
+        Update: {
+          almoxarifado_id?: string | null
+          centro_custo_id?: string | null
+          cfop?: string | null
+          chave_acesso?: string
+          contrato_id?: string | null
+          created_at?: string
+          data_emissao?: string
+          data_entrada?: string | null
+          destino?: Database["public"]["Enums"]["nf_origem_destino"]
+          empresa_id?: string
+          fornecedor_cnpj?: string
+          fornecedor_id?: string | null
+          fornecedor_razao?: string | null
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          lancado_em?: string | null
+          lancado_por?: string | null
+          modelo?: string | null
+          natureza_operacao?: string | null
+          numero?: string
+          observacoes?: string | null
+          pedido_compra_id?: string | null
+          sefaz_consultado_em?: string | null
+          sefaz_status?: string | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["nf_status"]
+          updated_at?: string
+          validado_em?: string | null
+          validado_por?: string | null
+          valor_cofins?: number
+          valor_desconto?: number
+          valor_frete?: number
+          valor_icms?: number
+          valor_ipi?: number
+          valor_outras_despesas?: number
+          valor_pis?: number
+          valor_produtos?: number
+          valor_seguro?: number
+          valor_total?: number
+          xml_protocolo?: string | null
+          xml_storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf_entrada_almoxarifado_id_fkey"
+            columns: ["almoxarifado_id"]
+            isOneToOne: false
+            referencedRelation: "almoxarifado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf_entrada_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf_entrada_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf_entrada_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf_entrada_item: {
+        Row: {
+          cfop: string | null
+          codigo_fornecedor: string | null
+          created_at: string
+          descricao_original: string
+          ean: string | null
+          empresa_id: string
+          id: string
+          ncm: string | null
+          nf_id: string
+          numero_item: number
+          observacoes: string | null
+          produto_criado_auto: boolean
+          produto_id: string | null
+          quantidade: number
+          status: Database["public"]["Enums"]["nf_item_status"]
+          unidade: string
+          updated_at: string
+          valor_desconto: number
+          valor_frete: number
+          valor_icms: number
+          valor_ipi: number
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          cfop?: string | null
+          codigo_fornecedor?: string | null
+          created_at?: string
+          descricao_original: string
+          ean?: string | null
+          empresa_id: string
+          id?: string
+          ncm?: string | null
+          nf_id: string
+          numero_item: number
+          observacoes?: string | null
+          produto_criado_auto?: boolean
+          produto_id?: string | null
+          quantidade: number
+          status?: Database["public"]["Enums"]["nf_item_status"]
+          unidade?: string
+          updated_at?: string
+          valor_desconto?: number
+          valor_frete?: number
+          valor_icms?: number
+          valor_ipi?: number
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Update: {
+          cfop?: string | null
+          codigo_fornecedor?: string | null
+          created_at?: string
+          descricao_original?: string
+          ean?: string | null
+          empresa_id?: string
+          id?: string
+          ncm?: string | null
+          nf_id?: string
+          numero_item?: number
+          observacoes?: string | null
+          produto_criado_auto?: boolean
+          produto_id?: string | null
+          quantidade?: number
+          status?: Database["public"]["Enums"]["nf_item_status"]
+          unidade?: string
+          updated_at?: string
+          valor_desconto?: number
+          valor_frete?: number
+          valor_icms?: number
+          valor_ipi?: number
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf_entrada_item_nf_id_fkey"
+            columns: ["nf_id"]
+            isOneToOne: false
+            referencedRelation: "nf_entrada"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nf_entrada_item_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nf_entrada_log: {
+        Row: {
+          created_at: string
+          detalhes: Json | null
+          empresa_id: string
+          evento: string
+          id: string
+          nf_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detalhes?: Json | null
+          empresa_id: string
+          evento: string
+          id?: string
+          nf_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detalhes?: Json | null
+          empresa_id?: string
+          evento?: string
+          id?: string
+          nf_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nf_entrada_log_nf_id_fkey"
+            columns: ["nf_id"]
+            isOneToOne: false
+            referencedRelation: "nf_entrada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notificacoes: {
         Row: {
           created_at: string
@@ -4149,6 +4444,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      nf_lancar_estoque: { Args: { _nf_id: string }; Returns: Json }
       storage_path_empresa: { Args: { _name: string }; Returns: string }
     }
     Enums: {
@@ -4246,6 +4542,14 @@ export type Database = {
       lote_origem: "manual" | "erp" | "extrato_bancario" | "planilha" | "api"
       lote_status: "pendente" | "processado" | "erro" | "cancelado"
       mov_banco_tipo: "debito" | "credito"
+      nf_item_status: "ok" | "pendente_revisao" | "produto_novo" | "divergencia"
+      nf_origem_destino: "estoque" | "contrato" | "consumo_imediato"
+      nf_status:
+        | "importada"
+        | "validada"
+        | "lancada_estoque"
+        | "cancelada"
+        | "rejeitada"
       obz_status: "rascunho" | "em_aprovacao" | "aprovada" | "arquivada"
       orcamento_ciclo_status:
         | "aberto"
@@ -4543,6 +4847,15 @@ export const Constants = {
       lote_origem: ["manual", "erp", "extrato_bancario", "planilha", "api"],
       lote_status: ["pendente", "processado", "erro", "cancelado"],
       mov_banco_tipo: ["debito", "credito"],
+      nf_item_status: ["ok", "pendente_revisao", "produto_novo", "divergencia"],
+      nf_origem_destino: ["estoque", "contrato", "consumo_imediato"],
+      nf_status: [
+        "importada",
+        "validada",
+        "lancada_estoque",
+        "cancelada",
+        "rejeitada",
+      ],
       obz_status: ["rascunho", "em_aprovacao", "aprovada", "arquivada"],
       orcamento_ciclo_status: [
         "aberto",

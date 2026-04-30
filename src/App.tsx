@@ -54,6 +54,7 @@ import CategoriasProduto from "./pages/suprimentos/CategoriasProduto";
 import Produtos from "./pages/suprimentos/Produtos";
 import Estoque from "./pages/suprimentos/Estoque";
 import MovimentosEstoque from "./pages/suprimentos/MovimentosEstoque";
+import NFEntrada from "./pages/suprimentos/NFEntrada";
 import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
@@ -122,6 +123,7 @@ const App = () => (
             <Route path="suprimentos/almoxarifados" element={<Almoxarifados />} />
             <Route path="suprimentos/estoque" element={<Estoque />} />
             <Route path="suprimentos/movimentos" element={<MovimentosEstoque />} />
+            <Route path="suprimentos/nf-entrada" element={<NFEntrada />} />
             <Route path="suprimentos/requisicoes" element={<Requisicoes />} />
             <Route path="suprimentos/pedidos" element={<PedidosCompra />} />
             {/* Financeiro */}
