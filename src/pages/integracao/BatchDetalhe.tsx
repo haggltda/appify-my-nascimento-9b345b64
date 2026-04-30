@@ -379,6 +379,9 @@ export default function BatchDetalhe() {
         }
       />
 
+      {/* Stepper visual: fluxo de 3 etapas */}
+      <BatchStepper status={batch.status} blockingErrors={counts.bloqueante} />
+
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Esquerda: descrição/obs */}
         <Card className="p-4 lg:col-span-1">
