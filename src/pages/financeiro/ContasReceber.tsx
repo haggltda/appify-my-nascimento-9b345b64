@@ -13,8 +13,10 @@ export default function ContasReceber() {
   return (
     <div className="space-y-6">
       <PageHeader
+        module="Financeiro"
+        breadcrumb={["Contas a Receber"]}
         title="Contas a Receber"
-        description="Faturamento de contratos, títulos, cobrança (boleto + PIX) e régua de inadimplência."
+        subtitle="Faturamento de contratos, títulos, cobrança (boleto + PIX) e régua de inadimplência."
       />
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
