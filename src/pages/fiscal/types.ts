@@ -2,7 +2,7 @@ export type NfTipo = "nfse" | "nfe" | "nfce";
 export type NfStatus = "rascunho" | "emitida" | "autorizada" | "cancelada" | "rejeitada" | "denegada";
 export type NfOrigem = "titulo" | "medicao" | "avulsa" | "manual";
 export type NfAmbiente = "homologacao" | "producao";
-export type RegimeTributario = "simples_nacional" | "lucro_presumido" | "lucro_real" | "mei";
+export type RegimeTributario = "simples_nacional" | "lucro_presumido" | "lucro_real";
 export type ImpostoTipo = "iss" | "pis" | "cofins" | "irpj" | "csll" | "das" | "inss" | "irrf";
 export type ApuracaoStatus = "aberta" | "calculada" | "fechada" | "pago" | "atrasado";
 
