@@ -79,10 +79,9 @@ const TIPO_CFG: Record<AliasTipo, {
   },
   formas_pagamento: {
     table: "integration_alias_formas_pagamento",
-    idCol: "forma_pagamento_id",
+    idCol: "forma_pagamento" as any,
     label: "Formas de pagamento",
     loadOptions: async () => {
-      // forma_pagamento é um enum no banco — apresentamos os valores como opções
       const enumVals = ["boleto","ted","pix","transferencia","dinheiro","cheque","debito_automatico"];
       return enumVals.map((v) => ({ id: v, label: v }));
     },
