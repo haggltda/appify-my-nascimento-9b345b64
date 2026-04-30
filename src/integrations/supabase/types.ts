@@ -1409,55 +1409,103 @@ export type Database = {
         Row: {
           batch_id: string | null
           cargo: string | null
+          cbo: string | null
           cpf: string
           created_at: string
           data_admissao: string
           data_demissao: string | null
+          data_nascimento: string | null
+          departamento: string | null
           email: string | null
           empresa_id: string
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_numero: string | null
+          endereco_rua: string | null
+          endereco_uf: string | null
+          foto_path: string | null
+          genero: string | null
+          gestor_direto: string | null
           id: string
+          jornada: string | null
           matricula: string | null
           nome: string
           observacoes: string | null
+          pis_pasep: string | null
+          rg: string | null
           salario_base: number
           status: Database["public"]["Enums"]["colab_status"]
           telefone: string | null
+          tipo_contrato: string | null
           updated_at: string
         }
         Insert: {
           batch_id?: string | null
           cargo?: string | null
+          cbo?: string | null
           cpf: string
           created_at?: string
           data_admissao?: string
           data_demissao?: string | null
+          data_nascimento?: string | null
+          departamento?: string | null
           email?: string | null
           empresa_id: string
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_numero?: string | null
+          endereco_rua?: string | null
+          endereco_uf?: string | null
+          foto_path?: string | null
+          genero?: string | null
+          gestor_direto?: string | null
           id?: string
+          jornada?: string | null
           matricula?: string | null
           nome: string
           observacoes?: string | null
+          pis_pasep?: string | null
+          rg?: string | null
           salario_base?: number
           status?: Database["public"]["Enums"]["colab_status"]
           telefone?: string | null
+          tipo_contrato?: string | null
           updated_at?: string
         }
         Update: {
           batch_id?: string | null
           cargo?: string | null
+          cbo?: string | null
           cpf?: string
           created_at?: string
           data_admissao?: string
           data_demissao?: string | null
+          data_nascimento?: string | null
+          departamento?: string | null
           email?: string | null
           empresa_id?: string
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_numero?: string | null
+          endereco_rua?: string | null
+          endereco_uf?: string | null
+          foto_path?: string | null
+          genero?: string | null
+          gestor_direto?: string | null
           id?: string
+          jornada?: string | null
           matricula?: string | null
           nome?: string
           observacoes?: string | null
+          pis_pasep?: string | null
+          rg?: string | null
           salario_base?: number
           status?: Database["public"]["Enums"]["colab_status"]
           telefone?: string | null
+          tipo_contrato?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -8430,49 +8478,118 @@ export type Database = {
         Row: {
           batch_id: string
           cadastro: string | null
+          cargo: string | null
+          cbo: string | null
           cpf: string | null
           created_at: string
+          data_admissao: string | null
+          data_demissao: string | null
+          data_nascimento: string | null
+          departamento: string | null
+          email: string | null
           empresa_id: string
           empresa_origem: string | null
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_cidade: string | null
+          endereco_numero: string | null
+          endereco_rua: string | null
+          endereco_uf: string | null
           erro_msg: string | null
           filial: string | null
+          genero: string | null
+          gestor_direto: string | null
           id: string
+          jornada: string | null
           linha_origem: number | null
+          matricula: string | null
           nome: string | null
+          observacoes: string | null
+          pis_pasep: string | null
           raw: Json | null
+          rg: string | null
+          salario_base: number | null
           situacao: string | null
+          telefone: string | null
+          tipo_contrato: string | null
           valido: boolean | null
         }
         Insert: {
           batch_id: string
           cadastro?: string | null
+          cargo?: string | null
+          cbo?: string | null
           cpf?: string | null
           created_at?: string
+          data_admissao?: string | null
+          data_demissao?: string | null
+          data_nascimento?: string | null
+          departamento?: string | null
+          email?: string | null
           empresa_id: string
           empresa_origem?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_numero?: string | null
+          endereco_rua?: string | null
+          endereco_uf?: string | null
           erro_msg?: string | null
           filial?: string | null
+          genero?: string | null
+          gestor_direto?: string | null
           id?: string
+          jornada?: string | null
           linha_origem?: number | null
+          matricula?: string | null
           nome?: string | null
+          observacoes?: string | null
+          pis_pasep?: string | null
           raw?: Json | null
+          rg?: string | null
+          salario_base?: number | null
           situacao?: string | null
+          telefone?: string | null
+          tipo_contrato?: string | null
           valido?: boolean | null
         }
         Update: {
           batch_id?: string
           cadastro?: string | null
+          cargo?: string | null
+          cbo?: string | null
           cpf?: string | null
           created_at?: string
+          data_admissao?: string | null
+          data_demissao?: string | null
+          data_nascimento?: string | null
+          departamento?: string | null
+          email?: string | null
           empresa_id?: string
           empresa_origem?: string | null
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_cidade?: string | null
+          endereco_numero?: string | null
+          endereco_rua?: string | null
+          endereco_uf?: string | null
           erro_msg?: string | null
           filial?: string | null
+          genero?: string | null
+          gestor_direto?: string | null
           id?: string
+          jornada?: string | null
           linha_origem?: number | null
+          matricula?: string | null
           nome?: string | null
+          observacoes?: string | null
+          pis_pasep?: string | null
           raw?: Json | null
+          rg?: string | null
+          salario_base?: number | null
           situacao?: string | null
+          telefone?: string | null
+          tipo_contrato?: string | null
           valido?: boolean | null
         }
         Relationships: [
