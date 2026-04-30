@@ -35,6 +35,7 @@ import {
   BarChart3,
   Settings,
   BookOpen,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -182,6 +183,7 @@ const suprimentosModule: ModuleDef = {
         { label: "Requisições", to: "/app/suprimentos/requisicoes", icon: ListChecks },
         { label: "Pedidos de Compra", to: "/app/suprimentos/pedidos", icon: ShoppingCart },
         { label: "NF de Entrada (XML/Manual)", to: "/app/suprimentos/nf-entrada", icon: FileText },
+        { label: "Recebimento Físico", to: "/app/suprimentos/recebimentos", icon: ClipboardCheck },
         { label: "Aprovações (RC/PC)", to: "/app/suprimentos/aprovacoes", icon: CheckCircle2 },
       ],
     },
