@@ -84,28 +84,36 @@ export default function PainelExecutivo() {
     });
   }, [valorPipeline]);
 
+  // === Faturamento Diário (mock visual) ===
+  const faturamentoDiario = useMemo(() => {
+    const dias = Array.from({ length: 14 }, (_, i) => i + 1);
+    const baseDia = Math.max(120_000, valorPipeline / 450);
+    return dias.map((d) => {
+      const fator = 0.55 + Math.cos(d / 2.1) * 0.3 + (d % 7 === 0 ? 0.5 : 0);
+      return { dia: `${String(d).padStart(2, "0")}/04`, valor: Math.round(baseDia * (1 + fator)) };
+    });
+  }, [valorPipeline]);
+
   return (
-    <div className="-m-4 rounded-xl bg-gradient-to-br from-[hsl(220_45%_11%)] via-[hsl(222_40%_9%)] to-[hsl(220_50%_8%)] p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8">
-      <div className="space-y-6 text-slate-100">
-        <div className="rounded-xl bg-white/[0.03] px-4 py-3 ring-1 ring-white/10 backdrop-blur">
-          <PageHeader
-            title="Painel Executivo"
-            subtitle="Visão consolidada multi-CNPJ. Indicadores em tempo real, alertas críticos e pendências por etapa do fluxo."
-            actions={
-              <>
-                <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 text-xs font-medium text-slate-100 shadow-sm transition hover:bg-white/10">
-                  <Filter className="h-3.5 w-3.5" /> Filtros
-                </button>
-                <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 text-xs font-medium text-slate-100 shadow-sm transition hover:bg-white/10">
-                  <Download className="h-3.5 w-3.5" /> Exportar
-                </button>
-                <button className="inline-flex h-9 items-center gap-2 rounded-lg bg-gradient-to-r from-[hsl(var(--accent))] to-[hsl(var(--accent)/0.8)] px-3.5 text-xs font-semibold text-accent-foreground shadow-md shadow-black/40 transition hover:brightness-110">
-                  <Plus className="h-3.5 w-3.5" /> Nova Oportunidade
-                </button>
-              </>
-            }
-          />
-        </div>
+    <div className="-m-4 min-h-screen rounded-xl bg-slate-50 p-4 md:-m-6 md:p-6 lg:-m-8 lg:p-8">
+      <div className="space-y-5 text-slate-900">
+        <PageHeader
+          title="Painel Executivo"
+          subtitle="Visão consolidada multi-CNPJ. Indicadores em tempo real, alertas críticos e pendências por etapa do fluxo."
+          actions={
+            <>
+              <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100">
+                <Filter className="h-3.5 w-3.5" /> Filtros
+              </button>
+              <button className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-100">
+                <Download className="h-3.5 w-3.5" /> Exportar
+              </button>
+              <button className="inline-flex h-9 items-center gap-2 rounded-lg bg-gradient-to-r from-[hsl(var(--accent))] to-[hsl(var(--accent)/0.85)] px-3.5 text-xs font-semibold text-accent-foreground shadow-md transition hover:brightness-110">
+                <Plus className="h-3.5 w-3.5" /> Nova Oportunidade
+              </button>
+            </>
+          }
+        />
 
         {/* KPIs */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -291,48 +299,90 @@ export default function PainelExecutivo() {
           </ChartCard>
         </section>
 
-        {/* Status grid */}
-        <section className="overflow-hidden rounded-xl bg-white shadow-lg shadow-black/40 ring-1 ring-white/10">
-          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5 text-slate-900">
-            <div>
-              <h2 className="font-display text-sm font-bold">Distribuição por etapa</h2>
-              <p className="text-xs text-slate-500">Volume de processos em cada estado do fluxo de licitação</p>
+        {/* Faturamento Diário */}
+        <section className="grid gap-4">
+          <ChartCard
+            title="Faturamento Diário"
+            subtitle="Total faturado dia a dia (notas emitidas) — visualização dos últimos 14 dias"
+            icon={<TrendingUp className="h-3.5 w-3.5" />}
+          >
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={faturamentoDiario} margin={{ left: 0, right: 12, top: 24, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 20% 88%)" />
+                <XAxis dataKey="dia" stroke="hsl(220 15% 25%)" fontSize={10} />
+                <YAxis stroke="hsl(220 15% 35%)" fontSize={10} tickFormatter={(v) => `R$ ${fmtCompact(v)}`} />
+                <Tooltip
+                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                  formatter={(v: number) => formatBRL(v as number)}
+                />
+                <Bar dataKey="valor" name="Faturamento" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]}>
+                  <LabelList dataKey="valor" position="top" formatter={(v: number) => fmtCompact(v)} fill="hsl(220 15% 20%)" fontSize={10} fontWeight={600} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </section>
+
+        {/* Status grid — Distribuição por etapa (visual moderno) */}
+        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-[hsl(220_45%_14%)] to-slate-900 p-6 shadow-xl ring-1 ring-slate-800">
+          <div className="mb-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--accent))] text-white shadow-lg">
+                <BarChart3 className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="font-display text-base font-bold text-white">Distribuição por etapa</h2>
+                <p className="text-xs text-slate-300">Volume de processos em cada estado do fluxo de licitação</p>
+              </div>
             </div>
-            <button className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+            <button className="inline-flex items-center gap-1 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/10">
               Ver pipeline completo <ChevronRight className="h-3 w-3" />
             </button>
           </div>
-          <div className="grid gap-px bg-slate-200 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-            {(
-              [
-                { key: "oportunidade", icon: Sparkles },
-                { key: "em_analise", icon: FileText },
-                { key: "controladoria", icon: AlertTriangle },
-                { key: "aprovacao_diretoria", icon: Clock },
-                { key: "pregao", icon: Gavel },
-                { key: "vencida", icon: Trophy },
-                { key: "perdida", icon: XCircle },
-                { key: "suspensa", icon: AlertTriangle },
-              ] as const
-            ).map(({ key, icon: Icon }) => {
-              const count = licitacoes.filter((l) => l.status === key).length;
-              return (
-                <div key={key} className="bg-white p-4 text-slate-900 transition-colors hover:bg-slate-50">
-                  <div className="flex items-center justify-between text-slate-500">
-                    <Icon className="h-3.5 w-3.5" />
-                    <ArrowUpRight className="h-3 w-3 opacity-0 transition-opacity hover:opacity-100" />
-                  </div>
-                  <p className="mt-2 font-display text-2xl font-bold">{count}</p>
-                  <p className="mt-0.5 text-[11px] font-medium text-slate-500">{statusLabel[key]}</p>
-                </div>
-              );
-            })}
-          </div>
+          {(() => {
+            const items = [
+              { key: "oportunidade", icon: Sparkles, color: "from-sky-400 to-sky-600" },
+              { key: "em_analise", icon: FileText, color: "from-indigo-400 to-indigo-600" },
+              { key: "controladoria", icon: AlertTriangle, color: "from-amber-400 to-amber-600" },
+              { key: "aprovacao_diretoria", icon: Clock, color: "from-orange-400 to-orange-600" },
+              { key: "pregao", icon: Gavel, color: "from-violet-400 to-violet-600" },
+              { key: "vencida", icon: Trophy, color: "from-emerald-400 to-emerald-600" },
+              { key: "perdida", icon: XCircle, color: "from-rose-400 to-rose-600" },
+              { key: "suspensa", icon: AlertTriangle, color: "from-slate-400 to-slate-600" },
+            ] as const;
+            const max = Math.max(...items.map(({ key }) => licitacoes.filter((l) => l.status === key).length), 1);
+            return (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+                {items.map(({ key, icon: Icon, color }) => {
+                  const count = licitacoes.filter((l) => l.status === key).length;
+                  const pct = (count / max) * 100;
+                  return (
+                    <div
+                      key={key}
+                      className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.07]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br ${color} text-white shadow-md`}>
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <ArrowUpRight className="h-3.5 w-3.5 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100" />
+                      </div>
+                      <p className="mt-3 font-display text-3xl font-bold tracking-tight text-white">{count}</p>
+                      <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-slate-400">{statusLabel[key]}</p>
+                      <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                        <div className={`h-full rounded-full bg-gradient-to-r ${color}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </section>
 
         {/* Alertas + Pendências */}
         <div className="grid gap-4 lg:grid-cols-3">
-          <div className="overflow-hidden rounded-xl bg-white text-slate-900 shadow-lg shadow-black/40 ring-1 ring-white/10 lg:col-span-2">
+          <div className="overflow-hidden rounded-xl bg-white text-slate-900 shadow-md ring-1 ring-slate-200 lg:col-span-2">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
               <div>
                 <h2 className="font-display text-sm font-bold">Pendências críticas</h2>
@@ -373,7 +423,7 @@ export default function PainelExecutivo() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl bg-white text-slate-900 shadow-lg shadow-black/40 ring-1 ring-white/10">
+          <div className="overflow-hidden rounded-xl bg-white text-slate-900 shadow-md ring-1 ring-slate-200">
             <div className="border-b border-slate-200 px-5 py-3.5">
               <h2 className="font-display text-sm font-bold">Alertas operacionais</h2>
               <p className="text-xs text-slate-500">Eventos que demandam atenção</p>
@@ -420,7 +470,7 @@ function KpiCard({
     success: "text-success-foreground",
   } as const;
   return (
-    <div className="group relative overflow-hidden rounded-xl bg-white p-5 text-slate-900 shadow-lg shadow-black/40 ring-1 ring-white/10 transition-transform hover:-translate-y-0.5">
+    <div className="group relative overflow-hidden rounded-xl bg-white p-5 text-slate-900 shadow-md ring-1 ring-slate-200 transition-transform hover:-translate-y-0.5 hover:shadow-lg">
       <div className="flex items-start justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
         <div className={`grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br ${map[tone]} ${iconText[tone]} shadow-md`}>
@@ -436,7 +486,7 @@ function KpiCard({
 
 function ChartCard({ title, subtitle, icon, children }: { title: string; subtitle: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl bg-white text-slate-900 shadow-lg shadow-black/40 ring-1 ring-white/10">
+    <div className="overflow-hidden rounded-xl bg-white text-slate-900 shadow-md ring-1 ring-slate-200">
       <header className="flex items-start justify-between border-b border-slate-200 bg-gradient-to-br from-white to-slate-50 px-5 py-3.5">
         <div className="flex items-start gap-2.5">
           <span className="mt-0.5 grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary shadow-[0_2px_6px_-2px_hsl(var(--primary)/0.4)]">
