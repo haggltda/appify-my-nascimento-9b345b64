@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Database, Pencil, Plus, ShieldCheck, Sparkles, Trash2, User2 } from "lucide-react";
+import { Database, FileDown, Pencil, Plus, ShieldCheck, Sparkles, Trash2, User2 } from "lucide-react";
 import { useList, useRemove } from "@/hooks/useGenericCrud";
 import { ColaboradorForm, type Colaborador } from "./ColaboradorForm";
+import { RelatorioColaboradoresDialog } from "./RelatorioColaboradoresDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 const FOTO_BUCKET = "colaboradores-fotos";
