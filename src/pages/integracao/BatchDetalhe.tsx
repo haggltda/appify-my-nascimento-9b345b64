@@ -13,6 +13,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Loader2, Trash2,
+  PlayCircle, ThumbsUp, ThumbsDown, ListChecks,
 } from "lucide-react";
 import { sha256OfFile, parseSpreadsheet, detectLayout, type LayoutFingerprint, type LayoutMatch } from "@/lib/integracao/parser";
 
@@ -43,6 +44,20 @@ interface BatchFile {
   layout_detectado_id: string | null;
   layout_score: number | null;
   metadata: any;
+  created_at: string;
+  materializado_em?: string | null;
+  linhas_inseridas?: number | null;
+}
+
+interface ValidationResult {
+  id: string;
+  rule_codigo: string;
+  severidade: "info" | "aviso" | "erro";
+  linha_origem: number | null;
+  campo: string | null;
+  mensagem: string;
+  valor_recebido: string | null;
+  resolvido: boolean;
   created_at: string;
 }
 
