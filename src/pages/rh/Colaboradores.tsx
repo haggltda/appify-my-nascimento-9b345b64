@@ -151,6 +151,12 @@ export default function Colaboradores() {
         initial={editing}
         onSaved={() => refetch()}
       />
+
+      <RelatorioColaboradoresDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        rows={rows}
+      />
     </div>
   );
 }
