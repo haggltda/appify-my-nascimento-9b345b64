@@ -381,7 +381,12 @@ export default function BatchDetalhe() {
       />
 
       {/* Stepper visual: fluxo de 3 etapas */}
-      <BatchStepper status={batch.status} blockingErrors={counts.bloqueante} />
+      <BatchStepper
+        status={batch.status}
+        blockingErrors={counts.bloqueante}
+        filesCount={files.length}
+        materializedCount={files.filter((f) => !!f.materializado_em).length}
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Esquerda: descrição/obs */}
