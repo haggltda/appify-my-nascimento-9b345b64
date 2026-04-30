@@ -10241,6 +10241,9 @@ export type Database = {
         | "rejeitado"
         | "reprocessando"
         | "arquivado"
+        | "processando"
+        | "validado_ok"
+        | "validado_com_erros"
       integ_load_status:
         | "pendente"
         | "em_execucao"
@@ -10759,6 +10762,9 @@ export const Constants = {
         "rejeitado",
         "reprocessando",
         "arquivado",
+        "processando",
+        "validado_ok",
+        "validado_com_erros",
       ],
       integ_load_status: [
         "pendente",
