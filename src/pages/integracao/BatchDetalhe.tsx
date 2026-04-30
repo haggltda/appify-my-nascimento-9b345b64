@@ -13,7 +13,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Loader2, Trash2,
-  PlayCircle, ThumbsUp, ThumbsDown, ListChecks, Upload, Link2,
+  PlayCircle, ThumbsUp, ThumbsDown, ListChecks, Upload, Link2, Database, ShieldCheck, Sparkles,
 } from "lucide-react";
 import { sha256OfFile, parseSpreadsheet, detectLayout, type LayoutFingerprint, type LayoutMatch } from "@/lib/integracao/parser";
 
