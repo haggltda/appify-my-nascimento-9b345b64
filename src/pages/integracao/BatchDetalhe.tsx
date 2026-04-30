@@ -232,6 +232,72 @@ export default function BatchDetalhe() {
     else { toast({ title: "Lote atualizado" }); load(); }
   };
 
+  const materializeFile = async (f: BatchFile) => {
+    if (!f.layout_detectado_id) {
+      toast({ title: "Sem layout", description: "Layout não foi identificado para este arquivo.", variant: "destructive" });
+      return;
+    }
+    setBusyAction(f.id);
+    try {
+      setProgress(`Baixando ${f.nome_original}...`);
+      const { data: blob, error: dlErr } = await supabase.storage.from("integration-uploads").download(f.storage_path);
+      if (dlErr || !blob) throw new Error(dlErr?.message ?? "falha no download");
+
+      setProgress(`Lendo planilha...`);
+      const file = new File([blob], f.nome_original);
+      const parsed = await parseSpreadsheet(file);
+      const sheet = parsed.sheets.find((s) => s.name === f.sheet_name) ?? parsed.sheets[0];
+      if (!sheet) throw new Error("Aba não encontrada");
+
+      setProgress(`Materializando ${sheet.rows.length} linhas...`);
+      const { data, error } = await supabase.rpc("integration_materialize_staging", {
+        p_batch_file_id: f.id,
+        p_rows: sheet.rows as any,
+      });
+      if (error) throw error;
+      const r = data as any;
+      toast({
+        title: "Materialização concluída",
+        description: `Inseridas ${r?.inserted ?? 0} • Erros ${r?.errors ?? 0} • Total ${r?.total_processed ?? 0}`,
+      });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Falha na materialização", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setProgress("");
+      setBusyAction(null);
+    }
+  };
+
+  const approveBatch = async () => {
+    if (!batch) return;
+    if (!confirm(`Aprovar lote ${batch.codigo}? Os dados em staging serão considerados válidos para promoção.`)) return;
+    setBusyAction("approve");
+    const { error } = await supabase.rpc("integration_approve_batch", { p_batch_id: batch.id });
+    setBusyAction(null);
+    if (error) toast({ title: "Não foi possível aprovar", description: error.message, variant: "destructive" });
+    else { toast({ title: "Lote aprovado" }); load(); }
+  };
+
+  const rejectBatch = async () => {
+    if (!batch) return;
+    const motivo = prompt("Motivo da rejeição (opcional):") ?? null;
+    setBusyAction("reject");
+    const { error } = await supabase.rpc("integration_reject_batch", { p_batch_id: batch.id, p_motivo: motivo });
+    setBusyAction(null);
+    if (error) toast({ title: "Erro ao rejeitar", description: error.message, variant: "destructive" });
+    else { toast({ title: "Lote rejeitado" }); load(); }
+  };
+
+  const filteredValidations = filterSeverity === "all"
+    ? validations
+    : validations.filter((v) => v.severidade === filterSeverity);
+  const counts = {
+    bloqueante: validations.filter((v) => v.severidade === "bloqueante").length,
+    alerta: validations.filter((v) => v.severidade === "alerta").length,
+    informativo: validations.filter((v) => v.severidade === "informativo").length,
+  };
+
   if (loading || !batch) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground">
