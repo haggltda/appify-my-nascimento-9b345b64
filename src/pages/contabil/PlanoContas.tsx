@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, PowerOff, CheckCircle2, XCircle, Clock, BookOpen } from "lucide-react";
+import { PlanoContasPrint } from "@/components/contabil/PlanoContasPrint";
 
 type ContaTipo = "sintetica" | "analitica";
 type ContaNatureza = "D" | "C";
@@ -148,7 +149,12 @@ export default function PlanoContas() {
         breadcrumb={["Plano de Contas"]}
         title="Plano de Contas"
         subtitle="Mudanças exigem aprovação do gerente financeiro, controladoria ou diretor administrativo."
-        actions={<NovaContaDialog contas={contasQ.data ?? []} dreLinhas={dreQ.data ?? []} empresaId={empresaId} userId={user?.id ?? ""} onCreated={() => qc.invalidateQueries({ queryKey: ["pcs"] })} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <PlanoContasPrint contas={contasQ.data ?? []} dreLinhas={dreQ.data ?? []} />
+            <NovaContaDialog contas={contasQ.data ?? []} dreLinhas={dreQ.data ?? []} empresaId={empresaId} userId={user?.id ?? ""} onCreated={() => qc.invalidateQueries({ queryKey: ["pcs"] })} />
+          </div>
+        }
       />
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
