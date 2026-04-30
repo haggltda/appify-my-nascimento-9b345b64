@@ -36,7 +36,9 @@ import {
   Settings,
   BookOpen,
   ClipboardCheck,
+  DatabaseZap,
 } from "lucide-react";
+import { usePermissoes } from "@/context/PermissoesContext";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -255,6 +257,16 @@ const biModule: ModuleDef = {
   }],
 };
 
+// Integração & Migração (somente admin)
+const integracaoModule: ModuleDef = {
+  id: "integracao", label: "Integração & Migração", description: "Lotes de planilhas → ERP",
+  icon: DatabaseZap, basePath: "/app/integracao", status: "active",
+  groups: [{
+    label: "Cargas", defaultOpen: true,
+    items: [{ label: "Lotes de Integração", to: "/app/integracao", icon: DatabaseZap }],
+  }],
+};
+
 const erpModules: ModuleDef[] = [
   licitacoesModule,
   controladoriaOrcModule,
@@ -268,8 +280,10 @@ const erpModules: ModuleDef[] = [
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const location = useLocation();
+  const { roles } = usePermissoes();
+  const visibleModules = roles.includes("admin") ? [...erpModules, integracaoModule] : erpModules;
   // Determina qual módulo está ativo pela rota
-  const activeModuleId = erpModules.find(
+  const activeModuleId = visibleModules.find(
     (m) => m.status === "active" && (location.pathname === m.basePath || location.pathname.startsWith(m.basePath))
   )?.id ?? "licitacoes";
   const [expandedModule, setExpandedModule] = useState<string | null>(activeModuleId);
@@ -320,7 +334,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       )}
 
       <nav className="mt-2 flex-1 overflow-y-auto scroll-elegant px-2 py-1">
-        {erpModules.map((mod) => (
+        {visibleModules.map((mod) => (
           <ModuleEntry
             key={mod.id}
             mod={mod}

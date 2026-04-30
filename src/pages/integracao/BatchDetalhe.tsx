@@ -1,0 +1,368 @@
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { usePermissoes } from "@/context/PermissoesContext";
+import { useToast } from "@/hooks/use-toast";
+import {
+  ArrowLeft, UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, Loader2, Trash2,
+} from "lucide-react";
+import { sha256OfFile, parseSpreadsheet, detectLayout, type LayoutFingerprint, type LayoutMatch } from "@/lib/integracao/parser";
+
+const MAX_BYTES = 10 * 1024 * 1024;
+const ACCEPTED_EXT = [".xlsx", ".xls", ".csv"];
+
+interface BatchRecord {
+  id: string;
+  codigo: string;
+  descricao: string | null;
+  status: string;
+  empresa_id: string;
+  layout_id: string | null;
+  total_linhas: number | null;
+  linhas_validas: number | null;
+  linhas_invalidas: number | null;
+  observacoes: string | null;
+  created_at: string;
+}
+
+interface BatchFile {
+  id: string;
+  nome_original: string;
+  storage_path: string;
+  hash_sha256: string;
+  tamanho_bytes: number | null;
+  sheet_name: string | null;
+  layout_detectado_id: string | null;
+  layout_score: number | null;
+  metadata: any;
+  created_at: string;
+}
+
+interface LayoutMeta {
+  id: string;
+  codigo: string;
+  nome: string;
+  staging_tabela: string;
+  destino_tabela: string;
+}
+
+export default function BatchDetalhe() {
+  const { id } = useParams<{ id: string }>();
+  const nav = useNavigate();
+  const { user } = useAuth();
+  const { empresaId, roles } = usePermissoes();
+  const { toast } = useToast();
+  const isAdmin = roles.includes("admin");
+
+  const [batch, setBatch] = useState<BatchRecord | null>(null);
+  const [files, setFiles] = useState<BatchFile[]>([]);
+  const [layouts, setLayouts] = useState<Record<string, LayoutMeta>>({});
+  const [fingerprints, setFingerprints] = useState<LayoutFingerprint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<string>("");
+  const [dragOver, setDragOver] = useState(false);
+  const [editDesc, setEditDesc] = useState("");
+  const [editObs, setEditObs] = useState("");
+
+  const load = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    const [batchRes, filesRes, layoutsRes, fpRes] = await Promise.all([
+      supabase.from("integration_batches").select("*").eq("id", id).maybeSingle(),
+      supabase.from("integration_batch_files").select("*").eq("batch_id", id).order("created_at", { ascending: true }),
+      supabase.from("integration_layouts").select("id, codigo, nome, staging_tabela, destino_tabela").eq("ativo", true),
+      supabase.from("integration_layout_fingerprints").select("layout_id, arquivo_pattern, sheet_pattern, colunas_obrigatorias, peso"),
+    ]);
+
+    if (batchRes.error || !batchRes.data) {
+      toast({ title: "Lote não encontrado", description: batchRes.error?.message ?? "", variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+    setBatch(batchRes.data as BatchRecord);
+    setEditDesc(batchRes.data.descricao ?? "");
+    setEditObs(batchRes.data.observacoes ?? "");
+    setFiles((filesRes.data ?? []) as BatchFile[]);
+    const lmap: Record<string, LayoutMeta> = {};
+    (layoutsRes.data ?? []).forEach((l: any) => { lmap[l.id] = l; });
+    setLayouts(lmap);
+    setFingerprints((fpRes.data ?? []) as LayoutFingerprint[]);
+    setLoading(false);
+  }, [id, toast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleFiles = async (fileList: FileList | File[]) => {
+    if (!batch || !user || !empresaId) return;
+    const arr = Array.from(fileList);
+    setUploading(true);
+    for (const file of arr) {
+      try {
+        // Validations
+        const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+        if (!ACCEPTED_EXT.includes(ext)) {
+          toast({ title: "Formato não aceito", description: `${file.name}: apenas XLSX/XLS/CSV.`, variant: "destructive" });
+          continue;
+        }
+        if (file.size > MAX_BYTES) {
+          toast({ title: "Arquivo muito grande", description: `${file.name} excede 10 MB.`, variant: "destructive" });
+          continue;
+        }
+
+        setProgress(`${file.name}: calculando hash...`);
+        const hash = await sha256OfFile(file);
+
+        // Dedupe within the batch
+        if (files.some((f) => f.hash_sha256 === hash)) {
+          toast({ title: "Arquivo duplicado", description: `${file.name} já consta neste lote (mesmo SHA-256).`, variant: "destructive" });
+          continue;
+        }
+
+        setProgress(`${file.name}: enviando para storage...`);
+        const path = `${empresaId}/${batch.id}/${hash}-${file.name}`;
+        const up = await supabase.storage.from("integration-uploads").upload(path, file, {
+          upsert: false,
+          contentType: file.type || undefined,
+        });
+        if (up.error && !String(up.error.message).toLowerCase().includes("already exists")) {
+          throw up.error;
+        }
+
+        setProgress(`${file.name}: fazendo parse...`);
+        const parsed = await parseSpreadsheet(file);
+        const matches = detectLayout(parsed, fingerprints);
+        const best: LayoutMatch | undefined = matches[0];
+
+        // Sample profile (first 50 rows of best sheet, or first sheet)
+        const sheet = parsed.sheets.find((s) => s.sheetName === (best?.sheet ?? parsed.sheets[0]?.sheetName)) ?? parsed.sheets[0];
+        const sampleRows = sheet?.rows.slice(0, 50) ?? [];
+        const totalRows = parsed.sheets.reduce((acc, s) => acc + s.totalRows, 0);
+
+        setProgress(`${file.name}: registrando metadados...`);
+        const insertPayload: any = {
+          batch_id: batch.id,
+          empresa_id: empresaId,
+          nome_original: file.name,
+          storage_path: path,
+          hash_sha256: hash,
+          tamanho_bytes: file.size,
+          mime_type: file.type || undefined,
+          sheet_name: sheet?.sheetName ?? undefined,
+          layout_detectado_id: best?.layout_id ?? undefined,
+          layout_score: best?.score ?? undefined,
+          metadata: {
+            sheets: parsed.sheets.map((s) => ({ name: s.sheetName, rows: s.totalRows, headers: s.headers })),
+            matches: matches.slice(0, 5),
+            sample: sampleRows.slice(0, 10),
+            total_rows_arquivo: totalRows,
+          },
+        };
+        const ins = await supabase.from("integration_batch_files").insert(insertPayload).select("id").single();
+        if (ins.error) throw ins.error;
+
+        toast({
+          title: "Arquivo carregado",
+          description: best
+            ? `${file.name}: layout "${layouts[best.layout_id]?.nome ?? best.layout_id}" (score ${(best.score * 100).toFixed(0)}%).`
+            : `${file.name}: layout não identificado, abra o arquivo para resolver.`,
+        });
+      } catch (err: any) {
+        toast({ title: "Falha no upload", description: `${file.name}: ${err?.message ?? err}`, variant: "destructive" });
+      }
+    }
+    setProgress("");
+    setUploading(false);
+    await load();
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files?.length) handleFiles(e.dataTransfer.files);
+  };
+
+  const removeFile = async (f: BatchFile) => {
+    if (!confirm(`Remover ${f.nome_original} deste lote?`)) return;
+    await supabase.storage.from("integration-uploads").remove([f.storage_path]);
+    const { error } = await supabase.from("integration_batch_files").delete().eq("id", f.id);
+    if (error) {
+      toast({ title: "Erro ao remover", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Arquivo removido" });
+      await load();
+    }
+  };
+
+  const saveBatch = async () => {
+    if (!batch) return;
+    const { error } = await supabase
+      .from("integration_batches")
+      .update({ descricao: editDesc, observacoes: editObs })
+      .eq("id", batch.id);
+    if (error) toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    else { toast({ title: "Lote atualizado" }); load(); }
+  };
+
+  if (loading || !batch) {
+    return (
+      <div className="flex items-center justify-center py-20 text-muted-foreground">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando lote...
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <PageHeader
+        module="Integração & Migração"
+        breadcrumb={[<Link key="b" to="/app/integracao" className="hover:underline">Lotes</Link> as any, batch.codigo]}
+        title={batch.codigo}
+        subtitle={`Status: ${batch.status} • Criado em ${new Date(batch.created_at).toLocaleString("pt-BR")}`}
+        actions={
+          <Button variant="outline" size="sm" onClick={() => nav("/app/integracao")}>
+            <ArrowLeft className="h-4 w-4" /> Voltar
+          </Button>
+        }
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Esquerda: descrição/obs */}
+        <Card className="p-4 lg:col-span-1">
+          <h3 className="mb-3 text-sm font-semibold">Identificação</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Descrição</label>
+              <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} disabled={!isAdmin} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Observações</label>
+              <Textarea rows={4} value={editObs} onChange={(e) => setEditObs(e.target.value)} disabled={!isAdmin} />
+            </div>
+            {isAdmin && (
+              <Button size="sm" onClick={saveBatch}>Salvar</Button>
+            )}
+          </div>
+        </Card>
+
+        {/* Direita: upload + arquivos */}
+        <div className="space-y-4 lg:col-span-2">
+          {isAdmin && (
+            <Card className="p-4">
+              <h3 className="mb-3 text-sm font-semibold">Upload de planilhas</h3>
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onDrop}
+                className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
+                  dragOver ? "border-primary bg-primary/5" : "border-border bg-muted/30"
+                }`}
+              >
+                <UploadCloud className="mb-2 h-8 w-8 text-muted-foreground" />
+                <p className="text-sm font-medium">Arraste arquivos XLSX/CSV aqui</p>
+                <p className="text-xs text-muted-foreground">Máx. 10 MB por arquivo • SHA-256 evita duplicatas</p>
+                <div className="mt-4">
+                  <input
+                    id="file-input"
+                    type="file"
+                    multiple
+                    accept=".xlsx,.xls,.csv"
+                    className="hidden"
+                    onChange={(e) => e.target.files && handleFiles(e.target.files)}
+                  />
+                  <label htmlFor="file-input">
+                    <Button asChild size="sm" variant="outline" disabled={uploading}>
+                      <span>{uploading ? "Processando..." : "Selecionar arquivos"}</span>
+                    </Button>
+                  </label>
+                </div>
+                {progress && <p className="mt-3 text-xs text-muted-foreground">{progress}</p>}
+              </div>
+            </Card>
+          )}
+
+          <Card className="p-4">
+            <h3 className="mb-3 text-sm font-semibold">Arquivos do lote ({files.length})</h3>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Arquivo</TableHead>
+                    <TableHead>Layout detectado</TableHead>
+                    <TableHead>Aba</TableHead>
+                    <TableHead className="text-right">Linhas</TableHead>
+                    <TableHead className="text-right">Tamanho</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {files.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        Nenhum arquivo enviado ainda.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {files.map((f) => {
+                    const lay = f.layout_detectado_id ? layouts[f.layout_detectado_id] : null;
+                    const totalRows = (f.metadata?.total_rows_arquivo as number | undefined) ?? null;
+                    return (
+                      <TableRow key={f.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <p className="text-sm font-medium">{f.nome_original}</p>
+                              <p className="font-mono text-[10px] text-muted-foreground">{f.hash_sha256.slice(0, 12)}…</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {lay ? (
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                              <div>
+                                <p className="text-xs font-medium">{lay.nome}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  Score {((f.layout_score ?? 0) * 100).toFixed(0)}% → {lay.staging_tabela}
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                              <AlertTriangle className="mr-1 h-3 w-3" /> Não identificado
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs">{f.sheet_name ?? "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums text-xs">{totalRows ?? "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums text-xs">
+                          {f.tamanho_bytes ? `${(f.tamanho_bytes / 1024).toFixed(1)} KB` : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {isAdmin && (
+                            <Button variant="ghost" size="sm" onClick={() => removeFile(f)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

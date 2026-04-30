@@ -70,6 +70,8 @@ import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
 import BIDashboard from "./pages/bi/Dashboard";
 import Fiscal from "./pages/Fiscal";
+import IntegracaoBatches from "./pages/integracao/Batches";
+import BatchDetalhe from "./pages/integracao/BatchDetalhe";
 
 const queryClient = new QueryClient();
 
@@ -153,6 +155,9 @@ const App = () => (
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
+            {/* Integração & Migração */}
+            <Route path="integracao" element={<IntegracaoBatches />} />
+            <Route path="integracao/:id" element={<BatchDetalhe />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
