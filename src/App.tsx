@@ -57,6 +57,7 @@ import MovimentosEstoque from "./pages/suprimentos/MovimentosEstoque";
 import NFEntrada from "./pages/suprimentos/NFEntrada";
 import AprovacoesCompras from "./pages/suprimentos/AprovacoesCompras";
 import Recebimentos from "./pages/suprimentos/Recebimentos";
+import Cotacoes from "./pages/suprimentos/Cotacoes";
 import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
@@ -130,6 +131,7 @@ const App = () => (
             <Route path="suprimentos/pedidos" element={<PedidosCompra />} />
             <Route path="suprimentos/aprovacoes" element={<AprovacoesCompras />} />
             <Route path="suprimentos/recebimentos" element={<Recebimentos />} />
+            <Route path="suprimentos/cotacoes" element={<Cotacoes />} />
             {/* Financeiro */}
             <Route path="financeiro/contas-pagar" element={<ContasPagar />} />
             <Route path="financeiro/contas-receber" element={<ContasReceber />} />

@@ -181,6 +181,7 @@ const suprimentosModule: ModuleDef = {
       label: "Compras", defaultOpen: true,
       items: [
         { label: "Requisições", to: "/app/suprimentos/requisicoes", icon: ListChecks },
+        { label: "Cotações (RFQ)", to: "/app/suprimentos/cotacoes", icon: Calculator },
         { label: "Pedidos de Compra", to: "/app/suprimentos/pedidos", icon: ShoppingCart },
         { label: "NF de Entrada (XML/Manual)", to: "/app/suprimentos/nf-entrada", icon: FileText },
         { label: "Recebimento Físico", to: "/app/suprimentos/recebimentos", icon: ClipboardCheck },
