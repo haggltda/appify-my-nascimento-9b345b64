@@ -13,13 +13,27 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, Trash2 } from "lucide-react";
 
 const EVENTOS = [
-  { value: "nf_servico_autorizada", label: "NF de Serviço autorizada" },
+  { value: "nf_servico_autorizada", label: "EVT-005 NF de Serviço autorizada" },
   { value: "nf_produto_autorizada", label: "NF de Produto autorizada" },
-  { value: "baixa_receber", label: "Baixa de título a receber" },
-  { value: "baixa_pagar", label: "Pagamento de título" },
-  { value: "impostos_faturamento", label: "Impostos sobre faturamento" },
-  { value: "provisao_folha", label: "Provisão de folha" },
-  { value: "manual", label: "Manual" },
+  { value: "nf_entrada_estoque", label: "EVT-001 NF entrada material p/ estoque" },
+  { value: "nf_entrada_consumo_contrato", label: "EVT-002 NF entrada consumo contrato" },
+  { value: "nf_entrada_servico_admin", label: "EVT-003 NF entrada serviço admin" },
+  { value: "baixa_pagar", label: "EVT-004 Pagamento fornecedor" },
+  { value: "impostos_faturamento", label: "EVT-006 Tributos sobre faturamento" },
+  { value: "baixa_receber", label: "EVT-007 Recebimento cliente" },
+  { value: "provisao_folha", label: "EVT-008 Provisão folha operacional" },
+  { value: "pagamento_folha", label: "EVT-009 Pagamento folha" },
+  { value: "recolhimento_encargos_folha", label: "EVT-010 Recolhimento FGTS/INSS/Tributos folha" },
+  { value: "mutuo_intercompany_saida", label: "EVT-011 Mútuo intercompany saída" },
+  { value: "mutuo_intercompany_entrada", label: "EVT-012 Mútuo intercompany entrada" },
+  { value: "rateio_admin_intercompany", label: "EVT-013 Rateio admin intercompany" },
+  { value: "manual", label: "EVT-014 Ajuste contábil manual" },
+  { value: "baixa_estoque_contrato", label: "EVT-015 Baixa de estoque para contrato" },
+  { value: "provisao_irpj_csll", label: "Provisão IRPJ/CSLL" },
+  { value: "provisao_ferias_13", label: "Provisão férias / 13°" },
+  { value: "retencao_faturamento", label: "Retenções em faturamento" },
+  { value: "imposto_recuperavel", label: "Imposto recuperável" },
+  { value: "imposto_nao_recuperavel", label: "Imposto não recuperável" },
 ];
 
 interface Conta { id: string; classificacao: string; descricao: string; tipo: string; }
