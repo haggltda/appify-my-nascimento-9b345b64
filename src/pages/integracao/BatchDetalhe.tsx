@@ -314,9 +314,32 @@ export default function BatchDetalhe() {
         title={batch.codigo}
         subtitle={`Status: ${batch.status} • Criado em ${new Date(batch.created_at).toLocaleString("pt-BR")}`}
         actions={
-          <Button variant="outline" size="sm" onClick={() => nav("/app/integracao")}>
-            <ArrowLeft className="h-4 w-4" /> Voltar
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => nav("/app/integracao")}>
+              <ArrowLeft className="h-4 w-4" /> Voltar
+            </Button>
+            {isAdmin && (batch.status === "validado_ok" || batch.status === "validado_com_erros") && (
+              <>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={approveBatch}
+                  disabled={busyAction === "approve" || counts.bloqueante > 0}
+                  title={counts.bloqueante > 0 ? "Resolva os erros bloqueantes" : ""}
+                >
+                  <ThumbsUp className="h-4 w-4" /> Aprovar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={rejectBatch}
+                  disabled={busyAction === "reject"}
+                >
+                  <ThumbsDown className="h-4 w-4" /> Rejeitar
+                </Button>
+              </>
+            )}
+          </div>
         }
       />
 
