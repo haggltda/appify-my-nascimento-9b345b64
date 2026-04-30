@@ -246,7 +246,7 @@ export default function BatchDetalhe() {
       setProgress(`Lendo planilha...`);
       const file = new File([blob], f.nome_original);
       const parsed = await parseSpreadsheet(file);
-      const sheet = parsed.sheets.find((s) => s.name === f.sheet_name) ?? parsed.sheets[0];
+      const sheet = parsed.sheets.find((s) => s.sheetName === f.sheet_name) ?? parsed.sheets[0];
       if (!sheet) throw new Error("Aba não encontrada");
 
       setProgress(`Materializando ${sheet.rows.length} linhas...`);
