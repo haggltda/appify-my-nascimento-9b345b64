@@ -455,6 +455,330 @@ export type Database = {
         }
         Relationships: []
       }
+      banco_layout: {
+        Row: {
+          ativo: boolean
+          conta_bancaria_id: string
+          created_at: string
+          empresa_id: string
+          id: string
+          nome: string
+          template_origem_id: string | null
+          tipo: Database["public"]["Enums"]["banco_layout_tipo"]
+          updated_at: string
+          versao_ativa_id: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          conta_bancaria_id: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          nome: string
+          template_origem_id?: string | null
+          tipo: Database["public"]["Enums"]["banco_layout_tipo"]
+          updated_at?: string
+          versao_ativa_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          conta_bancaria_id?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          nome?: string
+          template_origem_id?: string | null
+          tipo?: Database["public"]["Enums"]["banco_layout_tipo"]
+          updated_at?: string
+          versao_ativa_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banco_layout_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "conta_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banco_layout_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banco_layout_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "banco_layout_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "banco_layout_template_origem_fk"
+            columns: ["template_origem_id"]
+            isOneToOne: false
+            referencedRelation: "banco_layout_template"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banco_layout_versao_ativa_fk"
+            columns: ["versao_ativa_id"]
+            isOneToOne: false
+            referencedRelation: "banco_layout_versao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      banco_layout_template: {
+        Row: {
+          ativo: boolean
+          banco_codigo: string | null
+          banco_nome: string | null
+          created_at: string
+          descricao: string | null
+          empresa_id: string | null
+          estrutura: Json
+          id: string
+          nome: string
+          oficial: boolean
+          tipo: Database["public"]["Enums"]["banco_layout_tipo"]
+          updated_at: string
+          versao_layout: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          banco_codigo?: string | null
+          banco_nome?: string | null
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string | null
+          estrutura?: Json
+          id?: string
+          nome: string
+          oficial?: boolean
+          tipo: Database["public"]["Enums"]["banco_layout_tipo"]
+          updated_at?: string
+          versao_layout?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          banco_codigo?: string | null
+          banco_nome?: string | null
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string | null
+          estrutura?: Json
+          id?: string
+          nome?: string
+          oficial?: boolean
+          tipo?: Database["public"]["Enums"]["banco_layout_tipo"]
+          updated_at?: string
+          versao_layout?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banco_layout_template_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banco_layout_template_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "banco_layout_template_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      banco_layout_teste: {
+        Row: {
+          created_at: string
+          duracao_ms: number | null
+          empresa_id: string
+          erro: string | null
+          executado_por: string | null
+          http_status: number | null
+          id: string
+          input_payload: Json | null
+          layout_versao_id: string
+          output_gerado: string | null
+          response_banco: Json | null
+          sucesso: boolean | null
+          tipo_teste: string
+        }
+        Insert: {
+          created_at?: string
+          duracao_ms?: number | null
+          empresa_id: string
+          erro?: string | null
+          executado_por?: string | null
+          http_status?: number | null
+          id?: string
+          input_payload?: Json | null
+          layout_versao_id: string
+          output_gerado?: string | null
+          response_banco?: Json | null
+          sucesso?: boolean | null
+          tipo_teste: string
+        }
+        Update: {
+          created_at?: string
+          duracao_ms?: number | null
+          empresa_id?: string
+          erro?: string | null
+          executado_por?: string | null
+          http_status?: number | null
+          id?: string
+          input_payload?: Json | null
+          layout_versao_id?: string
+          output_gerado?: string | null
+          response_banco?: Json | null
+          sucesso?: boolean | null
+          tipo_teste?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banco_layout_teste_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banco_layout_teste_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "banco_layout_teste_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "banco_layout_teste_layout_versao_id_fkey"
+            columns: ["layout_versao_id"]
+            isOneToOne: false
+            referencedRelation: "banco_layout_versao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      banco_layout_versao: {
+        Row: {
+          amostra_input: Json | null
+          amostra_output: string | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          created_at: string
+          criado_por: string | null
+          empresa_id: string
+          estrutura: Json
+          id: string
+          layout_id: string
+          motivo_rejeicao: string | null
+          notas: string | null
+          numero_versao: number
+          rejeitado_em: string | null
+          rejeitado_por: string | null
+          status: Database["public"]["Enums"]["banco_layout_versao_status"]
+          submetido_em: string | null
+          submetido_por: string | null
+          updated_at: string
+        }
+        Insert: {
+          amostra_input?: Json | null
+          amostra_output?: string | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          criado_por?: string | null
+          empresa_id: string
+          estrutura?: Json
+          id?: string
+          layout_id: string
+          motivo_rejeicao?: string | null
+          notas?: string | null
+          numero_versao: number
+          rejeitado_em?: string | null
+          rejeitado_por?: string | null
+          status?: Database["public"]["Enums"]["banco_layout_versao_status"]
+          submetido_em?: string | null
+          submetido_por?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amostra_input?: Json | null
+          amostra_output?: string | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          criado_por?: string | null
+          empresa_id?: string
+          estrutura?: Json
+          id?: string
+          layout_id?: string
+          motivo_rejeicao?: string | null
+          notas?: string | null
+          numero_versao?: number
+          rejeitado_em?: string | null
+          rejeitado_por?: string | null
+          status?: Database["public"]["Enums"]["banco_layout_versao_status"]
+          submetido_em?: string | null
+          submetido_por?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banco_layout_versao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banco_layout_versao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "banco_layout_versao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "banco_layout_versao_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "banco_layout"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       base_dissidio_categoria: {
         Row: {
           ativo: boolean
@@ -6254,6 +6578,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      layout_aprovar_versao: { Args: { _versao_id: string }; Returns: Json }
+      layout_nova_versao: { Args: { _layout_id: string }; Returns: Json }
+      layout_rejeitar_versao: {
+        Args: { _motivo: string; _versao_id: string }
+        Returns: Json
+      }
+      layout_submeter_aprovacao: { Args: { _versao_id: string }; Returns: Json }
       nf_gerar_titulos: { Args: { _nf_id: string }; Returns: Json }
       nf_lancar_estoque: { Args: { _nf_id: string }; Returns: Json }
       recebimento_confirmar: {
@@ -6297,6 +6628,21 @@ export type Database = {
         | "gestor_cc"
         | "fiscal_recebedor"
       aprov_decisao: "pendente" | "aprovado" | "rejeitado" | "devolvido"
+      banco_layout_tipo:
+        | "cnab240_remessa_pagamento"
+        | "cnab240_retorno"
+        | "cnab400_remessa"
+        | "cnab400_retorno"
+        | "api_rest_pagamento"
+        | "api_rest_consulta"
+        | "ofx_extrato"
+        | "csv_extrato"
+      banco_layout_versao_status:
+        | "rascunho"
+        | "pendente_aprovacao"
+        | "aprovada"
+        | "rejeitada"
+        | "arquivada"
       banco_tipo: "corrente" | "poupanca" | "aplicacao" | "vinculada"
       cc_tipo: "adm" | "operacional"
       colab_status: "ativo" | "afastado" | "demitido" | "ferias"
@@ -6683,6 +7029,23 @@ export const Constants = {
         "fiscal_recebedor",
       ],
       aprov_decisao: ["pendente", "aprovado", "rejeitado", "devolvido"],
+      banco_layout_tipo: [
+        "cnab240_remessa_pagamento",
+        "cnab240_retorno",
+        "cnab400_remessa",
+        "cnab400_retorno",
+        "api_rest_pagamento",
+        "api_rest_consulta",
+        "ofx_extrato",
+        "csv_extrato",
+      ],
+      banco_layout_versao_status: [
+        "rascunho",
+        "pendente_aprovacao",
+        "aprovada",
+        "rejeitada",
+        "arquivada",
+      ],
       banco_tipo: ["corrente", "poupanca", "aplicacao", "vinculada"],
       cc_tipo: ["adm", "operacional"],
       colab_status: ["ativo", "afastado", "demitido", "ferias"],
