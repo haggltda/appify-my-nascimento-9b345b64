@@ -231,10 +231,10 @@ function BaixaDialog({ titulo, onClose }: { titulo: any; onClose: (ok: boolean) 
     mutationFn: async () => {
       const v = Number(valor);
       if (!v || v <= 0) throw new Error("Informe um valor válido");
-      const { data, error } = await (supabase as any).rpc("titulo_baixar", {
+      const { data: result, error } = await (supabase as any).rpc("titulo_baixar", {
         _titulo_id: titulo.id,
         _valor: v,
-        _data_baixa: data,
+        _data_baixa: dataBaixa,
         _meio: meio,
         _conta_bancaria_id: contaId || null,
         _juros: Number(juros) || 0,
