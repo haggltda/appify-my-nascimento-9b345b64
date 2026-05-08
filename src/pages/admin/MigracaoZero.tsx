@@ -166,9 +166,12 @@ export default function MigracaoZero() {
     return false;
   }
 
-  async function processOne(arquivo: string, append = false) {
+  async function processOne(arquivo: string, mode: ProcessMode = "fresh") {
     setBusy((b) => ({ ...b, [arquivo]: true }));
-    try { await processFile(arquivo, append); } finally {
+    try { await processFile(arquivo, mode); } catch (e) {
+      toast.error(`${arquivo}: ${e instanceof Error ? e.message : String(e)}`);
+      await load();
+    } finally {
       setBusy((b) => ({ ...b, [arquivo]: false }));
     }
   }
@@ -181,7 +184,7 @@ export default function MigracaoZero() {
       for (const r of ready) {
         if (cancelRef.current) break;
         setBusy((b) => ({ ...b, [r.arquivo]: true }));
-        await processFile(r.arquivo);
+        await processFile(r.arquivo, r.status === "EM_ANDAMENTO" ? "resume" : "fresh");
         setBusy((b) => ({ ...b, [r.arquivo]: false }));
       }
       toast.success("Processamento finalizado.");
