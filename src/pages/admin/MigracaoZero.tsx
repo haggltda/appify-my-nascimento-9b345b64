@@ -271,6 +271,7 @@ export default function MigracaoZero() {
             <tbody>
               {rows.map((r) => {
                 const pct = r.linhas_esperadas ? Math.min(100, Math.round((r.linhas_carregadas / r.linhas_esperadas) * 100)) : 0;
+                const uploading = typeof uploadProgress[r.arquivo] === "number";
                 return (
                   <tr key={r.id} className="border-b hover:bg-muted/30">
                     <td className="py-2 font-mono text-xs">{r.arquivo}</td>
@@ -290,6 +291,12 @@ export default function MigracaoZero() {
                           {r.ultimo_erro}
                         </div>
                       )}
+                      {uploading && (
+                        <div className="mt-1 w-32">
+                          <Progress value={uploadProgress[r.arquivo]} className="h-1" />
+                          <div className="text-xs text-muted-foreground mt-1">Enviando {uploadProgress[r.arquivo]}%</div>
+                        </div>
+                      )}
                     </td>
                     <td className="space-x-2 whitespace-nowrap py-2">
                       <label className="inline-flex">
@@ -305,7 +312,7 @@ export default function MigracaoZero() {
                           }}
                         />
                         <Button asChild size="sm" variant="outline" disabled={!!busy[r.arquivo]}>
-                          <span><Upload className="h-3.5 w-3.5 mr-1" /> Upload</span>
+                          <span><Upload className="h-3.5 w-3.5 mr-1" /> {uploading ? `${uploadProgress[r.arquivo]}%` : "Upload"}</span>
                         </Button>
                       </label>
                       <Button
