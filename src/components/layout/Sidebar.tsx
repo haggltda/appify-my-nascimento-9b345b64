@@ -39,6 +39,8 @@ import {
   DatabaseZap,
 } from "lucide-react";
 import { usePermissoes } from "@/context/PermissoesContext";
+import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
+import { Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
