@@ -6515,6 +6515,27 @@ export type Database = {
         }
         Relationships: []
       }
+      mz_32_promocao_log: {
+        Row: {
+          batch_id: string
+          executado_em: string
+          id: string
+          resultado: Json
+        }
+        Insert: {
+          batch_id: string
+          executado_em?: string
+          id?: string
+          resultado: Json
+        }
+        Update: {
+          batch_id?: string
+          executado_em?: string
+          id?: string
+          resultado?: Json
+        }
+        Relationships: []
+      }
       mz_33_fato_balancete: {
         Row: {
           arquivo_origem_carga: string
@@ -13499,6 +13520,7 @@ export type Database = {
         Args: { p_batch_id: string; p_limit_mestres?: number; p_sigla?: string }
         Returns: Json
       }
+      mz_parse_num: { Args: { p: string }; Returns: number }
       nf_gerar_titulos: { Args: { _nf_id: string }; Returns: Json }
       nf_lancar_estoque: { Args: { _nf_id: string }; Returns: Json }
       nota_fiscal_autorizar: {
