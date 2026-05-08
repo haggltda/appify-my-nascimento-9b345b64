@@ -372,6 +372,17 @@ export default function FluxoCaixaDiario() {
           <Label>Data Final</Label>
           <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-44" />
         </div>
+        <div>
+          <Label>Visão</Label>
+          <div className="flex gap-1">
+            <Button size="sm" variant={visao === "realizado" ? "default" : "outline"} onClick={() => setVisao("realizado")}>
+              Realizado
+            </Button>
+            <Button size="sm" variant={visao === "comparativo" ? "default" : "outline"} onClick={() => setVisao("comparativo")}>
+              <BarChart3 className="mr-1 h-3 w-3" /> Realizado x Orçado
+            </Button>
+          </div>
+        </div>
         <div className="ml-auto text-xs text-muted-foreground">
           {dias.length} dias · {dadosQ.data?.length ?? 0} categorias·dia
         </div>
