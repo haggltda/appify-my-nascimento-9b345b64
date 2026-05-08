@@ -5049,6 +5049,129 @@ export type Database = {
           },
         ]
       }
+      malote_pagamento: {
+        Row: {
+          conta_bancaria_id: string
+          created_at: string
+          criado_por: string | null
+          data_pagamento: string
+          descricao: string | null
+          empresa_id: string
+          enviado_em: string | null
+          executado_em: string | null
+          id: string
+          qtd_titulos: number
+          remessa_id: string | null
+          status: Database["public"]["Enums"]["malote_status"]
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          conta_bancaria_id: string
+          created_at?: string
+          criado_por?: string | null
+          data_pagamento: string
+          descricao?: string | null
+          empresa_id: string
+          enviado_em?: string | null
+          executado_em?: string | null
+          id?: string
+          qtd_titulos?: number
+          remessa_id?: string | null
+          status?: Database["public"]["Enums"]["malote_status"]
+          updated_at?: string
+          valor_total?: number
+        }
+        Update: {
+          conta_bancaria_id?: string
+          created_at?: string
+          criado_por?: string | null
+          data_pagamento?: string
+          descricao?: string | null
+          empresa_id?: string
+          enviado_em?: string | null
+          executado_em?: string | null
+          id?: string
+          qtd_titulos?: number
+          remessa_id?: string | null
+          status?: Database["public"]["Enums"]["malote_status"]
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "malote_pagamento_conta_bancaria_id_fkey"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "conta_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "malote_pagamento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "malote_pagamento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "malote_pagamento_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "malote_pagamento_remessa_id_fkey"
+            columns: ["remessa_id"]
+            isOneToOne: false
+            referencedRelation: "remessa_cnab"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      malote_titulo: {
+        Row: {
+          created_at: string
+          malote_id: string
+          ordem: number
+          titulo_pagar_id: string
+        }
+        Insert: {
+          created_at?: string
+          malote_id: string
+          ordem?: number
+          titulo_pagar_id: string
+        }
+        Update: {
+          created_at?: string
+          malote_id?: string
+          ordem?: number
+          titulo_pagar_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "malote_titulo_malote_id_fkey"
+            columns: ["malote_id"]
+            isOneToOne: false
+            referencedRelation: "malote_pagamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "malote_titulo_titulo_pagar_id_fkey"
+            columns: ["titulo_pagar_id"]
+            isOneToOne: false
+            referencedRelation: "titulo_pagar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       movimento_bancario: {
         Row: {
           conciliado: boolean
@@ -9420,6 +9543,144 @@ export type Database = {
           },
         ]
       }
+      pre_titulo_pagar: {
+        Row: {
+          aprovado_em: string | null
+          aprovador_id: string | null
+          centro_custo_id: string | null
+          competencia: string | null
+          conta_contabil_id: string | null
+          contrato_id: string | null
+          created_at: string
+          data_emissao: string
+          data_vencimento: string
+          descricao: string
+          empresa_id: string
+          forma_pagamento:
+            | Database["public"]["Enums"]["titulo_receber_meio"]
+            | null
+          fornecedor_id: string | null
+          id: string
+          motivo_rejeicao: string | null
+          numero_documento: string | null
+          observacoes: string | null
+          solicitante_id: string | null
+          status: Database["public"]["Enums"]["pre_titulo_status"]
+          titulo_pagar_id: string | null
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovador_id?: string | null
+          centro_custo_id?: string | null
+          competencia?: string | null
+          conta_contabil_id?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          data_emissao?: string
+          data_vencimento: string
+          descricao: string
+          empresa_id: string
+          forma_pagamento?:
+            | Database["public"]["Enums"]["titulo_receber_meio"]
+            | null
+          fornecedor_id?: string | null
+          id?: string
+          motivo_rejeicao?: string | null
+          numero_documento?: string | null
+          observacoes?: string | null
+          solicitante_id?: string | null
+          status?: Database["public"]["Enums"]["pre_titulo_status"]
+          titulo_pagar_id?: string | null
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovador_id?: string | null
+          centro_custo_id?: string | null
+          competencia?: string | null
+          conta_contabil_id?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          data_emissao?: string
+          data_vencimento?: string
+          descricao?: string
+          empresa_id?: string
+          forma_pagamento?:
+            | Database["public"]["Enums"]["titulo_receber_meio"]
+            | null
+          fornecedor_id?: string | null
+          id?: string
+          motivo_rejeicao?: string | null
+          numero_documento?: string | null
+          observacoes?: string | null
+          solicitante_id?: string | null
+          status?: Database["public"]["Enums"]["pre_titulo_status"]
+          titulo_pagar_id?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_titulo_pagar_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_titulo_pagar_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_titulo_pagar_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_titulo_pagar_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_titulo_pagar_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "pre_titulo_pagar_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "pre_titulo_pagar_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedor"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_titulo_pagar_titulo_pagar_id_fkey"
+            columns: ["titulo_pagar_id"]
+            isOneToOne: false
+            referencedRelation: "titulo_pagar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produto: {
         Row: {
           ativo: boolean
@@ -13704,6 +13965,24 @@ export type Database = {
         Returns: Json
       }
       layout_submeter_aprovacao: { Args: { _versao_id: string }; Returns: Json }
+      malote_adicionar_titulo: {
+        Args: { _malote_id: string; _titulo_id: string }
+        Returns: undefined
+      }
+      malote_criar: {
+        Args: {
+          _conta_bancaria_id: string
+          _data_pagamento: string
+          _descricao?: string
+          _empresa_id: string
+        }
+        Returns: string
+      }
+      malote_executar: { Args: { _malote_id: string }; Returns: Json }
+      malote_remover_titulo: {
+        Args: { _malote_id: string; _titulo_id: string }
+        Returns: undefined
+      }
       mz_32_diagnosticar_razao: { Args: { p_batch_id: string }; Returns: Json }
       mz_32_promover_razao: {
         Args: { p_batch_id: string; p_limit_mestres?: number; p_sigla?: string }
@@ -13742,6 +14021,13 @@ export type Database = {
         }
         Returns: string
       }
+      pre_titulo_aprovar: { Args: { _id: string }; Returns: undefined }
+      pre_titulo_promover: { Args: { _id: string }; Returns: string }
+      pre_titulo_rejeitar: {
+        Args: { _id: string; _motivo: string }
+        Returns: undefined
+      }
+      pre_titulo_submeter: { Args: { _id: string }; Returns: undefined }
       proximo_numero_lancamento: {
         Args: { _empresa_id: string }
         Returns: string
@@ -13771,6 +14057,19 @@ export type Database = {
           _desconto?: number
           _juros?: number
           _meio?: Database["public"]["Enums"]["titulo_receber_meio"]
+          _multa?: number
+          _observacoes?: string
+          _titulo_id: string
+          _valor: number
+        }
+        Returns: Json
+      }
+      titulo_pagar_baixar: {
+        Args: {
+          _conta_bancaria_id?: string
+          _data_baixa?: string
+          _desconto?: number
+          _juros?: number
           _multa?: number
           _observacoes?: string
           _titulo_id: string
@@ -13973,6 +14272,7 @@ export type Database = {
         | "cancelada"
       lote_origem: "manual" | "erp" | "extrato_bancario" | "planilha" | "api"
       lote_status: "pendente" | "processado" | "erro" | "cancelado"
+      malote_status: "rascunho" | "enviado" | "executado" | "cancelado"
       mov_banco_tipo: "debito" | "credito"
       nf_item_status: "ok" | "pendente_revisao" | "produto_novo" | "divergencia"
       nf_origem: "xml" | "manual"
@@ -14038,6 +14338,13 @@ export type Database = {
         | "escala_5x2"
         | "escala_6x1"
         | "outra"
+      pre_titulo_status:
+        | "rascunho"
+        | "em_aprovacao"
+        | "aprovado"
+        | "rejeitado"
+        | "promovido"
+        | "cancelado"
       prod_serv_tipo: "produto" | "servico"
       produto_metodo_custeio: "compra" | "medio"
       rc_destino: "estoque" | "contrato"
@@ -14500,6 +14807,7 @@ export const Constants = {
       ],
       lote_origem: ["manual", "erp", "extrato_bancario", "planilha", "api"],
       lote_status: ["pendente", "processado", "erro", "cancelado"],
+      malote_status: ["rascunho", "enviado", "executado", "cancelado"],
       mov_banco_tipo: ["debito", "credito"],
       nf_item_status: ["ok", "pendente_revisao", "produto_novo", "divergencia"],
       nf_origem: ["xml", "manual"],
@@ -14572,6 +14880,14 @@ export const Constants = {
         "escala_5x2",
         "escala_6x1",
         "outra",
+      ],
+      pre_titulo_status: [
+        "rascunho",
+        "em_aprovacao",
+        "aprovado",
+        "rejeitado",
+        "promovido",
+        "cancelado",
       ],
       prod_serv_tipo: ["produto", "servico"],
       produto_metodo_custeio: ["compra", "medio"],
