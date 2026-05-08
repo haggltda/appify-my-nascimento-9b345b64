@@ -10077,6 +10077,50 @@ export type Database = {
           },
         ]
       }
+      pre_titulo_anexo: {
+        Row: {
+          created_at: string
+          file_name: string
+          id: string
+          mime_type: string | null
+          pre_titulo_id: string
+          size_bytes: number | null
+          storage_path: string
+          tipo: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          id?: string
+          mime_type?: string | null
+          pre_titulo_id: string
+          size_bytes?: number | null
+          storage_path: string
+          tipo?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          mime_type?: string | null
+          pre_titulo_id?: string
+          size_bytes?: number | null
+          storage_path?: string
+          tipo?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_titulo_anexo_pre_titulo_id_fkey"
+            columns: ["pre_titulo_id"]
+            isOneToOne: false
+            referencedRelation: "pre_titulo_pagar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pre_titulo_pagar: {
         Row: {
           aprovado_em: string | null
@@ -10211,6 +10255,61 @@ export type Database = {
             columns: ["titulo_pagar_id"]
             isOneToOne: false
             referencedRelation: "titulo_pagar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pre_titulo_rateio: {
+        Row: {
+          centro_custo_id: string
+          conta_contabil_id: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          percentual: number | null
+          pre_titulo_id: string
+          valor: number
+        }
+        Insert: {
+          centro_custo_id: string
+          conta_contabil_id?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          percentual?: number | null
+          pre_titulo_id: string
+          valor: number
+        }
+        Update: {
+          centro_custo_id?: string
+          conta_contabil_id?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          percentual?: number | null
+          pre_titulo_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_titulo_rateio_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_titulo_rateio_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pre_titulo_rateio_pre_titulo_id_fkey"
+            columns: ["pre_titulo_id"]
+            isOneToOne: false
+            referencedRelation: "pre_titulo_pagar"
             referencedColumns: ["id"]
           },
         ]
