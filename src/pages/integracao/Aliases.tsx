@@ -15,7 +15,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 
-type AliasTipo = "contratos" | "centros_custo" | "empresas" | "bancos" | "formas_pagamento";
+type AliasTipo = "contratos" | "centros_custo" | "empresas" | "bancos" | "formas_pagamento" | "contas_contabeis" | "dre";
 
 interface AliasRow {
   id: string;
@@ -27,6 +27,8 @@ interface AliasRow {
   empresa_destino_id?: string | null;
   banco_id?: string | null;
   forma_pagamento?: string | null;
+  conta_contabil_id?: string | null;
+  dre_linha_id?: string | null;
 }
 
 interface InternalOption { id: string; label: string; }

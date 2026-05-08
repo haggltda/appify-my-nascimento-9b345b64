@@ -3875,6 +3875,71 @@ export type Database = {
           },
         ]
       }
+      integration_alias_contas_contabeis: {
+        Row: {
+          alias: string
+          conta_contabil_id: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          origem: string | null
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Insert: {
+          alias: string
+          conta_contabil_id?: string | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Update: {
+          alias?: string
+          conta_contabil_id?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_alias_contas_contabeis_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_contas_contabeis_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_contas_contabeis_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_alias_contas_contabeis_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       integration_alias_contratos: {
         Row: {
           alias: string
@@ -3933,6 +3998,71 @@ export type Database = {
           },
           {
             foreignKeyName: "integration_alias_contratos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      integration_alias_dre: {
+        Row: {
+          alias: string
+          created_at: string
+          dre_linha_id: string | null
+          empresa_id: string
+          id: string
+          origem: string | null
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          dre_linha_id?: string | null
+          empresa_id: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          dre_linha_id?: string | null
+          empresa_id?: string
+          id?: string
+          origem?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: Database["public"]["Enums"]["integ_alias_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_alias_dre_dre_linha_id_fkey"
+            columns: ["dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_dre_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_alias_dre_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "integration_alias_dre_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "vw_bi_resumo_empresa"
