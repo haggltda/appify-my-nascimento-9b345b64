@@ -106,6 +106,7 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<PainelExecutivo />} />
+            <Route path="presidencia" element={<Presidencia />} />
             <Route path="pipeline" element={<Pipeline />} />
             <Route path="editais" element={<CadastroEdital />} />
             <Route path="documentos" element={<Documentos />} />
