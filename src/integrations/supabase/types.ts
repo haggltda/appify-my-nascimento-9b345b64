@@ -4964,6 +4964,2616 @@ export type Database = {
         }
         Relationships: []
       }
+      mz_01_diagnostico_arquivos_migracao: {
+        Row: {
+          arquivo_logico: string | null
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          colunas: string | null
+          colunas_qtd: string | null
+          created_at: string
+          linha_csv: number
+          linhas_lidas: string | null
+          migration_batch_id: string
+          mz_id: number
+          sha256_origem: string | null
+          tipo: string | null
+          uso_na_migracao: string | null
+        }
+        Insert: {
+          arquivo_logico?: string | null
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          colunas?: string | null
+          colunas_qtd?: string | null
+          created_at?: string
+          linha_csv: number
+          linhas_lidas?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          sha256_origem?: string | null
+          tipo?: string | null
+          uso_na_migracao?: string | null
+        }
+        Update: {
+          arquivo_logico?: string | null
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          colunas?: string | null
+          colunas_qtd?: string | null
+          created_at?: string
+          linha_csv?: number
+          linhas_lidas?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          sha256_origem?: string | null
+          tipo?: string | null
+          uso_na_migracao?: string | null
+        }
+        Relationships: []
+      }
+      mz_02_dim_empresas: {
+        Row: {
+          arquivo_origem_carga: string
+          ativo: string | null
+          cnpj: string | null
+          created_at: string
+          empresa_codigo: string | null
+          empresa_nome: string | null
+          id_empresa: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          origem: string | null
+          status_cnpj: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          ativo?: string | null
+          cnpj?: string | null
+          created_at?: string
+          empresa_codigo?: string | null
+          empresa_nome?: string | null
+          id_empresa?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          origem?: string | null
+          status_cnpj?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          ativo?: string | null
+          cnpj?: string | null
+          created_at?: string
+          empresa_codigo?: string | null
+          empresa_nome?: string | null
+          id_empresa?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          origem?: string | null
+          status_cnpj?: string | null
+        }
+        Relationships: []
+      }
+      mz_03_dim_plano_contas_atual_enriquecido: {
+        Row: {
+          arquivo_origem_carga: string
+          centro_custo_padrao: string | null
+          classe_contabil: string | null
+          classificacao_gerencial_padrao: string | null
+          codigo_conta: string | null
+          codigo_conta_pai: string | null
+          conta_reduzida: string | null
+          created_at: string
+          direto_indireto_padrao: string | null
+          dre_codigo: string | null
+          dre_descricao: string | null
+          entra_fluxo: string | null
+          entra_orcamento: string | null
+          exige_contrato: string | null
+          fixo_variavel_padrao: string | null
+          grupo_contabil: string | null
+          grupo_dre: string | null
+          linha_csv: number
+          linha_dre_padrao: string | null
+          migration_batch_id: string
+          mz_id: number
+          natureza_devedora_credora: string | null
+          nivel: string | null
+          nome_conta: string | null
+          origem_conta: string | null
+          saldo_inicial: string | null
+          status_conta: string | null
+          tipo: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          centro_custo_padrao?: string | null
+          classe_contabil?: string | null
+          classificacao_gerencial_padrao?: string | null
+          codigo_conta?: string | null
+          codigo_conta_pai?: string | null
+          conta_reduzida?: string | null
+          created_at?: string
+          direto_indireto_padrao?: string | null
+          dre_codigo?: string | null
+          dre_descricao?: string | null
+          entra_fluxo?: string | null
+          entra_orcamento?: string | null
+          exige_contrato?: string | null
+          fixo_variavel_padrao?: string | null
+          grupo_contabil?: string | null
+          grupo_dre?: string | null
+          linha_csv: number
+          linha_dre_padrao?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          natureza_devedora_credora?: string | null
+          nivel?: string | null
+          nome_conta?: string | null
+          origem_conta?: string | null
+          saldo_inicial?: string | null
+          status_conta?: string | null
+          tipo?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          centro_custo_padrao?: string | null
+          classe_contabil?: string | null
+          classificacao_gerencial_padrao?: string | null
+          codigo_conta?: string | null
+          codigo_conta_pai?: string | null
+          conta_reduzida?: string | null
+          created_at?: string
+          direto_indireto_padrao?: string | null
+          dre_codigo?: string | null
+          dre_descricao?: string | null
+          entra_fluxo?: string | null
+          entra_orcamento?: string | null
+          exige_contrato?: string | null
+          fixo_variavel_padrao?: string | null
+          grupo_contabil?: string | null
+          grupo_dre?: string | null
+          linha_csv?: number
+          linha_dre_padrao?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_devedora_credora?: string | null
+          nivel?: string | null
+          nome_conta?: string | null
+          origem_conta?: string | null
+          saldo_inicial?: string | null
+          status_conta?: string | null
+          tipo?: string | null
+        }
+        Relationships: []
+      }
+      mz_04_dim_centros_custo_contratos_completo: {
+        Row: {
+          arquivo_origem_carga: string
+          ativo: string | null
+          codigo: string | null
+          contrato_obrigatorio: string | null
+          created_at: string
+          dimensao: string | null
+          direto_indireto_padrao: string | null
+          empresas: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          nome: string | null
+          origem: string | null
+          qtd_empresas: string | null
+          status_cadastro: string | null
+          tipo: string | null
+          tipo_custo_despesa_padrao: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          ativo?: string | null
+          codigo?: string | null
+          contrato_obrigatorio?: string | null
+          created_at?: string
+          dimensao?: string | null
+          direto_indireto_padrao?: string | null
+          empresas?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          nome?: string | null
+          origem?: string | null
+          qtd_empresas?: string | null
+          status_cadastro?: string | null
+          tipo?: string | null
+          tipo_custo_despesa_padrao?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          ativo?: string | null
+          codigo?: string | null
+          contrato_obrigatorio?: string | null
+          created_at?: string
+          dimensao?: string | null
+          direto_indireto_padrao?: string | null
+          empresas?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          nome?: string | null
+          origem?: string | null
+          qtd_empresas?: string | null
+          status_cadastro?: string | null
+          tipo?: string | null
+          tipo_custo_despesa_padrao?: string | null
+        }
+        Relationships: []
+      }
+      mz_05_dim_eventos_contabeis: {
+        Row: {
+          arquivo_origem_carga: string
+          codigo_evento: string | null
+          conta_credito_conceitual: string | null
+          conta_debito_conceitual: string | null
+          created_at: string
+          descricao_evento: string | null
+          impacta_caixa: string | null
+          impacta_dre: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          observacao: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          codigo_evento?: string | null
+          conta_credito_conceitual?: string | null
+          conta_debito_conceitual?: string | null
+          created_at?: string
+          descricao_evento?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          observacao?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          codigo_evento?: string | null
+          conta_credito_conceitual?: string | null
+          conta_debito_conceitual?: string | null
+          created_at?: string
+          descricao_evento?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          observacao?: string | null
+        }
+        Relationships: []
+      }
+      mz_06_dim_bancos_contas_financeiras: {
+        Row: {
+          arquivo_origem_carga: string
+          ativo: string | null
+          banco_original: string | null
+          codigo_conta_banco: string | null
+          created_at: string
+          id_banco_conta: string | null
+          id_sugestao_conta: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          nome_conta_banco: string | null
+          status_de_para_banco: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          ativo?: string | null
+          banco_original?: string | null
+          codigo_conta_banco?: string | null
+          created_at?: string
+          id_banco_conta?: string | null
+          id_sugestao_conta?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          nome_conta_banco?: string | null
+          status_de_para_banco?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          ativo?: string | null
+          banco_original?: string | null
+          codigo_conta_banco?: string | null
+          created_at?: string
+          id_banco_conta?: string | null
+          id_sugestao_conta?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          nome_conta_banco?: string | null
+          status_de_para_banco?: string | null
+        }
+        Relationships: []
+      }
+      mz_10_stg_base_original_normalizada: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          banco: string | null
+          centro_custo_contrato: string | null
+          classificacao_original: string | null
+          created_at: string
+          dados_originais_json: string | null
+          data_normalizada: string | null
+          data_original: string | null
+          empresa: string | null
+          historico: string | null
+          id_base_original: string | null
+          id_origem: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          status_tratamento: string | null
+          tipo_base: string | null
+          tipo_movimento: string | null
+          uso_migracao: string | null
+          valor_normalizado: string | null
+          valor_original: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          centro_custo_contrato?: string | null
+          classificacao_original?: string | null
+          created_at?: string
+          dados_originais_json?: string | null
+          data_normalizada?: string | null
+          data_original?: string | null
+          empresa?: string | null
+          historico?: string | null
+          id_base_original?: string | null
+          id_origem?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          status_tratamento?: string | null
+          tipo_base?: string | null
+          tipo_movimento?: string | null
+          uso_migracao?: string | null
+          valor_normalizado?: string | null
+          valor_original?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          centro_custo_contrato?: string | null
+          classificacao_original?: string | null
+          created_at?: string
+          dados_originais_json?: string | null
+          data_normalizada?: string | null
+          data_original?: string | null
+          empresa?: string | null
+          historico?: string | null
+          id_base_original?: string | null
+          id_origem?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          status_tratamento?: string | null
+          tipo_base?: string | null
+          tipo_movimento?: string | null
+          uso_migracao?: string | null
+          valor_normalizado?: string | null
+          valor_original?: string | null
+        }
+        Relationships: []
+      }
+      mz_20_stg_mapa_de_para_contabil_financeiro: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          banco: string | null
+          categoria_despesa_original: string | null
+          centro_custo: string | null
+          classificacao_gerencial: string | null
+          classificacao_original: string | null
+          competencia_original: string | null
+          conta_banco_codigo: string | null
+          conta_banco_nome: string | null
+          conta_resultado_codigo: string | null
+          conta_resultado_nome: string | null
+          created_at: string
+          criterio_classificacao: string | null
+          data_caixa: string | null
+          data_original: string | null
+          direto_indireto_aplicado: string | null
+          empresa: string | null
+          evento_base: string | null
+          evento_caixa: string | null
+          fixo_variavel_aplicado: string | null
+          forma_pagamento: string | null
+          grau_confianca: string | null
+          historico_original: string | null
+          id_lct: string | null
+          id_origem: string | null
+          id_sugestao_conta_resultado: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          pendencia_base: string | null
+          periodo_caixa: string | null
+          status_banco: string | null
+          status_validacao_base: string | null
+          tipo_custo_despesa_aplicado: string | null
+          tipo_original: string | null
+          valor: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          categoria_despesa_original?: string | null
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          classificacao_original?: string | null
+          competencia_original?: string | null
+          conta_banco_codigo?: string | null
+          conta_banco_nome?: string | null
+          conta_resultado_codigo?: string | null
+          conta_resultado_nome?: string | null
+          created_at?: string
+          criterio_classificacao?: string | null
+          data_caixa?: string | null
+          data_original?: string | null
+          direto_indireto_aplicado?: string | null
+          empresa?: string | null
+          evento_base?: string | null
+          evento_caixa?: string | null
+          fixo_variavel_aplicado?: string | null
+          forma_pagamento?: string | null
+          grau_confianca?: string | null
+          historico_original?: string | null
+          id_lct?: string | null
+          id_origem?: string | null
+          id_sugestao_conta_resultado?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          pendencia_base?: string | null
+          periodo_caixa?: string | null
+          status_banco?: string | null
+          status_validacao_base?: string | null
+          tipo_custo_despesa_aplicado?: string | null
+          tipo_original?: string | null
+          valor?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          categoria_despesa_original?: string | null
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          classificacao_original?: string | null
+          competencia_original?: string | null
+          conta_banco_codigo?: string | null
+          conta_banco_nome?: string | null
+          conta_resultado_codigo?: string | null
+          conta_resultado_nome?: string | null
+          created_at?: string
+          criterio_classificacao?: string | null
+          data_caixa?: string | null
+          data_original?: string | null
+          direto_indireto_aplicado?: string | null
+          empresa?: string | null
+          evento_base?: string | null
+          evento_caixa?: string | null
+          fixo_variavel_aplicado?: string | null
+          forma_pagamento?: string | null
+          grau_confianca?: string | null
+          historico_original?: string | null
+          id_lct?: string | null
+          id_origem?: string | null
+          id_sugestao_conta_resultado?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          pendencia_base?: string | null
+          periodo_caixa?: string | null
+          status_banco?: string | null
+          status_validacao_base?: string | null
+          tipo_custo_despesa_aplicado?: string | null
+          tipo_original?: string | null
+          valor?: string | null
+        }
+        Relationships: []
+      }
+      mz_21_stg_mapa_de_para_bancos: {
+        Row: {
+          arquivo_origem_carga: string
+          banco_norm: string | null
+          banco_original: string | null
+          codigo_conta_banco: string | null
+          created_at: string
+          id_sugestao_conta: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          nome_conta_banco: string | null
+          status_de_para_banco: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          banco_norm?: string | null
+          banco_original?: string | null
+          codigo_conta_banco?: string | null
+          created_at?: string
+          id_sugestao_conta?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          nome_conta_banco?: string | null
+          status_de_para_banco?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          banco_norm?: string | null
+          banco_original?: string | null
+          codigo_conta_banco?: string | null
+          created_at?: string
+          id_sugestao_conta?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          nome_conta_banco?: string | null
+          status_de_para_banco?: string | null
+        }
+        Relationships: []
+      }
+      mz_22_stg_sugestoes_novas_contas: {
+        Row: {
+          arquivo_origem_carga: string
+          classe_contabil: string | null
+          codigo_conta_pai_sugerida: string | null
+          codigo_conta_sugerido: string | null
+          created_at: string
+          decisao_usuario: string | null
+          direto_indireto_padrao: string | null
+          exemplos_historico_item: string | null
+          fixo_variavel_padrao: string | null
+          id_sugestao_conta: string | null
+          impacta_caixa: string | null
+          impacta_dre: string | null
+          justificativa: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          natureza_devedora_credora: string | null
+          nome_conta_sugerido: string | null
+          observacao_usuario: string | null
+          origem_sugestao: string | null
+          qtd_itens_orcamento: string | null
+          qtd_lancamentos_mestre_afetados: string | null
+          qtd_linhas_projetado: string | null
+          qtd_linhas_realizado_depara: string | null
+          status_aprovacao: string | null
+          tipo_conta: string | null
+          valor_lancamentos_mestre_afetados: string | null
+          valor_orcamento: string | null
+          valor_projetado: string | null
+          valor_realizado_depara: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          classe_contabil?: string | null
+          codigo_conta_pai_sugerida?: string | null
+          codigo_conta_sugerido?: string | null
+          created_at?: string
+          decisao_usuario?: string | null
+          direto_indireto_padrao?: string | null
+          exemplos_historico_item?: string | null
+          fixo_variavel_padrao?: string | null
+          id_sugestao_conta?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          justificativa?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          natureza_devedora_credora?: string | null
+          nome_conta_sugerido?: string | null
+          observacao_usuario?: string | null
+          origem_sugestao?: string | null
+          qtd_itens_orcamento?: string | null
+          qtd_lancamentos_mestre_afetados?: string | null
+          qtd_linhas_projetado?: string | null
+          qtd_linhas_realizado_depara?: string | null
+          status_aprovacao?: string | null
+          tipo_conta?: string | null
+          valor_lancamentos_mestre_afetados?: string | null
+          valor_orcamento?: string | null
+          valor_projetado?: string | null
+          valor_realizado_depara?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          classe_contabil?: string | null
+          codigo_conta_pai_sugerida?: string | null
+          codigo_conta_sugerido?: string | null
+          created_at?: string
+          decisao_usuario?: string | null
+          direto_indireto_padrao?: string | null
+          exemplos_historico_item?: string | null
+          fixo_variavel_padrao?: string | null
+          id_sugestao_conta?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          justificativa?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_devedora_credora?: string | null
+          nome_conta_sugerido?: string | null
+          observacao_usuario?: string | null
+          origem_sugestao?: string | null
+          qtd_itens_orcamento?: string | null
+          qtd_lancamentos_mestre_afetados?: string | null
+          qtd_linhas_projetado?: string | null
+          qtd_linhas_realizado_depara?: string | null
+          status_aprovacao?: string | null
+          tipo_conta?: string | null
+          valor_lancamentos_mestre_afetados?: string | null
+          valor_orcamento?: string | null
+          valor_projetado?: string | null
+          valor_realizado_depara?: string | null
+        }
+        Relationships: []
+      }
+      mz_23_stg_pendencias_de_para: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          banco: string | null
+          centro_custo: string | null
+          classificacao_original: string | null
+          created_at: string
+          empresa: string | null
+          grau_confianca: string | null
+          historico: string | null
+          id_lct: string | null
+          id_origem: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          pendencia: string | null
+          status_validacao: string | null
+          tipo_pendencia: string | null
+          valor: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          centro_custo?: string | null
+          classificacao_original?: string | null
+          created_at?: string
+          empresa?: string | null
+          grau_confianca?: string | null
+          historico?: string | null
+          id_lct?: string | null
+          id_origem?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          pendencia?: string | null
+          status_validacao?: string | null
+          tipo_pendencia?: string | null
+          valor?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          centro_custo?: string | null
+          classificacao_original?: string | null
+          created_at?: string
+          empresa?: string | null
+          grau_confianca?: string | null
+          historico?: string | null
+          id_lct?: string | null
+          id_origem?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          pendencia?: string | null
+          status_validacao?: string | null
+          tipo_pendencia?: string | null
+          valor?: string | null
+        }
+        Relationships: []
+      }
+      mz_24_dim_plano_contas_completo_proposto: {
+        Row: {
+          arquivo_origem_carga: string
+          centro_custo_padrao: string | null
+          classe_contabil: string | null
+          classificacao_gerencial_padrao: string | null
+          codigo_conta: string | null
+          codigo_conta_pai: string | null
+          conta_reduzida: string | null
+          created_at: string
+          direto_indireto_padrao: string | null
+          dre_codigo: string | null
+          dre_descricao: string | null
+          entra_fluxo: string | null
+          entra_orcamento: string | null
+          exige_contrato: string | null
+          fixo_variavel_padrao: string | null
+          grupo_contabil: string | null
+          grupo_dre: string | null
+          linha_csv: number
+          linha_dre_padrao: string | null
+          migration_batch_id: string
+          mz_id: number
+          natureza_devedora_credora: string | null
+          nivel: string | null
+          nome_conta: string | null
+          origem_conta: string | null
+          saldo_inicial: string | null
+          status_conta: string | null
+          tipo: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          centro_custo_padrao?: string | null
+          classe_contabil?: string | null
+          classificacao_gerencial_padrao?: string | null
+          codigo_conta?: string | null
+          codigo_conta_pai?: string | null
+          conta_reduzida?: string | null
+          created_at?: string
+          direto_indireto_padrao?: string | null
+          dre_codigo?: string | null
+          dre_descricao?: string | null
+          entra_fluxo?: string | null
+          entra_orcamento?: string | null
+          exige_contrato?: string | null
+          fixo_variavel_padrao?: string | null
+          grupo_contabil?: string | null
+          grupo_dre?: string | null
+          linha_csv: number
+          linha_dre_padrao?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          natureza_devedora_credora?: string | null
+          nivel?: string | null
+          nome_conta?: string | null
+          origem_conta?: string | null
+          saldo_inicial?: string | null
+          status_conta?: string | null
+          tipo?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          centro_custo_padrao?: string | null
+          classe_contabil?: string | null
+          classificacao_gerencial_padrao?: string | null
+          codigo_conta?: string | null
+          codigo_conta_pai?: string | null
+          conta_reduzida?: string | null
+          created_at?: string
+          direto_indireto_padrao?: string | null
+          dre_codigo?: string | null
+          dre_descricao?: string | null
+          entra_fluxo?: string | null
+          entra_orcamento?: string | null
+          exige_contrato?: string | null
+          fixo_variavel_padrao?: string | null
+          grupo_contabil?: string | null
+          grupo_dre?: string | null
+          linha_csv?: number
+          linha_dre_padrao?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_devedora_credora?: string | null
+          nivel?: string | null
+          nome_conta?: string | null
+          origem_conta?: string | null
+          saldo_inicial?: string | null
+          status_conta?: string | null
+          tipo?: string | null
+        }
+        Relationships: []
+      }
+      mz_25_stg_mapa_de_para_orcamento_contratos: {
+        Row: {
+          arquivo_origem_carga: string
+          classificacao_gerencial: string | null
+          conta_contabil_codigo: string | null
+          conta_contabil_nome: string | null
+          created_at: string
+          criterio_classificacao: string | null
+          direto_indireto: string | null
+          evento_sugerido: string | null
+          fixo_variavel: string | null
+          id_sugestao_conta: string | null
+          impacta_dre: string | null
+          item_orcamento: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          qtd_linhas: string | null
+          status_de_para: string | null
+          valor_total: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          classificacao_gerencial?: string | null
+          conta_contabil_codigo?: string | null
+          conta_contabil_nome?: string | null
+          created_at?: string
+          criterio_classificacao?: string | null
+          direto_indireto?: string | null
+          evento_sugerido?: string | null
+          fixo_variavel?: string | null
+          id_sugestao_conta?: string | null
+          impacta_dre?: string | null
+          item_orcamento?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          qtd_linhas?: string | null
+          status_de_para?: string | null
+          valor_total?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          classificacao_gerencial?: string | null
+          conta_contabil_codigo?: string | null
+          conta_contabil_nome?: string | null
+          created_at?: string
+          criterio_classificacao?: string | null
+          direto_indireto?: string | null
+          evento_sugerido?: string | null
+          fixo_variavel?: string | null
+          id_sugestao_conta?: string | null
+          impacta_dre?: string | null
+          item_orcamento?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          qtd_linhas?: string | null
+          status_de_para?: string | null
+          valor_total?: string | null
+        }
+        Relationships: []
+      }
+      mz_26_template_aprovacao_contas: {
+        Row: {
+          arquivo_origem_carga: string
+          classe_contabil: string | null
+          codigo_conta_pai_sugerida: string | null
+          codigo_conta_sugerido: string | null
+          codigo_final_aprovado: string | null
+          created_at: string
+          decisao_usuario: string | null
+          direto_indireto_padrao: string | null
+          fixo_variavel_padrao: string | null
+          id_sugestao_conta: string | null
+          impacta_caixa: string | null
+          impacta_dre: string | null
+          justificativa: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          natureza_devedora_credora: string | null
+          nome_conta_sugerido: string | null
+          nome_final_aprovado: string | null
+          observacao_usuario: string | null
+          qtd_itens_orcamento: string | null
+          qtd_lancamentos_mestre_afetados: string | null
+          qtd_linhas_realizado_depara: string | null
+          status_aprovacao: string | null
+          tipo_conta: string | null
+          valor_lancamentos_mestre_afetados: string | null
+          valor_orcamento: string | null
+          valor_realizado_depara: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          classe_contabil?: string | null
+          codigo_conta_pai_sugerida?: string | null
+          codigo_conta_sugerido?: string | null
+          codigo_final_aprovado?: string | null
+          created_at?: string
+          decisao_usuario?: string | null
+          direto_indireto_padrao?: string | null
+          fixo_variavel_padrao?: string | null
+          id_sugestao_conta?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          justificativa?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          natureza_devedora_credora?: string | null
+          nome_conta_sugerido?: string | null
+          nome_final_aprovado?: string | null
+          observacao_usuario?: string | null
+          qtd_itens_orcamento?: string | null
+          qtd_lancamentos_mestre_afetados?: string | null
+          qtd_linhas_realizado_depara?: string | null
+          status_aprovacao?: string | null
+          tipo_conta?: string | null
+          valor_lancamentos_mestre_afetados?: string | null
+          valor_orcamento?: string | null
+          valor_realizado_depara?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          classe_contabil?: string | null
+          codigo_conta_pai_sugerida?: string | null
+          codigo_conta_sugerido?: string | null
+          codigo_final_aprovado?: string | null
+          created_at?: string
+          decisao_usuario?: string | null
+          direto_indireto_padrao?: string | null
+          fixo_variavel_padrao?: string | null
+          id_sugestao_conta?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          justificativa?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_devedora_credora?: string | null
+          nome_conta_sugerido?: string | null
+          nome_final_aprovado?: string | null
+          observacao_usuario?: string | null
+          qtd_itens_orcamento?: string | null
+          qtd_lancamentos_mestre_afetados?: string | null
+          qtd_linhas_realizado_depara?: string | null
+          status_aprovacao?: string | null
+          tipo_conta?: string | null
+          valor_lancamentos_mestre_afetados?: string | null
+          valor_orcamento?: string | null
+          valor_realizado_depara?: string | null
+        }
+        Relationships: []
+      }
+      mz_27_reconciliacao_de_para_pacote_do_zero: {
+        Row: {
+          arquivo_origem_carga: string
+          created_at: string
+          linha_csv: number
+          metric: string | null
+          migration_batch_id: string
+          mz_id: number
+          quantidade: string | null
+          status: string | null
+          valor: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          created_at?: string
+          linha_csv: number
+          metric?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          quantidade?: string | null
+          status?: string | null
+          valor?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          created_at?: string
+          linha_csv?: number
+          metric?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          quantidade?: string | null
+          status?: string | null
+          valor?: string | null
+        }
+        Relationships: []
+      }
+      mz_29_stg_titulos_migracao: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          centro_custo: string | null
+          cliente_fornecedor: string | null
+          cnpj: string | null
+          conta_banco_liquidacao: string | null
+          conta_cliente_fornecedor: string | null
+          conta_contrapartida_resultado: string | null
+          contrato: string | null
+          created_at: string
+          data_competencia: string | null
+          data_emissao: string | null
+          data_liquidacao: string | null
+          data_vencimento: string | null
+          documento: string | null
+          empresa: string | null
+          evento_baixa: string | null
+          evento_competencia: string | null
+          grau_confianca: string | null
+          historico: string | null
+          id_lct_origem: string | null
+          id_origem: string | null
+          id_titulo: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          origem_titulo: string | null
+          pendencia: string | null
+          saldo_titulo: string | null
+          status_titulo: string | null
+          tipo_titulo: string | null
+          valor_liquidado: string | null
+          valor_titulo: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          centro_custo?: string | null
+          cliente_fornecedor?: string | null
+          cnpj?: string | null
+          conta_banco_liquidacao?: string | null
+          conta_cliente_fornecedor?: string | null
+          conta_contrapartida_resultado?: string | null
+          contrato?: string | null
+          created_at?: string
+          data_competencia?: string | null
+          data_emissao?: string | null
+          data_liquidacao?: string | null
+          data_vencimento?: string | null
+          documento?: string | null
+          empresa?: string | null
+          evento_baixa?: string | null
+          evento_competencia?: string | null
+          grau_confianca?: string | null
+          historico?: string | null
+          id_lct_origem?: string | null
+          id_origem?: string | null
+          id_titulo?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          origem_titulo?: string | null
+          pendencia?: string | null
+          saldo_titulo?: string | null
+          status_titulo?: string | null
+          tipo_titulo?: string | null
+          valor_liquidado?: string | null
+          valor_titulo?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          centro_custo?: string | null
+          cliente_fornecedor?: string | null
+          cnpj?: string | null
+          conta_banco_liquidacao?: string | null
+          conta_cliente_fornecedor?: string | null
+          conta_contrapartida_resultado?: string | null
+          contrato?: string | null
+          created_at?: string
+          data_competencia?: string | null
+          data_emissao?: string | null
+          data_liquidacao?: string | null
+          data_vencimento?: string | null
+          documento?: string | null
+          empresa?: string | null
+          evento_baixa?: string | null
+          evento_competencia?: string | null
+          grau_confianca?: string | null
+          historico?: string | null
+          id_lct_origem?: string | null
+          id_origem?: string | null
+          id_titulo?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          origem_titulo?: string | null
+          pendencia?: string | null
+          saldo_titulo?: string | null
+          status_titulo?: string | null
+          tipo_titulo?: string | null
+          valor_liquidado?: string | null
+          valor_titulo?: string | null
+        }
+        Relationships: []
+      }
+      mz_30_stg_lancamentos_mestre: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          banco: string | null
+          centro_custo: string | null
+          classificacao_gerencial: string | null
+          cliente_fornecedor: string | null
+          cnpj: string | null
+          conta_credito_codigo: string | null
+          conta_credito_nome: string | null
+          conta_debito_codigo: string | null
+          conta_debito_nome: string | null
+          contrato: string | null
+          created_at: string
+          data_caixa: string | null
+          data_competencia: string | null
+          data_vencimento: string | null
+          direto_indireto: string | null
+          empresa: string | null
+          evento: string | null
+          fixo_variavel: string | null
+          forma_pagamento: string | null
+          gera_partida: string | null
+          grau_confianca: string | null
+          grupo_credito: string | null
+          grupo_debito: string | null
+          historico: string | null
+          id_lct: string | null
+          id_lct_mestre: string | null
+          id_origem: string | null
+          id_sugestao_conta_credito: string | null
+          id_sugestao_conta_debito: string | null
+          id_titulo: string | null
+          impacta_balanco: string | null
+          impacta_caixa: string | null
+          impacta_dre: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          natureza_original: string | null
+          observacao: string | null
+          origem_lancamento: string | null
+          pendencia: string | null
+          periodo_caixa: string | null
+          periodo_competencia: string | null
+          status_conta_credito: string | null
+          status_conta_debito: string | null
+          status_validacao: string | null
+          tipo_custo_despesa: string | null
+          tipo_lancamento: string | null
+          tipo_movimento: string | null
+          valor: string | null
+          valor_credito: string | null
+          valor_debito: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          cliente_fornecedor?: string | null
+          cnpj?: string | null
+          conta_credito_codigo?: string | null
+          conta_credito_nome?: string | null
+          conta_debito_codigo?: string | null
+          conta_debito_nome?: string | null
+          contrato?: string | null
+          created_at?: string
+          data_caixa?: string | null
+          data_competencia?: string | null
+          data_vencimento?: string | null
+          direto_indireto?: string | null
+          empresa?: string | null
+          evento?: string | null
+          fixo_variavel?: string | null
+          forma_pagamento?: string | null
+          gera_partida?: string | null
+          grau_confianca?: string | null
+          grupo_credito?: string | null
+          grupo_debito?: string | null
+          historico?: string | null
+          id_lct?: string | null
+          id_lct_mestre?: string | null
+          id_origem?: string | null
+          id_sugestao_conta_credito?: string | null
+          id_sugestao_conta_debito?: string | null
+          id_titulo?: string | null
+          impacta_balanco?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          natureza_original?: string | null
+          observacao?: string | null
+          origem_lancamento?: string | null
+          pendencia?: string | null
+          periodo_caixa?: string | null
+          periodo_competencia?: string | null
+          status_conta_credito?: string | null
+          status_conta_debito?: string | null
+          status_validacao?: string | null
+          tipo_custo_despesa?: string | null
+          tipo_lancamento?: string | null
+          tipo_movimento?: string | null
+          valor?: string | null
+          valor_credito?: string | null
+          valor_debito?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          cliente_fornecedor?: string | null
+          cnpj?: string | null
+          conta_credito_codigo?: string | null
+          conta_credito_nome?: string | null
+          conta_debito_codigo?: string | null
+          conta_debito_nome?: string | null
+          contrato?: string | null
+          created_at?: string
+          data_caixa?: string | null
+          data_competencia?: string | null
+          data_vencimento?: string | null
+          direto_indireto?: string | null
+          empresa?: string | null
+          evento?: string | null
+          fixo_variavel?: string | null
+          forma_pagamento?: string | null
+          gera_partida?: string | null
+          grau_confianca?: string | null
+          grupo_credito?: string | null
+          grupo_debito?: string | null
+          historico?: string | null
+          id_lct?: string | null
+          id_lct_mestre?: string | null
+          id_origem?: string | null
+          id_sugestao_conta_credito?: string | null
+          id_sugestao_conta_debito?: string | null
+          id_titulo?: string | null
+          impacta_balanco?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_original?: string | null
+          observacao?: string | null
+          origem_lancamento?: string | null
+          pendencia?: string | null
+          periodo_caixa?: string | null
+          periodo_competencia?: string | null
+          status_conta_credito?: string | null
+          status_conta_debito?: string | null
+          status_validacao?: string | null
+          tipo_custo_despesa?: string | null
+          tipo_lancamento?: string | null
+          tipo_movimento?: string | null
+          valor?: string | null
+          valor_credito?: string | null
+          valor_debito?: string | null
+        }
+        Relationships: []
+      }
+      mz_31_fato_partidas_dobradas: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          centro_custo: string | null
+          classificacao_gerencial: string | null
+          conta_credito_codigo: string | null
+          conta_credito_nome: string | null
+          conta_debito_codigo: string | null
+          conta_debito_nome: string | null
+          contrato: string | null
+          created_at: string
+          data_caixa: string | null
+          data_competencia: string | null
+          direto_indireto: string | null
+          documento_origem: string | null
+          empresa: string | null
+          evento: string | null
+          fixo_variavel: string | null
+          grau_confianca: string | null
+          historico: string | null
+          id_lct: string | null
+          id_lct_mestre: string | null
+          id_origem: string | null
+          id_partida: string | null
+          id_titulo: string | null
+          impacta_balanco: string | null
+          impacta_caixa: string | null
+          impacta_dre: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          pendencia: string | null
+          periodo_caixa: string | null
+          periodo_competencia: string | null
+          status_partida: string | null
+          status_validacao: string | null
+          tipo_custo_despesa: string | null
+          valor_credito: string | null
+          valor_debito: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          conta_credito_codigo?: string | null
+          conta_credito_nome?: string | null
+          conta_debito_codigo?: string | null
+          conta_debito_nome?: string | null
+          contrato?: string | null
+          created_at?: string
+          data_caixa?: string | null
+          data_competencia?: string | null
+          direto_indireto?: string | null
+          documento_origem?: string | null
+          empresa?: string | null
+          evento?: string | null
+          fixo_variavel?: string | null
+          grau_confianca?: string | null
+          historico?: string | null
+          id_lct?: string | null
+          id_lct_mestre?: string | null
+          id_origem?: string | null
+          id_partida?: string | null
+          id_titulo?: string | null
+          impacta_balanco?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          pendencia?: string | null
+          periodo_caixa?: string | null
+          periodo_competencia?: string | null
+          status_partida?: string | null
+          status_validacao?: string | null
+          tipo_custo_despesa?: string | null
+          valor_credito?: string | null
+          valor_debito?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          conta_credito_codigo?: string | null
+          conta_credito_nome?: string | null
+          conta_debito_codigo?: string | null
+          conta_debito_nome?: string | null
+          contrato?: string | null
+          created_at?: string
+          data_caixa?: string | null
+          data_competencia?: string | null
+          direto_indireto?: string | null
+          documento_origem?: string | null
+          empresa?: string | null
+          evento?: string | null
+          fixo_variavel?: string | null
+          grau_confianca?: string | null
+          historico?: string | null
+          id_lct?: string | null
+          id_lct_mestre?: string | null
+          id_origem?: string | null
+          id_partida?: string | null
+          id_titulo?: string | null
+          impacta_balanco?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          pendencia?: string | null
+          periodo_caixa?: string | null
+          periodo_competencia?: string | null
+          status_partida?: string | null
+          status_validacao?: string | null
+          tipo_custo_despesa?: string | null
+          valor_credito?: string | null
+          valor_debito?: string | null
+        }
+        Relationships: []
+      }
+      mz_32_fato_razao_contabil: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          centro_custo: string | null
+          codigo_conta: string | null
+          conta_contabil: string | null
+          contrato: string | null
+          created_at: string
+          data_lancamento: string | null
+          documento_origem: string | null
+          empresa: string | null
+          grupo_contabil: string | null
+          historico: string | null
+          id_lct: string | null
+          id_lct_mestre: string | null
+          id_origem: string | null
+          id_partida: string | null
+          id_razao: string | null
+          id_titulo: string | null
+          impacta_balanco: string | null
+          impacta_caixa: string | null
+          impacta_dre: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          natureza_conta: string | null
+          pendencia: string | null
+          periodo: string | null
+          saldo_movimento: string | null
+          status_validacao: string | null
+          tipo_lancamento_conta: string | null
+          valor_credito_razao: string | null
+          valor_debito_razao: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          centro_custo?: string | null
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          contrato?: string | null
+          created_at?: string
+          data_lancamento?: string | null
+          documento_origem?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          historico?: string | null
+          id_lct?: string | null
+          id_lct_mestre?: string | null
+          id_origem?: string | null
+          id_partida?: string | null
+          id_razao?: string | null
+          id_titulo?: string | null
+          impacta_balanco?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          natureza_conta?: string | null
+          pendencia?: string | null
+          periodo?: string | null
+          saldo_movimento?: string | null
+          status_validacao?: string | null
+          tipo_lancamento_conta?: string | null
+          valor_credito_razao?: string | null
+          valor_debito_razao?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          centro_custo?: string | null
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          contrato?: string | null
+          created_at?: string
+          data_lancamento?: string | null
+          documento_origem?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          historico?: string | null
+          id_lct?: string | null
+          id_lct_mestre?: string | null
+          id_origem?: string | null
+          id_partida?: string | null
+          id_razao?: string | null
+          id_titulo?: string | null
+          impacta_balanco?: string | null
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_conta?: string | null
+          pendencia?: string | null
+          periodo?: string | null
+          saldo_movimento?: string | null
+          status_validacao?: string | null
+          tipo_lancamento_conta?: string | null
+          valor_credito_razao?: string | null
+          valor_debito_razao?: string | null
+        }
+        Relationships: []
+      }
+      mz_33_fato_balancete: {
+        Row: {
+          arquivo_origem_carga: string
+          codigo_conta: string | null
+          conta_contabil: string | null
+          created_at: string
+          creditos: string | null
+          debitos: string | null
+          empresa: string | null
+          grupo_contabil: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          natureza_conta: string | null
+          periodo: string | null
+          qtd_lancamentos: string | null
+          saldo_final: string | null
+          saldo_inicial: string | null
+          saldo_movimento: string | null
+          status_balancete: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          created_at?: string
+          creditos?: string | null
+          debitos?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          natureza_conta?: string | null
+          periodo?: string | null
+          qtd_lancamentos?: string | null
+          saldo_final?: string | null
+          saldo_inicial?: string | null
+          saldo_movimento?: string | null
+          status_balancete?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          created_at?: string
+          creditos?: string | null
+          debitos?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_conta?: string | null
+          periodo?: string | null
+          qtd_lancamentos?: string | null
+          saldo_final?: string | null
+          saldo_inicial?: string | null
+          saldo_movimento?: string | null
+          status_balancete?: string | null
+        }
+        Relationships: []
+      }
+      mz_40_fato_fluxo_caixa_realizado: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          banco: string | null
+          categoria_despesa: string | null
+          centro_custo: string | null
+          classificacao_gerencial: string | null
+          classificacao_original: string | null
+          competencia_original: string | null
+          conta_banco_codigo: string | null
+          conta_banco_nome: string | null
+          conta_resultado_codigo: string | null
+          conta_resultado_nome: string | null
+          created_at: string
+          data_caixa: string | null
+          direto_indireto_aplicado: string | null
+          empresa: string | null
+          evento: string | null
+          fixo_variavel_aplicado: string | null
+          fluxo: string | null
+          forma_pagamento: string | null
+          historico: string | null
+          id_fluxo: string | null
+          id_lct: string | null
+          id_origem: string | null
+          impacta_caixa: string | null
+          impacta_dre_base: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          pendencia: string | null
+          periodo_caixa: string | null
+          status_fluxo: string | null
+          tipo_custo_despesa_aplicado: string | null
+          tipo_movimento: string | null
+          valor: string | null
+          valor_entrada: string | null
+          valor_liquido: string | null
+          valor_saida: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          categoria_despesa?: string | null
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          classificacao_original?: string | null
+          competencia_original?: string | null
+          conta_banco_codigo?: string | null
+          conta_banco_nome?: string | null
+          conta_resultado_codigo?: string | null
+          conta_resultado_nome?: string | null
+          created_at?: string
+          data_caixa?: string | null
+          direto_indireto_aplicado?: string | null
+          empresa?: string | null
+          evento?: string | null
+          fixo_variavel_aplicado?: string | null
+          fluxo?: string | null
+          forma_pagamento?: string | null
+          historico?: string | null
+          id_fluxo?: string | null
+          id_lct?: string | null
+          id_origem?: string | null
+          impacta_caixa?: string | null
+          impacta_dre_base?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          pendencia?: string | null
+          periodo_caixa?: string | null
+          status_fluxo?: string | null
+          tipo_custo_despesa_aplicado?: string | null
+          tipo_movimento?: string | null
+          valor?: string | null
+          valor_entrada?: string | null
+          valor_liquido?: string | null
+          valor_saida?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          categoria_despesa?: string | null
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          classificacao_original?: string | null
+          competencia_original?: string | null
+          conta_banco_codigo?: string | null
+          conta_banco_nome?: string | null
+          conta_resultado_codigo?: string | null
+          conta_resultado_nome?: string | null
+          created_at?: string
+          data_caixa?: string | null
+          direto_indireto_aplicado?: string | null
+          empresa?: string | null
+          evento?: string | null
+          fixo_variavel_aplicado?: string | null
+          fluxo?: string | null
+          forma_pagamento?: string | null
+          historico?: string | null
+          id_fluxo?: string | null
+          id_lct?: string | null
+          id_origem?: string | null
+          impacta_caixa?: string | null
+          impacta_dre_base?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          pendencia?: string | null
+          periodo_caixa?: string | null
+          status_fluxo?: string | null
+          tipo_custo_despesa_aplicado?: string | null
+          tipo_movimento?: string | null
+          valor?: string | null
+          valor_entrada?: string | null
+          valor_liquido?: string | null
+          valor_saida?: string | null
+        }
+        Relationships: []
+      }
+      mz_41_fato_fluxo_caixa_projetado: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          banco: string | null
+          categoria_despesa: string | null
+          centro_custo: string | null
+          classificacao_gerencial: string | null
+          classificacao_original: string | null
+          competencia_original: string | null
+          conta_banco_codigo: string | null
+          conta_banco_nome: string | null
+          conta_resultado_codigo: string | null
+          conta_resultado_nome: string | null
+          created_at: string
+          data_prevista: string | null
+          direto_indireto: string | null
+          empresa: string | null
+          evento_sugerido: string | null
+          fixo_variavel: string | null
+          forma_pagamento: string | null
+          historico: string | null
+          id_origem: string | null
+          id_projecao: string | null
+          id_sugestao_conta: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          origem_previsao: string | null
+          pendencia: string | null
+          periodo_previsto: string | null
+          probabilidade: string | null
+          status_projecao: string | null
+          tipo_movimento: string | null
+          valor_entrada_previsto: string | null
+          valor_liquido_previsto: string | null
+          valor_previsto: string | null
+          valor_saida_previsto: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          categoria_despesa?: string | null
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          classificacao_original?: string | null
+          competencia_original?: string | null
+          conta_banco_codigo?: string | null
+          conta_banco_nome?: string | null
+          conta_resultado_codigo?: string | null
+          conta_resultado_nome?: string | null
+          created_at?: string
+          data_prevista?: string | null
+          direto_indireto?: string | null
+          empresa?: string | null
+          evento_sugerido?: string | null
+          fixo_variavel?: string | null
+          forma_pagamento?: string | null
+          historico?: string | null
+          id_origem?: string | null
+          id_projecao?: string | null
+          id_sugestao_conta?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          origem_previsao?: string | null
+          pendencia?: string | null
+          periodo_previsto?: string | null
+          probabilidade?: string | null
+          status_projecao?: string | null
+          tipo_movimento?: string | null
+          valor_entrada_previsto?: string | null
+          valor_liquido_previsto?: string | null
+          valor_previsto?: string | null
+          valor_saida_previsto?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          categoria_despesa?: string | null
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          classificacao_original?: string | null
+          competencia_original?: string | null
+          conta_banco_codigo?: string | null
+          conta_banco_nome?: string | null
+          conta_resultado_codigo?: string | null
+          conta_resultado_nome?: string | null
+          created_at?: string
+          data_prevista?: string | null
+          direto_indireto?: string | null
+          empresa?: string | null
+          evento_sugerido?: string | null
+          fixo_variavel?: string | null
+          forma_pagamento?: string | null
+          historico?: string | null
+          id_origem?: string | null
+          id_projecao?: string | null
+          id_sugestao_conta?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          origem_previsao?: string | null
+          pendencia?: string | null
+          periodo_previsto?: string | null
+          probabilidade?: string | null
+          status_projecao?: string | null
+          tipo_movimento?: string | null
+          valor_entrada_previsto?: string | null
+          valor_liquido_previsto?: string | null
+          valor_previsto?: string | null
+          valor_saida_previsto?: string | null
+        }
+        Relationships: []
+      }
+      mz_50_fato_orcamento_contratos_competencia: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          classificacao_gerencial: string | null
+          cliente: string | null
+          conta_contabil_codigo: string | null
+          conta_contabil_nome: string | null
+          contrato: string | null
+          created_at: string
+          criterio_classificacao: string | null
+          direto_indireto: string | null
+          empresa: string | null
+          evento_sugerido: string | null
+          fim_contrato: string | null
+          fim_contrato_original: string | null
+          fixo_variavel: string | null
+          id_orcamento_item: string | null
+          id_origem: string | null
+          id_sugestao_conta: string | null
+          impacta_dre: string | null
+          item_orcamento: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          orcado_executado_original: string | null
+          pendencia: string | null
+          posto: string | null
+          quantidade: string | null
+          servico: string | null
+          sindicato: string | null
+          status_contrato: string | null
+          status_orcamento: string | null
+          tipo_orcamento: string | null
+          valor_orcado_executado: string | null
+          valor_original: string | null
+          vigencia_inicio: string | null
+          vigencia_original: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          classificacao_gerencial?: string | null
+          cliente?: string | null
+          conta_contabil_codigo?: string | null
+          conta_contabil_nome?: string | null
+          contrato?: string | null
+          created_at?: string
+          criterio_classificacao?: string | null
+          direto_indireto?: string | null
+          empresa?: string | null
+          evento_sugerido?: string | null
+          fim_contrato?: string | null
+          fim_contrato_original?: string | null
+          fixo_variavel?: string | null
+          id_orcamento_item?: string | null
+          id_origem?: string | null
+          id_sugestao_conta?: string | null
+          impacta_dre?: string | null
+          item_orcamento?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          orcado_executado_original?: string | null
+          pendencia?: string | null
+          posto?: string | null
+          quantidade?: string | null
+          servico?: string | null
+          sindicato?: string | null
+          status_contrato?: string | null
+          status_orcamento?: string | null
+          tipo_orcamento?: string | null
+          valor_orcado_executado?: string | null
+          valor_original?: string | null
+          vigencia_inicio?: string | null
+          vigencia_original?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          classificacao_gerencial?: string | null
+          cliente?: string | null
+          conta_contabil_codigo?: string | null
+          conta_contabil_nome?: string | null
+          contrato?: string | null
+          created_at?: string
+          criterio_classificacao?: string | null
+          direto_indireto?: string | null
+          empresa?: string | null
+          evento_sugerido?: string | null
+          fim_contrato?: string | null
+          fim_contrato_original?: string | null
+          fixo_variavel?: string | null
+          id_orcamento_item?: string | null
+          id_origem?: string | null
+          id_sugestao_conta?: string | null
+          impacta_dre?: string | null
+          item_orcamento?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          orcado_executado_original?: string | null
+          pendencia?: string | null
+          posto?: string | null
+          quantidade?: string | null
+          servico?: string | null
+          sindicato?: string | null
+          status_contrato?: string | null
+          status_orcamento?: string | null
+          tipo_orcamento?: string | null
+          valor_orcado_executado?: string | null
+          valor_original?: string | null
+          vigencia_inicio?: string | null
+          vigencia_original?: string | null
+        }
+        Relationships: []
+      }
+      mz_60_view_dre_gerencial_competencia: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          centro_custo: string | null
+          classificacao_gerencial: string | null
+          conta_credito_codigo: string | null
+          conta_credito_nome: string | null
+          conta_debito_codigo: string | null
+          conta_debito_nome: string | null
+          contrato: string | null
+          created_at: string
+          direto_indireto: string | null
+          empresa: string | null
+          fixo_variavel: string | null
+          id_lct: string | null
+          id_lct_mestre: string | null
+          id_origem: string | null
+          linha_csv: number
+          linha_dre: string | null
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          pendencia: string | null
+          periodo_competencia: string | null
+          status_validacao: string | null
+          tipo_custo_despesa: string | null
+          valor_dre: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          conta_credito_codigo?: string | null
+          conta_credito_nome?: string | null
+          conta_debito_codigo?: string | null
+          conta_debito_nome?: string | null
+          contrato?: string | null
+          created_at?: string
+          direto_indireto?: string | null
+          empresa?: string | null
+          fixo_variavel?: string | null
+          id_lct?: string | null
+          id_lct_mestre?: string | null
+          id_origem?: string | null
+          linha_csv: number
+          linha_dre?: string | null
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          pendencia?: string | null
+          periodo_competencia?: string | null
+          status_validacao?: string | null
+          tipo_custo_despesa?: string | null
+          valor_dre?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          centro_custo?: string | null
+          classificacao_gerencial?: string | null
+          conta_credito_codigo?: string | null
+          conta_credito_nome?: string | null
+          conta_debito_codigo?: string | null
+          conta_debito_nome?: string | null
+          contrato?: string | null
+          created_at?: string
+          direto_indireto?: string | null
+          empresa?: string | null
+          fixo_variavel?: string | null
+          id_lct?: string | null
+          id_lct_mestre?: string | null
+          id_origem?: string | null
+          linha_csv?: number
+          linha_dre?: string | null
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          pendencia?: string | null
+          periodo_competencia?: string | null
+          status_validacao?: string | null
+          tipo_custo_despesa?: string | null
+          valor_dre?: string | null
+        }
+        Relationships: []
+      }
+      mz_61_view_dre_caixa_gerencial: {
+        Row: {
+          arquivo_origem_carga: string
+          banco: string | null
+          centro_custo: string | null
+          classificacao_original: string | null
+          created_at: string
+          data_caixa: string | null
+          empresa: string | null
+          evento: string | null
+          historico: string | null
+          id_fluxo: string | null
+          impacta_dre_base: string | null
+          linha_csv: number
+          linha_dre_caixa: string | null
+          migration_batch_id: string
+          mz_id: number
+          pendencia: string | null
+          periodo_caixa: string | null
+          status_fluxo: string | null
+          valor_dre_caixa: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          banco?: string | null
+          centro_custo?: string | null
+          classificacao_original?: string | null
+          created_at?: string
+          data_caixa?: string | null
+          empresa?: string | null
+          evento?: string | null
+          historico?: string | null
+          id_fluxo?: string | null
+          impacta_dre_base?: string | null
+          linha_csv: number
+          linha_dre_caixa?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          pendencia?: string | null
+          periodo_caixa?: string | null
+          status_fluxo?: string | null
+          valor_dre_caixa?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          banco?: string | null
+          centro_custo?: string | null
+          classificacao_original?: string | null
+          created_at?: string
+          data_caixa?: string | null
+          empresa?: string | null
+          evento?: string | null
+          historico?: string | null
+          id_fluxo?: string | null
+          impacta_dre_base?: string | null
+          linha_csv?: number
+          linha_dre_caixa?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          pendencia?: string | null
+          periodo_caixa?: string | null
+          status_fluxo?: string | null
+          valor_dre_caixa?: string | null
+        }
+        Relationships: []
+      }
+      mz_62_view_ativo: {
+        Row: {
+          arquivo_origem_carga: string
+          codigo_conta: string | null
+          conta_contabil: string | null
+          created_at: string
+          creditos: string | null
+          debitos: string | null
+          empresa: string | null
+          grupo_contabil: string | null
+          grupo_topo: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          natureza_conta: string | null
+          periodo: string | null
+          qtd_lancamentos: string | null
+          saldo_final: string | null
+          saldo_inicial: string | null
+          saldo_movimento: string | null
+          status_balancete: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          created_at?: string
+          creditos?: string | null
+          debitos?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          grupo_topo?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          natureza_conta?: string | null
+          periodo?: string | null
+          qtd_lancamentos?: string | null
+          saldo_final?: string | null
+          saldo_inicial?: string | null
+          saldo_movimento?: string | null
+          status_balancete?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          created_at?: string
+          creditos?: string | null
+          debitos?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          grupo_topo?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_conta?: string | null
+          periodo?: string | null
+          qtd_lancamentos?: string | null
+          saldo_final?: string | null
+          saldo_inicial?: string | null
+          saldo_movimento?: string | null
+          status_balancete?: string | null
+        }
+        Relationships: []
+      }
+      mz_63_view_passivo: {
+        Row: {
+          arquivo_origem_carga: string
+          codigo_conta: string | null
+          conta_contabil: string | null
+          created_at: string
+          creditos: string | null
+          debitos: string | null
+          empresa: string | null
+          grupo_contabil: string | null
+          grupo_topo: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          natureza_conta: string | null
+          periodo: string | null
+          qtd_lancamentos: string | null
+          saldo_final: string | null
+          saldo_inicial: string | null
+          saldo_movimento: string | null
+          status_balancete: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          created_at?: string
+          creditos?: string | null
+          debitos?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          grupo_topo?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          natureza_conta?: string | null
+          periodo?: string | null
+          qtd_lancamentos?: string | null
+          saldo_final?: string | null
+          saldo_inicial?: string | null
+          saldo_movimento?: string | null
+          status_balancete?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          created_at?: string
+          creditos?: string | null
+          debitos?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          grupo_topo?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_conta?: string | null
+          periodo?: string | null
+          qtd_lancamentos?: string | null
+          saldo_final?: string | null
+          saldo_inicial?: string | null
+          saldo_movimento?: string | null
+          status_balancete?: string | null
+        }
+        Relationships: []
+      }
+      mz_64_view_patrimonio_liquido: {
+        Row: {
+          arquivo_origem_carga: string
+          codigo_conta: string | null
+          conta_contabil: string | null
+          created_at: string
+          creditos: string | null
+          debitos: string | null
+          empresa: string | null
+          grupo_contabil: string | null
+          grupo_topo: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          natureza_conta: string | null
+          periodo: string | null
+          qtd_lancamentos: string | null
+          saldo_final: string | null
+          saldo_inicial: string | null
+          saldo_movimento: string | null
+          status_balancete: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          created_at?: string
+          creditos?: string | null
+          debitos?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          grupo_topo?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          natureza_conta?: string | null
+          periodo?: string | null
+          qtd_lancamentos?: string | null
+          saldo_final?: string | null
+          saldo_inicial?: string | null
+          saldo_movimento?: string | null
+          status_balancete?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          created_at?: string
+          creditos?: string | null
+          debitos?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          grupo_topo?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_conta?: string | null
+          periodo?: string | null
+          qtd_lancamentos?: string | null
+          saldo_final?: string | null
+          saldo_inicial?: string | null
+          saldo_movimento?: string | null
+          status_balancete?: string | null
+        }
+        Relationships: []
+      }
+      mz_65_view_contas_resultado: {
+        Row: {
+          arquivo_origem_carga: string
+          codigo_conta: string | null
+          conta_contabil: string | null
+          created_at: string
+          creditos: string | null
+          debitos: string | null
+          empresa: string | null
+          grupo_contabil: string | null
+          grupo_topo: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          natureza_conta: string | null
+          periodo: string | null
+          qtd_lancamentos: string | null
+          saldo_final: string | null
+          saldo_inicial: string | null
+          saldo_movimento: string | null
+          status_balancete: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          created_at?: string
+          creditos?: string | null
+          debitos?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          grupo_topo?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          natureza_conta?: string | null
+          periodo?: string | null
+          qtd_lancamentos?: string | null
+          saldo_final?: string | null
+          saldo_inicial?: string | null
+          saldo_movimento?: string | null
+          status_balancete?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          codigo_conta?: string | null
+          conta_contabil?: string | null
+          created_at?: string
+          creditos?: string | null
+          debitos?: string | null
+          empresa?: string | null
+          grupo_contabil?: string | null
+          grupo_topo?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_conta?: string | null
+          periodo?: string | null
+          qtd_lancamentos?: string | null
+          saldo_final?: string | null
+          saldo_inicial?: string | null
+          saldo_movimento?: string | null
+          status_balancete?: string | null
+        }
+        Relationships: []
+      }
+      mz_90_stg_pendencias_validacao: {
+        Row: {
+          arquivo_origem: string | null
+          arquivo_origem_carga: string
+          banco: string | null
+          centro_custo: string | null
+          conta_credito_codigo: string | null
+          conta_credito_nome: string | null
+          conta_debito_codigo: string | null
+          conta_debito_nome: string | null
+          contrato: string | null
+          created_at: string
+          empresa: string | null
+          evento: string | null
+          grau_confianca: string | null
+          historico: string | null
+          id_lct: string | null
+          id_lct_mestre: string | null
+          id_origem: string | null
+          linha_csv: number
+          linha_origem: string | null
+          migration_batch_id: string
+          mz_id: number
+          natureza_original: string | null
+          observacao: string | null
+          pendencia: string | null
+          status_validacao: string | null
+          tipo_pendencia: string | null
+          valor: string | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          centro_custo?: string | null
+          conta_credito_codigo?: string | null
+          conta_credito_nome?: string | null
+          conta_debito_codigo?: string | null
+          conta_debito_nome?: string | null
+          contrato?: string | null
+          created_at?: string
+          empresa?: string | null
+          evento?: string | null
+          grau_confianca?: string | null
+          historico?: string | null
+          id_lct?: string | null
+          id_lct_mestre?: string | null
+          id_origem?: string | null
+          linha_csv: number
+          linha_origem?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          natureza_original?: string | null
+          observacao?: string | null
+          pendencia?: string | null
+          status_validacao?: string | null
+          tipo_pendencia?: string | null
+          valor?: string | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          arquivo_origem_carga?: string
+          banco?: string | null
+          centro_custo?: string | null
+          conta_credito_codigo?: string | null
+          conta_credito_nome?: string | null
+          conta_debito_codigo?: string | null
+          conta_debito_nome?: string | null
+          contrato?: string | null
+          created_at?: string
+          empresa?: string | null
+          evento?: string | null
+          grau_confianca?: string | null
+          historico?: string | null
+          id_lct?: string | null
+          id_lct_mestre?: string | null
+          id_origem?: string | null
+          linha_csv?: number
+          linha_origem?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          natureza_original?: string | null
+          observacao?: string | null
+          pendencia?: string | null
+          status_validacao?: string | null
+          tipo_pendencia?: string | null
+          valor?: string | null
+        }
+        Relationships: []
+      }
+      mz_91_stg_logs_processamento: {
+        Row: {
+          arquivo_origem_carga: string
+          created_at: string
+          data_hora_geracao: string | null
+          detalhe: string | null
+          etapa: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id: number
+          status: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          created_at?: string
+          data_hora_geracao?: string | null
+          detalhe?: string | null
+          etapa?: string | null
+          linha_csv: number
+          migration_batch_id: string
+          mz_id?: number
+          status?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          created_at?: string
+          data_hora_geracao?: string | null
+          detalhe?: string | null
+          etapa?: string | null
+          linha_csv?: number
+          migration_batch_id?: string
+          mz_id?: number
+          status?: string | null
+        }
+        Relationships: []
+      }
+      mz_92_stg_reconciliacao_migracao: {
+        Row: {
+          arquivo_origem_carga: string
+          bloco: string | null
+          created_at: string
+          linha_csv: number
+          metrica: string | null
+          migration_batch_id: string
+          mz_id: number
+          quantidade: string | null
+          status: string | null
+          valor: string | null
+        }
+        Insert: {
+          arquivo_origem_carga?: string
+          bloco?: string | null
+          created_at?: string
+          linha_csv: number
+          metrica?: string | null
+          migration_batch_id: string
+          mz_id?: number
+          quantidade?: string | null
+          status?: string | null
+          valor?: string | null
+        }
+        Update: {
+          arquivo_origem_carga?: string
+          bloco?: string | null
+          created_at?: string
+          linha_csv?: number
+          metrica?: string | null
+          migration_batch_id?: string
+          mz_id?: number
+          quantidade?: string | null
+          status?: string | null
+          valor?: string | null
+        }
+        Relationships: []
+      }
+      mz_status: {
+        Row: {
+          arquivo: string
+          created_at: string
+          finalizou_em: string | null
+          id: string
+          iniciou_em: string | null
+          linhas_carregadas: number
+          linhas_esperadas: number
+          migration_batch_id: string | null
+          status: string
+          storage_path: string | null
+          tabela: string
+          ultimo_erro: string | null
+          updated_at: string
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          arquivo: string
+          created_at?: string
+          finalizou_em?: string | null
+          id?: string
+          iniciou_em?: string | null
+          linhas_carregadas?: number
+          linhas_esperadas?: number
+          migration_batch_id?: string | null
+          status?: string
+          storage_path?: string | null
+          tabela: string
+          ultimo_erro?: string | null
+          updated_at?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          arquivo?: string
+          created_at?: string
+          finalizou_em?: string | null
+          id?: string
+          iniciou_em?: string | null
+          linhas_carregadas?: number
+          linhas_esperadas?: number
+          migration_batch_id?: string | null
+          status?: string
+          storage_path?: string | null
+          tabela?: string
+          ultimo_erro?: string | null
+          updated_at?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       nf_entrada: {
         Row: {
           almoxarifado_id: string | null
