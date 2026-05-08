@@ -13930,6 +13930,16 @@ export type Database = {
         }
         Returns: Json
       }
+      fluxo_caixa_diario: {
+        Args: { _data_fim: string; _data_ini: string; _empresa_id: string }
+        Returns: {
+          bloco: string
+          categoria: string
+          dia: string
+          saldo_inicial: number
+          valor: number
+        }[]
+      }
       fn_gerar_cronograma_provisorio: {
         Args: { p_contrato_id: string; p_meses?: number }
         Returns: number
