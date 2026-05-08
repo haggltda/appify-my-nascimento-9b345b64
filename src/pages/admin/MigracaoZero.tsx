@@ -219,7 +219,7 @@ export default function MigracaoZero() {
               <label>
                 <input
                   type="file"
-                  accept=".csv,text/csv"
+                  accept=".csv,.gz,text/csv,application/gzip"
                   multiple
                   className="hidden"
                   onChange={(e) => {
@@ -303,7 +303,7 @@ export default function MigracaoZero() {
                       <label className="inline-flex">
                         <Input
                           type="file"
-                          accept=".csv,text/csv"
+                          accept=".csv,.gz,text/csv,application/gzip"
                           className="hidden"
                           disabled={!!busy[r.arquivo]}
                           onChange={(e) => {
