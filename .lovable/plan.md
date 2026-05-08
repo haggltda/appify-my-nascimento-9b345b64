@@ -1,151 +1,160 @@
+## Módulo: Gerenciador de Tarefas / Plano de Ações Nascimento
 
-# Plano V2 — Implantação integrada Financeiro / Orçamento / Razão-DRE / Fluxo / Painel Presidência
+Plano técnico para aprovação **antes** da implementação. Após o "ok", crio migrations, frontend e carrego as 123 ações.
 
-Estimativa provável: **~200 créditos** (faixa 120–360 dependendo de iterações).
-Ordem segue o prompt V2 original (item 14), com reaproveitamento do que já foi entregue.
+### 1. Verificações já feitas
 
-## Já executado (não recontabilizado)
+- `profiles` (id, empresa_id, display_name, email, ativo) ✅
+- `empresas`, `user_roles`, `centros_custo`, `contrato` ✅
+- Funções `has_role(user, role)` e `get_user_empresa(user)` ✅
+- **Erica, Yuri e Helena localizados sem ambiguidade**, todos na empresa HAGG (`5a61c769-…bce8`):
+  - Érica Souza Ávila — `ab761a12-…16e2`
+  - Yuri Rosa — `3baeb855-…b288e`
+  - Helena Nascimento — `60e5bb0a-…1ea7`
+- Bucket privado `anexos` será reutilizado.
 
-- Diagnóstico inicial de schema (tabelas `mz_*`, `contrato`, `cronograma_faturamento`, `empresas`, `centros_custo`).
-- Etapa 1 — Faturamento → `titulo_receber`: plano (`.lovable/plan.md`), hook `useTituloReceber.ts`, migração inicial em `titulo_receber` (FK `cronograma_parcela_id`), UI parcial em `FaturamentoContratoTab.tsx`.
-- Confirmação de que `contrato` está vazio (decisão pendente: promover de `mz_50_fato_orcamento_contratos_competencia` ou aguardar carga oficial de receita).
+### 2. Frontend — arquivos a criar
 
-## Bloco 1 — Auditoria técnica completa (~7 créditos)
+```
+src/pages/plano-acoes/
+  Dashboard.tsx          (/app/plano-acoes/dashboard)
+  Lista.tsx              (/app/plano-acoes)
+  Kanban.tsx             (/app/plano-acoes/kanban)
+  Detalhe.tsx            (/app/plano-acoes/:id  e  /nova)
+  Importar.tsx           (/app/plano-acoes/importar)
+  Aprovacoes.tsx         (/app/plano-acoes/aprovacoes)
+  Configuracoes.tsx      (/app/plano-acoes/configuracoes)
+  components/
+    AcaoForm.tsx
+    AcaoStatusBadge.tsx
+    AcaoFiltros.tsx
+    AcaoComentarios.tsx
+    AcaoAnexos.tsx
+    AcaoHistorico.tsx
+    KanbanColuna.tsx
+    PendenciaChip.tsx
+  hooks/
+    usePlanoAcoes.ts
+    usePlanoAcaoPermissao.ts
+```
 
-- Inventário de rotas, telas, hooks e RPCs.
-- Mapa de duplicidades (`conciliacao_regra` vs `conciliacao_regras`, views `mz_*` vs produtivas).
-- RLS atual por tabela sensível, roles existentes, `has_role`, `get_user_empresa`.
-- Entrega: relatório `.lovable/auditoria-v2.md`.
+Edição:
+- `src/App.tsx` — registro das 7 rotas dentro do shell autenticado.
+- `src/components/layout/Sidebar.tsx` — novo grupo "Plano de Ações" (renderizado só se `pode_visualizar` ou admin).
 
-## Bloco 2 — Governança de carga + dedupe (~20 créditos)
+### 3. Banco — novas tabelas
 
-- Tabela `carga_lote` (batch_id, arquivo, usuário, status, totais, hash).
-- Coluna `hash_dedup` + índice único parcial nas tabelas-fato produtivas.
-- Função `fn_simular_carga(batch_id)` → retorna {novos, duplicados, pendentes, bloqueados, reconciliação}.
-- Função `fn_promover_lote(batch_id)` e `fn_rollback_lote(batch_id)`.
-- Tela `Admin > Cargas` com diagnóstico/aprovação/promoção/rollback.
+Todas com `empresa_id`, `created_at`, `updated_at`, RLS habilitada:
 
-## Bloco 3 — De-para empresa / CC / contrato / conta / DRE (~16 créditos)
+| Tabela | Função |
+|---|---|
+| `plano_acao` | ação principal (todos os campos do prompt §4.1, incluindo originais preservados, `pendencias_iniciais text[]`, `hash_origem`, `metadata_origem jsonb`, `deleted_at`) |
+| `plano_acao_comentario` | comentários por ação |
+| `plano_acao_anexo` | metadados dos arquivos no bucket `anexos` |
+| `plano_acao_historico` | auditoria por evento/campo |
+| `plano_acao_import_batch` | cabeçalho de importação |
+| `plano_acao_import_item` | linhas com `payload_original jsonb` e pendências |
+| `plano_acao_usuario_permissao` | ACL específica do módulo (8 flags booleanas) |
 
-- Tabelas `mapa_empresa`, `mapa_centro_custo`, `mapa_contrato`, `mapa_conta`, `mapa_dre`.
-- UI de resolução de pendências (linhas em staging com `status = PENDENTE_*`).
-- Bloqueio de promoção enquanto houver pendências críticas.
+Idempotência:
+- `UNIQUE (empresa_id, id_importacao)` em `plano_acao` → upsert por chave natural.
+- `UNIQUE (empresa_id, profile_id)` em `plano_acao_usuario_permissao`.
 
-## Bloco 4 — Promoção `mz_*` → produtivas (~25 créditos)
+### 4. Segurança / RLS
 
-Promover, com reconciliação por empresa/competência/CC/contrato/conta:
+Função `SECURITY DEFINER`:
 
-- Razão (`mz_32` → `lancamento_contabil` + `lancamento_partida`).
-- Balancete (`mz_33` → views produtivas).
-- DRE gerencial (`mz_60`/`mz_61` → `realizado_lancamentos` + `dre_linhas`).
-- Orçamento de contratos (`mz_50` → `orcamento_contrato` + `orcamento_contrato_linha`).
-- Cabeçalhos de contrato + cronograma de faturamento (decisão da Opção A/C que ficou pendente).
+```sql
+plano_acao_can_access(p_user uuid, p_empresa uuid, p_perm text) RETURNS boolean
+```
 
-## Bloco 5 — Orçamento integrado (~16 créditos)
+Lógica:
+1. Admin global (`has_role(p_user,'admin')`) → true.
+2. Mesma empresa (`get_user_empresa(p_user) = p_empresa`).
+3. Lê a flag correspondente de `plano_acao_usuario_permissao`.
 
-- Validação por linha de rateio (empresa+competência+CC+contrato+conta+valor).
-- Status orçado×realizado com 5 estados (dentro/atenção/excedido/sem orçamento/sem classificação).
-- Bloqueio de pré-título quando excedido sem aprovação.
-- View `v_orcado_realizado` consolidada.
+Policies (todas as tabelas):
+- SELECT → `pode_visualizar`
+- INSERT → `pode_criar`
+- UPDATE → `pode_editar`
+- DELETE físico → bloqueado (apenas `deleted_at` via UPDATE com `pode_excluir`)
+- Importação → `pode_importar`
+- Aprovação → `pode_aprovar`
+- Configuração/ACL → `pode_administrar`
 
-## Bloco 6 — Fluxo de caixa projetado + realizado (~16 créditos)
+Tabelas filhas (`comentario`, `anexo`, `historico`, `import_*`) herdam a mesma checagem via `plano_acao` ou `empresa_id`.
 
-- Reaproveitar `fluxo_caixa_projetado`, `movimento_bancario`, `extrato_bancario`.
-- Views `v_fluxo_diario`, `v_fluxo_mensal`, `v_fluxo_matricial` (por empresa/CC/contrato).
-- Separação operacional / administrativa / financeira / não operacional / intercompany / aplicações.
-- Tela `Financeiro > Fluxo de Caixa` com toggle projetado/realizado e drill-down.
+### 5. Storage
 
-## Bloco 7 — Razão / DRE gerencial completo (~20 créditos)
+- Bucket privado existente `anexos`
+- Prefixo `plano-acoes/{empresa_id}/{plano_acao_id}/`
+- Policies validando `empresa_id` no path
 
-- Validador de partidas dobradas (trigger).
-- Balancete por período/empresa.
-- DRE gerencial por empresa, CC e contrato (competência).
-- View `vw_dre_contrato` produtiva (não `mz_*`).
-- Tela `Contábil > DRE Gerencial` com orçado×realizado e variação R$/%.
+### 6. Carga inicial das 123 ações
 
-## Bloco 8 — Financeiro operacional ponta-a-ponta (~30 créditos)
+Não vou hardcodar 123 inserts no SQL. Estratégia:
 
-Fechar o fluxo a partir do que já começamos no Faturamento:
+1. Migration cria todas as tabelas/policies/funções e **uma RPC** `plano_acao_seed_inicial(_empresa uuid, _payload jsonb)`.
+2. Após approve, faço **uma única chamada** à RPC com o JSON completo (extraído do prompt — 123 itens).
+3. A RPC:
+   - Cria batch em `plano_acao_import_batch`.
+   - Itera o array, faz `INSERT ... ON CONFLICT (empresa_id, id_importacao) DO UPDATE` em `plano_acao`.
+   - Insere `plano_acao_import_item` com `payload_original`.
+   - Resolve responsável/líderes por `display_name` em `profiles` (best-effort, fica null + pendência se ambíguo).
+   - Status original `Concluido` → `concluida_pendente_evidencia` (pendência `PENDENTE_EVIDENCIA_CONCLUSAO_LEGADA`).
+   - Retorna JSON: `{recebidas, processadas, inseridas, atualizadas, pendentes}`.
+4. Empresa alvo: HAGG (`5a61c769-…bce8`).
 
-- **Receber**: terminar Etapas 2-5 do plano atual (emissão lote, baixa, conciliação, régua já existente).
-- **Pagar**: pré-título → fornecedor → anexo → justificativa → rateio → aprovação por alçada → título → programação → horário de corte → malote → execução → comprovante → conciliação.
-- Validação de orçamento (Bloco 5) integrada na aprovação.
-- Dupla partida automática (Bloco 7) na baixa.
+### 7. ACL inicial dos 3 usuários
 
-## Bloco 9 — Painel Executivo Presidência (~25 créditos)
+Insert direto (data, não migration) em `plano_acao_usuario_permissao` para Erica, Yuri e Helena, todas as 8 flags = `true`. Ambiguidade: nenhuma — já localizados.
 
-- Role `presidencia` (migration de `app_role` enum + `role_permissions`).
-- Rota `/app/presidencia/painel` protegida.
-- 7 views novas: `vw_presidencia_resumo_executivo`, `_caixa_capital_giro`, `_pagamentos`, `_faturamento_recebiveis`, `_dre_consolidada`, `_contratos_margem`, `_pendencias_governanca`.
-- 18 cards superiores + 7 blocos (A-G) com drill-down.
-- Filtros globais: período, empresa, CC, contrato, status, consolidado/individual, caixa/competência.
+### 8. Regras de negócio aplicadas
 
-## Bloco 10 — Testes por role/empresa (~9 créditos)
+- Concluir ação → move para `aguardando_validacao`; só `pode_aprovar` valida.
+- `concluida_validada` exige ≥1 anexo (constraint via trigger).
+- `custo_realizado > 0` exige `centro_custo_id` ou `contrato_id` para validar.
+- Toda alteração relevante grava em `plano_acao_historico` (trigger).
+- Reimportação não duplica (upsert por `id_importacao`).
 
-- 25 cenários do item 11 do prompt.
-- Vitest + testes manuais documentados.
-- Matriz role × empresa × tela.
+### 9. Testes manuais pós-implementação
 
-## Bloco 11 — Homologação + ajustes UX (~12 créditos)
+1. Login como Erica/Yuri/Helena → vê o menu, todas as rotas funcionam.
+2. Login como outro usuário HAGG → menu oculto, rotas retornam 403.
+3. Login de outra empresa → não lê nenhuma ação.
+4. Carga inicial: 123 ações, dashboard bate (em_andamento 47, a_definir 43, concluida_pendente_evidencia 30, atrasada 2, nao_iniciada 1).
+5. Reexecução do seed → 0 inseridas, 123 atualizadas.
+6. Tentar `concluida_validada` sem anexo → bloqueado.
+7. Alterar status/responsável → registro em `plano_acao_historico`.
+8. Exclusão lógica → linha some das listas mas histórico permanece.
+9. Anexo só acessível com permissão.
 
-- Buffer para iterações visuais do painel e correções de aprovação por alçada.
+### 10. Rollback
 
-## Bloco 12 — Rollback / observabilidade / relatórios de carga (~7 créditos)
+- Migration reversa (drop tabelas, função, policies) enquanto não houver dado.
+- Após carga: desativar menu+rotas e usar `deleted_at`. Anexos e histórico preservados.
+- **Sem impacto em financeiro/contábil/fiscal/BI/migração.**
 
-- Snapshots antes/depois.
-- Logs estruturados por batch.
-- Tela `Admin > Auditoria de Cargas`.
+### 11. Riscos identificados
+
+| Risco | Mitigação |
+|---|---|
+| Datas ambíguas no CSV | Preservadas como texto em `_original`; `date` fica null + pendência |
+| Match de responsável por nome | Best-effort; fica null + `PENDENTE_RESPONSAVEL_ORIGEM` se não bater |
+| Volume de policies | 7 tabelas × ~5 policies — ok, padronizadas via função única |
+| Bucket `anexos` policy existente pode ser permissiva | Adiciono policy específica para o prefixo `plano-acoes/` |
+| ACL hardcoded | Evitada — fica em `plano_acao_usuario_permissao`, editável na tela Configurações |
+
+### 12. Itens **fora** desta entrega (conforme prompt)
+
+- Sem lançamentos contábeis, títulos, DRE, fluxo de caixa.
+- Sem alteração em módulos financeiro/contábil/fiscal/BI/migração zero.
+- Sem refactor fora do escopo.
 
 ---
 
-## Detalhes técnicos
-
-```text
-[Carga arquivo] → staging → simulação → de-para → reconciliação
-                                                       │
-                                                       ▼
-                                               aprovação do lote
-                                                       │
-                                                       ▼
-              ┌─────────── promoção controlada ────────┴────────┐
-              ▼              ▼              ▼              ▼     ▼
-     orcamento_*    lancamento_*    fluxo_caixa_*    titulo_*   contrato
-              │              │              │              │     │
-              └──────────────┴──── views v_* / vw_* ───────┴─────┘
-                                       │
-                                       ▼
-                  Telas operacionais + Painel Presidência
-```
-
-Princípios mantidos em todos os blocos:
-- Nada de `mz_*` em runtime — apenas via promoção.
-- `empresa_id` obrigatório em toda fato; consolidação só para `presidencia`/`admin_master`.
-- Caixa e competência nunca se misturam.
-- Pagamento baixa obrigação, não cria despesa. Recebimento baixa direito, não cria receita.
-- RLS sempre ativa; nenhuma policy alterada sem aprovação explícita.
-
-## Total e checkpoints
-
-| Bloco | Créditos prováveis |
-|---|---:|
-| 1. Auditoria | 7 |
-| 2. Governança/dedupe | 20 |
-| 3. De-para | 16 |
-| 4. Promoção mz_* | 25 |
-| 5. Orçamento | 16 |
-| 6. Fluxo | 16 |
-| 7. Razão/DRE | 20 |
-| 8. Financeiro op. | 30 |
-| 9. Painel Presidência | 25 |
-| 10. Testes | 9 |
-| 11. Homologação | 12 |
-| 12. Rollback/obs. | 7 |
-| **Total** | **~203** |
-
-**Checkpoints de aprovação obrigatórios** (paro e aguardo seu OK):
-- Após Bloco 1 (auditoria).
-- Após Bloco 4 (antes de promover dados produtivos).
-- Após Bloco 8 (antes do Painel).
-- Após Bloco 9 (antes da liberação).
-
-Em cada checkpoint você pode redirecionar/cortar escopo sem perder o que já foi feito.
+**Aguardando seu OK explícito para implementar.** Após aprovação executo nesta ordem:
+1. Migration (tabelas + RLS + função `can_access` + RPC `seed_inicial`).
+2. Frontend (rotas, telas, hooks, sidebar).
+3. Chamada da RPC com o JSON dos 123 itens + insert ACL dos 3 usuários.
+4. Reconciliação final reportando totais.
