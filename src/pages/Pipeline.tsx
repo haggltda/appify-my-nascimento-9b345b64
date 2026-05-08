@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
 import { licitacoes as licitacoesBase, statusOrdem, statusLabel, formatBRL, formatDate, type StatusLicitacao, type Licitacao } from "@/data/licitacoes";
-import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical, UserCheck, Hand } from "lucide-react";
+import gradeSeed from "@/data/licitacoesGradeSeed.json";
+import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical, UserCheck, Hand, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
