@@ -127,19 +127,28 @@ export default function MigracaoZero() {
     }
   }
 
-  async function processFile(arquivo: string, append = false): Promise<boolean> {
-    // Em modo append, reaproveita o batch_id atual da linha (mantém vínculo com as partes anteriores)
+  async function invokeMzLoad(body: Record<string, unknown>) {
+    return await Promise.race([
+      supabase.functions.invoke("mz-load", { body }),
+      new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error("Sem resposta do servidor após 75s. Clique em Atualizar e depois em Retomar.")), LOAD_TIMEOUT_MS);
+      }),
+    ]);
+  }
+
+  async function processFile(arquivo: string, mode: ProcessMode = "fresh"): Promise<boolean> {
     const row = rows.find((r) => r.arquivo === arquivo);
-    const batchId = append && row?.migration_batch_id ? row.migration_batch_id : crypto.randomUUID();
-    let offset = 0;
+    const append = mode === "append";
+    const canResume = mode === "resume" || (mode === "fresh" && row?.status === "EM_ANDAMENTO" && !!row.migration_batch_id && row.linhas_carregadas > 0);
+    const batchId = (append || canResume) && row?.migration_batch_id ? row.migration_batch_id : crypto.randomUUID();
+    let offset = canResume ? (row?.linhas_carregadas ?? 0) : 0;
     let safety = 10000;
     while (safety-- > 0) {
       if (cancelRef.current) return false;
-      const { data, error } = await supabase.functions.invoke("mz-load", {
-        body: { arquivo, batch_id: batchId, offset, append },
-      });
+      const { data, error } = await invokeMzLoad({ arquivo, batch_id: batchId, offset, append });
       if (error) {
         toast.error(`${arquivo}: ${error.message}`);
+        await load();
         return false;
       }
       if (!data?.ok) {
@@ -150,7 +159,7 @@ export default function MigracaoZero() {
       offset = data.next_offset;
       await load();
       if (data.finalizou) {
-        toast.success(`${arquivo}: ${data.linhas_carregadas_acumulado} linhas carregadas${append ? " (append)" : ""}`);
+        toast.success(`${arquivo}: ${data.linhas_carregadas_acumulado} linhas carregadas${append ? " (append)" : canResume ? " (retomado)" : ""}`);
         return true;
       }
     }
