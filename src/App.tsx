@@ -62,6 +62,7 @@ import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
 import FluxoCaixa from "./pages/financeiro/FluxoCaixa";
 import OBZVersoes from "./pages/controladoria/OBZVersoes";
+import DREGerencial from "./pages/controladoria/DREGerencial";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
 import IntegracaoBancaria from "./pages/financeiro/IntegracaoBancaria";
 import IntegracaoBancariaBuilder from "./pages/financeiro/IntegracaoBancariaBuilder";
