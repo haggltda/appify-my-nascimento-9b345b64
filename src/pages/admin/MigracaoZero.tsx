@@ -124,14 +124,16 @@ export default function MigracaoZero() {
     }
   }
 
-  async function processFile(arquivo: string): Promise<boolean> {
-    const batchId = crypto.randomUUID();
+  async function processFile(arquivo: string, append = false): Promise<boolean> {
+    // Em modo append, reaproveita o batch_id atual da linha (mantém vínculo com as partes anteriores)
+    const row = rows.find((r) => r.arquivo === arquivo);
+    const batchId = append && row?.migration_batch_id ? row.migration_batch_id : crypto.randomUUID();
     let offset = 0;
     let safety = 10000;
     while (safety-- > 0) {
       if (cancelRef.current) return false;
       const { data, error } = await supabase.functions.invoke("mz-load", {
-        body: { arquivo, batch_id: batchId, offset },
+        body: { arquivo, batch_id: batchId, offset, append },
       });
       if (error) {
         toast.error(`${arquivo}: ${error.message}`);
@@ -145,16 +147,16 @@ export default function MigracaoZero() {
       offset = data.next_offset;
       await load();
       if (data.finalizou) {
-        toast.success(`${arquivo}: ${data.linhas_carregadas_acumulado} linhas carregadas`);
+        toast.success(`${arquivo}: ${data.linhas_carregadas_acumulado} linhas carregadas${append ? " (append)" : ""}`);
         return true;
       }
     }
     return false;
   }
 
-  async function processOne(arquivo: string) {
+  async function processOne(arquivo: string, append = false) {
     setBusy((b) => ({ ...b, [arquivo]: true }));
-    try { await processFile(arquivo); } finally {
+    try { await processFile(arquivo, append); } finally {
       setBusy((b) => ({ ...b, [arquivo]: false }));
     }
   }
@@ -318,10 +320,20 @@ export default function MigracaoZero() {
                       </label>
                       <Button
                         size="sm"
-                        onClick={() => processOne(r.arquivo)}
+                        onClick={() => processOne(r.arquivo, false)}
                         disabled={!r.storage_path || !!busy[r.arquivo] || globalRunning}
+                        title="Apaga as linhas carregadas anteriormente deste arquivo e recomeça do zero"
                       >
                         <Play className="h-3.5 w-3.5 mr-1" /> Processar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => processOne(r.arquivo, true)}
+                        disabled={!r.storage_path || !!busy[r.arquivo] || globalRunning || !r.migration_batch_id}
+                        title="Adiciona as linhas deste CSV às linhas já carregadas anteriormente (sem apagar). Use para subir partes 2, 3, ... do mesmo arquivo."
+                      >
+                        <PlayCircle className="h-3.5 w-3.5 mr-1" /> + Append
                       </Button>
                     </td>
                   </tr>
