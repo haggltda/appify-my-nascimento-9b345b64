@@ -46,7 +46,13 @@ export const empresas: Empresa[] = [
   { id: "e4", nome: "Nascimento Tecnologia", cnpj: "12.345.678/0004-33", sigla: "NTC" },
 ];
 
-export const licitacoes: Licitacao[] = [
+// Carga real (grade de licitações - planilha 2026, 288 itens, empresa HAGG).
+import gradeMock from "./licitacoesGradeMock.json";
+
+export const licitacoes: Licitacao[] = (gradeMock as unknown as Licitacao[]);
+
+// Mantemos os mocks legados desativados abaixo para histórico (não exportados).
+const _legadoLicitacoes: Licitacao[] = [
   {
     id: "L-2025-0142",
     numero: "PE 142/2025",
@@ -61,21 +67,6 @@ export const licitacoes: Licitacao[] = [
     prazo: "2025-05-12",
     abertura: "2025-05-19",
     ultimaAcao: "Revisão de margem em andamento",
-  },
-  {
-    id: "L-2025-0139",
-    numero: "CC 089/2025",
-    objeto: "Manutenção predial corretiva e preventiva — campus universitário",
-    orgao: "Universidade Federal — UFRJ",
-    modalidade: "Concorrência",
-    empresa: "NSV",
-    responsavel: "Marcos Pinto",
-    status: "parecer_gerencial",
-    criticidade: "media",
-    valorEstimado: 6_180_500,
-    prazo: "2025-05-08",
-    abertura: "2025-05-15",
-    ultimaAcao: "Aguardando revisão do gerente",
   },
   {
     id: "L-2025-0137",
