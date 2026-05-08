@@ -173,7 +173,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
   const { data: contas = [] } = useQuery<any[]>({
     queryKey: ["conta_contabil"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("conta_contabil").select("id, codigo, nome, tipo").eq("tipo", "despesa").order("codigo");
+      const { data } = await (supabase as any).from("conta_contabil").select("id, codigo, nome, tipo").eq("tipo", "analitica").order("codigo");
       return data ?? [];
     },
   });
