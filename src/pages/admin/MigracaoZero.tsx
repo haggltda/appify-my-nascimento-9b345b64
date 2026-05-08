@@ -125,7 +125,24 @@ export default function MigracaoZero() {
     }
   }
 
-  const totalEsperado = rows.reduce((a, r) => a + r.linhas_esperadas, 0);
+  async function uploadBatch(files: FileList) {
+    const known = new Set(rows.map((r) => r.arquivo));
+    const matched: File[] = [];
+    const skipped: string[] = [];
+    for (const f of Array.from(files)) {
+      if (known.has(f.name)) matched.push(f);
+      else skipped.push(f.name);
+    }
+    if (skipped.length) toast.message(`Ignorados (${skipped.length}): não constam em mz_status`, { description: skipped.slice(0, 5).join(", ") + (skipped.length > 5 ? "…" : "") });
+    if (!matched.length) { toast.error("Nenhum arquivo casou com as 32 linhas."); return; }
+    toast.success(`Iniciando upload de ${matched.length} arquivos…`);
+    for (const f of matched) {
+      // sequencial para evitar saturar rede / Storage
+      // eslint-disable-next-line no-await-in-loop
+      await uploadFile(f.name, f);
+    }
+    toast.success(`Upload em lote concluído: ${matched.length} arquivos.`);
+  }
   const totalCarregado = rows.reduce((a, r) => a + r.linhas_carregadas, 0);
   const pctGlobal = totalEsperado ? Math.min(100, Math.round((totalCarregado / totalEsperado) * 100)) : 0;
   const okCount = rows.filter((r) => r.status === "OK").length;
