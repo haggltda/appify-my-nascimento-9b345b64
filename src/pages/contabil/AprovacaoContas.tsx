@@ -60,12 +60,14 @@ function StatusBadge({ status }: { status: string | null }) {
 
 export default function AprovacaoContas() {
   const { user } = useAuth();
+  const { data: empresaId } = useEmpresaId();
   const qc = useQueryClient();
   const [filtro, setFiltro] = useState("");
-  const [tab, setTab] = useState<"todas" | "pendentes" | "aprovadas" | "rejeitadas" | "ajustar">("pendentes");
+  const [tab, setTab] = useState<"todas" | "pendentes" | "aprovadas" | "rejeitadas" | "ajustar" | "promovidas">("pendentes");
   const [editing, setEditing] = useState<Aprovacao | null>(null);
   const [decisao, setDecisao] = useState<AprovStatus>("APROVADA");
   const [observacao, setObservacao] = useState("");
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
   const { data: lista = [], isLoading } = useQuery<Aprovacao[]>({
     queryKey: ["stg_aprovacao_contas"],
