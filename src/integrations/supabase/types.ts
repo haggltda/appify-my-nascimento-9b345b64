@@ -14063,6 +14063,10 @@ export type Database = {
         Returns: undefined
       }
       pre_titulo_submeter: { Args: { _id: string }; Returns: undefined }
+      promover_contas_aprovadas: {
+        Args: { _empresa_id: string }
+        Returns: Json
+      }
       proximo_numero_lancamento: {
         Args: { _empresa_id: string }
         Returns: string
