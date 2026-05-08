@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,11 +31,29 @@ const fmt = (n: number) =>
 const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
 export default function DREGerencial() {
-  const { data: empresaId } = useEmpresaId();
+  const { data: empresaIdProfile } = useEmpresaId();
   const anoAtual = new Date().getFullYear();
   const [ano, setAno] = useState<number>(anoAtual);
+  const [empresaId, setEmpresaId] = useState<string | undefined>(undefined);
   const [versaoId, setVersaoId] = useState<string | "auto">("auto");
   const [visao, setVisao] = useState<Visao>("realizado");
+
+  const empresasQ = useQuery({
+    queryKey: ["empresas-dre"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("empresas").select("id, codigo, razao_social").eq("ativa", true).order("codigo");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; codigo: string; razao_social: string }>;
+    },
+  });
+
+  // Inicializa empresa: usa profile, ou primeira empresa com lançamentos no ano
+  useEffect(() => {
+    if (!empresaId && (empresasQ.data?.length ?? 0) > 0) {
+      setEmpresaId(empresaIdProfile ?? empresasQ.data![0].id);
+    }
+  }, [empresasQ.data, empresaIdProfile, empresaId]);
 
   const versoesQ = useQuery({
     queryKey: ["obz_versoes_para_dre", empresaId, ano],
@@ -113,7 +131,7 @@ export default function DREGerencial() {
   };
 
   if (!empresaId) {
-    return <div className="card-elevated p-6 text-sm text-muted-foreground">Selecione uma empresa no perfil.</div>;
+    return <div className="card-elevated p-6 text-sm text-muted-foreground">Carregando empresas…</div>;
   }
 
   return (
@@ -131,6 +149,17 @@ export default function DREGerencial() {
       />
 
       <div className="card-elevated flex flex-wrap items-end gap-3 p-4">
+        <div className="min-w-[220px]">
+          <Label>Empresa</Label>
+          <Select value={empresaId} onValueChange={setEmpresaId}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(empresasQ.data ?? []).map((e) => (
+                <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div>
           <Label>Ano</Label>
           <Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value) || anoAtual)} className="w-28" />

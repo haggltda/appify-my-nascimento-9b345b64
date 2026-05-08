@@ -19,7 +19,7 @@ export default function FluxoCaixa() {
   const { data: empresas = [] } = useQuery<any[]>({
     queryKey: ["empresas-fc"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("empresas").select("id, razao_social, sigla").order("razao_social");
+      const { data } = await (supabase as any).from("empresas").select("id, razao_social, codigo").order("razao_social");
       return data ?? [];
     },
   });
@@ -94,7 +94,7 @@ export default function FluxoCaixa() {
               <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas</SelectItem>
-                {empresas.map((e) => <SelectItem key={e.id} value={e.id}>{e.sigla ?? e.razao_social}</SelectItem>)}
+                {empresas.map((e) => <SelectItem key={e.id} value={e.id}>{e.codigo ?? e.razao_social}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
