@@ -65,6 +65,7 @@ import IntegracaoBancaria from "./pages/financeiro/IntegracaoBancaria";
 import IntegracaoBancariaBuilder from "./pages/financeiro/IntegracaoBancariaBuilder";
 import Lancamentos from "./pages/contabil/Lancamentos";
 import PlanoContas from "./pages/contabil/PlanoContas";
+import AprovacaoContas from "./pages/contabil/AprovacaoContas";
 import Contabilidade from "./pages/Contabilidade";
 import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
