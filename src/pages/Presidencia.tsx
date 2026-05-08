@@ -128,7 +128,7 @@ export default function Presidencia() {
 
   const hoje = new Date();
   const vencidasPagar = (titulosPagarQ.data ?? []).filter(
-    (t) => new Date(t.vencimento) < hoje
+    (t) => new Date(t.data_vencimento) < hoje
   ).length;
 
   return (
