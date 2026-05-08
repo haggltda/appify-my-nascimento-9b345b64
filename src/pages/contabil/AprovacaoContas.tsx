@@ -11,8 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle2, XCircle, Clock, Pencil, Search, AlertTriangle, DatabaseZap } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CheckCircle2, XCircle, Clock, Pencil, Search, AlertTriangle, DatabaseZap, Rocket, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useEmpresaId } from "@/hooks/useEmpresaId";
 
 type AprovStatus = "AGUARDANDO_APROVACAO_USUARIO" | "APROVADA" | "REJEITADA" | "AJUSTAR";
 
@@ -45,6 +47,8 @@ const fmtBRL = (n: number | null | undefined) =>
 
 function StatusBadge({ status }: { status: string | null }) {
   const s = (status ?? "").toUpperCase();
+  if (s === "PROMOVIDA")
+    return <Badge className="bg-primary/10 text-primary border-primary/20"><Rocket className="mr-1 h-3 w-3" />Promovida</Badge>;
   if (s === "APROVADA")
     return <Badge className="bg-success-soft text-success border-success/20"><CheckCircle2 className="mr-1 h-3 w-3" />Aprovada</Badge>;
   if (s === "REJEITADA")
@@ -56,12 +60,14 @@ function StatusBadge({ status }: { status: string | null }) {
 
 export default function AprovacaoContas() {
   const { user } = useAuth();
+  const { data: empresaId } = useEmpresaId();
   const qc = useQueryClient();
   const [filtro, setFiltro] = useState("");
-  const [tab, setTab] = useState<"todas" | "pendentes" | "aprovadas" | "rejeitadas" | "ajustar">("pendentes");
+  const [tab, setTab] = useState<"todas" | "pendentes" | "aprovadas" | "rejeitadas" | "ajustar" | "promovidas">("pendentes");
   const [editing, setEditing] = useState<Aprovacao | null>(null);
   const [decisao, setDecisao] = useState<AprovStatus>("APROVADA");
   const [observacao, setObservacao] = useState("");
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
 
   const { data: lista = [], isLoading } = useQuery<Aprovacao[]>({
     queryKey: ["stg_aprovacao_contas"],
@@ -94,12 +100,13 @@ export default function AprovacaoContas() {
   }, [sugestoes]);
 
   const counters = useMemo(() => {
-    const c = { todas: lista.length, pendentes: 0, aprovadas: 0, rejeitadas: 0, ajustar: 0 };
+    const c = { todas: lista.length, pendentes: 0, aprovadas: 0, rejeitadas: 0, ajustar: 0, promovidas: 0 };
     lista.forEach((r) => {
       const s = (r.status_aprovacao ?? "").toUpperCase();
       if (s === "APROVADA") c.aprovadas++;
       else if (s === "REJEITADA") c.rejeitadas++;
       else if (s === "AJUSTAR") c.ajustar++;
+      else if (s === "PROMOVIDA") c.promovidas++;
       else c.pendentes++;
     });
     return c;
@@ -110,10 +117,11 @@ export default function AprovacaoContas() {
     if (tab !== "todas") {
       arr = arr.filter((r) => {
         const s = (r.status_aprovacao ?? "").toUpperCase();
-        if (tab === "pendentes") return s !== "APROVADA" && s !== "REJEITADA" && s !== "AJUSTAR";
+        if (tab === "pendentes") return s !== "APROVADA" && s !== "REJEITADA" && s !== "AJUSTAR" && s !== "PROMOVIDA";
         if (tab === "aprovadas") return s === "APROVADA";
         if (tab === "rejeitadas") return s === "REJEITADA";
         if (tab === "ajustar") return s === "AJUSTAR";
+        if (tab === "promovidas") return s === "PROMOVIDA";
         return true;
       });
     }
@@ -152,6 +160,23 @@ export default function AprovacaoContas() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao salvar decisão"),
   });
 
+  const promover = useMutation({
+    mutationFn: async () => {
+      if (!empresaId) throw new Error("Sem empresa selecionada no perfil");
+      const { data, error } = await (supabase as any).rpc("promover_contas_aprovadas", { _empresa_id: empresaId });
+      if (error) throw error;
+      return data as { promovidas: number; ja_existentes: number; sem_pai: number };
+    },
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["stg_aprovacao_contas"] });
+      qc.invalidateQueries({ queryKey: ["conta_contabil"] });
+      toast.success(`Promoção concluída`, {
+        description: `${r.promovidas} promovidas · ${r.ja_existentes} já existiam · ${r.sem_pai} sem pai`,
+      });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro na promoção em massa"),
+  });
+
   const openEdit = (row: Aprovacao) => {
     setEditing(row);
     const s = (row.status_aprovacao ?? "").toUpperCase();
@@ -159,11 +184,32 @@ export default function AprovacaoContas() {
     setObservacao(row.observacao_usuario ?? "");
   };
 
+  const toggleSel = (id: string) =>
+    setSelecionados((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  const toggleSelAll = () => {
+    const visiveis = filtrada.map((r) => r.id_sugestao_conta);
+    setSelecionados((prev) => {
+      const todosSelecionados = visiveis.every((id) => prev.has(id));
+      if (todosSelecionados) return new Set();
+      return new Set(visiveis);
+    });
+  };
+  const decidirEmLote = (status: AprovStatus) => {
+    if (selecionados.size === 0) return;
+    decidir.mutate({ ids: Array.from(selecionados), status }, {
+      onSuccess: () => setSelecionados(new Set()),
+    });
+  };
+
   const cards = [
     { l: "Total sugeridas", v: counters.todas, t: "info", i: Clock },
     { l: "Pendentes", v: counters.pendentes, t: "warning", i: Clock },
     { l: "Aprovadas", v: counters.aprovadas, t: "success", i: CheckCircle2 },
-    { l: "Rejeitadas", v: counters.rejeitadas, t: "destructive", i: XCircle },
+    { l: "Promovidas", v: counters.promovidas, t: "primary", i: Rocket },
   ] as const;
 
   return (
@@ -174,23 +220,35 @@ export default function AprovacaoContas() {
         breadcrumb={["Contábil", "Aprovação de Contas"]}
         subtitle="Revise as contas sugeridas pelo pacote de migração antes de promovê-las ao plano de contas definitivo."
         actions={
-          <Button
-            variant="outline"
-            onClick={async () => {
-              const t = toast.loading("Carregando dados do Pacote 02…");
-              try {
-                const { data, error } = await supabase.functions.invoke("pacote02-load", { body: {} });
-                if (error) throw error;
-                toast.success("Pacote 02 carregado", { id: t, description: JSON.stringify((data as any)?.counts ?? {}) });
-                qc.invalidateQueries();
-              } catch (e: any) {
-                toast.error("Falha ao carregar Pacote 02", { id: t, description: e?.message ?? String(e) });
-              }
-            }}
-          >
-            <DatabaseZap className="mr-2 h-4 w-4" />
-            Carregar Pacote 02
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const t = toast.loading("Carregando dados do Pacote 02…");
+                try {
+                  const { data, error } = await supabase.functions.invoke("pacote02-load", { body: {} });
+                  if (error) throw error;
+                  toast.success("Pacote 02 carregado", { id: t, description: JSON.stringify((data as any)?.counts ?? {}) });
+                  qc.invalidateQueries();
+                } catch (e: any) {
+                  toast.error("Falha ao carregar Pacote 02", { id: t, description: e?.message ?? String(e) });
+                }
+              }}
+            >
+              <DatabaseZap className="mr-2 h-4 w-4" />
+              Carregar Pacote 02
+            </Button>
+            <Button
+              disabled={promover.isPending || counters.aprovadas === 0 || !empresaId}
+              onClick={() => {
+                if (!confirm(`Promover ${counters.aprovadas} conta(s) aprovada(s) para o plano de contas?`)) return;
+                promover.mutate();
+              }}
+            >
+              <Rocket className="mr-2 h-4 w-4" />
+              {promover.isPending ? "Promovendo…" : `Promover aprovadas (${counters.aprovadas})`}
+            </Button>
+          </div>
         }
       />
 
@@ -214,6 +272,7 @@ export default function AprovacaoContas() {
             <TabsList>
               <TabsTrigger value="pendentes">Pendentes ({counters.pendentes})</TabsTrigger>
               <TabsTrigger value="aprovadas">Aprovadas ({counters.aprovadas})</TabsTrigger>
+              <TabsTrigger value="promovidas">Promovidas ({counters.promovidas})</TabsTrigger>
               <TabsTrigger value="rejeitadas">Rejeitadas ({counters.rejeitadas})</TabsTrigger>
               <TabsTrigger value="ajustar">Ajustar ({counters.ajustar})</TabsTrigger>
               <TabsTrigger value="todas">Todas ({counters.todas})</TabsTrigger>
@@ -229,11 +288,37 @@ export default function AprovacaoContas() {
             </div>
           </div>
 
+          {selecionados.size > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 p-3">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">{selecionados.size} selecionada(s)</span>
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => decidirEmLote("APROVADA")} disabled={decidir.isPending}>
+                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Aprovar
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => decidirEmLote("AJUSTAR")} disabled={decidir.isPending}>
+                  <AlertTriangle className="mr-1 h-3.5 w-3.5" /> Ajustar
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => decidirEmLote("REJEITADA")} disabled={decidir.isPending}>
+                  <XCircle className="mr-1 h-3.5 w-3.5" /> Rejeitar
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelecionados(new Set())}>Limpar</Button>
+              </div>
+            </div>
+          )}
+
           <TabsContent value={tab} className="m-0">
             <div className="overflow-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]">
+                      <Checkbox
+                        checked={filtrada.length > 0 && filtrada.every((r) => selecionados.has(r.id_sugestao_conta))}
+                        onCheckedChange={toggleSelAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                     <TableHead className="w-[110px]">ID</TableHead>
                     <TableHead className="w-[150px]">Código</TableHead>
                     <TableHead>Nome sugerido</TableHead>
@@ -246,13 +331,20 @@ export default function AprovacaoContas() {
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
-                    <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">Carregando…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Carregando…</TableCell></TableRow>
                   )}
                   {!isLoading && filtrada.length === 0 && (
-                    <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">Nenhuma conta nessa categoria.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Nenhuma conta nessa categoria.</TableCell></TableRow>
                   )}
                   {filtrada.map((r) => (
-                    <TableRow key={r.id_sugestao_conta}>
+                    <TableRow key={r.id_sugestao_conta} data-state={selecionados.has(r.id_sugestao_conta) ? "selected" : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selecionados.has(r.id_sugestao_conta)}
+                          onCheckedChange={() => toggleSel(r.id_sugestao_conta)}
+                          aria-label={`Selecionar ${r.id_sugestao_conta}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-xs">{r.id_sugestao_conta}</TableCell>
                       <TableCell className="font-mono">{r.codigo_conta_sugerido ?? "—"}</TableCell>
                       <TableCell>
@@ -269,7 +361,7 @@ export default function AprovacaoContas() {
                       <TableCell className="text-right tabular-nums">{fmtBRL(r.valor_total_abs_afetado)}</TableCell>
                       <TableCell><StatusBadge status={r.status_aprovacao} /></TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" variant="outline" onClick={() => openEdit(r)}>
+                        <Button size="sm" variant="outline" onClick={() => openEdit(r)} disabled={(r.status_aprovacao ?? "").toUpperCase() === "PROMOVIDA"}>
                           <Pencil className="mr-1 h-3.5 w-3.5" />Decidir
                         </Button>
                       </TableCell>
