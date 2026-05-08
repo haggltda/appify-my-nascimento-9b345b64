@@ -3450,6 +3450,7 @@ export type Database = {
           data_prevista: string
           descricao: string | null
           empresa_id: string
+          hash_dedup: string | null
           id: string
           orcamento_contrato_id: string | null
           origem: string | null
@@ -3464,6 +3465,7 @@ export type Database = {
           data_prevista: string
           descricao?: string | null
           empresa_id: string
+          hash_dedup?: string | null
           id?: string
           orcamento_contrato_id?: string | null
           origem?: string | null
@@ -3478,6 +3480,7 @@ export type Database = {
           data_prevista?: string
           descricao?: string | null
           empresa_id?: string
+          hash_dedup?: string | null
           id?: string
           orcamento_contrato_id?: string | null
           origem?: string | null
@@ -4745,6 +4748,7 @@ export type Database = {
           created_by: string | null
           data_lancamento: string
           empresa_id: string
+          hash_dedup: string | null
           historico: string
           id: string
           numero: string
@@ -4761,6 +4765,7 @@ export type Database = {
           created_by?: string | null
           data_lancamento?: string
           empresa_id: string
+          hash_dedup?: string | null
           historico: string
           id?: string
           numero: string
@@ -4777,6 +4782,7 @@ export type Database = {
           created_by?: string | null
           data_lancamento?: string
           empresa_id?: string
+          hash_dedup?: string | null
           historico?: string
           id?: string
           numero?: string
@@ -12744,6 +12750,7 @@ export type Database = {
           empresa_id: string
           forma_pagamento: Database["public"]["Enums"]["forma_pagamento"] | null
           fornecedor_id: string | null
+          hash_dedup: string | null
           id: string
           linha_digitavel: string | null
           nf_entrada_id: string | null
@@ -12777,6 +12784,7 @@ export type Database = {
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
           fornecedor_id?: string | null
+          hash_dedup?: string | null
           id?: string
           linha_digitavel?: string | null
           nf_entrada_id?: string | null
@@ -12810,6 +12818,7 @@ export type Database = {
             | Database["public"]["Enums"]["forma_pagamento"]
             | null
           fornecedor_id?: string | null
+          hash_dedup?: string | null
           id?: string
           linha_digitavel?: string | null
           nf_entrada_id?: string | null
@@ -12859,6 +12868,7 @@ export type Database = {
           data_vencimento: string
           descricao: string | null
           empresa_id: string
+          hash_dedup: string | null
           id: string
           meio_cobranca: Database["public"]["Enums"]["titulo_receber_meio"]
           nfse_id: string | null
@@ -12892,6 +12902,7 @@ export type Database = {
           data_vencimento: string
           descricao?: string | null
           empresa_id: string
+          hash_dedup?: string | null
           id?: string
           meio_cobranca?: Database["public"]["Enums"]["titulo_receber_meio"]
           nfse_id?: string | null
@@ -12925,6 +12936,7 @@ export type Database = {
           data_vencimento?: string
           descricao?: string | null
           empresa_id?: string
+          hash_dedup?: string | null
           id?: string
           meio_cobranca?: Database["public"]["Enums"]["titulo_receber_meio"]
           nfse_id?: string | null
@@ -13466,25 +13478,15 @@ export type Database = {
         Args: { p_batch_id: string; p_motivo?: string }
         Returns: undefined
       }
-      integration_resolve_alias:
-        | {
-            Args: {
-              p_alias: string
-              p_empresa_id: string
-              p_id_interno: string
-              p_tipo: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_alias: string
-              p_empresa_id: string
-              p_id_interno: string
-              p_tipo: string
-            }
-            Returns: undefined
-          }
+      integration_resolve_alias: {
+        Args: {
+          p_alias: string
+          p_empresa_id: string
+          p_id_interno: string
+          p_tipo: string
+        }
+        Returns: undefined
+      }
       layout_aprovar_versao: { Args: { _versao_id: string }; Returns: Json }
       layout_nova_versao: { Args: { _layout_id: string }; Returns: Json }
       layout_rejeitar_versao: {
@@ -13590,6 +13592,7 @@ export type Database = {
         | "fiscal_recebedor"
         | "financeiro"
         | "fiscal"
+        | "presidencia"
       aprov_decisao: "pendente" | "aprovado" | "rejeitado" | "devolvido"
       apuracao_status: "aberta" | "calculada" | "fechada" | "pago" | "atrasado"
       banco_layout_tipo:
@@ -14096,6 +14099,7 @@ export const Constants = {
         "fiscal_recebedor",
         "financeiro",
         "fiscal",
+        "presidencia",
       ],
       aprov_decisao: ["pendente", "aprovado", "rejeitado", "devolvido"],
       apuracao_status: ["aberta", "calculada", "fechada", "pago", "atrasado"],
