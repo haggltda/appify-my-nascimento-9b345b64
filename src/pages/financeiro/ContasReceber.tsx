@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FileText, Receipt, QrCode, Bell } from "lucide-react";
+import { FileText, Receipt, QrCode, Bell, Send } from "lucide-react";
 import TitulosReceberTab from "./receber/TitulosReceberTab";
 import FaturamentoContratoTab from "./receber/FaturamentoContratoTab";
 import CobrancaTab from "./receber/CobrancaTab";
 import ReguaCobrancaTab from "./receber/ReguaCobrancaTab";
+import RemessaConciliacaoTab from "./receber/RemessaConciliacaoTab";
 
 export default function ContasReceber() {
   const [tab, setTab] = useState("titulos");
