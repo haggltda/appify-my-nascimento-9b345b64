@@ -1,0 +1,1 @@
+UPDATE public.mz_status SET status='PENDENTE', linhas_carregadas=0, ultimo_erro=NULL, storage_path=NULL, updated_at=now() WHERE arquivo='30_stg_lancamentos_mestre.csv';
