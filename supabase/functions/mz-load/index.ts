@@ -1,8 +1,8 @@
-// Edge function: carga chunked do Pacote DO ZERO.
+// Edge function: carga chunked do Pacote DO ZERO (modo streaming).
+// Lê o CSV do Storage em stream — nunca carrega o arquivo inteiro em memória.
 // Cada chamada processa até CHUNK_SIZE linhas a partir de offset.
-// Cliente faz loop até finalizou=true.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { parse } from "https://deno.land/std@0.224.0/csv/parse.ts";
+import { parse as parseCsvLine } from "https://deno.land/std@0.224.0/csv/parse.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,6 +23,46 @@ function partPrefix(path: string) {
   const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
   const file = path.slice(folder.length).replace(/\.gz$/i, "").replace(/\.csv$/i, "");
   return { folder, prefix: file };
+}
+
+// Async generator: yields one CSV record (raw line, respecting quotes) per iteration.
+async function* csvRecords(stream: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+  const reader = stream.pipeThrough(new TextDecoderStream("utf-8")).getReader();
+  let buf = "";
+  let inQuote = false;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (value) buf += value;
+    let i = 0;
+    let lineStart = 0;
+    while (i < buf.length) {
+      const c = buf.charCodeAt(i);
+      if (c === 34 /* " */) {
+        inQuote = !inQuote;
+      } else if (c === 10 /* \n */ && !inQuote) {
+        let line = buf.slice(lineStart, i);
+        if (line.endsWith("\r")) line = line.slice(0, -1);
+        if (line.length > 0) yield line;
+        lineStart = i + 1;
+      }
+      i++;
+    }
+    buf = buf.slice(lineStart);
+    if (done) {
+      if (buf.length > 0) {
+        let line = buf;
+        if (line.endsWith("\r")) line = line.slice(0, -1);
+        if (line.length > 0) yield line;
+      }
+      return;
+    }
+  }
+}
+
+function parseLine(line: string): string[] {
+  // Parse a single CSV line with separator ; using std/csv.
+  const out = parseCsvLine(line, { separator: ";", lazyQuotes: true }) as string[][];
+  return out[0] ?? [];
 }
 
 Deno.serve(async (req) => {
@@ -50,7 +90,6 @@ Deno.serve(async (req) => {
     const append: boolean = Boolean(body.append ?? false);
     if (!arquivo || !batchId) return json({ error: "arquivo e batch_id são obrigatórios" }, 400);
 
-    // Busca controle
     const { data: ctrl, error: ctrlErr } = await admin
       .from("mz_status").select("*").eq("arquivo", arquivo).maybeSingle();
     if (ctrlErr || !ctrl) return json({ error: "Arquivo não cadastrado em mz_status" }, 404);
@@ -59,9 +98,6 @@ Deno.serve(async (req) => {
     const tabela: string = ctrl.tabela;
     let storagePath: string = ctrl.storage_path;
 
-    // Se for offset 0:
-    //   - modo normal: zera tudo do batch (recomeça)
-    //   - modo append: NÃO apaga, apenas marca EM_ANDAMENTO e preserva linhas_carregadas
     if (offset === 0) {
       if (!append) {
         await admin.from(tabela).delete().eq("migration_batch_id", batchId);
@@ -83,8 +119,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Baixa o CSV completo (bucket privado). Se o usuário subiu uma parte com sufixo
-    // (ex.: arquivo_02.csv) direto no Storage, localiza automaticamente a parte mais recente.
+    // Localiza o blob (com fallback de sufixos)
     let { data: blob, error: dlErr } = await admin.storage.from("migracao-zero").download(storagePath);
     if (dlErr || !blob) {
       const { folder, prefix } = partPrefix(storagePath);
@@ -106,79 +141,87 @@ Deno.serve(async (req) => {
     }
     if (dlErr || !blob) return json({ error: `Falha ao baixar storage: ${dlErr?.message}` }, 500);
 
-    // Suporte a .gz: descompacta com DecompressionStream nativo do Deno
-    let text: string;
+    // Stream + descompactação opcional (.gz)
     const isGz = storagePath.toLowerCase().endsWith(".gz");
+    let stream: ReadableStream<Uint8Array> = blob.stream();
     if (isGz) {
       try {
-        const ds = new DecompressionStream("gzip");
-        const decompressed = blob.stream().pipeThrough(ds);
-        const buf = await new Response(decompressed).arrayBuffer();
-        text = new TextDecoder("utf-8").decode(buf);
+        stream = stream.pipeThrough(new DecompressionStream("gzip"));
       } catch (e) {
         return json({ error: `Falha ao descompactar .gz: ${e instanceof Error ? e.message : String(e)}` }, 500);
       }
-    } else {
-      text = await blob.text();
-    }
-    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // remove BOM
-
-    // Parse CSV (delimiter ;). std/csv parse retorna array de objetos quando skipFirstRow=true.
-    let rows: Record<string, string>[];
-    try {
-      rows = parse(text, { separator: ";", skipFirstRow: true, lazyQuotes: true }) as Record<string, string>[];
-    } catch (e) {
-      return json({ error: `Falha ao parsear CSV: ${e instanceof Error ? e.message : String(e)}` }, 500);
     }
 
-    const total = rows.length;
-    const end = Math.min(offset + CHUNK_SIZE, total);
-    const slice = rows.slice(offset, end);
+    const normalize = (k: string) =>
+      k.replace(/^\uFEFF/, "").toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_|_$/g, "");
 
-    // Normalização: remove BOM, lowercase, troca não-alfanum por _
-    const normalize = (k: string) => k.replace(/^\uFEFF/, "").toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_|_$/g, "");
+    let header: string[] | null = null;
+    let dataIdx = 0; // índice da linha de dados (0-based, sem contar header)
+    const collected: Record<string, unknown>[] = [];
+    let finalizou = true; // assume true; vira false se sair do loop por chunk cheio
 
-    // Monta linhas para insert
-    const toInsert = slice.map((r, i) => {
+    const iter = csvRecords(stream);
+    for await (const rawLine of iter) {
+      if (header === null) {
+        const cols = parseLine(rawLine);
+        header = cols.map((c, i) => normalize(c) || `col_${i}`);
+        continue;
+      }
+      // pula linhas anteriores ao offset
+      if (dataIdx < offset) {
+        dataIdx++;
+        continue;
+      }
+      // se já coletamos o chunk, paramos — não há necessidade de ler o resto
+      if (collected.length >= CHUNK_SIZE) {
+        finalizou = false;
+        break;
+      }
+      const fields = parseLine(rawLine);
       const obj: Record<string, unknown> = {
         migration_batch_id: batchId,
         arquivo_origem_carga: arquivo,
-        linha_csv: offset + i + 2, // +2 = header + 1-based
+        linha_csv: dataIdx + 2, // +2 = header + 1-based
       };
-      for (const [k, v] of Object.entries(r)) {
-        const nk = normalize(k);
+      for (let i = 0; i < header.length; i++) {
+        const nk = header[i];
         if (!nk) continue;
-        obj[nk] = v;
+        obj[nk] = fields[i] ?? null;
       }
-      return obj;
-    });
+      collected.push(obj);
+      dataIdx++;
+    }
+
+    // Cancela o leitor caso tenhamos saído cedo
+    try { (iter as unknown as { return?: () => Promise<unknown> }).return?.(); } catch { /* noop */ }
 
     let inserted = 0;
     let lastError: string | null = null;
-    for (let i = 0; i < toInsert.length; i += INSERT_BATCH) {
-      const chunk = toInsert.slice(i, i + INSERT_BATCH);
+    for (let i = 0; i < collected.length; i += INSERT_BATCH) {
+      const chunk = collected.slice(i, i + INSERT_BATCH);
       const { error } = await admin.from(tabela).insert(chunk);
       if (error) { lastError = error.message; break; }
       inserted += chunk.length;
     }
 
     const novoTotal = (ctrl.linhas_carregadas ?? 0) + inserted;
-    const finalizou = !lastError && end >= total;
+    const reallyFinalizou = !lastError && finalizou;
+    const nextOffset = offset + inserted;
 
     await admin.from("mz_status").update({
       linhas_carregadas: novoTotal,
-      status: lastError ? "ERRO" : (finalizou ? "OK" : "EM_ANDAMENTO"),
+      status: lastError ? "ERRO" : (reallyFinalizou ? "OK" : "EM_ANDAMENTO"),
       ultimo_erro: lastError,
-      finalizou_em: finalizou ? new Date().toISOString() : null,
+      finalizou_em: reallyFinalizou ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     }).eq("arquivo", arquivo);
 
     return json({
       ok: !lastError,
       arquivo, tabela,
-      total_csv: total,
-      offset, processed: inserted, next_offset: end,
-      finalizou, error: lastError,
+      total_csv: reallyFinalizou ? novoTotal : null, // desconhecido até finalizar
+      offset, processed: inserted, next_offset: nextOffset,
+      finalizou: reallyFinalizou, error: lastError,
       linhas_carregadas_acumulado: novoTotal,
     });
   } catch (e) {
