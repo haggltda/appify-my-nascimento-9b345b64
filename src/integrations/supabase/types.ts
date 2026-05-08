@@ -9366,6 +9366,540 @@ export type Database = {
           },
         ]
       }
+      plano_acao: {
+        Row: {
+          acao: string | null
+          area: string | null
+          arquivo_origem: string | null
+          atualizado_por: string | null
+          centro_custo_id: string | null
+          comentarios: string | null
+          comite: string | null
+          contrato_id: string | null
+          created_at: string
+          criado_por: string | null
+          custo_previsto: number
+          custo_realizado: number
+          data_acao: string | null
+          data_acao_original: string | null
+          data_fim_planejado: string | null
+          data_fim_planejado_original: string | null
+          data_fim_real: string | null
+          data_fim_real_original: string | null
+          data_inicio_planejado: string | null
+          data_inicio_planejado_original: string | null
+          data_inicio_real: string | null
+          data_inicio_real_original: string | null
+          deleted_at: string | null
+          duracao_original: string | null
+          empresa_id: string
+          hash_origem: string | null
+          id: string
+          id_importacao: string | null
+          lider_comite_nome_origem: string | null
+          lider_comite_profile_id: string | null
+          lider_setor_nome_origem: string | null
+          lider_setor_profile_id: string | null
+          linha_csv: number | null
+          metadata_origem: Json | null
+          ordem: number | null
+          origem: string
+          pendencia_datas: boolean
+          pendencia_evidencia: boolean
+          pendencia_responsavel: boolean
+          pendencias_iniciais: string[]
+          pontuacao_original: string | null
+          prioridade_normalizada: string | null
+          prioridade_original: string | null
+          problema: string | null
+          responsavel_nome_origem: string | null
+          responsavel_profile_id: string | null
+          score_fim_original: string | null
+          score_geral_original: string | null
+          score_inicio_original: string | null
+          status_normalizado: string
+          status_original: string | null
+          titulo: string | null
+          today_original: string | null
+          updated_at: string
+          validacao_original: string | null
+        }
+        Insert: {
+          acao?: string | null
+          area?: string | null
+          arquivo_origem?: string | null
+          atualizado_por?: string | null
+          centro_custo_id?: string | null
+          comentarios?: string | null
+          comite?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          custo_previsto?: number
+          custo_realizado?: number
+          data_acao?: string | null
+          data_acao_original?: string | null
+          data_fim_planejado?: string | null
+          data_fim_planejado_original?: string | null
+          data_fim_real?: string | null
+          data_fim_real_original?: string | null
+          data_inicio_planejado?: string | null
+          data_inicio_planejado_original?: string | null
+          data_inicio_real?: string | null
+          data_inicio_real_original?: string | null
+          deleted_at?: string | null
+          duracao_original?: string | null
+          empresa_id: string
+          hash_origem?: string | null
+          id?: string
+          id_importacao?: string | null
+          lider_comite_nome_origem?: string | null
+          lider_comite_profile_id?: string | null
+          lider_setor_nome_origem?: string | null
+          lider_setor_profile_id?: string | null
+          linha_csv?: number | null
+          metadata_origem?: Json | null
+          ordem?: number | null
+          origem?: string
+          pendencia_datas?: boolean
+          pendencia_evidencia?: boolean
+          pendencia_responsavel?: boolean
+          pendencias_iniciais?: string[]
+          pontuacao_original?: string | null
+          prioridade_normalizada?: string | null
+          prioridade_original?: string | null
+          problema?: string | null
+          responsavel_nome_origem?: string | null
+          responsavel_profile_id?: string | null
+          score_fim_original?: string | null
+          score_geral_original?: string | null
+          score_inicio_original?: string | null
+          status_normalizado?: string
+          status_original?: string | null
+          titulo?: string | null
+          today_original?: string | null
+          updated_at?: string
+          validacao_original?: string | null
+        }
+        Update: {
+          acao?: string | null
+          area?: string | null
+          arquivo_origem?: string | null
+          atualizado_por?: string | null
+          centro_custo_id?: string | null
+          comentarios?: string | null
+          comite?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          custo_previsto?: number
+          custo_realizado?: number
+          data_acao?: string | null
+          data_acao_original?: string | null
+          data_fim_planejado?: string | null
+          data_fim_planejado_original?: string | null
+          data_fim_real?: string | null
+          data_fim_real_original?: string | null
+          data_inicio_planejado?: string | null
+          data_inicio_planejado_original?: string | null
+          data_inicio_real?: string | null
+          data_inicio_real_original?: string | null
+          deleted_at?: string | null
+          duracao_original?: string | null
+          empresa_id?: string
+          hash_origem?: string | null
+          id?: string
+          id_importacao?: string | null
+          lider_comite_nome_origem?: string | null
+          lider_comite_profile_id?: string | null
+          lider_setor_nome_origem?: string | null
+          lider_setor_profile_id?: string | null
+          linha_csv?: number | null
+          metadata_origem?: Json | null
+          ordem?: number | null
+          origem?: string
+          pendencia_datas?: boolean
+          pendencia_evidencia?: boolean
+          pendencia_responsavel?: boolean
+          pendencias_iniciais?: string[]
+          pontuacao_original?: string | null
+          prioridade_normalizada?: string | null
+          prioridade_original?: string | null
+          problema?: string | null
+          responsavel_nome_origem?: string | null
+          responsavel_profile_id?: string | null
+          score_fim_original?: string | null
+          score_geral_original?: string | null
+          score_inicio_original?: string | null
+          status_normalizado?: string
+          status_original?: string | null
+          titulo?: string | null
+          today_original?: string | null
+          updated_at?: string
+          validacao_original?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_acao_atualizado_por_fkey"
+            columns: ["atualizado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_acao_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_acao_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_acao_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_acao_lider_comite_profile_id_fkey"
+            columns: ["lider_comite_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_acao_lider_setor_profile_id_fkey"
+            columns: ["lider_setor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_acao_responsavel_profile_id_fkey"
+            columns: ["responsavel_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plano_acao_anexo: {
+        Row: {
+          bucket: string
+          created_at: string
+          criado_por: string | null
+          empresa_id: string
+          id: string
+          nome_arquivo: string
+          plano_acao_id: string
+          storage_path: string
+          tamanho_bytes: number | null
+          tipo_mime: string | null
+        }
+        Insert: {
+          bucket?: string
+          created_at?: string
+          criado_por?: string | null
+          empresa_id: string
+          id?: string
+          nome_arquivo: string
+          plano_acao_id: string
+          storage_path: string
+          tamanho_bytes?: number | null
+          tipo_mime?: string | null
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          criado_por?: string | null
+          empresa_id?: string
+          id?: string
+          nome_arquivo?: string
+          plano_acao_id?: string
+          storage_path?: string
+          tamanho_bytes?: number | null
+          tipo_mime?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_acao_anexo_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_acao_anexo_plano_acao_id_fkey"
+            columns: ["plano_acao_id"]
+            isOneToOne: false
+            referencedRelation: "plano_acao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plano_acao_comentario: {
+        Row: {
+          comentario: string
+          created_at: string
+          criado_por: string | null
+          empresa_id: string
+          id: string
+          plano_acao_id: string
+        }
+        Insert: {
+          comentario: string
+          created_at?: string
+          criado_por?: string | null
+          empresa_id: string
+          id?: string
+          plano_acao_id: string
+        }
+        Update: {
+          comentario?: string
+          created_at?: string
+          criado_por?: string | null
+          empresa_id?: string
+          id?: string
+          plano_acao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_acao_comentario_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_acao_comentario_plano_acao_id_fkey"
+            columns: ["plano_acao_id"]
+            isOneToOne: false
+            referencedRelation: "plano_acao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plano_acao_historico: {
+        Row: {
+          campo: string | null
+          created_at: string
+          criado_por: string | null
+          empresa_id: string
+          evento: string
+          id: string
+          metadata: Json | null
+          plano_acao_id: string
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          campo?: string | null
+          created_at?: string
+          criado_por?: string | null
+          empresa_id: string
+          evento: string
+          id?: string
+          metadata?: Json | null
+          plano_acao_id: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          campo?: string | null
+          created_at?: string
+          criado_por?: string | null
+          empresa_id?: string
+          evento?: string
+          id?: string
+          metadata?: Json | null
+          plano_acao_id?: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_acao_historico_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_acao_historico_plano_acao_id_fkey"
+            columns: ["plano_acao_id"]
+            isOneToOne: false
+            referencedRelation: "plano_acao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plano_acao_import_batch: {
+        Row: {
+          arquivo_nome: string | null
+          created_at: string
+          criado_por: string | null
+          empresa_id: string
+          id: string
+          metadata: Json | null
+          status: string
+          total_importado: number
+          total_linhas: number
+          total_pendente: number
+        }
+        Insert: {
+          arquivo_nome?: string | null
+          created_at?: string
+          criado_por?: string | null
+          empresa_id: string
+          id?: string
+          metadata?: Json | null
+          status?: string
+          total_importado?: number
+          total_linhas?: number
+          total_pendente?: number
+        }
+        Update: {
+          arquivo_nome?: string | null
+          created_at?: string
+          criado_por?: string | null
+          empresa_id?: string
+          id?: string
+          metadata?: Json | null
+          status?: string
+          total_importado?: number
+          total_linhas?: number
+          total_pendente?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_acao_import_batch_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plano_acao_import_item: {
+        Row: {
+          batch_id: string
+          created_at: string
+          empresa_id: string
+          hash_origem: string | null
+          id: string
+          id_importacao: string | null
+          linha_csv: number | null
+          payload_original: Json | null
+          pendencias: string[]
+          plano_acao_id: string | null
+          status: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          empresa_id: string
+          hash_origem?: string | null
+          id?: string
+          id_importacao?: string | null
+          linha_csv?: number | null
+          payload_original?: Json | null
+          pendencias?: string[]
+          plano_acao_id?: string | null
+          status?: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          empresa_id?: string
+          hash_origem?: string | null
+          id?: string
+          id_importacao?: string | null
+          linha_csv?: number | null
+          payload_original?: Json | null
+          pendencias?: string[]
+          plano_acao_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_acao_import_item_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "plano_acao_import_batch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_acao_import_item_plano_acao_id_fkey"
+            columns: ["plano_acao_id"]
+            isOneToOne: false
+            referencedRelation: "plano_acao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plano_acao_usuario_permissao: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          id: string
+          pode_administrar: boolean
+          pode_aprovar: boolean
+          pode_criar: boolean
+          pode_dashboard: boolean
+          pode_editar: boolean
+          pode_excluir: boolean
+          pode_importar: boolean
+          pode_visualizar: boolean
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          id?: string
+          pode_administrar?: boolean
+          pode_aprovar?: boolean
+          pode_criar?: boolean
+          pode_dashboard?: boolean
+          pode_editar?: boolean
+          pode_excluir?: boolean
+          pode_importar?: boolean
+          pode_visualizar?: boolean
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          pode_administrar?: boolean
+          pode_aprovar?: boolean
+          pode_criar?: boolean
+          pode_dashboard?: boolean
+          pode_editar?: boolean
+          pode_excluir?: boolean
+          pode_importar?: boolean
+          pode_visualizar?: boolean
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_acao_usuario_permissao_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plano_contas_master: {
         Row: {
           ativo: boolean
@@ -14150,6 +14684,14 @@ export type Database = {
         Returns: string
       }
       obz_versao_submeter: { Args: { _id: string }; Returns: undefined }
+      plano_acao_can_access: {
+        Args: { p_empresa_id: string; p_permission: string; p_user_id: string }
+        Returns: boolean
+      }
+      plano_acao_seed_inicial: {
+        Args: { _empresa: string; _payload: Json }
+        Returns: Json
+      }
       pre_titulo_aprovar: { Args: { _id: string }; Returns: undefined }
       pre_titulo_promover: { Args: { _id: string }; Returns: string }
       pre_titulo_rejeitar: {
