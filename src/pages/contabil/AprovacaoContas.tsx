@@ -160,6 +160,23 @@ export default function AprovacaoContas() {
     onError: (e: any) => toast.error(e.message ?? "Erro ao salvar decisão"),
   });
 
+  const promover = useMutation({
+    mutationFn: async () => {
+      if (!empresaId) throw new Error("Sem empresa selecionada no perfil");
+      const { data, error } = await (supabase as any).rpc("promover_contas_aprovadas", { _empresa_id: empresaId });
+      if (error) throw error;
+      return data as { promovidas: number; ja_existentes: number; sem_pai: number };
+    },
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["stg_aprovacao_contas"] });
+      qc.invalidateQueries({ queryKey: ["conta_contabil"] });
+      toast.success(`Promoção concluída`, {
+        description: `${r.promovidas} promovidas · ${r.ja_existentes} já existiam · ${r.sem_pai} sem pai`,
+      });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro na promoção em massa"),
+  });
+
   const openEdit = (row: Aprovacao) => {
     setEditing(row);
     const s = (row.status_aprovacao ?? "").toUpperCase();
@@ -167,11 +184,32 @@ export default function AprovacaoContas() {
     setObservacao(row.observacao_usuario ?? "");
   };
 
+  const toggleSel = (id: string) =>
+    setSelecionados((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  const toggleSelAll = () => {
+    const visiveis = filtrada.map((r) => r.id_sugestao_conta);
+    setSelecionados((prev) => {
+      const todosSelecionados = visiveis.every((id) => prev.has(id));
+      if (todosSelecionados) return new Set();
+      return new Set(visiveis);
+    });
+  };
+  const decidirEmLote = (status: AprovStatus) => {
+    if (selecionados.size === 0) return;
+    decidir.mutate({ ids: Array.from(selecionados), status }, {
+      onSuccess: () => setSelecionados(new Set()),
+    });
+  };
+
   const cards = [
     { l: "Total sugeridas", v: counters.todas, t: "info", i: Clock },
     { l: "Pendentes", v: counters.pendentes, t: "warning", i: Clock },
     { l: "Aprovadas", v: counters.aprovadas, t: "success", i: CheckCircle2 },
-    { l: "Rejeitadas", v: counters.rejeitadas, t: "destructive", i: XCircle },
+    { l: "Promovidas", v: counters.promovidas, t: "primary", i: Rocket },
   ] as const;
 
   return (
