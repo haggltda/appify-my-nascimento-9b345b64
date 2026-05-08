@@ -47,6 +47,8 @@ const fmtBRL = (n: number | null | undefined) =>
 
 function StatusBadge({ status }: { status: string | null }) {
   const s = (status ?? "").toUpperCase();
+  if (s === "PROMOVIDA")
+    return <Badge className="bg-primary/10 text-primary border-primary/20"><Rocket className="mr-1 h-3 w-3" />Promovida</Badge>;
   if (s === "APROVADA")
     return <Badge className="bg-success-soft text-success border-success/20"><CheckCircle2 className="mr-1 h-3 w-3" />Aprovada</Badge>;
   if (s === "REJEITADA")
