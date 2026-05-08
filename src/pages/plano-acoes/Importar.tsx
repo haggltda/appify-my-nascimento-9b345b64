@@ -67,11 +67,11 @@ export default function PlanoAcoesImportar() {
         <div className="flex items-start gap-4">
           <div className="rounded-md bg-primary/10 p-3"><Database className="h-6 w-6 text-primary" /></div>
           <div className="flex-1">
-            <h3 className="font-display text-lg font-bold">Carga Inicial — 123 ações Nascimento</h3>
+            <h3 className="font-display text-lg font-bold">Carga atualizada — {PLANO_ACOES_SEED_TOTAL} ações Nascimento</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Origem: <span className="font-mono">Gerenciamento de Tarefas - Nascimento - Tático - Plano de Ações.csv</span>.
-              Status: em_andamento (47), a_definir (43), concluida_pendente_evidencia (30), atrasada (2), nao_iniciada (1).
-              Reexecuções fazem upsert por <span className="font-mono">id_importacao</span>.
+              Origem: <span className="font-mono">Gerenciamento de Tarefas - Nascimento - Tático 4.xlsx</span>.
+              Reexecuções fazem upsert por <span className="font-mono">id_importacao</span>, atualizando status,
+              datas, prioridades e responsáveis sem duplicar.
             </p>
             <div className="mt-3 flex items-center gap-3">
               <Button onClick={executarSeed} disabled={running}>
