@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle2, XCircle, Clock, Pencil, Search, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Pencil, Search, AlertTriangle, DatabaseZap } from "lucide-react";
 import { toast } from "sonner";
 
 type AprovStatus = "AGUARDANDO_APROVACAO_USUARIO" | "APROVADA" | "REJEITADA" | "AJUSTAR";
