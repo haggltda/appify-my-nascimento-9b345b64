@@ -49,9 +49,11 @@ export default function DREGerencial() {
   });
 
   // Inicializa empresa: usa profile, ou primeira empresa com lançamentos no ano
-  if (!empresaId && (empresasQ.data?.length ?? 0) > 0) {
-    setEmpresaId(empresaIdProfile ?? empresasQ.data![0].id);
-  }
+  useEffect(() => {
+    if (!empresaId && (empresasQ.data?.length ?? 0) > 0) {
+      setEmpresaId(empresaIdProfile ?? empresasQ.data![0].id);
+    }
+  }, [empresasQ.data, empresaIdProfile, empresaId]);
 
   const versoesQ = useQuery({
     queryKey: ["obz_versoes_para_dre", empresaId, ano],
