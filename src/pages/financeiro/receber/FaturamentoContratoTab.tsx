@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Receipt, FileSearch, ChevronRight } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Receipt, FileSearch, ChevronRight, CalendarRange, Send } from "lucide-react";
 import { toast } from "sonner";
+import { useEmitirTituloDeCronograma, useEmitirTitulosLote } from "@/hooks/useTituloReceber";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
 const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
@@ -105,8 +107,165 @@ export default function FaturamentoContratoTab({ onFaturado }: { onFaturado?: ()
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Parcelas pendentes do cronograma do contrato selecionado
+  const { data: parcelasCronograma = [] } = useQuery<any[]>({
+    queryKey: ["cronograma-pendentes", contratoId],
+    queryFn: async () => {
+      if (!contratoId) return [];
+      const { data, error } = await (supabase as any)
+        .from("cronograma_faturamento")
+        .select("id, competencia, valor_previsto, valor_emitido, status, data_recebimento_previsto, numero_nf")
+        .eq("contrato_id", contratoId)
+        .order("competencia");
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!contratoId,
+  });
+
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
+  const emitirSingle = useEmitirTituloDeCronograma();
+  const emitirLote = useEmitirTitulosLote();
+
+  const elegiveis = parcelasCronograma.filter((p) => p.status === "previsto" || p.status === "atrasado");
+  const totalSelecionado = elegiveis
+    .filter((p) => selecionadas.has(p.id))
+    .reduce((acc, p) => acc + Number(p.valor_previsto || 0), 0);
+
+  const toggle = (id: string) => {
+    setSelecionadas((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
+  const toggleAll = () => {
+    setSelecionadas((s) => (s.size === elegiveis.length ? new Set() : new Set(elegiveis.map((p) => p.id))));
+  };
+
+  const handleEmitirLote = async () => {
+    const ids = Array.from(selecionadas);
+    if (ids.length === 0) return;
+    if (!confirm(`Emitir ${ids.length} título(s) totalizando ${fmtMoney(totalSelecionado)}?`)) return;
+    await emitirLote.mutateAsync({ ids, meio_cobranca: meio, conta_bancaria_id: contaId || null });
+    setSelecionadas(new Set());
+    onFaturado?.();
+  };
+
+  const statusBadge = (s: string) => {
+    const map: Record<string, string> = {
+      previsto: "bg-info-soft text-info",
+      emitido: "bg-warning-soft text-warning",
+      recebido: "bg-success-soft text-success",
+      atrasado: "bg-destructive/15 text-destructive",
+      cancelado: "bg-muted text-muted-foreground",
+    };
+    return <Badge variant="outline" className={`text-[10px] ${map[s] ?? ""}`}>{s}</Badge>;
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div className="space-y-4">
+      {contratoId && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CalendarRange className="h-4 w-4" /> Cronograma do contrato
+                </CardTitle>
+                <CardDescription>
+                  Selecione parcelas previstas e emita os títulos a receber.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {selecionadas.size} selecionada(s) · {fmtMoney(totalSelecionado)}
+                </span>
+                <Button
+                  size="sm"
+                  onClick={handleEmitirLote}
+                  disabled={selecionadas.size === 0 || emitirLote.isPending}
+                >
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
+                  Emitir selecionados
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={elegiveis.length > 0 && selecionadas.size === elegiveis.length}
+                      onCheckedChange={toggleAll}
+                      aria-label="Selecionar todas"
+                    />
+                  </TableHead>
+                  <TableHead>Competência</TableHead>
+                  <TableHead className="text-right">Valor previsto</TableHead>
+                  <TableHead>Vencimento</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Documento</TableHead>
+                  <TableHead className="w-24"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {parcelasCronograma.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-xs text-muted-foreground py-6">
+                      Nenhuma parcela no cronograma. Gere o orçamento do contrato primeiro.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {parcelasCronograma.map((p) => {
+                  const isElegivel = p.status === "previsto" || p.status === "atrasado";
+                  return (
+                    <TableRow key={p.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selecionadas.has(p.id)}
+                          disabled={!isElegivel}
+                          onCheckedChange={() => toggle(p.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-xs font-medium">
+                        {new Date(p.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" })}
+                      </TableCell>
+                      <TableCell className="text-right text-xs font-mono">{fmtMoney(p.valor_previsto)}</TableCell>
+                      <TableCell className="text-xs">{fmtDate(p.data_recebimento_previsto)}</TableCell>
+                      <TableCell>{statusBadge(p.status)}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">{p.numero_nf ?? "—"}</TableCell>
+                      <TableCell>
+                        {isElegivel && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs"
+                            disabled={emitirSingle.isPending}
+                            onClick={() =>
+                              emitirSingle.mutate({
+                                cronograma_id: p.id,
+                                meio_cobranca: meio,
+                                conta_bancaria_id: contaId || null,
+                              })
+                            }
+                          >
+                            <Send className="h-3 w-3 mr-1" /> Emitir
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Receipt className="h-5 w-5" /> Faturar contrato (manual por medição)</CardTitle>
@@ -214,6 +373,7 @@ export default function FaturamentoContratoTab({ onFaturado }: { onFaturado?: ()
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
