@@ -29,8 +29,10 @@ export default function CapitalGiro() {
   const [empresaNome, setEmpresaNome] = useState<string>("");
   const [saldoMinimo, setSaldoMinimo] = useState(500000);
 
-  const dataIni = isoDate(today);
-  const dataFim = isoDate(addDays(today, parseInt(horizonte) - 1));
+  // Janela ancorada nos últimos N dias (mesma fonte do Fluxo de Caixa Diário —
+  // base mz_40 contém apenas dados realizados, então olhamos para trás).
+  const dataFim = isoDate(today);
+  const dataIni = isoDate(addDays(today, -(parseInt(horizonte) - 1)));
 
   const empresasQ = useQuery({
     queryKey: ["empresas-cg"],
@@ -193,7 +195,7 @@ export default function CapitalGiro() {
           <div className="flex gap-1">
             {(["15", "30", "45", "90"] as const).map((h) => (
               <Button key={h} size="sm" variant={horizonte === h ? "default" : "outline"} onClick={() => setHorizonte(h)}>
-                Próximos {h} dias
+                Últimos {h} dias
               </Button>
             ))}
           </div>
