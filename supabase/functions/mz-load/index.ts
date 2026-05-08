@@ -19,6 +19,12 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function partPrefix(path: string) {
+  const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
+  const file = path.slice(folder.length).replace(/\.gz$/i, "").replace(/\.csv$/i, "");
+  return { folder, prefix: file };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -51,6 +57,7 @@ Deno.serve(async (req) => {
     if (!ctrl.storage_path) return json({ error: "Arquivo ainda não foi enviado ao Storage" }, 400);
 
     const tabela: string = ctrl.tabela;
+    let storagePath: string = ctrl.storage_path;
 
     // Se for offset 0:
     //   - modo normal: zera tudo do batch (recomeça)
@@ -76,14 +83,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Baixa o CSV completo (bucket privado).
-    // Para arquivos grandes (>50MB) o download via SDK funciona; memória da edge ~256MB.
-    const { data: blob, error: dlErr } = await admin.storage.from("migracao-zero").download(ctrl.storage_path);
+    // Baixa o CSV completo (bucket privado). Se o usuário subiu uma parte com sufixo
+    // (ex.: arquivo_02.csv) direto no Storage, localiza automaticamente a parte mais recente.
+    let { data: blob, error: dlErr } = await admin.storage.from("migracao-zero").download(storagePath);
+    if (dlErr || !blob) {
+      const { folder, prefix } = partPrefix(storagePath);
+      const { data: candidates } = await admin.storage.from("migracao-zero").list(folder.replace(/\/$/, ""), {
+        limit: 100,
+        sortBy: { column: "updated_at", order: "desc" },
+      });
+      const match = candidates?.find((f) => {
+        const n = f.name.toLowerCase();
+        const p = prefix.toLowerCase();
+        return (n === `${p}.csv` || n === `${p}.csv.gz` || n.startsWith(`${p}_`) || n.startsWith(`${p}-`) || n.startsWith(`${p} parte`));
+      });
+      if (match) {
+        storagePath = `${folder}${match.name}`;
+        const retry = await admin.storage.from("migracao-zero").download(storagePath);
+        blob = retry.data;
+        dlErr = retry.error;
+      }
+    }
     if (dlErr || !blob) return json({ error: `Falha ao baixar storage: ${dlErr?.message}` }, 500);
 
     // Suporte a .gz: descompacta com DecompressionStream nativo do Deno
     let text: string;
-    const isGz = ctrl.storage_path.toLowerCase().endsWith(".gz");
+    const isGz = storagePath.toLowerCase().endsWith(".gz");
     if (isGz) {
       try {
         const ds = new DecompressionStream("gzip");
