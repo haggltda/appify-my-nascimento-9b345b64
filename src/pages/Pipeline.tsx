@@ -209,6 +209,7 @@ function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
   compact?: boolean;
 }) {
   const isMine = currentUser && licitacao.responsavel === currentUser;
+  const temResponsavel = !!licitacao.responsavel && licitacao.responsavel.trim() !== "" && licitacao.responsavel.toLowerCase() !== "—";
   if (isMine) {
     return (
       <span className={cn(
@@ -217,6 +218,17 @@ function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
       )}>
         <UserCheck className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
         Você é o responsável
+      </span>
+    );
+  }
+  if (temResponsavel) {
+    return (
+      <span className={cn(
+        "inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1 font-medium text-muted-foreground",
+        compact ? "text-[10px]" : "text-xs"
+      )} title={`Atribuído a ${licitacao.responsavel}`}>
+        <UserCheck className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
+        Atribuído
       </span>
     );
   }
