@@ -74,6 +74,7 @@ import Fiscal from "./pages/Fiscal";
 import IntegracaoBatches from "./pages/integracao/Batches";
 import BatchDetalhe from "./pages/integracao/BatchDetalhe";
 import IntegracaoAliases from "./pages/integracao/Aliases";
+import MigracaoZero from "./pages/admin/MigracaoZero";
 
 const queryClient = new QueryClient();
 
