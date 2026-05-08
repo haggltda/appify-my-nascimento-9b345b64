@@ -143,6 +143,7 @@ export default function MigracaoZero() {
     }
     toast.success(`Upload em lote concluído: ${matched.length} arquivos.`);
   }
+  const totalEsperado = rows.reduce((a, r) => a + r.linhas_esperadas, 0);
   const totalCarregado = rows.reduce((a, r) => a + r.linhas_carregadas, 0);
   const pctGlobal = totalEsperado ? Math.min(100, Math.round((totalCarregado / totalEsperado) * 100)) : 0;
   const okCount = rows.filter((r) => r.status === "OK").length;
