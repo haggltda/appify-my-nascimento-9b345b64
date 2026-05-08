@@ -982,34 +982,58 @@ export type Database = {
       centros_custo: {
         Row: {
           ativo: boolean
+          categoria_gerencial: string | null
           codigo: string
           created_at: string
+          dimensao: string | null
+          direto_indireto: string | null
           empresa_id: string
+          exige_contrato: boolean
+          fixo_variavel: string | null
           id: string
+          impacta_dre: boolean
           nome: string
+          origem_cadastro: string | null
           responsavel: string | null
+          status_cadastro: string
           tipo: Database["public"]["Enums"]["cc_tipo"]
           updated_at: string
         }
         Insert: {
           ativo?: boolean
+          categoria_gerencial?: string | null
           codigo: string
           created_at?: string
+          dimensao?: string | null
+          direto_indireto?: string | null
           empresa_id: string
+          exige_contrato?: boolean
+          fixo_variavel?: string | null
           id?: string
+          impacta_dre?: boolean
           nome: string
+          origem_cadastro?: string | null
           responsavel?: string | null
+          status_cadastro?: string
           tipo?: Database["public"]["Enums"]["cc_tipo"]
           updated_at?: string
         }
         Update: {
           ativo?: boolean
+          categoria_gerencial?: string | null
           codigo?: string
           created_at?: string
+          dimensao?: string | null
+          direto_indireto?: string | null
           empresa_id?: string
+          exige_contrato?: boolean
+          fixo_variavel?: string | null
           id?: string
+          impacta_dre?: boolean
           nome?: string
+          origem_cadastro?: string | null
           responsavel?: string | null
+          status_cadastro?: string
           tipo?: Database["public"]["Enums"]["cc_tipo"]
           updated_at?: string
         }
@@ -1918,15 +1942,18 @@ export type Database = {
         Row: {
           ativo: boolean
           centro_custo_padrao: string | null
+          classe_contabil: string | null
           classificacao: string
           conta_reduzida: number
           created_at: string
           descricao: string
+          direto_indireto: string | null
           dre_linha_id: string | null
           empresa_id: string
           entra_fluxo: boolean
           entra_orcamento: boolean
           exige_contrato: Database["public"]["Enums"]["conta_exige_contrato"]
+          fixo_variavel: string | null
           grupo_dre: Database["public"]["Enums"]["conta_grupo_dre"]
           id: string
           master_id: string | null
@@ -1934,20 +1961,24 @@ export type Database = {
           parent_id: string | null
           saldo_inicial: number
           tipo: Database["public"]["Enums"]["conta_tipo"]
+          tipo_gerencial: string | null
           updated_at: string
         }
         Insert: {
           ativo?: boolean
           centro_custo_padrao?: string | null
+          classe_contabil?: string | null
           classificacao: string
           conta_reduzida: number
           created_at?: string
           descricao: string
+          direto_indireto?: string | null
           dre_linha_id?: string | null
           empresa_id: string
           entra_fluxo?: boolean
           entra_orcamento?: boolean
           exige_contrato?: Database["public"]["Enums"]["conta_exige_contrato"]
+          fixo_variavel?: string | null
           grupo_dre?: Database["public"]["Enums"]["conta_grupo_dre"]
           id?: string
           master_id?: string | null
@@ -1955,20 +1986,24 @@ export type Database = {
           parent_id?: string | null
           saldo_inicial?: number
           tipo: Database["public"]["Enums"]["conta_tipo"]
+          tipo_gerencial?: string | null
           updated_at?: string
         }
         Update: {
           ativo?: boolean
           centro_custo_padrao?: string | null
+          classe_contabil?: string | null
           classificacao?: string
           conta_reduzida?: number
           created_at?: string
           descricao?: string
+          direto_indireto?: string | null
           dre_linha_id?: string | null
           empresa_id?: string
           entra_fluxo?: boolean
           entra_orcamento?: boolean
           exige_contrato?: Database["public"]["Enums"]["conta_exige_contrato"]
+          fixo_variavel?: string | null
           grupo_dre?: Database["public"]["Enums"]["conta_grupo_dre"]
           id?: string
           master_id?: string | null
@@ -1976,6 +2011,7 @@ export type Database = {
           parent_id?: string | null
           saldo_inicial?: number
           tipo?: Database["public"]["Enums"]["conta_tipo"]
+          tipo_gerencial?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -7289,6 +7325,7 @@ export type Database = {
           filtro: Json | null
           gatilho: string | null
           id: string
+          impacta_caixa: string | null
           observacao: string | null
           prioridade: number
           requer_3way_match: boolean
@@ -7311,6 +7348,7 @@ export type Database = {
           filtro?: Json | null
           gatilho?: string | null
           id?: string
+          impacta_caixa?: string | null
           observacao?: string | null
           prioridade?: number
           requer_3way_match?: boolean
@@ -7333,6 +7371,7 @@ export type Database = {
           filtro?: Json | null
           gatilho?: string | null
           id?: string
+          impacta_caixa?: string | null
           observacao?: string | null
           prioridade?: number
           requer_3way_match?: boolean
@@ -8346,6 +8385,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      stg_bancos_contas_detectadas: {
+        Row: {
+          codigo_banco_conta: string
+          conta_contabil_sugerida: string | null
+          created_at: string
+          empresa_codigo_detectada: string | null
+          empresa_nome_detectada: string | null
+          id: string
+          nome_banco_conta: string | null
+          observacao: string | null
+          origem_detectada: string | null
+          qtd_linhas_detectadas: number | null
+          status_carga: string | null
+          status_de_para_conta: string | null
+          tipo_conta_financeira: string | null
+        }
+        Insert: {
+          codigo_banco_conta: string
+          conta_contabil_sugerida?: string | null
+          created_at?: string
+          empresa_codigo_detectada?: string | null
+          empresa_nome_detectada?: string | null
+          id?: string
+          nome_banco_conta?: string | null
+          observacao?: string | null
+          origem_detectada?: string | null
+          qtd_linhas_detectadas?: number | null
+          status_carga?: string | null
+          status_de_para_conta?: string | null
+          tipo_conta_financeira?: string | null
+        }
+        Update: {
+          codigo_banco_conta?: string
+          conta_contabil_sugerida?: string | null
+          created_at?: string
+          empresa_codigo_detectada?: string | null
+          empresa_nome_detectada?: string | null
+          id?: string
+          nome_banco_conta?: string | null
+          observacao?: string | null
+          origem_detectada?: string | null
+          qtd_linhas_detectadas?: number | null
+          status_carga?: string | null
+          status_de_para_conta?: string | null
+          tipo_conta_financeira?: string | null
+        }
+        Relationships: []
       }
       stg_clientes_cnpj: {
         Row: {
