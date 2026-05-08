@@ -47,6 +47,7 @@ export default function ContasPagar() {
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [sel, setSel] = useState<string[]>([]);
   const [openAgendar, setOpenAgendar] = useState<string | null>(null);
+  const [openBaixar, setOpenBaixar] = useState<any | null>(null);
   const [openRemessa, setOpenRemessa] = useState(false);
 
   const { data: titulos = [], isLoading } = useQuery<any[]>({
