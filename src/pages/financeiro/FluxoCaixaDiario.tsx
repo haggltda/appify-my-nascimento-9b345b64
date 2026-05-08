@@ -99,6 +99,18 @@ export default function FluxoCaixaDiario() {
     },
   });
 
+  const orcQ = useQuery({
+    queryKey: ["fluxo_caixa_diario_orcado", empresaId, dataIni, dataFim],
+    enabled: !!empresaId && visao === "comparativo",
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("fluxo_caixa_diario_orcado", {
+        _empresa_id: empresaId, _data_ini: dataIni, _data_fim: dataFim,
+      });
+      if (error) throw error;
+      return (data ?? []) as OrcRow[];
+    },
+  });
+
   const dias = useMemo(() => {
     const out: string[] = [];
     const a = new Date(dataIni + "T00:00:00");
