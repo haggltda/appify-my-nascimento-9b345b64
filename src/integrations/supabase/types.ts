@@ -13862,6 +13862,20 @@ export type Database = {
         }
         Returns: Json
       }
+      dre_gerencial_mensal: {
+        Args: { _ano: number; _empresa_id: string; _versao_obz?: string }
+        Returns: {
+          codigo: string
+          descricao: string
+          dre_linha_id: string
+          mes: number
+          natureza: string
+          orcado: number
+          ordem: number
+          realizado: number
+          variacao: number
+        }[]
+      }
       dre_realizado: {
         Args: { _data_fim: string; _data_ini: string; _empresa_id: string }
         Returns: {
