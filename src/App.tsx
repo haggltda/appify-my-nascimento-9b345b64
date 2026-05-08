@@ -61,6 +61,7 @@ import Cotacoes from "./pages/suprimentos/Cotacoes";
 import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
 import FluxoCaixa from "./pages/financeiro/FluxoCaixa";
+import FluxoCaixaDiario from "./pages/financeiro/FluxoCaixaDiario";
 import OBZVersoes from "./pages/controladoria/OBZVersoes";
 import DREGerencial from "./pages/controladoria/DREGerencial";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
