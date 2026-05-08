@@ -13509,6 +13509,18 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_gerar_cronograma_provisorio: {
+        Args: { p_contrato_id: string; p_meses?: number }
+        Returns: number
+      }
+      fn_promover_contratos_mz50: {
+        Args: { meses_default?: number }
+        Returns: {
+          contratos_existentes: number
+          contratos_inseridos: number
+          sem_empresa: number
+        }[]
+      }
       gerar_orcamento_contrato: {
         Args: { _ciclo_id: string; _contrato_id: string }
         Returns: Json
