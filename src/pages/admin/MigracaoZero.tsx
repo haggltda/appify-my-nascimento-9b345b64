@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import * as tus from "tus-js-client";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,9 @@ type Status = {
   migration_batch_id: string | null;
 };
 
+const SUPABASE_URL = "https://fwmzeaztjxrxxzxzxmgc.supabase.co";
+const LARGE_UPLOAD_LIMIT = 45 * 1024 * 1024;
+
 const STATUS_COLORS: Record<string, string> = {
   PENDENTE: "bg-muted text-muted-foreground",
   ENVIADO: "bg-blue-500/10 text-blue-600 border-blue-300",
@@ -34,6 +38,7 @@ export default function MigracaoZero() {
   const [rows, setRows] = useState<Status[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [globalRunning, setGlobalRunning] = useState(false);
   const cancelRef = useRef(false);
 
@@ -48,13 +53,52 @@ export default function MigracaoZero() {
 
   useEffect(() => { load(); }, []);
 
+  async function uploadLargeFile(path: string, file: File, arquivo: string) {
+    const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+    if (sessionErr) throw sessionErr;
+    const token = sessionData.session?.access_token;
+    if (!token) throw new Error("Sessão expirada. Entre novamente para enviar arquivos grandes.");
+
+    await new Promise<void>((resolve, reject) => {
+      const upload = new tus.Upload(file, {
+        endpoint: `${SUPABASE_URL}/storage/v1/upload/resumable`,
+        chunkSize: 6 * 1024 * 1024,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        uploadDataDuringCreation: true,
+        removeFingerprintOnSuccess: true,
+        headers: {
+          authorization: `Bearer ${token}`,
+          apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3bXplYXp0anhyeHh6eHp4bWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2MDc0NTAsImV4cCI6MjA5MjE4MzQ1MH0.i08oF2-9N6w-CxDVy8ink29-ydHTJEc-eQBZDYRxGwI",
+          "x-upsert": "true",
+        },
+        metadata: {
+          bucketName: "migracao-zero",
+          objectName: path,
+          contentType: file.type || "text/csv",
+          cacheControl: "3600",
+        },
+        onError: reject,
+        onProgress: (sent, total) => {
+          setUploadProgress((p) => ({ ...p, [arquivo]: Math.round((sent / total) * 100) }));
+        },
+        onSuccess: () => resolve(),
+      });
+      upload.start();
+    });
+  }
+
   async function uploadFile(arquivo: string, file: File) {
     setBusy((b) => ({ ...b, [arquivo]: true }));
     try {
       const path = `csv/${arquivo}`;
-      const { error: upErr } = await supabase.storage
-        .from("migracao-zero").upload(path, file, { upsert: true, contentType: "text/csv" });
-      if (upErr) throw upErr;
+      setUploadProgress((p) => ({ ...p, [arquivo]: 0 }));
+      if (file.size >= LARGE_UPLOAD_LIMIT) {
+        await uploadLargeFile(path, file, arquivo);
+      } else {
+        const { error: upErr } = await supabase.storage
+          .from("migracao-zero").upload(path, file, { upsert: true, contentType: "text/csv" });
+        if (upErr) throw upErr;
+      }
       const { error: stErr } = await supabase.from("mz_status").update({
         storage_path: path,
         uploaded_at: new Date().toISOString(),
@@ -70,6 +114,11 @@ export default function MigracaoZero() {
       toast.error(`${arquivo}: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBusy((b) => ({ ...b, [arquivo]: false }));
+      setUploadProgress((p) => {
+        const next = { ...p };
+        delete next[arquivo];
+        return next;
+      });
     }
   }
 
