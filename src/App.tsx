@@ -163,6 +163,7 @@ const App = () => (
             <Route path="integracao" element={<IntegracaoBatches />} />
             <Route path="integracao/aliases" element={<IntegracaoAliases />} />
             <Route path="integracao/:id" element={<BatchDetalhe />} />
+            <Route path="admin/migracao-zero" element={<MigracaoZero />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
