@@ -31,11 +31,27 @@ const fmt = (n: number) =>
 const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
 export default function DREGerencial() {
-  const { data: empresaId } = useEmpresaId();
+  const { data: empresaIdProfile } = useEmpresaId();
   const anoAtual = new Date().getFullYear();
   const [ano, setAno] = useState<number>(anoAtual);
+  const [empresaId, setEmpresaId] = useState<string | undefined>(undefined);
   const [versaoId, setVersaoId] = useState<string | "auto">("auto");
   const [visao, setVisao] = useState<Visao>("realizado");
+
+  const empresasQ = useQuery({
+    queryKey: ["empresas-dre"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("empresas").select("id, codigo, razao_social").eq("ativa", true).order("codigo");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; codigo: string; razao_social: string }>;
+    },
+  });
+
+  // Inicializa empresa: usa profile, ou primeira empresa com lançamentos no ano
+  if (!empresaId && (empresasQ.data?.length ?? 0) > 0) {
+    setEmpresaId(empresaIdProfile ?? empresasQ.data![0].id);
+  }
 
   const versoesQ = useQuery({
     queryKey: ["obz_versoes_para_dre", empresaId, ano],
