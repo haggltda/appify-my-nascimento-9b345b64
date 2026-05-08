@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileText, ChevronDown, ChevronRight } from "lucide-react";
+import { Download, FileText, ChevronDown, ChevronRight, BarChart3 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 type BlocoKey = "ENTRADAS" | "SAIDAS_OP" | "FINANCEIRAS" | "SAIDAS_NAO_OP";
 type RawRow = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number; saldo_inicial: number };
+type OrcRow = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number };
+type Visao = "realizado" | "comparativo";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtBRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -58,6 +60,7 @@ export default function FluxoCaixaDiario() {
   const [empresaId, setEmpresaId] = useState<string | undefined>();
   const [empresaNome, setEmpresaNome] = useState<string>("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [visao, setVisao] = useState<Visao>("realizado");
 
   const empresasQ = useQuery({
     queryKey: ["empresas-fcd"],
@@ -93,6 +96,18 @@ export default function FluxoCaixaDiario() {
       });
       if (error) throw error;
       return (data ?? []) as RawRow[];
+    },
+  });
+
+  const orcQ = useQuery({
+    queryKey: ["fluxo_caixa_diario_orcado", empresaId, dataIni, dataFim],
+    enabled: !!empresaId && visao === "comparativo",
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("fluxo_caixa_diario_orcado", {
+        _empresa_id: empresaId, _data_ini: dataIni, _data_fim: dataFim,
+      });
+      if (error) throw error;
+      return (data ?? []) as OrcRow[];
     },
   });
 
@@ -155,6 +170,28 @@ export default function FluxoCaixaDiario() {
 
   const saldoTotalPeriodo = tEntradas.total + tSOp.total + tFin.total + tSNop.total;
   const saldoFinal = saldoInicialBase + saldoTotalPeriodo;
+
+  // Comparativo Realizado x Orçado (totais por bloco)
+  const comparativo = useMemo(() => {
+    const FIN = /(JURO|IOF|TARIF|FINANC|RENDIMENT|APLIC|BANC[AÁ]RI|EMPR[ÉE]STIM|D[ÉE]BITO\s+AUT)/i;
+    const orc: Record<BlocoKey, number> = { ENTRADAS: 0, SAIDAS_OP: 0, FINANCEIRAS: 0, SAIDAS_NAO_OP: 0 };
+    (orcQ.data ?? []).forEach((r) => {
+      const isFin = FIN.test(r.categoria);
+      const k: BlocoKey = r.bloco === "ENTRADAS" ? "ENTRADAS"
+        : r.bloco === "SAIDAS_OP" ? "SAIDAS_OP"
+        : isFin ? "FINANCEIRAS" : "SAIDAS_NAO_OP";
+      orc[k] += Number(r.valor);
+    });
+    const real: Record<BlocoKey, number> = {
+      ENTRADAS: tEntradas.total, SAIDAS_OP: tSOp.total, FINANCEIRAS: tFin.total, SAIDAS_NAO_OP: tSNop.total,
+    };
+    return (Object.keys(real) as BlocoKey[]).map((b) => {
+      const r = real[b], o = orc[b];
+      const variacao = r - o;
+      const pct = o !== 0 ? (variacao / Math.abs(o)) * 100 : 0;
+      return { bloco: b, realizado: r, orcado: o, variacao, pct };
+    });
+  }, [orcQ.data, tEntradas.total, tSOp.total, tFin.total, tSNop.total]);
 
   const exportCsv = () => {
     const header = ["Bloco", "Categoria", ...dias, "Total Período"];
@@ -335,6 +372,17 @@ export default function FluxoCaixaDiario() {
           <Label>Data Final</Label>
           <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-44" />
         </div>
+        <div>
+          <Label>Visão</Label>
+          <div className="flex gap-1">
+            <Button size="sm" variant={visao === "realizado" ? "default" : "outline"} onClick={() => setVisao("realizado")}>
+              Realizado
+            </Button>
+            <Button size="sm" variant={visao === "comparativo" ? "default" : "outline"} onClick={() => setVisao("comparativo")}>
+              <BarChart3 className="mr-1 h-3 w-3" /> Realizado x Orçado
+            </Button>
+          </div>
+        </div>
         <div className="ml-auto text-xs text-muted-foreground">
           {dias.length} dias · {dadosQ.data?.length ?? 0} categorias·dia
         </div>
@@ -411,6 +459,50 @@ export default function FluxoCaixaDiario() {
           </table>
         )}
       </Card>
+
+      {visao === "comparativo" && (
+        <Card className="p-4">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" /> Realizado x Orçado — totais do período
+          </h3>
+          {orcQ.isLoading ? (
+            <div className="p-6 text-center text-muted-foreground text-xs">Carregando orçado…</div>
+          ) : (
+            <div className="overflow-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Bloco</th>
+                    <th className="px-3 py-2 text-right">Realizado</th>
+                    <th className="px-3 py-2 text-right">Orçado / Previsto</th>
+                    <th className="px-3 py-2 text-right">Variação (R$)</th>
+                    <th className="px-3 py-2 text-right">Variação (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparativo.map((c) => {
+                    const cor = c.bloco === "ENTRADAS"
+                      ? (c.variacao >= 0 ? "text-emerald-600" : "text-amber-600")
+                      : (c.variacao <= 0 ? "text-emerald-600" : "text-rose-600");
+                    return (
+                      <tr key={c.bloco} className="border-t border-border/40">
+                        <td className="px-3 py-2 font-medium">{BLOCO_LABEL[c.bloco]}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmt(c.realizado)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmt(c.orcado)}</td>
+                        <td className={`px-3 py-2 text-right tabular-nums font-medium ${cor}`}>{fmt(c.variacao)}</td>
+                        <td className={`px-3 py-2 text-right tabular-nums ${cor}`}>{c.pct.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Orçado/Previsto a partir de <code>mz_41_fato_fluxo_caixa_projetado</code>. Variação positiva em entradas é favorável; em saídas, indica gasto acima do previsto.
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
 
       <p className="text-xs text-muted-foreground">
         Saldo inicial baseado em <code>saldos_iniciais_caixa</code> (01/01/2026, 30 contas, R$ 4.307.442,06). Movimentações de <code>mz_40_fato_fluxo_caixa_realizado</code>. Despesas/Receitas Financeiras reclassificadas por palavras-chave (juro, IOF, tarifa, financeiro, rendimento, etc).

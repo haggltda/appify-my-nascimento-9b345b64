@@ -14,25 +14,29 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 type RawRow = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number; saldo_inicial: number };
+type ProjRow = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number };
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtBRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
-const today = new Date();
+const today = new Date(); today.setHours(0, 0, 0, 0);
+const todayIso = isoDate(today);
 
 const FIN_RE = /(JURO|IOF|TARIF|FINANC|RENDIMENT|APLIC|BANC[AÁ]RI|EMPR[ÉE]STIM|D[ÉE]BITO\s+AUT)/i;
+const ALL = "__all__";
+
+type Hor = "15" | "30" | "45" | "90" | "180";
 
 export default function CapitalGiro() {
-  const [horizonte, setHorizonte] = useState<"15" | "30" | "45" | "90">("15");
-  const [empresaId, setEmpresaId] = useState<string | undefined>();
-  const [empresaNome, setEmpresaNome] = useState<string>("");
+  const [horizonte, setHorizonte] = useState<Hor>("30");
+  const [empresaId, setEmpresaId] = useState<string>(ALL);
+  const [empresaNome, setEmpresaNome] = useState<string>("Consolidado — Todas as empresas");
   const [saldoMinimo, setSaldoMinimo] = useState(500000);
 
-  // Janela ancorada nos últimos N dias (mesma fonte do Fluxo de Caixa Diário —
-  // base mz_40 contém apenas dados realizados, então olhamos para trás).
-  const dataFim = isoDate(today);
-  const dataIni = isoDate(addDays(today, -(parseInt(horizonte) - 1)));
+  // Janela FUTURA: hoje até hoje + (h - 1)
+  const dataIni = todayIso;
+  const dataFim = isoDate(addDays(today, parseInt(horizonte) - 1));
 
   const empresasQ = useQuery({
     queryKey: ["empresas-cg"],
@@ -43,27 +47,34 @@ export default function CapitalGiro() {
   });
 
   useEffect(() => {
-    if (!empresaId && empresasQ.data?.length) {
-      const sel = empresasQ.data.find((e) => e.codigo === "HAGG") ?? empresasQ.data[0];
-      setEmpresaId(sel.id);
-      setEmpresaNome(`${sel.codigo} — ${sel.razao_social}`);
-    }
-  }, [empresasQ.data, empresaId]);
-
-  useEffect(() => {
+    if (empresaId === ALL) { setEmpresaNome("Consolidado — Todas as empresas"); return; }
     const sel = empresasQ.data?.find((e) => e.id === empresaId);
     if (sel) setEmpresaNome(`${sel.codigo} — ${sel.razao_social}`);
   }, [empresaId, empresasQ.data]);
 
-  const dadosQ = useQuery({
-    queryKey: ["fluxo_caixa_diario_cg", empresaId, dataIni, dataFim],
-    enabled: !!empresaId,
+  const empresaParam = empresaId === ALL ? null : empresaId;
+
+  // Realizado (saldo inicial + movimentos passados/hoje)
+  const realQ = useQuery({
+    queryKey: ["fcd-real-cg", empresaParam, dataIni, dataFim],
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("fluxo_caixa_diario", {
-        _empresa_id: empresaId, _data_ini: dataIni, _data_fim: dataFim,
+        _empresa_id: empresaParam, _data_ini: dataIni, _data_fim: dataFim,
       });
       if (error) throw error;
       return (data ?? []) as RawRow[];
+    },
+  });
+
+  // Orçado/Projetado (mz_41) — entradas previstas + saídas previstas no horizonte
+  const orcQ = useQuery({
+    queryKey: ["fcd-orc-cg", empresaParam, dataIni, dataFim],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("fluxo_caixa_diario_orcado", {
+        _empresa_id: empresaParam, _data_ini: dataIni, _data_fim: dataFim,
+      });
+      if (error) throw error;
+      return (data ?? []) as ProjRow[];
     },
   });
 
@@ -73,19 +84,31 @@ export default function CapitalGiro() {
     return out;
   }, [dataIni, dataFim]);
 
-  const saldoInicialBase = dadosQ.data?.[0]?.saldo_inicial ?? 0;
+  const saldoInicialBase = realQ.data?.[0]?.saldo_inicial ?? 0;
 
   const projecao = useMemo(() => {
-    const totDia: Record<string, { entradas: number; sop: number; fin: number; snop: number }> = {};
-    dias.forEach((d) => (totDia[d] = { entradas: 0, sop: 0, fin: 0, snop: 0 }));
-    (dadosQ.data ?? []).forEach((r) => {
-      if (!totDia[r.dia]) return;
+    const totDia: Record<string, { entradas: number; sop: number; fin: number; snop: number; previsto: boolean }> = {};
+    dias.forEach((d) => (totDia[d] = { entradas: 0, sop: 0, fin: 0, snop: 0, previsto: d > todayIso }));
+
+    // Realizado: aplica para dias <= hoje
+    (realQ.data ?? []).forEach((r) => {
+      if (!totDia[r.dia] || r.dia > todayIso) return;
       const isFin = FIN_RE.test(r.categoria);
       if (r.bloco === "ENTRADAS") totDia[r.dia].entradas += Number(r.valor);
       else if (r.bloco === "SAIDAS_OP") totDia[r.dia].sop += Number(r.valor);
       else if (isFin) totDia[r.dia].fin += Number(r.valor);
       else totDia[r.dia].snop += Number(r.valor);
     });
+    // Orçado/Previsto: aplica para dias > hoje
+    (orcQ.data ?? []).forEach((r) => {
+      if (!totDia[r.dia] || r.dia <= todayIso) return;
+      const isFin = FIN_RE.test(r.categoria);
+      if (r.bloco === "ENTRADAS") totDia[r.dia].entradas += Number(r.valor);
+      else if (r.bloco === "SAIDAS_OP") totDia[r.dia].sop += Number(r.valor);
+      else if (isFin) totDia[r.dia].fin += Number(r.valor);
+      else totDia[r.dia].snop += Number(r.valor);
+    });
+
     let saldo = saldoInicialBase;
     return dias.map((d) => {
       const t = totDia[d];
@@ -95,16 +118,14 @@ export default function CapitalGiro() {
       const dt = new Date(d + "T00:00:00");
       const dd = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
       const necessidade = saldo < saldoMinimo ? saldoMinimo - saldo : 0;
+      const status = saldo < 0 ? "Crítico" : saldo < saldoMinimo ? "Atenção" : "Saudável";
       return {
-        dia: d, label: dd, saldoIni,
-        entradas: t.entradas,
-        saidasOp: t.sop, financeiras: t.fin, saidasNaoOp: t.snop,
-        saldoFinal: saldo,
-        necessidade,
-        status: saldo < saldoMinimo ? (saldo < 0 ? "Crítico" : "Atenção") : "Saudável",
+        dia: d, label: dd, saldoIni, previsto: t.previsto,
+        entradas: t.entradas, saidasOp: t.sop, financeiras: t.fin, saidasNaoOp: t.snop,
+        saldoFinal: saldo, necessidade, status,
       };
     });
-  }, [dias, dadosQ.data, saldoInicialBase, saldoMinimo]);
+  }, [dias, realQ.data, orcQ.data, saldoInicialBase, saldoMinimo]);
 
   const totalEntradas = projecao.reduce((a, c) => a + c.entradas, 0);
   const totalSOp = projecao.reduce((a, c) => a + c.saidasOp, 0);
@@ -113,13 +134,17 @@ export default function CapitalGiro() {
   const saldoFinal = projecao[projecao.length - 1]?.saldoFinal ?? saldoInicialBase;
   const saldoMin = projecao.reduce((m, c) => Math.min(m, c.saldoFinal), saldoInicialBase);
   const necessidadeMax = projecao.reduce((m, c) => Math.max(m, c.necessidade), 0);
+  const temPrevisto = projecao.some((p) => p.previsto);
+  const labelEntradas = temPrevisto ? "Entradas Previstas" : "Entradas Realizadas";
 
-  // Logs / análises
   const logs = useMemo(() => {
     const list: { tipo: "Crítico" | "Alerta" | "Informativo"; titulo: string; data?: string }[] = [];
-    if (saldoMin < saldoMinimo) {
+    if (saldoMin < 0) {
       const d = projecao.find((p) => p.saldoFinal === saldoMin);
-      list.push({ tipo: saldoMin < 0 ? "Crítico" : "Alerta", titulo: `Saldo projetado de ${fmtBRL(saldoMin)} abaixo do mínimo (${fmtBRL(saldoMinimo)}).`, data: d?.label });
+      list.push({ tipo: "Crítico", titulo: `Saldo projetado NEGATIVO de ${fmtBRL(saldoMin)}.`, data: d?.label });
+    } else if (saldoMin < saldoMinimo) {
+      const d = projecao.find((p) => p.saldoFinal === saldoMin);
+      list.push({ tipo: "Alerta", titulo: `Saldo projetado de ${fmtBRL(saldoMin)} abaixo do mínimo (${fmtBRL(saldoMinimo)}).`, data: d?.label });
     }
     const concentSop = totalSOp !== 0 ? Math.abs(totalSOp) / Math.max(1, Math.abs(totalSOp) + Math.abs(totalSNop) + Math.abs(totalFin)) : 0;
     if (concentSop > 0.7) list.push({ tipo: "Alerta", titulo: `Saídas operacionais concentram ${(concentSop * 100).toFixed(0)}% do consumo projetado.` });
@@ -135,29 +160,35 @@ export default function CapitalGiro() {
     pdf.text("Análise de Capital de Giro", 40, 36);
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(9);
     pdf.text(empresaNome, 40, 52);
-    pdf.text(`Período: ${new Date(dataIni + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`, 40, 66);
+    pdf.text(`Período: ${new Date(dataIni + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}  ·  Próximos ${horizonte} dias`, 40, 66);
 
     autoTable(pdf, {
       startY: 80, theme: "grid",
-      head: [["Data", "Saldo Inicial", "Entradas", "Saídas Op.", "Financeiras", "Saídas Não Op.", "Necessidade", "Saldo Final", "Status"]],
+      head: [["Data", "Tipo", "Saldo Inicial", labelEntradas, "Saídas Op.", "Financeiras", "Saídas Não Op.", "Necessidade", "Saldo Final", "Status"]],
       body: projecao.map((p) => [
-        p.label, fmt(p.saldoIni), fmt(p.entradas), fmt(p.saidasOp), fmt(p.financeiras), fmt(p.saidasNaoOp), fmt(p.necessidade), fmt(p.saldoFinal), p.status,
+        p.label, p.previsto ? "Previsto" : "Realizado",
+        fmt(p.saldoIni), fmt(p.entradas), fmt(p.saidasOp), fmt(p.financeiras), fmt(p.saidasNaoOp), fmt(p.necessidade), fmt(p.saldoFinal), p.status,
       ]),
       styles: { fontSize: 8, cellPadding: 3 },
       headStyles: { fillColor: [15, 23, 42], textColor: 255 },
-      columnStyles: { 0: { halign: "left" }, 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right" }, 8: { halign: "center" } },
     });
     pdf.save(`capital-giro-${dataIni}_${dataFim}.pdf`);
   };
 
   const exportCsv = () => {
-    const header = ["Data", "Saldo Inicial", "Entradas", "Saidas Op", "Financeiras", "Saidas Nao Op", "Necessidade", "Saldo Final", "Status"];
-    const rows = projecao.map((p) => [p.label, p.saldoIni, p.entradas, p.saidasOp, p.financeiras, p.saidasNaoOp, p.necessidade, p.saldoFinal, p.status]);
+    const header = ["Data", "Tipo", "Saldo Inicial", labelEntradas, "Saidas Op", "Financeiras", "Saidas Nao Op", "Necessidade", "Saldo Final", "Status"];
+    const rows = projecao.map((p) => [p.label, p.previsto ? "Previsto" : "Realizado", p.saldoIni, p.entradas, p.saidasOp, p.financeiras, p.saidasNaoOp, p.necessidade, p.saldoFinal, p.status]);
     const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = `capital-giro-${dataIni}_${dataFim}.csv`; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const statusBadge = (s: string) => {
+    if (s === "Crítico") return "bg-destructive/10 text-destructive border border-destructive/30";
+    if (s === "Atenção") return "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30";
+    return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30";
   };
 
   return (
@@ -169,7 +200,7 @@ export default function CapitalGiro() {
         subtitle="Projeção de necessidade de caixa, compromissos futuros e impacto operacional / não operacional."
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => dadosQ.refetch()}>
+            <Button variant="outline" onClick={() => { realQ.refetch(); orcQ.refetch(); }}>
               <RefreshCw className="mr-2 h-4 w-4" /> Atualizar análise
             </Button>
             <Button variant="outline" onClick={exportCsv}><Download className="mr-2 h-4 w-4" /> CSV</Button>
@@ -181,9 +212,10 @@ export default function CapitalGiro() {
       <Card className="flex flex-wrap items-end gap-3 p-4">
         <div>
           <Label>Empresa</Label>
-          <Select value={empresaId ?? ""} onValueChange={setEmpresaId}>
-            <SelectTrigger className="w-[240px]"><SelectValue placeholder="Selecione" /></SelectTrigger>
+          <Select value={empresaId} onValueChange={setEmpresaId}>
+            <SelectTrigger className="w-[260px]"><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
+              <SelectItem value={ALL}>Consolidado — Todas as empresas</SelectItem>
               {(empresasQ.data ?? []).map((e) => (
                 <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
               ))}
@@ -192,10 +224,10 @@ export default function CapitalGiro() {
         </div>
         <div>
           <Label>Horizonte</Label>
-          <div className="flex gap-1">
-            {(["15", "30", "45", "90"] as const).map((h) => (
+          <div className="flex gap-1 flex-wrap">
+            {(["15", "30", "45", "90", "180"] as Hor[]).map((h) => (
               <Button key={h} size="sm" variant={horizonte === h ? "default" : "outline"} onClick={() => setHorizonte(h)}>
-                Últimos {h} dias
+                Próximos {h} dias
               </Button>
             ))}
           </div>
@@ -204,31 +236,34 @@ export default function CapitalGiro() {
           <Label>Saldo Mínimo</Label>
           <Input type="number" value={saldoMinimo} onChange={(e) => setSaldoMinimo(Number(e.target.value) || 0)} className="w-44" />
         </div>
+        <div className="ml-auto text-xs text-muted-foreground">
+          {dias.length} dias · {temPrevisto ? "previsto (mz_41)" : "realizado (mz_40)"}
+        </div>
       </Card>
 
       <div className="grid gap-3 md:grid-cols-6">
-        <Kpi icon={<Wallet className="h-4 w-4" />} titulo="Saldo Inicial Projetado" valor={saldoInicialBase} cor="text-primary" />
-        <Kpi icon={<TrendingUp className="h-4 w-4" />} titulo="Entradas Previstas" valor={totalEntradas} cor="text-emerald-600" />
+        <Kpi icon={<Wallet className="h-4 w-4" />} titulo="Saldo Inicial" valor={saldoInicialBase} cor="text-primary" />
+        <Kpi icon={<TrendingUp className="h-4 w-4" />} titulo={labelEntradas} valor={totalEntradas} cor="text-emerald-600" />
         <Kpi icon={<TrendingDown className="h-4 w-4" />} titulo="Saídas Operacionais" valor={totalSOp} cor="text-rose-600" />
         <Kpi icon={<TrendingDown className="h-4 w-4" />} titulo="Saídas Não Operacionais" valor={totalSNop} cor="text-amber-600" />
         <Kpi icon={<AlertTriangle className="h-4 w-4" />} titulo="Necessidade CG" valor={necessidadeMax} cor="text-destructive" sub="Mínimo projetado" />
-        <Kpi icon={<Wallet className="h-4 w-4" />} titulo="Saldo Final Projetado" valor={saldoFinal} cor="text-primary" />
+        <Kpi icon={<Wallet className="h-4 w-4" />} titulo="Saldo Final Projetado" valor={saldoFinal} cor={saldoFinal < 0 ? "text-destructive" : saldoFinal < saldoMinimo ? "text-amber-600" : "text-emerald-600"} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
         <Card className="p-4 lg:col-span-2">
           <h3 className="font-semibold mb-2">Projeção de Caixa e Necessidade de Capital de Giro</h3>
-          <ResponsiveContainer width="100%" height={320}>
-            <ComposedChart data={projecao}>
+          <ResponsiveContainer width="100%" height={360}>
+            <ComposedChart data={projecao} barCategoryGap="18%" barGap={2}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis dataKey="label" fontSize={11} />
               <YAxis fontSize={11} tickFormatter={(v) => v.toLocaleString("pt-BR", { notation: "compact" })} />
               <Tooltip formatter={(v: number) => fmtBRL(v)} />
               <Legend />
               <ReferenceLine y={saldoMinimo} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: "Saldo mínimo", fontSize: 10, fill: "hsl(var(--destructive))" }} />
-              <Bar dataKey="entradas" name="Entradas previstas" fill="hsl(142 71% 45%)" />
-              <Bar dataKey="saidasOp" name="Saídas operacionais" fill="hsl(0 84% 60%)" />
-              <Bar dataKey="saidasNaoOp" name="Saídas não operacionais" fill="hsl(38 92% 50%)" />
+              <Bar dataKey="entradas" name={labelEntradas} fill="hsl(142 71% 45%)" maxBarSize={28} />
+              <Bar dataKey="saidasOp" name="Saídas operacionais" fill="hsl(0 84% 60%)" maxBarSize={28} />
+              <Bar dataKey="saidasNaoOp" name="Saídas não operacionais" fill="hsl(38 92% 50%)" maxBarSize={28} />
               <Line type="monotone" dataKey="saldoFinal" name="Saldo projetado" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 3 }} />
             </ComposedChart>
           </ResponsiveContainer>
@@ -240,7 +275,7 @@ export default function CapitalGiro() {
             {logs.map((l, i) => {
               const cls = l.tipo === "Crítico" ? "border-destructive/40 bg-destructive/5"
                 : l.tipo === "Alerta" ? "border-amber-500/40 bg-amber-500/5"
-                : "border-primary/30 bg-primary/5";
+                : "border-emerald-500/30 bg-emerald-500/5";
               return (
                 <div key={i} className={`rounded-md border p-2 text-xs ${cls}`}>
                   <div className="flex items-start gap-2">
@@ -258,7 +293,7 @@ export default function CapitalGiro() {
             <h4 className="text-xs font-semibold mb-2">Insights Automáticos</h4>
             <ul className="space-y-1 text-xs text-muted-foreground">
               <li>• Capital de giro mínimo sugerido: <strong>{fmtBRL(necessidadeMax)}</strong></li>
-              <li>• Menor saldo projetado: <strong>{fmtBRL(saldoMin)}</strong></li>
+              <li>• Menor saldo projetado: <strong className={saldoMin < 0 ? "text-destructive" : saldoMin < saldoMinimo ? "text-amber-600" : "text-emerald-600"}>{fmtBRL(saldoMin)}</strong></li>
               <li>• Resultado líquido projetado: <strong>{fmtBRL(totalEntradas + totalSOp + totalFin + totalSNop)}</strong></li>
             </ul>
           </div>
@@ -270,8 +305,9 @@ export default function CapitalGiro() {
           <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2 text-left">Data</th>
+              <th className="px-3 py-2 text-center">Tipo</th>
               <th className="px-3 py-2 text-right">Saldo Inicial</th>
-              <th className="px-3 py-2 text-right">Entradas</th>
+              <th className="px-3 py-2 text-right">{labelEntradas}</th>
               <th className="px-3 py-2 text-right">Saídas Op.</th>
               <th className="px-3 py-2 text-right">Financeiras</th>
               <th className="px-3 py-2 text-right">Não Op.</th>
@@ -284,15 +320,22 @@ export default function CapitalGiro() {
             {projecao.map((p) => (
               <tr key={p.dia} className="border-t border-border/40 hover:bg-muted/20">
                 <td className="px-3 py-2">{p.label}</td>
+                <td className="px-3 py-2 text-center">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${p.previsto ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                    {p.previsto ? "Previsto" : "Realizado"}
+                  </span>
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums">{fmt(p.saldoIni)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-emerald-600">{fmt(p.entradas)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-rose-600">{fmt(p.saidasOp)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-violet-600">{fmt(p.financeiras)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-amber-600">{fmt(p.saidasNaoOp)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{p.necessidade ? `-${fmt(p.necessidade)}` : fmt(p.saldoFinal - saldoMinimo)}</td>
-                <td className="px-3 py-2 text-right tabular-nums font-medium">{fmt(p.saldoFinal)}</td>
+                <td className={`px-3 py-2 text-right tabular-nums ${p.necessidade ? "text-destructive" : "text-emerald-600"}`}>
+                  {p.necessidade ? `-${fmt(p.necessidade)}` : fmt(p.saldoFinal - saldoMinimo)}
+                </td>
+                <td className={`px-3 py-2 text-right tabular-nums font-medium ${p.saldoFinal < 0 ? "text-destructive" : p.saldoFinal < saldoMinimo ? "text-amber-600" : ""}`}>{fmt(p.saldoFinal)}</td>
                 <td className="px-3 py-2 text-center">
-                  <Badge variant={p.status === "Crítico" ? "destructive" : p.status === "Atenção" ? "secondary" : "default"}>{p.status}</Badge>
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusBadge(p.status)}`}>{p.status}</span>
                 </td>
               </tr>
             ))}
