@@ -60,6 +60,7 @@ export default function FluxoCaixaDiario() {
   const [empresaId, setEmpresaId] = useState<string | undefined>();
   const [empresaNome, setEmpresaNome] = useState<string>("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [visao, setVisao] = useState<Visao>("realizado");
 
   const empresasQ = useQuery({
     queryKey: ["empresas-fcd"],
