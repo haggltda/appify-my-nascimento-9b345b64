@@ -25,6 +25,9 @@ type Status = {
 
 const SUPABASE_URL = "https://fwmzeaztjxrxxzxzxmgc.supabase.co";
 const LARGE_UPLOAD_LIMIT = 45 * 1024 * 1024;
+const LOAD_TIMEOUT_MS = 75_000;
+
+type ProcessMode = "fresh" | "append" | "resume";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDENTE: "bg-muted text-muted-foreground",
