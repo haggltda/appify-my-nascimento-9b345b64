@@ -11270,6 +11270,67 @@ export type Database = {
         }
         Relationships: []
       }
+      saldos_iniciais_caixa: {
+        Row: {
+          banco: string
+          categoria: string | null
+          created_at: string
+          data_referencia: string
+          empresa_id: string
+          id: string
+          subcategoria: string | null
+          tipo: string | null
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          banco: string
+          categoria?: string | null
+          created_at?: string
+          data_referencia: string
+          empresa_id: string
+          id?: string
+          subcategoria?: string | null
+          tipo?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Update: {
+          banco?: string
+          categoria?: string | null
+          created_at?: string
+          data_referencia?: string
+          empresa_id?: string
+          id?: string
+          subcategoria?: string | null
+          tipo?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saldos_iniciais_caixa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saldos_iniciais_caixa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "saldos_iniciais_caixa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       servico_municipal: {
         Row: {
           aliq_iss: number
