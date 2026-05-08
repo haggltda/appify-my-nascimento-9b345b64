@@ -373,6 +373,7 @@ export default function FaturamentoContratoTab({ onFaturado }: { onFaturado?: ()
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
