@@ -8386,6 +8386,78 @@ export type Database = {
           },
         ]
       }
+      stg_aprovacao_contas: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          classe_contabil_sugerida: string | null
+          codigo_conta_pai_sugerido: string | null
+          codigo_conta_sugerido: string | null
+          created_at: string
+          decisao_usuario: string | null
+          direto_indireto_padrao: string | null
+          fixo_variavel_padrao: string | null
+          id_sugestao_conta: string
+          linha_dre_padrao: string | null
+          motivo_sugestao: string | null
+          nome_conta_pai_sugerido: string | null
+          nome_conta_sugerido: string | null
+          observacao_usuario: string | null
+          origens_afetadas: string | null
+          qtd_lancamentos_afetados: number | null
+          status_aprovacao: string
+          tipo_gerencial_padrao: string | null
+          updated_at: string
+          valor_total_abs_afetado: number | null
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          classe_contabil_sugerida?: string | null
+          codigo_conta_pai_sugerido?: string | null
+          codigo_conta_sugerido?: string | null
+          created_at?: string
+          decisao_usuario?: string | null
+          direto_indireto_padrao?: string | null
+          fixo_variavel_padrao?: string | null
+          id_sugestao_conta: string
+          linha_dre_padrao?: string | null
+          motivo_sugestao?: string | null
+          nome_conta_pai_sugerido?: string | null
+          nome_conta_sugerido?: string | null
+          observacao_usuario?: string | null
+          origens_afetadas?: string | null
+          qtd_lancamentos_afetados?: number | null
+          status_aprovacao?: string
+          tipo_gerencial_padrao?: string | null
+          updated_at?: string
+          valor_total_abs_afetado?: number | null
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          classe_contabil_sugerida?: string | null
+          codigo_conta_pai_sugerido?: string | null
+          codigo_conta_sugerido?: string | null
+          created_at?: string
+          decisao_usuario?: string | null
+          direto_indireto_padrao?: string | null
+          fixo_variavel_padrao?: string | null
+          id_sugestao_conta?: string
+          linha_dre_padrao?: string | null
+          motivo_sugestao?: string | null
+          nome_conta_pai_sugerido?: string | null
+          nome_conta_sugerido?: string | null
+          observacao_usuario?: string | null
+          origens_afetadas?: string | null
+          qtd_lancamentos_afetados?: number | null
+          status_aprovacao?: string
+          tipo_gerencial_padrao?: string | null
+          updated_at?: string
+          valor_total_abs_afetado?: number | null
+        }
+        Relationships: []
+      }
       stg_bancos_contas_detectadas: {
         Row: {
           codigo_banco_conta: string
@@ -9123,6 +9195,594 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      stg_logs_processamento: {
+        Row: {
+          created_at: string
+          detalhe: string | null
+          etapa: string | null
+          id: string
+          pacote: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string
+          detalhe?: string | null
+          etapa?: string | null
+          id?: string
+          pacote: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string
+          detalhe?: string | null
+          etapa?: string | null
+          id?: string
+          pacote?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
+      stg_mapa_de_para_bancos_pacote02: {
+        Row: {
+          banco_original: string | null
+          classificacoes_top: string | null
+          conta_contabil_codigo_sugerida: string | null
+          conta_contabil_nome_sugerida: string | null
+          created_at: string
+          empresa_detectada: string | null
+          grau_confianca: string | null
+          id_de_para_banco: string
+          id_sugestao_conta: string | null
+          origem_de_para: string | null
+          origens_detectadas: string | null
+          pendencia: string | null
+          qtd_linhas_afetadas: number | null
+          status_de_para_banco: string | null
+          tipos_movimento_top: string | null
+          valor_abs_total: number | null
+        }
+        Insert: {
+          banco_original?: string | null
+          classificacoes_top?: string | null
+          conta_contabil_codigo_sugerida?: string | null
+          conta_contabil_nome_sugerida?: string | null
+          created_at?: string
+          empresa_detectada?: string | null
+          grau_confianca?: string | null
+          id_de_para_banco: string
+          id_sugestao_conta?: string | null
+          origem_de_para?: string | null
+          origens_detectadas?: string | null
+          pendencia?: string | null
+          qtd_linhas_afetadas?: number | null
+          status_de_para_banco?: string | null
+          tipos_movimento_top?: string | null
+          valor_abs_total?: number | null
+        }
+        Update: {
+          banco_original?: string | null
+          classificacoes_top?: string | null
+          conta_contabil_codigo_sugerida?: string | null
+          conta_contabil_nome_sugerida?: string | null
+          created_at?: string
+          empresa_detectada?: string | null
+          grau_confianca?: string | null
+          id_de_para_banco?: string
+          id_sugestao_conta?: string | null
+          origem_de_para?: string | null
+          origens_detectadas?: string | null
+          pendencia?: string | null
+          qtd_linhas_afetadas?: number | null
+          status_de_para_banco?: string | null
+          tipos_movimento_top?: string | null
+          valor_abs_total?: number | null
+        }
+        Relationships: []
+      }
+      stg_mapa_de_para_contabil_financeiro: {
+        Row: {
+          arquivo_origem: string | null
+          bancos_top: string | null
+          categoria_despesa_top: string | null
+          centros_custo_top: string | null
+          chave_de_para: string | null
+          classificacao_original: string | null
+          codigo_evento_sugerido: string | null
+          conta_credito_codigo_sugerida: string | null
+          conta_credito_nome_sugerida: string | null
+          conta_credito_origem: string | null
+          conta_debito_codigo_sugerida: string | null
+          conta_debito_nome_sugerida: string | null
+          conta_debito_origem: string | null
+          conta_resultado_ref_codigo: string | null
+          conta_resultado_ref_nome: string | null
+          conta_resultado_ref_origem: string | null
+          contexto_gerencial: string | null
+          created_at: string
+          descricao_evento_sugerido: string | null
+          direto_indireto: string | null
+          empresas_detectadas_top: string | null
+          exemplos_historico: string | null
+          fixo_variavel: string | null
+          gera_competencia_estimada: string | null
+          gera_partida_caixa: string | null
+          grau_confianca: string | null
+          id_de_para: string
+          ids_sugestoes_contas_relacionadas: string | null
+          impacta_balanco: string | null
+          impacta_caixa: string | null
+          impacta_dre_caixa: string | null
+          impacta_dre_competencia: string | null
+          observacao_migracao: string | null
+          origem_base: string | null
+          pendencia: string | null
+          qtd_linhas_afetadas: number | null
+          qtd_valor_valido: number | null
+          status_de_para: string | null
+          tipo_gerencial: string | null
+          tipo_movimento: string | null
+          valor_abs_total: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          bancos_top?: string | null
+          categoria_despesa_top?: string | null
+          centros_custo_top?: string | null
+          chave_de_para?: string | null
+          classificacao_original?: string | null
+          codigo_evento_sugerido?: string | null
+          conta_credito_codigo_sugerida?: string | null
+          conta_credito_nome_sugerida?: string | null
+          conta_credito_origem?: string | null
+          conta_debito_codigo_sugerida?: string | null
+          conta_debito_nome_sugerida?: string | null
+          conta_debito_origem?: string | null
+          conta_resultado_ref_codigo?: string | null
+          conta_resultado_ref_nome?: string | null
+          conta_resultado_ref_origem?: string | null
+          contexto_gerencial?: string | null
+          created_at?: string
+          descricao_evento_sugerido?: string | null
+          direto_indireto?: string | null
+          empresas_detectadas_top?: string | null
+          exemplos_historico?: string | null
+          fixo_variavel?: string | null
+          gera_competencia_estimada?: string | null
+          gera_partida_caixa?: string | null
+          grau_confianca?: string | null
+          id_de_para: string
+          ids_sugestoes_contas_relacionadas?: string | null
+          impacta_balanco?: string | null
+          impacta_caixa?: string | null
+          impacta_dre_caixa?: string | null
+          impacta_dre_competencia?: string | null
+          observacao_migracao?: string | null
+          origem_base?: string | null
+          pendencia?: string | null
+          qtd_linhas_afetadas?: number | null
+          qtd_valor_valido?: number | null
+          status_de_para?: string | null
+          tipo_gerencial?: string | null
+          tipo_movimento?: string | null
+          valor_abs_total?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          bancos_top?: string | null
+          categoria_despesa_top?: string | null
+          centros_custo_top?: string | null
+          chave_de_para?: string | null
+          classificacao_original?: string | null
+          codigo_evento_sugerido?: string | null
+          conta_credito_codigo_sugerida?: string | null
+          conta_credito_nome_sugerida?: string | null
+          conta_credito_origem?: string | null
+          conta_debito_codigo_sugerida?: string | null
+          conta_debito_nome_sugerida?: string | null
+          conta_debito_origem?: string | null
+          conta_resultado_ref_codigo?: string | null
+          conta_resultado_ref_nome?: string | null
+          conta_resultado_ref_origem?: string | null
+          contexto_gerencial?: string | null
+          created_at?: string
+          descricao_evento_sugerido?: string | null
+          direto_indireto?: string | null
+          empresas_detectadas_top?: string | null
+          exemplos_historico?: string | null
+          fixo_variavel?: string | null
+          gera_competencia_estimada?: string | null
+          gera_partida_caixa?: string | null
+          grau_confianca?: string | null
+          id_de_para?: string
+          ids_sugestoes_contas_relacionadas?: string | null
+          impacta_balanco?: string | null
+          impacta_caixa?: string | null
+          impacta_dre_caixa?: string | null
+          impacta_dre_competencia?: string | null
+          observacao_migracao?: string | null
+          origem_base?: string | null
+          pendencia?: string | null
+          qtd_linhas_afetadas?: number | null
+          qtd_valor_valido?: number | null
+          status_de_para?: string | null
+          tipo_gerencial?: string | null
+          tipo_movimento?: string | null
+          valor_abs_total?: number | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
+      stg_mapa_de_para_orcamento_contratos: {
+        Row: {
+          arquivo_origem: string | null
+          cenarios_top: string | null
+          clientes_top: string | null
+          conta_orcamento_codigo_sugerida: string | null
+          conta_orcamento_nome_sugerida: string | null
+          conta_orcamento_origem: string | null
+          contratos_top: string | null
+          created_at: string
+          descricoes_outros_top: string | null
+          direto_indireto: string | null
+          empresas_top: string | null
+          fixo_variavel: string | null
+          gera_lancamento_contabil: string | null
+          grau_confianca: string | null
+          id_de_para_orcamento: string
+          id_sugestao_conta: string | null
+          impacta_dre_orcada: string | null
+          item_orcamento_original: string | null
+          linha_dre_gerencial: string | null
+          natureza_orcamento: string | null
+          observacao: string | null
+          origem_base: string | null
+          pendencia: string | null
+          qtd_linhas_com_valor: number | null
+          servicos_top: string | null
+          status_contrato_top: string | null
+          status_de_para: string | null
+          tipo_gerencial: string | null
+          valor_abs_total: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          cenarios_top?: string | null
+          clientes_top?: string | null
+          conta_orcamento_codigo_sugerida?: string | null
+          conta_orcamento_nome_sugerida?: string | null
+          conta_orcamento_origem?: string | null
+          contratos_top?: string | null
+          created_at?: string
+          descricoes_outros_top?: string | null
+          direto_indireto?: string | null
+          empresas_top?: string | null
+          fixo_variavel?: string | null
+          gera_lancamento_contabil?: string | null
+          grau_confianca?: string | null
+          id_de_para_orcamento: string
+          id_sugestao_conta?: string | null
+          impacta_dre_orcada?: string | null
+          item_orcamento_original?: string | null
+          linha_dre_gerencial?: string | null
+          natureza_orcamento?: string | null
+          observacao?: string | null
+          origem_base?: string | null
+          pendencia?: string | null
+          qtd_linhas_com_valor?: number | null
+          servicos_top?: string | null
+          status_contrato_top?: string | null
+          status_de_para?: string | null
+          tipo_gerencial?: string | null
+          valor_abs_total?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          cenarios_top?: string | null
+          clientes_top?: string | null
+          conta_orcamento_codigo_sugerida?: string | null
+          conta_orcamento_nome_sugerida?: string | null
+          conta_orcamento_origem?: string | null
+          contratos_top?: string | null
+          created_at?: string
+          descricoes_outros_top?: string | null
+          direto_indireto?: string | null
+          empresas_top?: string | null
+          fixo_variavel?: string | null
+          gera_lancamento_contabil?: string | null
+          grau_confianca?: string | null
+          id_de_para_orcamento?: string
+          id_sugestao_conta?: string | null
+          impacta_dre_orcada?: string | null
+          item_orcamento_original?: string | null
+          linha_dre_gerencial?: string | null
+          natureza_orcamento?: string | null
+          observacao?: string | null
+          origem_base?: string | null
+          pendencia?: string | null
+          qtd_linhas_com_valor?: number | null
+          servicos_top?: string | null
+          status_contrato_top?: string | null
+          status_de_para?: string | null
+          tipo_gerencial?: string | null
+          valor_abs_total?: number | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
+      stg_pendencias_de_para: {
+        Row: {
+          arquivo_origem: string | null
+          classificacao_ou_item: string | null
+          contexto_gerencial: string | null
+          created_at: string
+          descricao_pendencia: string | null
+          id_pendencia: string
+          id_referencia: string | null
+          id_sugestao_conta: string | null
+          origem_pendencia: string | null
+          qtd_linhas_afetadas: number | null
+          status_pendencia: string | null
+          tipo_movimento: string | null
+          tipo_pendencia: string | null
+          valor_abs_total: number | null
+        }
+        Insert: {
+          arquivo_origem?: string | null
+          classificacao_ou_item?: string | null
+          contexto_gerencial?: string | null
+          created_at?: string
+          descricao_pendencia?: string | null
+          id_pendencia: string
+          id_referencia?: string | null
+          id_sugestao_conta?: string | null
+          origem_pendencia?: string | null
+          qtd_linhas_afetadas?: number | null
+          status_pendencia?: string | null
+          tipo_movimento?: string | null
+          tipo_pendencia?: string | null
+          valor_abs_total?: number | null
+        }
+        Update: {
+          arquivo_origem?: string | null
+          classificacao_ou_item?: string | null
+          contexto_gerencial?: string | null
+          created_at?: string
+          descricao_pendencia?: string | null
+          id_pendencia?: string
+          id_referencia?: string | null
+          id_sugestao_conta?: string | null
+          origem_pendencia?: string | null
+          qtd_linhas_afetadas?: number | null
+          status_pendencia?: string | null
+          tipo_movimento?: string | null
+          tipo_pendencia?: string | null
+          valor_abs_total?: number | null
+        }
+        Relationships: []
+      }
+      stg_plano_contas_proposto: {
+        Row: {
+          ativo: string | null
+          centro_custo_padrao: string | null
+          classe_contabil_normalizada: string | null
+          classe_original: string | null
+          codigo_conta: string
+          codigo_conta_pai: string | null
+          conta_reduzida: string | null
+          created_at: string
+          direto_indireto_padrao: string | null
+          dre_codigo_original: string | null
+          dre_descricao_original: string | null
+          entra_fluxo: string | null
+          entra_orcamento: string | null
+          exige_contrato: string | null
+          fixo_variavel_padrao: string | null
+          grupo_contabil_normalizado: string | null
+          grupo_dre_original: string | null
+          grupo_principal_original: string | null
+          id_sugestao_conta: string | null
+          linha_dre_padrao: string | null
+          natureza: string | null
+          nivel: number | null
+          nome_conta: string | null
+          observacao_migracao: string | null
+          origem_conta: string | null
+          saldo_inicial: number | null
+          status_aprovacao: string | null
+          status_carga: string | null
+          tipo_conta: string | null
+          tipo_gerencial_padrao: string | null
+        }
+        Insert: {
+          ativo?: string | null
+          centro_custo_padrao?: string | null
+          classe_contabil_normalizada?: string | null
+          classe_original?: string | null
+          codigo_conta: string
+          codigo_conta_pai?: string | null
+          conta_reduzida?: string | null
+          created_at?: string
+          direto_indireto_padrao?: string | null
+          dre_codigo_original?: string | null
+          dre_descricao_original?: string | null
+          entra_fluxo?: string | null
+          entra_orcamento?: string | null
+          exige_contrato?: string | null
+          fixo_variavel_padrao?: string | null
+          grupo_contabil_normalizado?: string | null
+          grupo_dre_original?: string | null
+          grupo_principal_original?: string | null
+          id_sugestao_conta?: string | null
+          linha_dre_padrao?: string | null
+          natureza?: string | null
+          nivel?: number | null
+          nome_conta?: string | null
+          observacao_migracao?: string | null
+          origem_conta?: string | null
+          saldo_inicial?: number | null
+          status_aprovacao?: string | null
+          status_carga?: string | null
+          tipo_conta?: string | null
+          tipo_gerencial_padrao?: string | null
+        }
+        Update: {
+          ativo?: string | null
+          centro_custo_padrao?: string | null
+          classe_contabil_normalizada?: string | null
+          classe_original?: string | null
+          codigo_conta?: string
+          codigo_conta_pai?: string | null
+          conta_reduzida?: string | null
+          created_at?: string
+          direto_indireto_padrao?: string | null
+          dre_codigo_original?: string | null
+          dre_descricao_original?: string | null
+          entra_fluxo?: string | null
+          entra_orcamento?: string | null
+          exige_contrato?: string | null
+          fixo_variavel_padrao?: string | null
+          grupo_contabil_normalizado?: string | null
+          grupo_dre_original?: string | null
+          grupo_principal_original?: string | null
+          id_sugestao_conta?: string | null
+          linha_dre_padrao?: string | null
+          natureza?: string | null
+          nivel?: number | null
+          nome_conta?: string | null
+          observacao_migracao?: string | null
+          origem_conta?: string | null
+          saldo_inicial?: number | null
+          status_aprovacao?: string | null
+          status_carga?: string | null
+          tipo_conta?: string | null
+          tipo_gerencial_padrao?: string | null
+        }
+        Relationships: []
+      }
+      stg_reconciliacao_pacotes: {
+        Row: {
+          created_at: string
+          id: string
+          indicador: string
+          observacao: string | null
+          pacote: string
+          quantidade: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          indicador: string
+          observacao?: string | null
+          pacote: string
+          quantidade?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          indicador?: string
+          observacao?: string | null
+          pacote?: string
+          quantidade?: number | null
+        }
+        Relationships: []
+      }
+      stg_sugestoes_novas_contas: {
+        Row: {
+          classe_contabil_sugerida: string | null
+          codigo_conta_pai_sugerido: string | null
+          codigo_conta_sugerido: string | null
+          created_at: string
+          decisao_usuario: string | null
+          direto_indireto_padrao: string | null
+          entra_orcamento: string | null
+          exemplos_historico_ou_item: string | null
+          fixo_variavel_padrao: string | null
+          grau_confianca: string | null
+          grupo_contabil_sugerido: string | null
+          id_sugestao_conta: string
+          impacta_caixa: string | null
+          impacta_dre: string | null
+          linha_dre_padrao: string | null
+          motivo_sugestao: string | null
+          natureza_sugerida: string | null
+          nivel_sugerido: number | null
+          nome_conta_pai_sugerido: string | null
+          nome_conta_sugerido: string | null
+          observacao_usuario: string | null
+          origem_referencia: string | null
+          origens_afetadas: string | null
+          qtd_lancamentos_afetados: number | null
+          status_aprovacao: string
+          tipo_conta_sugerido: string | null
+          tipo_gerencial_padrao: string | null
+          valor_total_abs_afetado: number | null
+        }
+        Insert: {
+          classe_contabil_sugerida?: string | null
+          codigo_conta_pai_sugerido?: string | null
+          codigo_conta_sugerido?: string | null
+          created_at?: string
+          decisao_usuario?: string | null
+          direto_indireto_padrao?: string | null
+          entra_orcamento?: string | null
+          exemplos_historico_ou_item?: string | null
+          fixo_variavel_padrao?: string | null
+          grau_confianca?: string | null
+          grupo_contabil_sugerido?: string | null
+          id_sugestao_conta: string
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          linha_dre_padrao?: string | null
+          motivo_sugestao?: string | null
+          natureza_sugerida?: string | null
+          nivel_sugerido?: number | null
+          nome_conta_pai_sugerido?: string | null
+          nome_conta_sugerido?: string | null
+          observacao_usuario?: string | null
+          origem_referencia?: string | null
+          origens_afetadas?: string | null
+          qtd_lancamentos_afetados?: number | null
+          status_aprovacao?: string
+          tipo_conta_sugerido?: string | null
+          tipo_gerencial_padrao?: string | null
+          valor_total_abs_afetado?: number | null
+        }
+        Update: {
+          classe_contabil_sugerida?: string | null
+          codigo_conta_pai_sugerido?: string | null
+          codigo_conta_sugerido?: string | null
+          created_at?: string
+          decisao_usuario?: string | null
+          direto_indireto_padrao?: string | null
+          entra_orcamento?: string | null
+          exemplos_historico_ou_item?: string | null
+          fixo_variavel_padrao?: string | null
+          grau_confianca?: string | null
+          grupo_contabil_sugerido?: string | null
+          id_sugestao_conta?: string
+          impacta_caixa?: string | null
+          impacta_dre?: string | null
+          linha_dre_padrao?: string | null
+          motivo_sugestao?: string | null
+          natureza_sugerida?: string | null
+          nivel_sugerido?: number | null
+          nome_conta_pai_sugerido?: string | null
+          nome_conta_sugerido?: string | null
+          observacao_usuario?: string | null
+          origem_referencia?: string | null
+          origens_afetadas?: string | null
+          qtd_lancamentos_afetados?: number | null
+          status_aprovacao?: string
+          tipo_conta_sugerido?: string | null
+          tipo_gerencial_padrao?: string | null
+          valor_total_abs_afetado?: number | null
+        }
+        Relationships: []
       }
       sup_aprov_aprovador: {
         Row: {
