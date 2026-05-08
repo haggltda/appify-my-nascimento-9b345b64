@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Upload, Play, RefreshCw, PlayCircle, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
+import { Upload, Play, RefreshCw, PlayCircle, CheckCircle2, AlertTriangle, Clock, FolderUp } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 type Status = {
