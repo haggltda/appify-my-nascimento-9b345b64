@@ -4982,7 +4982,7 @@ export type Database = {
           origem_carga: string | null
           status: Database["public"]["Enums"]["licitacao_status"]
           updated_at: string
-          valor_estimado: number
+          valor_estimado: number | null
         }
         Insert: {
           abertura?: string | null
@@ -4999,7 +4999,7 @@ export type Database = {
           origem_carga?: string | null
           status?: Database["public"]["Enums"]["licitacao_status"]
           updated_at?: string
-          valor_estimado?: number
+          valor_estimado?: number | null
         }
         Update: {
           abertura?: string | null
@@ -5016,7 +5016,7 @@ export type Database = {
           origem_carga?: string | null
           status?: Database["public"]["Enums"]["licitacao_status"]
           updated_at?: string
-          valor_estimado?: number
+          valor_estimado?: number | null
         }
         Relationships: [
           {
