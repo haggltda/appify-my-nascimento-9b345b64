@@ -10725,6 +10725,7 @@ export type Database = {
       }
     }
     Functions: {
+      admin_exec_dml: { Args: { p_sql: string }; Returns: undefined }
       aplicar_plano_mestre: { Args: { _empresa_id: string }; Returns: number }
       apurar_impostos_competencia: {
         Args: { _competencia: string; _empresa_id: string }
