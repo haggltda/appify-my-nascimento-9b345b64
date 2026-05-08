@@ -12884,6 +12884,7 @@ export type Database = {
           contrato_id: string | null
           created_at: string
           created_by: string | null
+          cronograma_id: string | null
           data_emissao: string
           data_recebimento: string | null
           data_vencimento: string
@@ -12918,6 +12919,7 @@ export type Database = {
           contrato_id?: string | null
           created_at?: string
           created_by?: string | null
+          cronograma_id?: string | null
           data_emissao?: string
           data_recebimento?: string | null
           data_vencimento: string
@@ -12952,6 +12954,7 @@ export type Database = {
           contrato_id?: string | null
           created_at?: string
           created_by?: string | null
+          cronograma_id?: string | null
           data_emissao?: string
           data_recebimento?: string | null
           data_vencimento?: string
@@ -12977,7 +12980,15 @@ export type Database = {
           valor_multa?: number
           valor_recebido?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "titulo_receber_cronograma_id_fkey"
+            columns: ["cronograma_id"]
+            isOneToOne: false
+            referencedRelation: "cronograma_faturamento"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       titulo_receber_baixa: {
         Row: {
@@ -13453,6 +13464,27 @@ export type Database = {
           grupo: string
           valor: number
         }[]
+      }
+      emitir_titulo_de_cronograma: {
+        Args: {
+          _conta_bancaria_id?: string
+          _cronograma_id: string
+          _data_vencimento?: string
+          _descricao?: string
+          _meio_cobranca?: Database["public"]["Enums"]["titulo_receber_meio"]
+          _sacado_documento?: string
+          _sacado_email?: string
+          _sacado_nome?: string
+        }
+        Returns: Json
+      }
+      emitir_titulos_cronograma_lote: {
+        Args: {
+          _conta_bancaria_id?: string
+          _ids: string[]
+          _meio_cobranca?: Database["public"]["Enums"]["titulo_receber_meio"]
+        }
+        Returns: Json
       }
       extrato_importar: {
         Args: {
