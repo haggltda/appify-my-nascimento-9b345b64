@@ -9,6 +9,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { DemoModeProvider } from "./context/DemoModeContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import PainelExecutivo from "./pages/PainelExecutivo";
+import Presidencia from "./pages/Presidencia";
 import Pipeline from "./pages/Pipeline";
 import CadastroEdital from "./pages/CadastroEdital";
 import Documentos from "./pages/Documentos";
@@ -105,6 +106,7 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<PainelExecutivo />} />
+            <Route path="presidencia" element={<Presidencia />} />
             <Route path="pipeline" element={<Pipeline />} />
             <Route path="editais" element={<CadastroEdital />} />
             <Route path="documentos" element={<Documentos />} />
