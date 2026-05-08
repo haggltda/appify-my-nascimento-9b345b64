@@ -220,23 +220,35 @@ export default function AprovacaoContas() {
         breadcrumb={["Contábil", "Aprovação de Contas"]}
         subtitle="Revise as contas sugeridas pelo pacote de migração antes de promovê-las ao plano de contas definitivo."
         actions={
-          <Button
-            variant="outline"
-            onClick={async () => {
-              const t = toast.loading("Carregando dados do Pacote 02…");
-              try {
-                const { data, error } = await supabase.functions.invoke("pacote02-load", { body: {} });
-                if (error) throw error;
-                toast.success("Pacote 02 carregado", { id: t, description: JSON.stringify((data as any)?.counts ?? {}) });
-                qc.invalidateQueries();
-              } catch (e: any) {
-                toast.error("Falha ao carregar Pacote 02", { id: t, description: e?.message ?? String(e) });
-              }
-            }}
-          >
-            <DatabaseZap className="mr-2 h-4 w-4" />
-            Carregar Pacote 02
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const t = toast.loading("Carregando dados do Pacote 02…");
+                try {
+                  const { data, error } = await supabase.functions.invoke("pacote02-load", { body: {} });
+                  if (error) throw error;
+                  toast.success("Pacote 02 carregado", { id: t, description: JSON.stringify((data as any)?.counts ?? {}) });
+                  qc.invalidateQueries();
+                } catch (e: any) {
+                  toast.error("Falha ao carregar Pacote 02", { id: t, description: e?.message ?? String(e) });
+                }
+              }}
+            >
+              <DatabaseZap className="mr-2 h-4 w-4" />
+              Carregar Pacote 02
+            </Button>
+            <Button
+              disabled={promover.isPending || counters.aprovadas === 0 || !empresaId}
+              onClick={() => {
+                if (!confirm(`Promover ${counters.aprovadas} conta(s) aprovada(s) para o plano de contas?`)) return;
+                promover.mutate();
+              }}
+            >
+              <Rocket className="mr-2 h-4 w-4" />
+              {promover.isPending ? "Promovendo…" : `Promover aprovadas (${counters.aprovadas})`}
+            </Button>
+          </div>
         }
       />
 
