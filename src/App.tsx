@@ -183,6 +183,14 @@ const App = () => (
             <Route path="integracao/aliases" element={<IntegracaoAliases />} />
             <Route path="integracao/:id" element={<BatchDetalhe />} />
             <Route path="admin/migracao-zero" element={<MigracaoZero />} />
+            {/* Plano de Ações */}
+            <Route path="plano-acoes" element={<PlanoAcoesLista />} />
+            <Route path="plano-acoes/dashboard" element={<PlanoAcoesDashboard />} />
+            <Route path="plano-acoes/kanban" element={<PlanoAcoesKanban />} />
+            <Route path="plano-acoes/importar" element={<PlanoAcoesImportar />} />
+            <Route path="plano-acoes/aprovacoes" element={<PlanoAcoesAprovacoes />} />
+            <Route path="plano-acoes/configuracoes" element={<PlanoAcoesConfiguracoes />} />
+            <Route path="plano-acoes/:id" element={<PlanoAcaoDetalhe />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
