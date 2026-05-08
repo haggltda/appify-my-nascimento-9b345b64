@@ -94,7 +94,7 @@ export default function FluxoCaixa() {
               <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas</SelectItem>
-                {empresas.map((e) => <SelectItem key={e.id} value={e.id}>{e.sigla ?? e.razao_social}</SelectItem>)}
+                {empresas.map((e) => <SelectItem key={e.id} value={e.id}>{e.codigo ?? e.razao_social}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
