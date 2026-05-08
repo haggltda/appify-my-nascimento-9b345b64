@@ -280,6 +280,22 @@ const integracaoModule: ModuleDef = {
   }],
 };
 
+const planoAcoesModule: ModuleDef = {
+  id: "plano-acoes", label: "Plano de Ações", description: "Gestão de ações e comitês",
+  icon: Target, basePath: "/app/plano-acoes", status: "active",
+  groups: [{
+    label: "Plano de Ações", defaultOpen: true,
+    items: [
+      { label: "Lista", to: "/app/plano-acoes", icon: ListChecks },
+      { label: "Dashboard", to: "/app/plano-acoes/dashboard", icon: BarChart3 },
+      { label: "Kanban", to: "/app/plano-acoes/kanban", icon: FolderKanban },
+      { label: "Aprovações", to: "/app/plano-acoes/aprovacoes", icon: ClipboardCheck },
+      { label: "Importar", to: "/app/plano-acoes/importar", icon: DatabaseZap },
+      { label: "Configurações", to: "/app/plano-acoes/configuracoes", icon: Settings },
+    ],
+  }],
+};
+
 const erpModules: ModuleDef[] = [
   licitacoesModule,
   controladoriaOrcModule,
@@ -294,7 +310,13 @@ const erpModules: ModuleDef[] = [
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const location = useLocation();
   const { roles } = usePermissoes();
-  const visibleModules = roles.includes("admin") ? [...erpModules, integracaoModule] : erpModules;
+  const { perms, isAdmin } = usePlanoAcaoPermissao();
+  const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
+  const visibleModules = [
+    ...erpModules,
+    ...(podeVerPlanoAcoes ? [planoAcoesModule] : []),
+    ...(roles.includes("admin") ? [integracaoModule] : []),
+  ];
   // Determina qual módulo está ativo pela rota
   const activeModuleId = visibleModules.find(
     (m) => m.status === "active" && (location.pathname === m.basePath || location.pathname.startsWith(m.basePath))
