@@ -13552,6 +13552,10 @@ export type Database = {
         Args: { _conta_bancaria_id: string; _titulo_ids: string[] }
         Returns: Json
       }
+      cnab_gerar_remessa_cobranca: {
+        Args: { _boleto_ids: string[]; _conta_bancaria_id: string }
+        Returns: Json
+      }
       cnab_processar_retorno: { Args: { _retorno_id: string }; Returns: Json }
       cobranca_gerar_boleto: {
         Args: { _carteira?: string; _instrucoes?: string; _titulo_id: string }
