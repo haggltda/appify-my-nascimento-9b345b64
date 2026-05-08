@@ -72,10 +72,10 @@ export default function Presidencia() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("titulo_pagar")
-        .select("id, valor, vencimento, status")
+        .select("id, valor, data_vencimento, status")
         .neq("status", "pago")
         .neq("status", "cancelado");
-      return (data ?? []) as Array<{ id: string; valor: number; vencimento: string; status: string }>;
+      return (data ?? []) as Array<{ id: string; valor: number; data_vencimento: string; status: string }>;
     },
   });
 
@@ -84,10 +84,10 @@ export default function Presidencia() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("titulo_receber")
-        .select("id, valor, vencimento, status")
+        .select("id, valor, data_vencimento, status")
         .neq("status", "recebido")
         .neq("status", "cancelado");
-      return (data ?? []) as Array<{ id: string; valor: number; vencimento: string; status: string }>;
+      return (data ?? []) as Array<{ id: string; valor: number; data_vencimento: string; status: string }>;
     },
   });
 
@@ -95,12 +95,19 @@ export default function Presidencia() {
     queryKey: ["pres-aprovacoes"],
     queryFn: async () => {
       const { data } = await (supabase as any)
-        .from("aprovacao")
-        .select("id, tipo, descricao, valor, status, criado_em")
-        .eq("status", "pendente")
-        .order("criado_em", { ascending: false })
+        .from("pre_titulo_pagar")
+        .select("id, descricao, valor_total, status, created_at, empresa_id")
+        .eq("status", "submetido")
+        .order("created_at", { ascending: false })
         .limit(8);
-      return (data ?? []) as Array<{ id: string; tipo: string; descricao: string; valor: number; status: string; criado_em: string }>;
+      return (data ?? []).map((a: any) => ({
+        id: a.id as string,
+        tipo: "Pré-título",
+        descricao: (a.descricao ?? "Pré-título sem descrição") as string,
+        valor: Number(a.valor_total ?? 0),
+        status: a.status as string,
+        criado_em: a.created_at as string,
+      }));
     },
   });
 
