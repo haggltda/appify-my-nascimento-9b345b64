@@ -19,7 +19,7 @@ export default function FluxoCaixa() {
   const { data: empresas = [] } = useQuery<any[]>({
     queryKey: ["empresas-fc"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("empresas").select("id, razao_social, sigla").order("razao_social");
+      const { data } = await (supabase as any).from("empresas").select("id, razao_social, codigo").order("razao_social");
       return data ?? [];
     },
   });
