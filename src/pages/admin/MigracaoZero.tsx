@@ -166,6 +166,21 @@ export default function MigracaoZero() {
               <Button variant="outline" size="sm" onClick={load} disabled={loading}>
                 <RefreshCw className="h-4 w-4 mr-2" /> Atualizar
               </Button>
+              <label>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.length) uploadBatch(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+                <Button asChild variant="secondary" size="sm">
+                  <span><FolderUp className="h-4 w-4 mr-2" /> Upload em lote</span>
+                </Button>
+              </label>
               <Button onClick={processAll} disabled={globalRunning || enviados === 0}>
                 <PlayCircle className="h-4 w-4 mr-2" />
                 {globalRunning ? "Processando…" : "Processar todos"}
