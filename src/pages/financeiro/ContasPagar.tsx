@@ -398,3 +398,74 @@ function RemessaDialog({ tituloIds, onClose }: { tituloIds: string[]; onClose: (
     </Dialog>
   );
 }
+
+function BaixarDialog({ titulo, onClose }: { titulo: any; onClose: () => void }) {
+  const saldo = Number(titulo.valor) - Number(titulo.valor_pago || 0);
+  const [valor, setValor] = useState(saldo.toFixed(2));
+  const [data, setData] = useState(new Date().toISOString().slice(0, 10));
+  const [contaId, setContaId] = useState(titulo.conta_bancaria_id || "");
+  const [juros, setJuros] = useState("0");
+  const [multa, setMulta] = useState("0");
+  const [desconto, setDesconto] = useState("0");
+  const [obs, setObs] = useState("");
+
+  const { data: contas = [] } = useQuery<any[]>({
+    queryKey: ["contas-bancarias-baixa"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("conta_bancaria")
+        .select("id, banco_codigo, banco_nome, agencia, conta").eq("ativa", true).order("banco_nome");
+      return data ?? [];
+    },
+  });
+
+  const baixar = useMutation({
+    mutationFn: async () => {
+      const { data: r, error } = await (supabase as any).rpc("titulo_pagar_baixar", {
+        _titulo_id: titulo.id,
+        _valor: Number(valor),
+        _data_baixa: data,
+        _conta_bancaria_id: contaId || null,
+        _juros: Number(juros) || 0,
+        _multa: Number(multa) || 0,
+        _desconto: Number(desconto) || 0,
+        _observacoes: obs || null,
+      });
+      if (error) throw error;
+      return r;
+    },
+    onSuccess: (r: any) => { toast.success(`Baixa registrada (status: ${r.status})`); onClose(); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Baixar pagamento</DialogTitle>
+          <DialogDescription>
+            {titulo.numero_documento} — Saldo: {fmtMoney(saldo)}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label>Valor pago *</Label><Input type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} /></div>
+          <div><Label>Data baixa *</Label><Input type="date" value={data} onChange={(e) => setData(e.target.value)} /></div>
+          <div className="col-span-2">
+            <Label>Conta bancária</Label>
+            <Select value={contaId} onValueChange={setContaId}>
+              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <SelectContent>{contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome} {c.agencia}/{c.conta}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div><Label>Juros</Label><Input type="number" step="0.01" value={juros} onChange={(e) => setJuros(e.target.value)} /></div>
+          <div><Label>Multa</Label><Input type="number" step="0.01" value={multa} onChange={(e) => setMulta(e.target.value)} /></div>
+          <div className="col-span-2"><Label>Desconto</Label><Input type="number" step="0.01" value={desconto} onChange={(e) => setDesconto(e.target.value)} /></div>
+          <div className="col-span-2"><Label>Observações</Label><Textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={() => baixar.mutate()} disabled={baixar.isPending}>Confirmar baixa</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
