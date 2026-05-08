@@ -273,12 +273,24 @@ export default function Presidencia() {
             </p>
           </div>
           <div className="flex flex-col justify-center gap-1.5 text-sm">
+            <div className="mb-1 flex items-center gap-1">
+              <span className="mr-1 text-[10px] uppercase tracking-wider opacity-70">Período</span>
+              {[7, 15, 30, 60, 90].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriodo(p as 7 | 15 | 30 | 60 | 90)}
+                  className={`rounded px-2 py-0.5 text-[10px] font-bold transition ${periodo === p ? "bg-white text-primary" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                >
+                  {p}d
+                </button>
+              ))}
+            </div>
             <div className="flex items-center justify-between">
-              <span className="opacity-80">A Receber</span>
+              <span className="opacity-80">A Receber ({periodo}d)</span>
               <strong className="tabular-nums">{fmtBRL(totalAReceber)}</strong>
             </div>
             <div className="flex items-center justify-between">
-              <span className="opacity-80">A Pagar</span>
+              <span className="opacity-80">A Pagar ({periodo}d)</span>
               <strong className="tabular-nums">{fmtBRL(totalAPagar)}</strong>
             </div>
             <div className="my-1 h-px bg-white/20" />
