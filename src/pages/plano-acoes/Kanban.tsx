@@ -111,7 +111,6 @@ export default function PlanoAcoesKanban() {
           Você não tem permissão para mover cards. Apenas visualização.
         </p>
       )}
-      <div className="mt-4 hidden">{Button.toString()}</div>
     </div>
   );
 }
