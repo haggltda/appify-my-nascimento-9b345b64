@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
 import { licitacoes as licitacoesBase, statusOrdem, statusLabel, formatBRL, formatDate, type StatusLicitacao, type Licitacao } from "@/data/licitacoes";
-import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical, UserCheck, Hand } from "lucide-react";
+import gradeSeed from "@/data/licitacoesGradeSeed.json";
+import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical, UserCheck, Hand, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -78,6 +79,28 @@ export default function Pipeline() {
     setTarget(null);
   };
 
+  const [importing, setImporting] = useState(false);
+  const handleImportGrade = async () => {
+    if (importing) return;
+    if (!confirm(`Importar ${(gradeSeed as any[]).length} licitações da Grade 2026 para o banco? Isso substituirá a carga existente da empresa HAGG.`)) return;
+    setImporting(true);
+    try {
+      const empresaId = "5a61c769-21d8-4e61-b9bb-506b8db0bce8";
+      await supabase.from("licitacao").delete().eq("empresa_id", empresaId);
+      const rows = gradeSeed as any[];
+      const batch = 50;
+      for (let i = 0; i < rows.length; i += batch) {
+        const { error } = await supabase.from("licitacao").insert(rows.slice(i, i + batch));
+        if (error) throw error;
+      }
+      toast({ title: "Grade importada", description: `${rows.length} licitações carregadas.` });
+    } catch (e: any) {
+      toast({ title: "Erro ao importar", description: e?.message || "Falha", variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -104,6 +127,13 @@ export default function Pipeline() {
             </div>
             <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
               <Filter className="h-3.5 w-3.5" /> Filtros avançados
+            </button>
+            <button
+              onClick={handleImportGrade}
+              disabled={importing}
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary disabled:opacity-60"
+            >
+              <Upload className="h-3.5 w-3.5" /> {importing ? "Importando..." : "Importar Grade 2026"}
             </button>
             <button className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground">
               <Plus className="h-3.5 w-3.5" /> Nova Oportunidade
