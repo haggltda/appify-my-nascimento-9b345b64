@@ -34,6 +34,8 @@ const isoAdd = (days: number) => {
 
 export default function Presidencia() {
   const navigate = useNavigate();
+  const [periodo, setPeriodo] = useState<7 | 15 | 30 | 60 | 90>(30);
+  const limiteData = isoAdd(periodo);
 
   // Caixa consolidado: soma de saldo_inicial das contas de Disponibilidades em todas empresas
   const caixaQ = useQuery({
