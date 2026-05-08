@@ -11,8 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle2, XCircle, Clock, Pencil, Search, AlertTriangle, DatabaseZap } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CheckCircle2, XCircle, Clock, Pencil, Search, AlertTriangle, DatabaseZap, Rocket, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useEmpresaId } from "@/hooks/useEmpresaId";
 
 type AprovStatus = "AGUARDANDO_APROVACAO_USUARIO" | "APROVADA" | "REJEITADA" | "AJUSTAR";
 
