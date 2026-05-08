@@ -152,7 +152,8 @@ const controladoriaOrcModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Ciclos de Orçamento", to: "/app/orcamento", icon: Calculator },
-        { label: "Planejador OBZ", to: "/app/co/obz", icon: Calculator },
+        { label: "Planejador OBZ (mock)", to: "/app/co/obz", icon: Calculator },
+        { label: "OBZ — Versões", to: "/app/co/obz-versoes", icon: Calculator },
       ],
     },
   ],
@@ -202,6 +203,7 @@ const financeiroModule: ModuleDef = {
     items: [
       { label: "Contas a Pagar", to: "/app/financeiro/contas-pagar", icon: TrendingUp },
       { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
+      { label: "Fluxo de Caixa", to: "/app/financeiro/fluxo-caixa", icon: TrendingUp },
       { label: "Movimentos Bancários", to: "/app/financeiro/movimentos", icon: Wallet },
       { label: "Integração Bancária", to: "/app/financeiro/integracao-bancaria", icon: Wallet },
     ],

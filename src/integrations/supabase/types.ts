@@ -13552,6 +13552,18 @@ export type Database = {
           },
         ]
       }
+      v_fluxo_caixa_consolidado: {
+        Row: {
+          ano: number | null
+          empresa_id: string | null
+          entradas: number | null
+          mes: number | null
+          regime: string | null
+          saidas: number | null
+          saldo: number | null
+        }
+        Relationships: []
+      }
       v_fluxo_caixa_mensal: {
         Row: {
           ano: number | null
@@ -14021,6 +14033,29 @@ export type Database = {
         }
         Returns: string
       }
+      obz_valor_upsert: {
+        Args: {
+          _centro_custo_id: string
+          _dre_linha_id: string
+          _memoria?: string
+          _mes: number
+          _valor: number
+          _versao_id: string
+        }
+        Returns: string
+      }
+      obz_versao_aprovar: { Args: { _id: string }; Returns: undefined }
+      obz_versao_arquivar: { Args: { _id: string }; Returns: undefined }
+      obz_versao_criar: {
+        Args: {
+          _ano: number
+          _descricao?: string
+          _empresa_id: string
+          _nome?: string
+        }
+        Returns: string
+      }
+      obz_versao_submeter: { Args: { _id: string }; Returns: undefined }
       pre_titulo_aprovar: { Args: { _id: string }; Returns: undefined }
       pre_titulo_promover: { Args: { _id: string }; Returns: string }
       pre_titulo_rejeitar: {
