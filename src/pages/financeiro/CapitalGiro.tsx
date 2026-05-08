@@ -195,7 +195,7 @@ export default function CapitalGiro() {
           <div className="flex gap-1">
             {(["15", "30", "45", "90"] as const).map((h) => (
               <Button key={h} size="sm" variant={horizonte === h ? "default" : "outline"} onClick={() => setHorizonte(h)}>
-                Próximos {h} dias
+                Últimos {h} dias
               </Button>
             ))}
           </div>
