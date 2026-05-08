@@ -206,6 +206,8 @@ const financeiroModule: ModuleDef = {
       { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
       { label: "Fluxo de Caixa", to: "/app/financeiro/fluxo-caixa", icon: TrendingUp },
       { label: "Fluxo de Caixa Diário", to: "/app/financeiro/fluxo-caixa-diario", icon: TrendingUp },
+      { label: "Conciliação Fluxo Caixa", to: "/app/financeiro/conciliacao-fluxo-caixa", icon: Receipt },
+      { label: "Análise de Capital de Giro", to: "/app/financeiro/capital-giro", icon: TrendingUp },
       { label: "Movimentos Bancários", to: "/app/financeiro/movimentos", icon: Wallet },
       { label: "Integração Bancária", to: "/app/financeiro/integracao-bancaria", icon: Wallet },
     ],
