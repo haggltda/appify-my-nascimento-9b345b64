@@ -460,6 +460,50 @@ export default function FluxoCaixaDiario() {
         )}
       </Card>
 
+      {visao === "comparativo" && (
+        <Card className="p-4">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" /> Realizado x Orçado — totais do período
+          </h3>
+          {orcQ.isLoading ? (
+            <div className="p-6 text-center text-muted-foreground text-xs">Carregando orçado…</div>
+          ) : (
+            <div className="overflow-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Bloco</th>
+                    <th className="px-3 py-2 text-right">Realizado</th>
+                    <th className="px-3 py-2 text-right">Orçado / Previsto</th>
+                    <th className="px-3 py-2 text-right">Variação (R$)</th>
+                    <th className="px-3 py-2 text-right">Variação (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparativo.map((c) => {
+                    const cor = c.bloco === "ENTRADAS"
+                      ? (c.variacao >= 0 ? "text-emerald-600" : "text-amber-600")
+                      : (c.variacao <= 0 ? "text-emerald-600" : "text-rose-600");
+                    return (
+                      <tr key={c.bloco} className="border-t border-border/40">
+                        <td className="px-3 py-2 font-medium">{BLOCO_LABEL[c.bloco]}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmt(c.realizado)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{fmt(c.orcado)}</td>
+                        <td className={`px-3 py-2 text-right tabular-nums font-medium ${cor}`}>{fmt(c.variacao)}</td>
+                        <td className={`px-3 py-2 text-right tabular-nums ${cor}`}>{c.pct.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Orçado/Previsto a partir de <code>mz_41_fato_fluxo_caixa_projetado</code>. Variação positiva em entradas é favorável; em saídas, indica gasto acima do previsto.
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
+
       <p className="text-xs text-muted-foreground">
         Saldo inicial baseado em <code>saldos_iniciais_caixa</code> (01/01/2026, 30 contas, R$ 4.307.442,06). Movimentações de <code>mz_40_fato_fluxo_caixa_realizado</code>. Despesas/Receitas Financeiras reclassificadas por palavras-chave (juro, IOF, tarifa, financeiro, rendimento, etc).
       </p>
