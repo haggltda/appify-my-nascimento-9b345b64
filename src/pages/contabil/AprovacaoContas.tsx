@@ -100,12 +100,13 @@ export default function AprovacaoContas() {
   }, [sugestoes]);
 
   const counters = useMemo(() => {
-    const c = { todas: lista.length, pendentes: 0, aprovadas: 0, rejeitadas: 0, ajustar: 0 };
+    const c = { todas: lista.length, pendentes: 0, aprovadas: 0, rejeitadas: 0, ajustar: 0, promovidas: 0 };
     lista.forEach((r) => {
       const s = (r.status_aprovacao ?? "").toUpperCase();
       if (s === "APROVADA") c.aprovadas++;
       else if (s === "REJEITADA") c.rejeitadas++;
       else if (s === "AJUSTAR") c.ajustar++;
+      else if (s === "PROMOVIDA") c.promovidas++;
       else c.pendentes++;
     });
     return c;
@@ -116,10 +117,11 @@ export default function AprovacaoContas() {
     if (tab !== "todas") {
       arr = arr.filter((r) => {
         const s = (r.status_aprovacao ?? "").toUpperCase();
-        if (tab === "pendentes") return s !== "APROVADA" && s !== "REJEITADA" && s !== "AJUSTAR";
+        if (tab === "pendentes") return s !== "APROVADA" && s !== "REJEITADA" && s !== "AJUSTAR" && s !== "PROMOVIDA";
         if (tab === "aprovadas") return s === "APROVADA";
         if (tab === "rejeitadas") return s === "REJEITADA";
         if (tab === "ajustar") return s === "AJUSTAR";
+        if (tab === "promovidas") return s === "PROMOVIDA";
         return true;
       });
     }
