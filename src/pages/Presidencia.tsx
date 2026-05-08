@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,12 +9,28 @@ import { Button } from "@/components/ui/button";
 import {
   Banknote, Wallet, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2,
   Clock, Briefcase, Crown, ArrowUpRight, FileSignature, Users, Building2,
+  Activity, Flame, ListChecks, Target,
 } from "lucide-react";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  PieChart, Pie, Cell, ComposedChart, Line,
+} from "recharts";
+
+const PALETTE = ["hsl(var(--primary))", "hsl(var(--accent))", "#16a34a", "#f59e0b", "#ef4444", "#6366f1", "#06b6d4", "#a855f7"];
 
 const fmtBRL = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtBRLcompact = (n: number) => {
+  const v = Number(n || 0);
+  if (Math.abs(v) >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(v) >= 1_000) return `R$ ${(v / 1_000).toFixed(0)}k`;
+  return fmtBRL(v);
+};
 const fmtDate = (d?: string) =>
   d ? new Date(d + (d.length === 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR") : "—";
+const isoAdd = (days: number) => {
+  const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10);
+};
 
 export default function Presidencia() {
   const navigate = useNavigate();
