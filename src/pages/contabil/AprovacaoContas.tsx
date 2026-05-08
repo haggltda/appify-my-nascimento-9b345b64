@@ -272,6 +272,7 @@ export default function AprovacaoContas() {
             <TabsList>
               <TabsTrigger value="pendentes">Pendentes ({counters.pendentes})</TabsTrigger>
               <TabsTrigger value="aprovadas">Aprovadas ({counters.aprovadas})</TabsTrigger>
+              <TabsTrigger value="promovidas">Promovidas ({counters.promovidas})</TabsTrigger>
               <TabsTrigger value="rejeitadas">Rejeitadas ({counters.rejeitadas})</TabsTrigger>
               <TabsTrigger value="ajustar">Ajustar ({counters.ajustar})</TabsTrigger>
               <TabsTrigger value="todas">Todas ({counters.todas})</TabsTrigger>
@@ -287,11 +288,37 @@ export default function AprovacaoContas() {
             </div>
           </div>
 
+          {selecionados.size > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 p-3">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">{selecionados.size} selecionada(s)</span>
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => decidirEmLote("APROVADA")} disabled={decidir.isPending}>
+                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Aprovar
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => decidirEmLote("AJUSTAR")} disabled={decidir.isPending}>
+                  <AlertTriangle className="mr-1 h-3.5 w-3.5" /> Ajustar
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => decidirEmLote("REJEITADA")} disabled={decidir.isPending}>
+                  <XCircle className="mr-1 h-3.5 w-3.5" /> Rejeitar
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelecionados(new Set())}>Limpar</Button>
+              </div>
+            </div>
+          )}
+
           <TabsContent value={tab} className="m-0">
             <div className="overflow-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]">
+                      <Checkbox
+                        checked={filtrada.length > 0 && filtrada.every((r) => selecionados.has(r.id_sugestao_conta))}
+                        onCheckedChange={toggleSelAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                     <TableHead className="w-[110px]">ID</TableHead>
                     <TableHead className="w-[150px]">Código</TableHead>
                     <TableHead>Nome sugerido</TableHead>
@@ -304,13 +331,20 @@ export default function AprovacaoContas() {
                 </TableHeader>
                 <TableBody>
                   {isLoading && (
-                    <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">Carregando…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Carregando…</TableCell></TableRow>
                   )}
                   {!isLoading && filtrada.length === 0 && (
-                    <TableRow><TableCell colSpan={8} className="py-10 text-center text-muted-foreground">Nenhuma conta nessa categoria.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="py-10 text-center text-muted-foreground">Nenhuma conta nessa categoria.</TableCell></TableRow>
                   )}
                   {filtrada.map((r) => (
-                    <TableRow key={r.id_sugestao_conta}>
+                    <TableRow key={r.id_sugestao_conta} data-state={selecionados.has(r.id_sugestao_conta) ? "selected" : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selecionados.has(r.id_sugestao_conta)}
+                          onCheckedChange={() => toggleSel(r.id_sugestao_conta)}
+                          aria-label={`Selecionar ${r.id_sugestao_conta}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-xs">{r.id_sugestao_conta}</TableCell>
                       <TableCell className="font-mono">{r.codigo_conta_sugerido ?? "—"}</TableCell>
                       <TableCell>
@@ -327,7 +361,7 @@ export default function AprovacaoContas() {
                       <TableCell className="text-right tabular-nums">{fmtBRL(r.valor_total_abs_afetado)}</TableCell>
                       <TableCell><StatusBadge status={r.status_aprovacao} /></TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" variant="outline" onClick={() => openEdit(r)}>
+                        <Button size="sm" variant="outline" onClick={() => openEdit(r)} disabled={(r.status_aprovacao ?? "").toUpperCase() === "PROMOVIDA"}>
                           <Pencil className="mr-1 h-3.5 w-3.5" />Decidir
                         </Button>
                       </TableCell>
