@@ -60,6 +60,8 @@ import Recebimentos from "./pages/suprimentos/Recebimentos";
 import Cotacoes from "./pages/suprimentos/Cotacoes";
 import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
+import FluxoCaixa from "./pages/financeiro/FluxoCaixa";
+import OBZVersoes from "./pages/controladoria/OBZVersoes";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
 import IntegracaoBancaria from "./pages/financeiro/IntegracaoBancaria";
 import IntegracaoBancariaBuilder from "./pages/financeiro/IntegracaoBancariaBuilder";
