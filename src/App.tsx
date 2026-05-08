@@ -128,6 +128,7 @@ const App = () => (
             <Route path="co/dre" element={<LinhasDRE />} />
             <Route path="co/classificadores" element={<Classificadores />} />
             <Route path="co/obz" element={<PlanejadorOBZ />} />
+            <Route path="co/obz-versoes" element={<OBZVersoes />} />
             <Route path="orcamento" element={<Orcamento />} />
             {/* Suprimentos */}
             <Route path="suprimentos/fornecedores" element={<Fornecedores />} />
