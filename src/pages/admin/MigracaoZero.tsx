@@ -25,6 +25,9 @@ type Status = {
 
 const SUPABASE_URL = "https://fwmzeaztjxrxxzxzxmgc.supabase.co";
 const LARGE_UPLOAD_LIMIT = 45 * 1024 * 1024;
+const LOAD_TIMEOUT_MS = 75_000;
+
+type ProcessMode = "fresh" | "append" | "resume";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDENTE: "bg-muted text-muted-foreground",
@@ -124,19 +127,28 @@ export default function MigracaoZero() {
     }
   }
 
-  async function processFile(arquivo: string, append = false): Promise<boolean> {
-    // Em modo append, reaproveita o batch_id atual da linha (mantém vínculo com as partes anteriores)
+  async function invokeMzLoad(body: Record<string, unknown>) {
+    return await Promise.race([
+      supabase.functions.invoke("mz-load", { body }),
+      new Promise<never>((_, reject) => {
+        window.setTimeout(() => reject(new Error("Sem resposta do servidor após 75s. Clique em Atualizar e depois em Retomar.")), LOAD_TIMEOUT_MS);
+      }),
+    ]);
+  }
+
+  async function processFile(arquivo: string, mode: ProcessMode = "fresh"): Promise<boolean> {
     const row = rows.find((r) => r.arquivo === arquivo);
-    const batchId = append && row?.migration_batch_id ? row.migration_batch_id : crypto.randomUUID();
-    let offset = 0;
+    const append = mode === "append";
+    const canResume = mode === "resume" || (mode === "fresh" && row?.status === "EM_ANDAMENTO" && !!row.migration_batch_id && row.linhas_carregadas > 0);
+    const batchId = (append || canResume) && row?.migration_batch_id ? row.migration_batch_id : crypto.randomUUID();
+    let offset = canResume ? (row?.linhas_carregadas ?? 0) : 0;
     let safety = 10000;
     while (safety-- > 0) {
       if (cancelRef.current) return false;
-      const { data, error } = await supabase.functions.invoke("mz-load", {
-        body: { arquivo, batch_id: batchId, offset, append },
-      });
+      const { data, error } = await invokeMzLoad({ arquivo, batch_id: batchId, offset, append });
       if (error) {
         toast.error(`${arquivo}: ${error.message}`);
+        await load();
         return false;
       }
       if (!data?.ok) {
@@ -147,16 +159,19 @@ export default function MigracaoZero() {
       offset = data.next_offset;
       await load();
       if (data.finalizou) {
-        toast.success(`${arquivo}: ${data.linhas_carregadas_acumulado} linhas carregadas${append ? " (append)" : ""}`);
+        toast.success(`${arquivo}: ${data.linhas_carregadas_acumulado} linhas carregadas${append ? " (append)" : canResume ? " (retomado)" : ""}`);
         return true;
       }
     }
     return false;
   }
 
-  async function processOne(arquivo: string, append = false) {
+  async function processOne(arquivo: string, mode: ProcessMode = "fresh") {
     setBusy((b) => ({ ...b, [arquivo]: true }));
-    try { await processFile(arquivo, append); } finally {
+    try { await processFile(arquivo, mode); } catch (e) {
+      toast.error(`${arquivo}: ${e instanceof Error ? e.message : String(e)}`);
+      await load();
+    } finally {
       setBusy((b) => ({ ...b, [arquivo]: false }));
     }
   }
@@ -169,7 +184,7 @@ export default function MigracaoZero() {
       for (const r of ready) {
         if (cancelRef.current) break;
         setBusy((b) => ({ ...b, [r.arquivo]: true }));
-        await processFile(r.arquivo);
+        await processFile(r.arquivo, r.status === "EM_ANDAMENTO" ? "resume" : "fresh");
         setBusy((b) => ({ ...b, [r.arquivo]: false }));
       }
       toast.success("Processamento finalizado.");
@@ -320,16 +335,16 @@ export default function MigracaoZero() {
                       </label>
                       <Button
                         size="sm"
-                        onClick={() => processOne(r.arquivo, false)}
+                        onClick={() => processOne(r.arquivo, r.status === "EM_ANDAMENTO" ? "resume" : "fresh")}
                         disabled={!r.storage_path || !!busy[r.arquivo] || globalRunning}
-                        title="Apaga as linhas carregadas anteriormente deste arquivo e recomeça do zero"
+                        title={r.status === "EM_ANDAMENTO" ? "Continua do ponto em que parou, sem apagar as linhas já carregadas" : "Apaga as linhas carregadas anteriormente deste arquivo e recomeça do zero"}
                       >
-                        <Play className="h-3.5 w-3.5 mr-1" /> Processar
+                        <Play className="h-3.5 w-3.5 mr-1" /> {r.status === "EM_ANDAMENTO" ? "Retomar" : "Processar"}
                       </Button>
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => processOne(r.arquivo, true)}
+                        onClick={() => processOne(r.arquivo, "append")}
                         disabled={!r.storage_path || !!busy[r.arquivo] || globalRunning || !r.migration_batch_id}
                         title="Adiciona as linhas deste CSV às linhas já carregadas anteriormente (sem apagar). Use para subir partes 2, 3, ... do mesmo arquivo."
                       >
