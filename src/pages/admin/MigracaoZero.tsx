@@ -335,16 +335,16 @@ export default function MigracaoZero() {
                       </label>
                       <Button
                         size="sm"
-                        onClick={() => processOne(r.arquivo, false)}
+                        onClick={() => processOne(r.arquivo, r.status === "EM_ANDAMENTO" ? "resume" : "fresh")}
                         disabled={!r.storage_path || !!busy[r.arquivo] || globalRunning}
-                        title="Apaga as linhas carregadas anteriormente deste arquivo e recomeça do zero"
+                        title={r.status === "EM_ANDAMENTO" ? "Continua do ponto em que parou, sem apagar as linhas já carregadas" : "Apaga as linhas carregadas anteriormente deste arquivo e recomeça do zero"}
                       >
-                        <Play className="h-3.5 w-3.5 mr-1" /> Processar
+                        <Play className="h-3.5 w-3.5 mr-1" /> {r.status === "EM_ANDAMENTO" ? "Retomar" : "Processar"}
                       </Button>
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => processOne(r.arquivo, true)}
+                        onClick={() => processOne(r.arquivo, "append")}
                         disabled={!r.storage_path || !!busy[r.arquivo] || globalRunning || !r.migration_batch_id}
                         title="Adiciona as linhas deste CSV às linhas já carregadas anteriormente (sem apagar). Use para subir partes 2, 3, ... do mesmo arquivo."
                       >
