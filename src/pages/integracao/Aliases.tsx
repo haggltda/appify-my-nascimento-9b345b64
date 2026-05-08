@@ -103,8 +103,8 @@ const TIPO_CFG: Record<AliasTipo, {
     label: "Linhas DRE",
     loadOptions: async () => {
       const { data } = await supabase.from("dre_linhas")
-        .select("id, codigo, nome").order("ordem").limit(500);
-      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} — ${c.nome}` }));
+        .select("id, codigo, descricao").order("ordem").limit(500);
+      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} — ${c.descricao}` }));
     },
   },
 };
