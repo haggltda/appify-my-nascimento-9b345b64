@@ -41,6 +41,7 @@ Deno.serve(async (req) => {
     const arquivo: string = body.arquivo;
     const batchId: string = body.batch_id;
     const offset: number = Number(body.offset ?? 0);
+    const append: boolean = Boolean(body.append ?? false);
     if (!arquivo || !batchId) return json({ error: "arquivo e batch_id são obrigatórios" }, 400);
 
     // Busca controle
@@ -51,17 +52,28 @@ Deno.serve(async (req) => {
 
     const tabela: string = ctrl.tabela;
 
-    // Se for offset 0: limpa a tabela apenas da carga deste batch (idempotente por batch_id)
+    // Se for offset 0:
+    //   - modo normal: zera tudo do batch (recomeça)
+    //   - modo append: NÃO apaga, apenas marca EM_ANDAMENTO e preserva linhas_carregadas
     if (offset === 0) {
-      await admin.from(tabela).delete().eq("migration_batch_id", batchId);
-      await admin.from("mz_status").update({
-        status: "EM_ANDAMENTO",
-        iniciou_em: new Date().toISOString(),
-        migration_batch_id: batchId,
-        linhas_carregadas: 0,
-        ultimo_erro: null,
-        updated_at: new Date().toISOString(),
-      }).eq("arquivo", arquivo);
+      if (!append) {
+        await admin.from(tabela).delete().eq("migration_batch_id", batchId);
+        await admin.from("mz_status").update({
+          status: "EM_ANDAMENTO",
+          iniciou_em: new Date().toISOString(),
+          migration_batch_id: batchId,
+          linhas_carregadas: 0,
+          ultimo_erro: null,
+          updated_at: new Date().toISOString(),
+        }).eq("arquivo", arquivo);
+      } else {
+        await admin.from("mz_status").update({
+          status: "EM_ANDAMENTO",
+          migration_batch_id: batchId,
+          ultimo_erro: null,
+          updated_at: new Date().toISOString(),
+        }).eq("arquivo", arquivo);
+      }
     }
 
     // Baixa o CSV completo (bucket privado).
