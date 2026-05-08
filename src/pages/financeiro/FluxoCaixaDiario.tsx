@@ -171,6 +171,28 @@ export default function FluxoCaixaDiario() {
   const saldoTotalPeriodo = tEntradas.total + tSOp.total + tFin.total + tSNop.total;
   const saldoFinal = saldoInicialBase + saldoTotalPeriodo;
 
+  // Comparativo Realizado x Orçado (totais por bloco)
+  const comparativo = useMemo(() => {
+    const FIN = /(JURO|IOF|TARIF|FINANC|RENDIMENT|APLIC|BANC[AÁ]RI|EMPR[ÉE]STIM|D[ÉE]BITO\s+AUT)/i;
+    const orc: Record<BlocoKey, number> = { ENTRADAS: 0, SAIDAS_OP: 0, FINANCEIRAS: 0, SAIDAS_NAO_OP: 0 };
+    (orcQ.data ?? []).forEach((r) => {
+      const isFin = FIN.test(r.categoria);
+      const k: BlocoKey = r.bloco === "ENTRADAS" ? "ENTRADAS"
+        : r.bloco === "SAIDAS_OP" ? "SAIDAS_OP"
+        : isFin ? "FINANCEIRAS" : "SAIDAS_NAO_OP";
+      orc[k] += Number(r.valor);
+    });
+    const real: Record<BlocoKey, number> = {
+      ENTRADAS: tEntradas.total, SAIDAS_OP: tSOp.total, FINANCEIRAS: tFin.total, SAIDAS_NAO_OP: tSNop.total,
+    };
+    return (Object.keys(real) as BlocoKey[]).map((b) => {
+      const r = real[b], o = orc[b];
+      const variacao = r - o;
+      const pct = o !== 0 ? (variacao / Math.abs(o)) * 100 : 0;
+      return { bloco: b, realizado: r, orcado: o, variacao, pct };
+    });
+  }, [orcQ.data, tEntradas.total, tSOp.total, tFin.total, tSNop.total]);
+
   const exportCsv = () => {
     const header = ["Bloco", "Categoria", ...dias, "Total Período"];
     const rows: (string | number)[][] = [];
