@@ -13494,6 +13494,7 @@ export type Database = {
         Returns: Json
       }
       layout_submeter_aprovacao: { Args: { _versao_id: string }; Returns: Json }
+      mz_32_diagnosticar_razao: { Args: { p_batch_id: string }; Returns: Json }
       nf_gerar_titulos: { Args: { _nf_id: string }; Returns: Json }
       nf_lancar_estoque: { Args: { _nf_id: string }; Returns: Json }
       nota_fiscal_autorizar: {
