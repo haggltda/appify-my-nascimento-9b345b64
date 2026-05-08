@@ -229,6 +229,7 @@ export default function ContasPagar() {
       </Tabs>
 
       {openAgendar && <AgendarDialog tituloId={openAgendar} onClose={() => { setOpenAgendar(null); qc.invalidateQueries({ queryKey: ["titulo_pagar"] }); }} />}
+      {openBaixar && <BaixarDialog titulo={openBaixar} onClose={() => { setOpenBaixar(null); qc.invalidateQueries({ queryKey: ["titulo_pagar"] }); }} />}
       {openRemessa && <RemessaDialog tituloIds={sel} onClose={(ok) => { setOpenRemessa(false); if (ok) { setSel([]); qc.invalidateQueries({ queryKey: ["titulo_pagar"] }); qc.invalidateQueries({ queryKey: ["remessa_cnab"] }); setTab("remessas"); } }} />}
     </div>
   );
