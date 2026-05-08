@@ -131,7 +131,7 @@ export default function DREGerencial() {
   };
 
   if (!empresaId) {
-    return <div className="card-elevated p-6 text-sm text-muted-foreground">Selecione uma empresa no perfil.</div>;
+    return <div className="card-elevated p-6 text-sm text-muted-foreground">Carregando empresas…</div>;
   }
 
   return (
@@ -149,6 +149,17 @@ export default function DREGerencial() {
       />
 
       <div className="card-elevated flex flex-wrap items-end gap-3 p-4">
+        <div className="min-w-[220px]">
+          <Label>Empresa</Label>
+          <Select value={empresaId} onValueChange={setEmpresaId}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(empresasQ.data ?? []).map((e) => (
+                <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div>
           <Label>Ano</Label>
           <Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value) || anoAtual)} className="w-28" />
