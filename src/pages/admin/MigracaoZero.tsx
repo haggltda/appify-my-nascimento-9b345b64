@@ -90,7 +90,9 @@ export default function MigracaoZero() {
   async function uploadFile(arquivo: string, file: File) {
     setBusy((b) => ({ ...b, [arquivo]: true }));
     try {
-      const path = `csv/${arquivo}`;
+      // Suporte a .gz: se o arquivo enviado é compactado, preserva extensão no storage_path
+      const isGz = file.name.toLowerCase().endsWith(".gz");
+      const path = isGz ? `csv/${arquivo}.gz` : `csv/${arquivo}`;
       setUploadProgress((p) => ({ ...p, [arquivo]: 0 }));
       if (file.size >= LARGE_UPLOAD_LIMIT) {
         await uploadLargeFile(path, file, arquivo);
@@ -217,7 +219,7 @@ export default function MigracaoZero() {
               <label>
                 <input
                   type="file"
-                  accept=".csv,text/csv"
+                  accept=".csv,.gz,text/csv,application/gzip"
                   multiple
                   className="hidden"
                   onChange={(e) => {
@@ -301,7 +303,7 @@ export default function MigracaoZero() {
                       <label className="inline-flex">
                         <Input
                           type="file"
-                          accept=".csv,text/csv"
+                          accept=".csv,.gz,text/csv,application/gzip"
                           className="hidden"
                           disabled={!!busy[r.arquivo]}
                           onChange={(e) => {
