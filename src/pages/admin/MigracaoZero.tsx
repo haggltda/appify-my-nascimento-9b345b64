@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Upload, Play, RefreshCw, PlayCircle, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
+import { Upload, Play, RefreshCw, PlayCircle, CheckCircle2, AlertTriangle, Clock, FolderUp } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 type Status = {
@@ -125,6 +125,24 @@ export default function MigracaoZero() {
     }
   }
 
+  async function uploadBatch(files: FileList) {
+    const known = new Set(rows.map((r) => r.arquivo));
+    const matched: File[] = [];
+    const skipped: string[] = [];
+    for (const f of Array.from(files)) {
+      if (known.has(f.name)) matched.push(f);
+      else skipped.push(f.name);
+    }
+    if (skipped.length) toast.message(`Ignorados (${skipped.length}): não constam em mz_status`, { description: skipped.slice(0, 5).join(", ") + (skipped.length > 5 ? "…" : "") });
+    if (!matched.length) { toast.error("Nenhum arquivo casou com as 32 linhas."); return; }
+    toast.success(`Iniciando upload de ${matched.length} arquivos…`);
+    for (const f of matched) {
+      // sequencial para evitar saturar rede / Storage
+      // eslint-disable-next-line no-await-in-loop
+      await uploadFile(f.name, f);
+    }
+    toast.success(`Upload em lote concluído: ${matched.length} arquivos.`);
+  }
   const totalEsperado = rows.reduce((a, r) => a + r.linhas_esperadas, 0);
   const totalCarregado = rows.reduce((a, r) => a + r.linhas_carregadas, 0);
   const pctGlobal = totalEsperado ? Math.min(100, Math.round((totalCarregado / totalEsperado) * 100)) : 0;
@@ -148,6 +166,21 @@ export default function MigracaoZero() {
               <Button variant="outline" size="sm" onClick={load} disabled={loading}>
                 <RefreshCw className="h-4 w-4 mr-2" /> Atualizar
               </Button>
+              <label>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.length) uploadBatch(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+                <Button asChild variant="secondary" size="sm">
+                  <span><FolderUp className="h-4 w-4 mr-2" /> Upload em lote</span>
+                </Button>
+              </label>
               <Button onClick={processAll} disabled={globalRunning || enviados === 0}>
                 <PlayCircle className="h-4 w-4 mr-2" />
                 {globalRunning ? "Processando…" : "Processar todos"}
