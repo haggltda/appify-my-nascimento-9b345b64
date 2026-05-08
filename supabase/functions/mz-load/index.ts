@@ -84,11 +84,8 @@ Deno.serve(async (req) => {
     const end = Math.min(offset + CHUNK_SIZE, total);
     const slice = rows.slice(offset, end);
 
-    // Descobre colunas válidas da tabela (todas exceto controle/serial)
-    const { data: colsData } = await admin.rpc("admin_table_columns", { p_table: tabela }).catch(() => ({ data: null as any }));
-    // fallback: pega chaves do primeiro objeto + normaliza
-    const sampleKeys = slice.length > 0 ? Object.keys(slice[0]) : [];
-    const normalize = (k: string) => k.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_|_$/g, "");
+    // Normalização: remove BOM, lowercase, troca não-alfanum por _
+    const normalize = (k: string) => k.replace(/^\uFEFF/, "").toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_|_$/g, "");
 
     // Monta linhas para insert
     const toInsert = slice.map((r, i) => {
