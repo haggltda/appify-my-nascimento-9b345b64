@@ -13366,6 +13366,17 @@ export type Database = {
           },
         ]
       }
+      vw_mz_32_promocao_status: {
+        Row: {
+          mestres_promovidos: number | null
+          mestres_staging: number | null
+          pct_promovido: number | null
+          pendentes: number | null
+          sigla: string | null
+          total_promovido_brl: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_exec_dml: { Args: { p_sql: string }; Returns: undefined }
