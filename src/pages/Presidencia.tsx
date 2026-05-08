@@ -403,6 +403,182 @@ export default function Presidencia() {
         </Card>
       </div>
 
+      {/* ============== RESUMO GRÁFICO – PLANO DE AÇÕES & FLUXO ============== */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-display text-lg font-bold">
+            <Activity className="h-4 w-4 text-primary" /> Resumo executivo — Plano de Ações & Fluxo de Caixa
+          </h2>
+          <Badge variant="outline" className="font-mono text-[10px]">{planoStats.total} ações</Badge>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          {/* Status */}
+          <Card className="relative overflow-hidden border-primary/10 bg-gradient-to-br from-card via-card to-primary/5 p-4 shadow-lg backdrop-blur-sm">
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <ListChecks className="h-3.5 w-3.5 text-primary" /> Status das Ações
+              </div>
+              <div className="mt-3 h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={planoStats.statusData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} paddingAngle={2}>
+                      {planoStats.statusData.map((_, i) => (
+                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </Card>
+
+          {/* Prioridade */}
+          <Card className="relative overflow-hidden border-accent/20 bg-gradient-to-br from-card via-card to-accent/10 p-4 shadow-lg">
+            <div className="absolute -left-8 -bottom-8 h-32 w-32 rounded-full bg-accent/15 blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <Flame className="h-3.5 w-3.5 text-accent" /> Distribuição por Prioridade
+              </div>
+              <div className="mt-3 h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={planoStats.prioData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                      {planoStats.prioData.map((_, i) => (
+                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </Card>
+
+          {/* Áreas */}
+          <Card className="relative overflow-hidden border-primary/10 bg-gradient-to-br from-card via-card to-primary/5 p-4 shadow-lg">
+            <div className="absolute -right-8 -bottom-8 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <Target className="h-3.5 w-3.5 text-primary" /> Top Áreas (volume)
+              </div>
+              <div className="mt-3 h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={planoStats.areaData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" tick={{ fontSize: 10 }} />
+                    <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={110} />
+                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                    <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                      {planoStats.areaData.map((_, i) => (
+                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Fluxo de caixa projetado vs realizado */}
+        <Card className="relative overflow-hidden border-primary/10 bg-gradient-to-br from-card via-card to-primary/5 p-4 shadow-lg">
+          <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
+          <div className="relative">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <TrendingUp className="h-3.5 w-3.5 text-primary" /> Fluxo de Caixa — Realizado x Projetado (6 meses)
+              </div>
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-500" /> Entradas</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-rose-500" /> Saídas</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-primary" /> Líquido projetado</span>
+              </div>
+            </div>
+            <div className="mt-4 h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={fluxoChart}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => fmtBRLcompact(Number(v))} />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
+                    formatter={(v: any) => fmtBRL(Number(v))}
+                  />
+                  <Bar dataKey="realizadoEntrada" name="Entradas (realizado)" fill="#16a34a" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="realizadoSaida" name="Saídas (realizado)" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                  <Line type="monotone" dataKey="projetadoLiquido" name="Líquido projetado" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </Card>
+
+        {/* Ações mais críticas */}
+        <Card className="overflow-hidden border-rose-500/20 shadow-xl">
+          <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-rose-500/10 via-amber-500/5 to-transparent px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Flame className="h-4 w-4 text-rose-500" />
+              <h3 className="font-display font-bold">Ações mais críticas — atenção da Presidência</h3>
+            </div>
+            <Button size="sm" variant="ghost" onClick={() => navigate("/app/plano-acoes/dashboard")}>
+              Ver plano completo <ArrowUpRight className="ml-1 h-3 w-3" />
+            </Button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2 text-left">Ação</th>
+                  <th className="px-4 py-2 text-left">Área</th>
+                  <th className="px-4 py-2 text-left">Responsável</th>
+                  <th className="px-4 py-2 text-center">Prioridade</th>
+                  <th className="px-4 py-2 text-center">Status</th>
+                  <th className="px-4 py-2 text-left">Prazo</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {acoesCriticas.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Nenhuma ação crítica no momento</td></tr>
+                )}
+                {acoesCriticas.map((a: any) => {
+                  const prio = a.prioridade_normalizada ?? "—";
+                  const prioColor =
+                    prio === "emergencial" ? "bg-rose-500/15 text-rose-600 border-rose-500/30" :
+                    prio === "alta" ? "bg-amber-500/15 text-amber-700 border-amber-500/30" :
+                    "bg-muted text-muted-foreground";
+                  const status = a.status_normalizado ?? "—";
+                  const stColor =
+                    status === "atrasada" ? "bg-rose-500/15 text-rose-600 border-rose-500/30" :
+                    status === "concluida" ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" :
+                    "bg-muted text-muted-foreground";
+                  return (
+                    <tr key={a.id} className="hover:bg-muted/30">
+                      <td className="max-w-[320px] truncate px-4 py-2 font-medium">{a.titulo}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{a.area ?? "—"}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{a.responsavel_nome_origem ?? "—"}</td>
+                      <td className="px-4 py-2 text-center">
+                        <span className={`inline-flex rounded border px-2 py-0.5 text-[10px] font-bold capitalize ${prioColor}`}>{prio}</span>
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        <span className={`inline-flex rounded border px-2 py-0.5 text-[10px] font-bold capitalize ${stColor}`}>{status.replace(/_/g, " ")}</span>
+                      </td>
+                      <td className="px-4 py-2 text-muted-foreground">{fmtDate(a.data_fim_planejado ?? a.data_fim_planejado_original)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+
       {/* Atalhos executivos */}
       <div>
         <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold">
