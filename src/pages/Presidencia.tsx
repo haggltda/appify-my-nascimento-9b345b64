@@ -129,13 +129,33 @@ export default function Presidencia() {
     },
   });
 
+  // Plano de ações para gráficos e tabela crítica
+  const planoQ = useQuery({
+    queryKey: ["pres-plano-acoes"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("plano_acao")
+        .select("id, titulo, area, comite, prioridade_normalizada, status_normalizado, responsavel_nome_origem, data_fim_planejado, data_fim_planejado_original")
+        .is("deleted_at", null)
+        .limit(2000);
+      return (data ?? []) as Array<any>;
+    },
+  });
+
+  const limite = new Date(limiteData + "T23:59:59");
+  const titulosPagarPeriodo = (titulosPagarQ.data ?? []).filter(
+    (t) => t.data_vencimento && new Date(t.data_vencimento) <= limite
+  );
+  const titulosReceberPeriodo = (titulosReceberQ.data ?? []).filter(
+    (t) => t.data_vencimento && new Date(t.data_vencimento) <= limite
+  );
   const totalAPagar = useMemo(
-    () => (titulosPagarQ.data ?? []).reduce((s, t) => s + Number(t.valor || 0), 0),
-    [titulosPagarQ.data]
+    () => titulosPagarPeriodo.reduce((s, t) => s + Number(t.valor || 0), 0),
+    [titulosPagarPeriodo]
   );
   const totalAReceber = useMemo(
-    () => (titulosReceberQ.data ?? []).reduce((s, t) => s + Number(t.valor || 0), 0),
-    [titulosReceberQ.data]
+    () => titulosReceberPeriodo.reduce((s, t) => s + Number(t.valor || 0), 0),
+    [titulosReceberPeriodo]
   );
   const totalMalotes = useMemo(
     () => (malotesQ.data ?? []).reduce((s, m) => s + Number(m.valor_total || 0), 0),
@@ -148,6 +168,77 @@ export default function Presidencia() {
   const vencidasPagar = (titulosPagarQ.data ?? []).filter(
     (t) => new Date(t.data_vencimento) < hoje
   ).length;
+
+  // Agregações Plano de Ações
+  const planoStats = useMemo(() => {
+    const rows = planoQ.data ?? [];
+    const byStatus: Record<string, number> = {};
+    const byPrio: Record<string, number> = {};
+    const byArea: Record<string, number> = {};
+    rows.forEach((r: any) => {
+      const s = r.status_normalizado ?? "a_definir";
+      byStatus[s] = (byStatus[s] ?? 0) + 1;
+      const p = r.prioridade_normalizada ?? "nao_informada";
+      byPrio[p] = (byPrio[p] ?? 0) + 1;
+      if (r.area) byArea[r.area] = (byArea[r.area] ?? 0) + 1;
+    });
+    return {
+      statusData: Object.entries(byStatus).map(([name, value]) => ({ name, value })),
+      prioData: Object.entries(byPrio).map(([name, value]) => ({ name, value })),
+      areaData: Object.entries(byArea)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8),
+      total: rows.length,
+    };
+  }, [planoQ.data]);
+
+  const acoesCriticas = useMemo(() => {
+    const rows = planoQ.data ?? [];
+    return rows
+      .filter(
+        (r: any) =>
+          r.status_normalizado === "atrasada" ||
+          r.prioridade_normalizada === "emergencial" ||
+          r.prioridade_normalizada === "alta"
+      )
+      .sort((a: any, b: any) => {
+        const order = ["emergencial", "alta", "media", "baixa"];
+        return order.indexOf(a.prioridade_normalizada ?? "z") - order.indexOf(b.prioridade_normalizada ?? "z");
+      })
+      .slice(0, 12);
+  }, [planoQ.data]);
+
+  // Fluxo de caixa: realizado (mes -2..0) + projetado (+1..+3) por mês
+  const fluxoChart = useMemo(() => {
+    const meses = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - 2 + i);
+      return d;
+    });
+    return meses.map((d, i) => {
+      const ini = new Date(d.getFullYear(), d.getMonth(), 1);
+      const fim = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const isProj = i >= 3;
+      const ent = (titulosReceberQ.data ?? []).filter((t) => {
+        const dv = t.data_vencimento ? new Date(t.data_vencimento) : null;
+        return dv && dv >= ini && dv <= fim;
+      }).reduce((s, t) => s + Number(t.valor || 0), 0);
+      const sai = (titulosPagarQ.data ?? []).filter((t) => {
+        const dv = t.data_vencimento ? new Date(t.data_vencimento) : null;
+        return dv && dv >= ini && dv <= fim;
+      }).reduce((s, t) => s + Number(t.valor || 0), 0);
+      const mes = d.toLocaleDateString("pt-BR", { month: "short" });
+      return {
+        mes: mes.charAt(0).toUpperCase() + mes.slice(1, 3),
+        realizadoEntrada: isProj ? 0 : ent,
+        realizadoSaida: isProj ? 0 : -sai,
+        projetadoLiquido: ent - sai,
+      };
+    });
+  }, [titulosPagarQ.data, titulosReceberQ.data]);
+
 
   return (
     <div className="space-y-6">
