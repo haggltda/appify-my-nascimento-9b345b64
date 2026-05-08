@@ -87,6 +87,26 @@ const TIPO_CFG: Record<AliasTipo, {
       return enumVals.map((v) => ({ id: v, label: v }));
     },
   },
+  contas_contabeis: {
+    table: "integration_alias_contas_contabeis",
+    idCol: "conta_contabil_id",
+    label: "Plano de contas",
+    loadOptions: async () => {
+      const { data } = await supabase.from("conta_contabil")
+        .select("id, codigo, nome").order("codigo").limit(2000);
+      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} — ${c.nome}` }));
+    },
+  },
+  dre: {
+    table: "integration_alias_dre",
+    idCol: "dre_linha_id",
+    label: "Linhas DRE",
+    loadOptions: async () => {
+      const { data } = await supabase.from("dre_linhas")
+        .select("id, codigo, nome").order("ordem").limit(500);
+      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} — ${c.nome}` }));
+    },
+  },
 };
 
 export default function Aliases() {
