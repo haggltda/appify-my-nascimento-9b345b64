@@ -12,8 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Calendar, FileDown, Send, Building2, Clock } from "lucide-react";
+import { Calendar, FileDown, Send, Building2, Clock, DollarSign } from "lucide-react";
 import { toast } from "sonner";
+import PreTitulosTab from "./pagar/PreTitulosTab";
+import MalotesTab from "./pagar/MalotesTab";
+import { Textarea } from "@/components/ui/textarea";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
 const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
