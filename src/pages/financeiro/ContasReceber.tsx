@@ -21,7 +21,7 @@ export default function ContasReceber() {
       />
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-1 h-auto p-1">
+        <TabsList className="grid grid-cols-3 md:grid-cols-5 gap-1 h-auto p-1">
           <TabsTrigger value="titulos" className="flex items-center gap-2">
             <FileText className="h-4 w-4" /> <span className="hidden sm:inline">Títulos</span>
           </TabsTrigger>
@@ -30,6 +30,9 @@ export default function ContasReceber() {
           </TabsTrigger>
           <TabsTrigger value="cobranca" className="flex items-center gap-2">
             <QrCode className="h-4 w-4" /> <span className="hidden sm:inline">Cobrança</span>
+          </TabsTrigger>
+          <TabsTrigger value="remessa" className="flex items-center gap-2">
+            <Send className="h-4 w-4" /> <span className="hidden sm:inline">Remessa/Concil.</span>
           </TabsTrigger>
           <TabsTrigger value="regua" className="flex items-center gap-2">
             <Bell className="h-4 w-4" /> <span className="hidden sm:inline">Régua</span>
@@ -44,6 +47,9 @@ export default function ContasReceber() {
         </TabsContent>
         <TabsContent value="cobranca" className="mt-6">
           <CobrancaTab />
+        </TabsContent>
+        <TabsContent value="remessa" className="mt-6">
+          <RemessaConciliacaoTab />
         </TabsContent>
         <TabsContent value="regua" className="mt-6">
           <ReguaCobrancaTab />
