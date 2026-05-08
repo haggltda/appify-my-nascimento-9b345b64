@@ -69,7 +69,21 @@ Deno.serve(async (req) => {
     const { data: blob, error: dlErr } = await admin.storage.from("migracao-zero").download(ctrl.storage_path);
     if (dlErr || !blob) return json({ error: `Falha ao baixar storage: ${dlErr?.message}` }, 500);
 
-    let text = await blob.text();
+    // Suporte a .gz: descompacta com DecompressionStream nativo do Deno
+    let text: string;
+    const isGz = ctrl.storage_path.toLowerCase().endsWith(".gz");
+    if (isGz) {
+      try {
+        const ds = new DecompressionStream("gzip");
+        const decompressed = blob.stream().pipeThrough(ds);
+        const buf = await new Response(decompressed).arrayBuffer();
+        text = new TextDecoder("utf-8").decode(buf);
+      } catch (e) {
+        return json({ error: `Falha ao descompactar .gz: ${e instanceof Error ? e.message : String(e)}` }, 500);
+      }
+    } else {
+      text = await blob.text();
+    }
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // remove BOM
 
     // Parse CSV (delimiter ;). std/csv parse retorna array de objetos quando skipFirstRow=true.
