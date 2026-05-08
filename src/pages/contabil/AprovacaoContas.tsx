@@ -173,6 +173,25 @@ export default function AprovacaoContas() {
         title="Aprovação de Contas Sugeridas"
         breadcrumb={["Contábil", "Aprovação de Contas"]}
         subtitle="Revise as contas sugeridas pelo pacote de migração antes de promovê-las ao plano de contas definitivo."
+        actions={
+          <Button
+            variant="outline"
+            onClick={async () => {
+              const t = toast.loading("Carregando dados do Pacote 02…");
+              try {
+                const { data, error } = await supabase.functions.invoke("pacote02-load", { body: {} });
+                if (error) throw error;
+                toast.success("Pacote 02 carregado", { id: t, description: JSON.stringify((data as any)?.counts ?? {}) });
+                qc.invalidateQueries();
+              } catch (e: any) {
+                toast.error("Falha ao carregar Pacote 02", { id: t, description: e?.message ?? String(e) });
+              }
+            }}
+          >
+            <DatabaseZap className="mr-2 h-4 w-4" />
+            Carregar Pacote 02
+          </Button>
+        }
       />
 
       <div className="grid gap-4 md:grid-cols-4">
