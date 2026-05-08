@@ -81,6 +81,13 @@ import IntegracaoBatches from "./pages/integracao/Batches";
 import BatchDetalhe from "./pages/integracao/BatchDetalhe";
 import IntegracaoAliases from "./pages/integracao/Aliases";
 import MigracaoZero from "./pages/admin/MigracaoZero";
+import PlanoAcoesLista from "./pages/plano-acoes/Lista";
+import PlanoAcoesDashboard from "./pages/plano-acoes/Dashboard";
+import PlanoAcoesKanban from "./pages/plano-acoes/Kanban";
+import PlanoAcaoDetalhe from "./pages/plano-acoes/Detalhe";
+import PlanoAcoesImportar from "./pages/plano-acoes/Importar";
+import PlanoAcoesAprovacoes from "./pages/plano-acoes/Aprovacoes";
+import PlanoAcoesConfiguracoes from "./pages/plano-acoes/Configuracoes";
 
 const queryClient = new QueryClient();
 
