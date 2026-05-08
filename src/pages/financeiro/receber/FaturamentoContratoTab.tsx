@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Receipt, FileSearch, ChevronRight } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Receipt, FileSearch, ChevronRight, CalendarRange, Send } from "lucide-react";
 import { toast } from "sonner";
+import { useEmitirTituloDeCronograma, useEmitirTitulosLote } from "@/hooks/useTituloReceber";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
 const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
