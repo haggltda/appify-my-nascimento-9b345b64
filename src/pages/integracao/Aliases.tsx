@@ -15,7 +15,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 
-type AliasTipo = "contratos" | "centros_custo" | "empresas" | "bancos" | "formas_pagamento";
+type AliasTipo = "contratos" | "centros_custo" | "empresas" | "bancos" | "formas_pagamento" | "contas_contabeis" | "dre";
 
 interface AliasRow {
   id: string;
@@ -27,6 +27,8 @@ interface AliasRow {
   empresa_destino_id?: string | null;
   banco_id?: string | null;
   forma_pagamento?: string | null;
+  conta_contabil_id?: string | null;
+  dre_linha_id?: string | null;
 }
 
 interface InternalOption { id: string; label: string; }
@@ -83,6 +85,26 @@ const TIPO_CFG: Record<AliasTipo, {
     loadOptions: async () => {
       const enumVals = ["boleto","ted","pix","transferencia","dinheiro","cheque","debito_automatico"];
       return enumVals.map((v) => ({ id: v, label: v }));
+    },
+  },
+  contas_contabeis: {
+    table: "integration_alias_contas_contabeis",
+    idCol: "conta_contabil_id",
+    label: "Plano de contas",
+    loadOptions: async () => {
+      const { data } = await supabase.from("conta_contabil")
+        .select("id, codigo, nome").order("codigo").limit(2000);
+      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} — ${c.nome}` }));
+    },
+  },
+  dre: {
+    table: "integration_alias_dre",
+    idCol: "dre_linha_id",
+    label: "Linhas DRE",
+    loadOptions: async () => {
+      const { data } = await supabase.from("dre_linhas")
+        .select("id, codigo, descricao").order("ordem").limit(500);
+      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} — ${c.descricao}` }));
     },
   },
 };
