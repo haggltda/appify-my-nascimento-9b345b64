@@ -136,7 +136,8 @@ export default function MigracaoZero() {
     <div className="space-y-6">
       <PageHeader
         title="Migração DO ZERO"
-        description="Carga linha-a-linha dos 32 arquivos CSV do pacote oficial. Não destrói nada existente — popula tabelas mz_*."
+        subtitle="Carga linha-a-linha dos 32 arquivos CSV do pacote oficial. Não destrói nada existente — popula tabelas mz_*."
+        module="Administração"
       />
 
       <Card>
