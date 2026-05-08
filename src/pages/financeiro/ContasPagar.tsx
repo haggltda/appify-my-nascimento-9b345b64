@@ -166,11 +166,16 @@ export default function ContasPagar() {
                           <TableCell className="text-right">{fmtMoney(t.valor)}</TableCell>
                           <TableCell>{statusBadge(t.status)}</TableCell>
                           <TableCell>{remessaBadge(t.remessa_status)}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right space-x-1">
                             {podeSel && (
-                              <Button size="sm" variant="outline" onClick={() => setOpenAgendar(t.id)}>
-                                <Calendar className="h-4 w-4 mr-1" />Agendar
-                              </Button>
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => setOpenAgendar(t.id)}>
+                                  <Calendar className="h-4 w-4 mr-1" />Agendar
+                                </Button>
+                                <Button size="sm" onClick={() => setOpenBaixar(t)}>
+                                  <DollarSign className="h-4 w-4 mr-1" />Baixar
+                                </Button>
+                              </>
                             )}
                           </TableCell>
                         </TableRow>
