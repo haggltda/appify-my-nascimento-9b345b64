@@ -11,23 +11,41 @@ import { Download, FileText, ChevronDown, ChevronRight } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-type Row = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number; saldo_inicial: number };
+type BlocoKey = "ENTRADAS" | "SAIDAS_OP" | "FINANCEIRAS" | "SAIDAS_NAO_OP";
+type RawRow = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number; saldo_inicial: number };
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtBRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dow = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
-const BLOCO_LABEL: Record<Row["bloco"], string> = {
+const BLOCO_LABEL: Record<BlocoKey, string> = {
   ENTRADAS: "ENTRADAS",
   SAIDAS_OP: "SAÍDAS OPERACIONAIS",
+  FINANCEIRAS: "DESPESAS / RECEITAS FINANCEIRAS",
   SAIDAS_NAO_OP: "SAÍDAS NÃO OPERACIONAIS",
 };
 
-// Cores fortes para os títulos de bloco (padrão fluxo caixa Excel)
-const BLOCO_HEADER_BG: Record<Row["bloco"], string> = {
-  ENTRADAS: "bg-emerald-600 text-white",
-  SAIDAS_OP: "bg-rose-600 text-white",
-  SAIDAS_NAO_OP: "bg-amber-600 text-white",
+// Cores suaves alinhadas ao layout — fundo claro + borda lateral colorida
+const BLOCO_HEADER_CLS: Record<BlocoKey, string> = {
+  ENTRADAS: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-l-4 border-emerald-500",
+  SAIDAS_OP: "bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 border-l-4 border-rose-500",
+  FINANCEIRAS: "bg-violet-50 dark:bg-violet-950/40 text-violet-900 dark:text-violet-200 border-l-4 border-violet-500",
+  SAIDAS_NAO_OP: "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-l-4 border-amber-500",
+};
+
+const BLOCO_PDF_RGB: Record<BlocoKey, [number, number, number]> = {
+  ENTRADAS: [209, 250, 229],
+  SAIDAS_OP: [254, 226, 226],
+  FINANCEIRAS: [237, 233, 254],
+  SAIDAS_NAO_OP: [254, 243, 199],
+};
+
+// Reclassifica categorias do bloco SAIDAS_NAO_OP em "Financeiras" quando casam com palavras-chave
+const FIN_RE = /(JURO|IOF|TARIF|FINANC|RENDIMENT|APLIC|BANC[AÁ]RI|EMPR[ÉE]STIM|CR[ÉE]DITO|D[ÉE]BITO\s+AUT)/i;
+const reclassify = (bloco: RawRow["bloco"], categoria: string): BlocoKey => {
+  if (bloco === "SAIDAS_NAO_OP" && FIN_RE.test(categoria)) return "FINANCEIRAS";
+  if (bloco === "ENTRADAS" && FIN_RE.test(categoria)) return "FINANCEIRAS";
+  return bloco as BlocoKey;
 };
 
 const today = new Date();
@@ -74,7 +92,7 @@ export default function FluxoCaixaDiario() {
         _data_fim: dataFim,
       });
       if (error) throw error;
-      return (data ?? []) as Row[];
+      return (data ?? []) as RawRow[];
     },
   });
 
@@ -89,13 +107,15 @@ export default function FluxoCaixaDiario() {
   const saldoInicialBase = dadosQ.data?.[0]?.saldo_inicial ?? 0;
 
   const grid = useMemo(() => {
-    const blocos: Record<Row["bloco"], Map<string, Record<string, number>>> = {
+    const blocos: Record<BlocoKey, Map<string, Record<string, number>>> = {
       ENTRADAS: new Map(),
       SAIDAS_OP: new Map(),
+      FINANCEIRAS: new Map(),
       SAIDAS_NAO_OP: new Map(),
     };
     (dadosQ.data ?? []).forEach((r) => {
-      const m = blocos[r.bloco];
+      const b = reclassify(r.bloco, r.categoria);
+      const m = blocos[b];
       if (!m) return;
       if (!m.has(r.categoria)) m.set(r.categoria, {});
       m.get(r.categoria)![r.dia] = (m.get(r.categoria)![r.dia] ?? 0) + Number(r.valor);
@@ -103,7 +123,7 @@ export default function FluxoCaixaDiario() {
     return blocos;
   }, [dadosQ.data]);
 
-  const totaisBloco = (b: Row["bloco"]) => {
+  const totaisBloco = (b: BlocoKey) => {
     const totDia: Record<string, number> = {};
     let total = 0;
     grid[b].forEach((cat) => {
@@ -117,12 +137,12 @@ export default function FluxoCaixaDiario() {
 
   const tEntradas = totaisBloco("ENTRADAS");
   const tSOp = totaisBloco("SAIDAS_OP");
+  const tFin = totaisBloco("FINANCEIRAS");
   const tSNop = totaisBloco("SAIDAS_NAO_OP");
 
   const movimentoDia = (d: string) =>
-    (tEntradas.totDia[d] ?? 0) + (tSOp.totDia[d] ?? 0) + (tSNop.totDia[d] ?? 0);
+    (tEntradas.totDia[d] ?? 0) + (tSOp.totDia[d] ?? 0) + (tFin.totDia[d] ?? 0) + (tSNop.totDia[d] ?? 0);
 
-  // Saldo inicial por dia (saldo final do dia anterior). Saldo inicial do primeiro dia = base.
   const saldosIniciaisDia = useMemo(() => {
     const out: Record<string, number> = {};
     let acc = saldoInicialBase;
@@ -131,9 +151,9 @@ export default function FluxoCaixaDiario() {
       acc = acc + movimentoDia(d);
     }
     return out;
-  }, [dias, saldoInicialBase, tEntradas, tSOp, tSNop]);
+  }, [dias, saldoInicialBase, tEntradas, tSOp, tFin, tSNop]);
 
-  const saldoTotalPeriodo = tEntradas.total + tSOp.total + tSNop.total;
+  const saldoTotalPeriodo = tEntradas.total + tSOp.total + tFin.total + tSNop.total;
   const saldoFinal = saldoInicialBase + saldoTotalPeriodo;
 
   const exportCsv = () => {
@@ -141,7 +161,7 @@ export default function FluxoCaixaDiario() {
     const rows: (string | number)[][] = [];
     rows.push(["—", "Saldo Inicial", ...dias.map((d) => saldosIniciaisDia[d]), ""]);
     rows.push(["—", "Movimentação do Dia", ...dias.map((d) => movimentoDia(d)), saldoTotalPeriodo]);
-    (Object.keys(grid) as Row["bloco"][]).forEach((b) => {
+    (Object.keys(grid) as BlocoKey[]).forEach((b) => {
       grid[b].forEach((cat, nome) => {
         const total = Object.values(cat).reduce((a, c) => a + c, 0);
         rows.push([BLOCO_LABEL[b], nome, ...dias.map((d) => cat[d] ?? 0), total]);
@@ -168,8 +188,7 @@ export default function FluxoCaixaDiario() {
     pdf.text(empresaNome, 40, 52);
     pdf.text(
       `Período: ${new Date(dataIni + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`,
-      40,
-      66,
+      40, 66,
     );
     pdf.text(`Emitido em ${new Date().toLocaleString("pt-BR")}`, W - 40, 36, { align: "right" });
 
@@ -179,38 +198,39 @@ export default function FluxoCaixaDiario() {
     }), "Total"]];
 
     const body: any[] = [];
-    // Saldo inicial / Movimentação do dia
     body.push([
-      { content: "SALDO INICIAL", styles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: "bold" } },
-      ...dias.map((d) => ({ content: fmt(saldosIniciaisDia[d]), styles: { fillColor: [241, 245, 249], halign: "right", fontStyle: "bold" } })),
-      { content: "—", styles: { halign: "right", fillColor: [241, 245, 249] } },
+      { content: "SALDO INICIAL", styles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: "bold" } },
+      ...dias.map((d) => ({ content: fmt(saldosIniciaisDia[d]), styles: { fillColor: [248, 250, 252], halign: "right", fontStyle: "bold" } })),
+      { content: "—", styles: { halign: "right", fillColor: [248, 250, 252] } },
     ]);
     body.push([
-      { content: "MOVIMENTAÇÃO DO DIA", styles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: "bold" } },
+      { content: "MOVIMENTAÇÃO DO DIA", styles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: "bold" } },
       ...dias.map((d) => ({ content: fmt(movimentoDia(d)), styles: { halign: "right", fontStyle: "bold" } })),
       { content: fmt(saldoTotalPeriodo), styles: { halign: "right", fontStyle: "bold" } },
     ]);
 
-    const pushBloco = (b: Row["bloco"], rgb: [number, number, number]) => {
+    const pushBloco = (b: BlocoKey) => {
       const t = totaisBloco(b);
+      const rgb = BLOCO_PDF_RGB[b];
       body.push([
-        { content: BLOCO_LABEL[b], styles: { fillColor: rgb, textColor: 255, fontStyle: "bold" } },
-        ...dias.map((d) => ({ content: t.totDia[d] ? fmt(t.totDia[d]) : "—", styles: { fillColor: rgb, textColor: 255, halign: "right", fontStyle: "bold" } })),
-        { content: fmt(t.total), styles: { fillColor: rgb, textColor: 255, halign: "right", fontStyle: "bold" } },
+        { content: BLOCO_LABEL[b], styles: { fillColor: rgb, textColor: [15, 23, 42], fontStyle: "bold" } },
+        ...dias.map((d) => ({ content: t.totDia[d] ? fmt(t.totDia[d]) : "—", styles: { fillColor: rgb, halign: "right", fontStyle: "bold" } })),
+        { content: fmt(t.total), styles: { fillColor: rgb, halign: "right", fontStyle: "bold" } },
       ]);
       [...grid[b].entries()].sort(([a], [c]) => a.localeCompare(c)).forEach(([nome, cat]) => {
         const total = Object.values(cat).reduce((a, c) => a + c, 0);
         body.push([
-          { content: "    " + nome, styles: { fontStyle: "normal" } },
+          { content: "    " + nome },
           ...dias.map((d) => ({ content: cat[d] ? fmt(cat[d]) : "—", styles: { halign: "right" } })),
           { content: fmt(total), styles: { halign: "right" } },
         ]);
       });
     };
 
-    pushBloco("ENTRADAS", [22, 163, 74]);
-    pushBloco("SAIDAS_OP", [220, 38, 38]);
-    pushBloco("SAIDAS_NAO_OP", [217, 119, 6]);
+    pushBloco("ENTRADAS");
+    pushBloco("SAIDAS_OP");
+    pushBloco("FINANCEIRAS");
+    pushBloco("SAIDAS_NAO_OP");
 
     body.push([
       { content: "SALDO FINAL", styles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" } },
@@ -222,10 +242,7 @@ export default function FluxoCaixaDiario() {
     ]);
 
     autoTable(pdf, {
-      head,
-      body,
-      startY: 80,
-      theme: "grid",
+      head, body, startY: 80, theme: "grid",
       styles: { fontSize: 7, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.3 },
       headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: "bold", halign: "center" },
       columnStyles: { 0: { cellWidth: 140, halign: "left" } },
@@ -235,11 +252,11 @@ export default function FluxoCaixaDiario() {
     pdf.save(`fluxo-caixa-diario-${dataIni}_${dataFim}.pdf`);
   };
 
-  const renderBloco = (b: Row["bloco"]) => {
+  const renderBloco = (b: BlocoKey) => {
     const cats = [...grid[b].entries()].sort(([a], [c]) => a.localeCompare(c));
     const totais = totaisBloco(b);
     const isCollapsed = collapsed[b];
-    const headerCls = BLOCO_HEADER_BG[b];
+    const headerCls = BLOCO_HEADER_CLS[b];
     return (
       <>
         <tr className={`${headerCls} font-semibold cursor-pointer`} onClick={() => setCollapsed((s) => ({ ...s, [b]: !s[b] }))}>
@@ -258,7 +275,11 @@ export default function FluxoCaixaDiario() {
         </tr>
         {!isCollapsed && cats.map(([nome, cat]) => {
           const total = Object.values(cat).reduce((a, c) => a + c, 0);
-          const corCel = b === "ENTRADAS" ? "text-success" : b === "SAIDAS_OP" ? "text-destructive" : "text-warning";
+          const corCel =
+            b === "ENTRADAS" ? "text-emerald-700 dark:text-emerald-400"
+            : b === "SAIDAS_OP" ? "text-rose-700 dark:text-rose-400"
+            : b === "FINANCEIRAS" ? "text-violet-700 dark:text-violet-400"
+            : "text-amber-700 dark:text-amber-400";
           return (
             <tr key={`${b}-${nome}`} className="border-t border-border/40 hover:bg-muted/20">
               <td className="px-3 py-2 pl-8 sticky left-0 bg-background z-10">{nome}</td>
@@ -319,11 +340,12 @@ export default function FluxoCaixaDiario() {
         </div>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="grid gap-3 md:grid-cols-6">
         <Kpi titulo="Saldo Inicial" valor={saldoInicialBase} sub={`Em ${new Date(dataIni + "T00:00:00").toLocaleDateString("pt-BR")}`} />
-        <Kpi titulo="Total Entradas" valor={tEntradas.total} cor="text-success" sub={`${dias.length} dias`} />
-        <Kpi titulo="Saídas Operacionais" valor={tSOp.total} cor="text-destructive" sub={`${dias.length} dias`} />
-        <Kpi titulo="Saídas Não Operacionais" valor={tSNop.total} cor="text-warning" sub={`${dias.length} dias`} />
+        <Kpi titulo="Total Entradas" valor={tEntradas.total} cor="text-emerald-600" sub={`${dias.length} dias`} />
+        <Kpi titulo="Saídas Operacionais" valor={tSOp.total} cor="text-rose-600" sub={`${dias.length} dias`} />
+        <Kpi titulo="Financeiras" valor={tFin.total} cor="text-violet-600" sub={`${dias.length} dias`} />
+        <Kpi titulo="Saídas Não Operacionais" valor={tSNop.total} cor="text-amber-600" sub={`${dias.length} dias`} />
         <Kpi titulo="Saldo Final" valor={saldoFinal} sub={`Em ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`} />
       </div>
 
@@ -334,7 +356,7 @@ export default function FluxoCaixaDiario() {
           <table className="w-full text-xs">
             <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground sticky top-0 z-20">
               <tr>
-                <th className="px-3 py-2 text-left sticky left-0 bg-muted/60 z-30 min-w-[220px]">Categoria</th>
+                <th className="px-3 py-2 text-left sticky left-0 bg-muted/60 z-30 min-w-[240px]">Categoria</th>
                 {dias.map((d) => {
                   const dt = new Date(d + "T00:00:00");
                   return (
@@ -348,17 +370,15 @@ export default function FluxoCaixaDiario() {
               </tr>
             </thead>
             <tbody>
-              {/* Saldo Inicial (saldo final do dia anterior) */}
-              <tr className="bg-slate-800 text-white font-bold">
-                <td className="px-3 py-2 sticky left-0 bg-slate-800 z-10">SALDO INICIAL</td>
+              <tr className="bg-slate-100 dark:bg-slate-800/60 font-bold border-l-4 border-slate-500">
+                <td className="px-3 py-2 sticky left-0 bg-slate-100 dark:bg-slate-800/60 z-10">SALDO INICIAL</td>
                 {dias.map((d) => (
                   <td key={d} className="px-2 py-2 text-right tabular-nums">{fmt(saldosIniciaisDia[d])}</td>
                 ))}
                 <td className="px-3 py-2 text-right tabular-nums">—</td>
               </tr>
-              {/* Movimentação do dia */}
-              <tr className="bg-slate-700 text-white font-semibold">
-                <td className="px-3 py-2 sticky left-0 bg-slate-700 z-10">MOVIMENTAÇÃO DO DIA</td>
+              <tr className="bg-slate-50 dark:bg-slate-800/30 font-semibold border-l-4 border-slate-400">
+                <td className="px-3 py-2 sticky left-0 bg-slate-50 dark:bg-slate-800/30 z-10">MOVIMENTAÇÃO DO DIA</td>
                 {dias.map((d) => {
                   const v = movimentoDia(d);
                   return (
@@ -372,6 +392,7 @@ export default function FluxoCaixaDiario() {
 
               {renderBloco("ENTRADAS")}
               {renderBloco("SAIDAS_OP")}
+              {renderBloco("FINANCEIRAS")}
               {renderBloco("SAIDAS_NAO_OP")}
 
               <tr className="bg-primary text-primary-foreground font-bold sticky bottom-0">
@@ -392,7 +413,7 @@ export default function FluxoCaixaDiario() {
       </Card>
 
       <p className="text-xs text-muted-foreground">
-        Saldo inicial baseado em <code>saldos_iniciais_caixa</code> (01/01/2026, 30 contas, R$ 4.307.442,06). Movimentações de <code>mz_40_fato_fluxo_caixa_realizado</code>.
+        Saldo inicial baseado em <code>saldos_iniciais_caixa</code> (01/01/2026, 30 contas, R$ 4.307.442,06). Movimentações de <code>mz_40_fato_fluxo_caixa_realizado</code>. Despesas/Receitas Financeiras reclassificadas por palavras-chave (juro, IOF, tarifa, financeiro, rendimento, etc).
       </p>
     </div>
   );
@@ -402,7 +423,7 @@ function Kpi({ titulo, valor, cor = "", sub }: { titulo: string; valor: number; 
   return (
     <Card className="p-4">
       <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{titulo}</p>
-      <p className={`mt-1 font-display text-2xl font-bold ${cor}`}>{fmtBRL(valor)}</p>
+      <p className={`mt-1 font-display text-xl font-bold ${cor}`}>{fmtBRL(valor)}</p>
       {sub && <p className="mt-1 text-[10px] text-muted-foreground">{sub}</p>}
     </Card>
   );
