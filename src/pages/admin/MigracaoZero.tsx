@@ -187,7 +187,6 @@ export default function MigracaoZero() {
     toast.success(`Iniciando upload de ${matched.length} arquivos…`);
     for (const f of matched) {
       // sequencial para evitar saturar rede / Storage
-      // eslint-disable-next-line no-await-in-loop
       await uploadFile(f.name, f);
     }
     toast.success(`Upload em lote concluído: ${matched.length} arquivos.`);
