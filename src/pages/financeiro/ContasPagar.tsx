@@ -44,7 +44,7 @@ const remessaBadge = (s: string) => {
 
 export default function ContasPagar() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState("titulos");
+  const [tab, setTab] = useState("analise");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [sel, setSel] = useState<string[]>([]);
   const [openAgendar, setOpenAgendar] = useState<string | null>(null);
