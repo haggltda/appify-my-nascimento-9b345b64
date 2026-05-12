@@ -70,6 +70,8 @@ import DREGerencial from "./pages/controladoria/DREGerencial";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
 import IntegracaoBancaria from "./pages/financeiro/IntegracaoBancaria";
 import IntegracaoBancariaBuilder from "./pages/financeiro/IntegracaoBancariaBuilder";
+import ProgramacaoPagamentos from "./pages/financeiro/ProgramacaoPagamentos";
+import ValidacaoPosPagamento from "./pages/financeiro/ValidacaoPosPagamento";
 import Lancamentos from "./pages/contabil/Lancamentos";
 import PlanoContas from "./pages/contabil/PlanoContas";
 import AprovacaoContas from "./pages/contabil/AprovacaoContas";
@@ -168,6 +170,8 @@ const App = () => (
             <Route path="financeiro/movimentos" element={<MovimentosBancarios />} />
             <Route path="financeiro/integracao-bancaria" element={<IntegracaoBancaria />} />
             <Route path="financeiro/integracao-bancaria/builder/:contaId" element={<IntegracaoBancariaBuilder />} />
+            <Route path="financeiro/programacao-pagamentos" element={<ProgramacaoPagamentos />} />
+            <Route path="financeiro/validacao-pos-pagamento" element={<ValidacaoPosPagamento />} />
             {/* Fiscal */}
             <Route path="fiscal" element={<Fiscal />} />
             {/* Contábil */}

@@ -206,6 +206,8 @@ const financeiroModule: ModuleDef = {
     label: "Operação Financeira", defaultOpen: true,
     items: [
       { label: "Contas a Pagar", to: "/app/financeiro/contas-pagar", icon: TrendingUp },
+      { label: "Programação de Pagamentos", to: "/app/financeiro/programacao-pagamentos", icon: Wallet },
+      { label: "Validação Pós-Pagamento", to: "/app/financeiro/validacao-pos-pagamento", icon: Receipt },
       { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
       { label: "Fluxo de Caixa", to: "/app/financeiro/fluxo-caixa", icon: TrendingUp },
       { label: "Fluxo de Caixa Diário", to: "/app/financeiro/fluxo-caixa-diario", icon: TrendingUp },

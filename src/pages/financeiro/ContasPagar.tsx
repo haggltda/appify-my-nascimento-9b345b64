@@ -16,6 +16,7 @@ import { Calendar, FileDown, Send, Building2, Clock, DollarSign } from "lucide-r
 import { toast } from "sonner";
 import PreTitulosTab from "./pagar/PreTitulosTab";
 import MalotesTab from "./pagar/MalotesTab";
+import AnalisePeriodoTab from "./pagar/AnalisePeriodoTab";
 import { Textarea } from "@/components/ui/textarea";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
@@ -43,7 +44,7 @@ const remessaBadge = (s: string) => {
 
 export default function ContasPagar() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState("titulos");
+  const [tab, setTab] = useState("analise");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [sel, setSel] = useState<string[]>([]);
   const [openAgendar, setOpenAgendar] = useState<string | null>(null);
@@ -102,12 +103,14 @@ export default function ContasPagar() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
+          <TabsTrigger value="analise">Análise por Período</TabsTrigger>
           <TabsTrigger value="pre">Pré-títulos</TabsTrigger>
           <TabsTrigger value="titulos">Títulos</TabsTrigger>
           <TabsTrigger value="malotes">Malotes</TabsTrigger>
           <TabsTrigger value="remessas">Remessas CNAB</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="analise"><AnalisePeriodoTab /></TabsContent>
         <TabsContent value="pre"><PreTitulosTab /></TabsContent>
         <TabsContent value="malotes"><MalotesTab /></TabsContent>
 

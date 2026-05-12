@@ -3442,6 +3442,198 @@ export type Database = {
           },
         ]
       }
+      financeiro_pagamento_aprovacao: {
+        Row: {
+          aprovador_id: string | null
+          created_at: string
+          data_pagamento_aprovada: string | null
+          decidido_em: string | null
+          decisao: Database["public"]["Enums"]["aprov_decisao"]
+          empresa_id: string
+          etapa: number
+          id: string
+          justificativa: string | null
+          programacao_id: string
+          updated_at: string
+          valor_aprovado: number | null
+        }
+        Insert: {
+          aprovador_id?: string | null
+          created_at?: string
+          data_pagamento_aprovada?: string | null
+          decidido_em?: string | null
+          decisao?: Database["public"]["Enums"]["aprov_decisao"]
+          empresa_id: string
+          etapa?: number
+          id?: string
+          justificativa?: string | null
+          programacao_id: string
+          updated_at?: string
+          valor_aprovado?: number | null
+        }
+        Update: {
+          aprovador_id?: string | null
+          created_at?: string
+          data_pagamento_aprovada?: string | null
+          decidido_em?: string | null
+          decisao?: Database["public"]["Enums"]["aprov_decisao"]
+          empresa_id?: string
+          etapa?: number
+          id?: string
+          justificativa?: string | null
+          programacao_id?: string
+          updated_at?: string
+          valor_aprovado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_pagamento_aprovacao_programacao_id_fkey"
+            columns: ["programacao_id"]
+            isOneToOne: false
+            referencedRelation: "malote_pagamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financeiro_pagamento_log: {
+        Row: {
+          acao: string
+          created_at: string
+          detalhes: Json | null
+          empresa_id: string
+          id: string
+          programacao_id: string | null
+          titulo_pagar_id: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          detalhes?: Json | null
+          empresa_id: string
+          id?: string
+          programacao_id?: string | null
+          titulo_pagar_id?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          detalhes?: Json | null
+          empresa_id?: string
+          id?: string
+          programacao_id?: string | null
+          titulo_pagar_id?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: []
+      }
+      financeiro_pagamento_validacao: {
+        Row: {
+          baixa_confirmada: boolean | null
+          comprovante_anexado: boolean | null
+          conta_bancaria_confere: boolean | null
+          created_at: string
+          data_confere: boolean | null
+          data_paga: string | null
+          data_programada: string | null
+          divergencia: string | null
+          empresa_id: string
+          fornecedor_confere: boolean | null
+          id: string
+          movimento_bancario_id: string | null
+          programacao_id: string | null
+          revisado_em: string | null
+          revisado_por: string | null
+          status_conciliacao: string | null
+          status_validacao: Database["public"]["Enums"]["validacao_status"]
+          titulo_pagar_id: string
+          tratativa: string | null
+          updated_at: string
+          validado_em: string | null
+          validado_por: string | null
+          valor_aprovado: number | null
+          valor_confere: boolean | null
+          valor_pago: number | null
+        }
+        Insert: {
+          baixa_confirmada?: boolean | null
+          comprovante_anexado?: boolean | null
+          conta_bancaria_confere?: boolean | null
+          created_at?: string
+          data_confere?: boolean | null
+          data_paga?: string | null
+          data_programada?: string | null
+          divergencia?: string | null
+          empresa_id: string
+          fornecedor_confere?: boolean | null
+          id?: string
+          movimento_bancario_id?: string | null
+          programacao_id?: string | null
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status_conciliacao?: string | null
+          status_validacao?: Database["public"]["Enums"]["validacao_status"]
+          titulo_pagar_id: string
+          tratativa?: string | null
+          updated_at?: string
+          validado_em?: string | null
+          validado_por?: string | null
+          valor_aprovado?: number | null
+          valor_confere?: boolean | null
+          valor_pago?: number | null
+        }
+        Update: {
+          baixa_confirmada?: boolean | null
+          comprovante_anexado?: boolean | null
+          conta_bancaria_confere?: boolean | null
+          created_at?: string
+          data_confere?: boolean | null
+          data_paga?: string | null
+          data_programada?: string | null
+          divergencia?: string | null
+          empresa_id?: string
+          fornecedor_confere?: boolean | null
+          id?: string
+          movimento_bancario_id?: string | null
+          programacao_id?: string | null
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status_conciliacao?: string | null
+          status_validacao?: Database["public"]["Enums"]["validacao_status"]
+          titulo_pagar_id?: string
+          tratativa?: string | null
+          updated_at?: string
+          validado_em?: string | null
+          validado_por?: string | null
+          valor_aprovado?: number | null
+          valor_confere?: boolean | null
+          valor_pago?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financeiro_pagamento_validacao_movimento_bancario_id_fkey"
+            columns: ["movimento_bancario_id"]
+            isOneToOne: false
+            referencedRelation: "movimento_bancario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_pagamento_validacao_programacao_id_fkey"
+            columns: ["programacao_id"]
+            isOneToOne: false
+            referencedRelation: "malote_pagamento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financeiro_pagamento_validacao_titulo_pagar_id_fkey"
+            columns: ["titulo_pagar_id"]
+            isOneToOne: true
+            referencedRelation: "titulo_pagar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fluxo_caixa_projetado: {
         Row: {
           batch_id: string | null
@@ -5051,51 +5243,84 @@ export type Database = {
       }
       malote_pagamento: {
         Row: {
+          aprovacao_status: Database["public"]["Enums"]["programacao_aprovacao_status"]
           conta_bancaria_id: string
           created_at: string
           criado_por: string | null
           data_pagamento: string
           descricao: string | null
           empresa_id: string
+          enviado_aprovacao_em: string | null
+          enviado_aprovacao_por: string | null
           enviado_em: string | null
+          excecao: boolean
           executado_em: string | null
           id: string
+          justificativa: string | null
+          observacao: string | null
+          periodo_fim: string | null
+          periodo_inicio: string | null
+          prioridade: Database["public"]["Enums"]["programacao_prioridade"]
           qtd_titulos: number
+          reaberto: boolean
           remessa_id: string | null
           status: Database["public"]["Enums"]["malote_status"]
           updated_at: string
+          urgencia: boolean
           valor_total: number
         }
         Insert: {
+          aprovacao_status?: Database["public"]["Enums"]["programacao_aprovacao_status"]
           conta_bancaria_id: string
           created_at?: string
           criado_por?: string | null
           data_pagamento: string
           descricao?: string | null
           empresa_id: string
+          enviado_aprovacao_em?: string | null
+          enviado_aprovacao_por?: string | null
           enviado_em?: string | null
+          excecao?: boolean
           executado_em?: string | null
           id?: string
+          justificativa?: string | null
+          observacao?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          prioridade?: Database["public"]["Enums"]["programacao_prioridade"]
           qtd_titulos?: number
+          reaberto?: boolean
           remessa_id?: string | null
           status?: Database["public"]["Enums"]["malote_status"]
           updated_at?: string
+          urgencia?: boolean
           valor_total?: number
         }
         Update: {
+          aprovacao_status?: Database["public"]["Enums"]["programacao_aprovacao_status"]
           conta_bancaria_id?: string
           created_at?: string
           criado_por?: string | null
           data_pagamento?: string
           descricao?: string | null
           empresa_id?: string
+          enviado_aprovacao_em?: string | null
+          enviado_aprovacao_por?: string | null
           enviado_em?: string | null
+          excecao?: boolean
           executado_em?: string | null
           id?: string
+          justificativa?: string | null
+          observacao?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          prioridade?: Database["public"]["Enums"]["programacao_prioridade"]
           qtd_titulos?: number
+          reaberto?: boolean
           remessa_id?: string | null
           status?: Database["public"]["Enums"]["malote_status"]
           updated_at?: string
+          urgencia?: boolean
           valor_total?: number
         }
         Relationships: [
@@ -5140,20 +5365,32 @@ export type Database = {
         Row: {
           created_at: string
           malote_id: string
+          motivo_bloqueio: string | null
+          observacao: string | null
           ordem: number
+          prioridade: Database["public"]["Enums"]["programacao_prioridade"]
           titulo_pagar_id: string
+          valor_programado: number | null
         }
         Insert: {
           created_at?: string
           malote_id: string
+          motivo_bloqueio?: string | null
+          observacao?: string | null
           ordem?: number
+          prioridade?: Database["public"]["Enums"]["programacao_prioridade"]
           titulo_pagar_id: string
+          valor_programado?: number | null
         }
         Update: {
           created_at?: string
           malote_id?: string
+          motivo_bloqueio?: string | null
+          observacao?: string | null
           ordem?: number
+          prioridade?: Database["public"]["Enums"]["programacao_prioridade"]
           titulo_pagar_id?: string
+          valor_programado?: number | null
         }
         Relationships: [
           {
@@ -14798,6 +15035,22 @@ export type Database = {
         Returns: undefined
       }
       pre_titulo_submeter: { Args: { _id: string }; Returns: undefined }
+      programacao_decidir: {
+        Args: {
+          p_decisao: Database["public"]["Enums"]["aprov_decisao"]
+          p_justificativa?: string
+          p_programacao_id: string
+        }
+        Returns: undefined
+      }
+      programacao_reabrir: {
+        Args: { p_motivo: string; p_programacao_id: string }
+        Returns: undefined
+      }
+      programacao_submeter_aprovacao: {
+        Args: { p_programacao_id: string }
+        Returns: string
+      }
       promover_contas_aprovadas: {
         Args: { _empresa_id: string }
         Returns: Json
@@ -14853,6 +15106,19 @@ export type Database = {
       }
       titulo_receber_marcar_vencidos: { Args: never; Returns: number }
       unaccent_safe: { Args: { t: string }; Returns: string }
+      validacao_enviar_conciliacao: {
+        Args: { p_titulo_pagar_id: string }
+        Returns: undefined
+      }
+      validacao_registrar: {
+        Args: {
+          p_divergencia?: string
+          p_status: Database["public"]["Enums"]["validacao_status"]
+          p_titulo_pagar_id: string
+          p_tratativa?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       almox_tipo: "matriz" | "deposito" | "obra" | "veiculo" | "outro"
@@ -15121,6 +15387,13 @@ export type Database = {
         | "cancelado"
       prod_serv_tipo: "produto" | "servico"
       produto_metodo_custeio: "compra" | "medio"
+      programacao_aprovacao_status:
+        | "nao_submetida"
+        | "pendente"
+        | "aprovada"
+        | "reprovada"
+        | "devolvida"
+      programacao_prioridade: "baixa" | "normal" | "alta" | "emergencial"
       rc_destino: "estoque" | "contrato"
       rc_prioridade: "baixa" | "normal" | "alta" | "urgente"
       rc_status_v2:
@@ -15242,6 +15515,15 @@ export type Database = {
         | "cancelado"
         | "vencido"
         | "agendado"
+      validacao_status:
+        | "pendente"
+        | "conferido"
+        | "divergente"
+        | "pendente_comprovante"
+        | "pendente_baixa"
+        | "pendente_conciliacao"
+        | "conciliado"
+        | "arquivado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -15665,6 +15947,14 @@ export const Constants = {
       ],
       prod_serv_tipo: ["produto", "servico"],
       produto_metodo_custeio: ["compra", "medio"],
+      programacao_aprovacao_status: [
+        "nao_submetida",
+        "pendente",
+        "aprovada",
+        "reprovada",
+        "devolvida",
+      ],
+      programacao_prioridade: ["baixa", "normal", "alta", "emergencial"],
       rc_destino: ["estoque", "contrato"],
       rc_prioridade: ["baixa", "normal", "alta", "urgente"],
       rc_status_v2: [
@@ -15798,6 +16088,16 @@ export const Constants = {
         "cancelado",
         "vencido",
         "agendado",
+      ],
+      validacao_status: [
+        "pendente",
+        "conferido",
+        "divergente",
+        "pendente_comprovante",
+        "pendente_baixa",
+        "pendente_conciliacao",
+        "conciliado",
+        "arquivado",
       ],
     },
   },
