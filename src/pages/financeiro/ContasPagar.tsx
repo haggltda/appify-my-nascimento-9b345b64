@@ -16,6 +16,7 @@ import { Calendar, FileDown, Send, Building2, Clock, DollarSign } from "lucide-r
 import { toast } from "sonner";
 import PreTitulosTab from "./pagar/PreTitulosTab";
 import MalotesTab from "./pagar/MalotesTab";
+import AnalisePeriodoTab from "./pagar/AnalisePeriodoTab";
 import { Textarea } from "@/components/ui/textarea";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
