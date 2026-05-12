@@ -103,12 +103,14 @@ export default function ContasPagar() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
+          <TabsTrigger value="analise">Análise por Período</TabsTrigger>
           <TabsTrigger value="pre">Pré-títulos</TabsTrigger>
           <TabsTrigger value="titulos">Títulos</TabsTrigger>
           <TabsTrigger value="malotes">Malotes</TabsTrigger>
           <TabsTrigger value="remessas">Remessas CNAB</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="analise"><AnalisePeriodoTab /></TabsContent>
         <TabsContent value="pre"><PreTitulosTab /></TabsContent>
         <TabsContent value="malotes"><MalotesTab /></TabsContent>
 
