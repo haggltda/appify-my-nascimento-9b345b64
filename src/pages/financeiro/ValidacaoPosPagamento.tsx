@@ -179,11 +179,11 @@ export default function ValidacaoPosPagamento() {
       </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card><CardHeader className="pb-2"><CardDescription>Pagamentos</CardDescription><CardTitle className="text-2xl">{cards.total}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>Conferidos</CardDescription><CardTitle className="text-2xl">{cards.conf}</CardTitle></CardHeader></Card>
-        <Card className="border-l-4 border-l-destructive"><CardHeader className="pb-2"><CardDescription>Divergentes</CardDescription><CardTitle className="text-2xl">{cards.div}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>Sem comprovante</CardDescription><CardTitle className="text-2xl">{cards.semComp}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>Pend. conciliação</CardDescription><CardTitle className="text-2xl">{cards.pendCon}</CardTitle></CardHeader></Card>
+        <Card className="border-t-4 border-t-primary"><CardHeader className="pb-2"><CardDescription className="text-[11px] font-semibold uppercase tracking-wide">Pagamentos</CardDescription><CardTitle className="text-2xl">{cards.total}</CardTitle></CardHeader></Card>
+        <Card className="border-t-4 border-t-emerald-500"><CardHeader className="pb-2"><CardDescription className="text-[11px] font-semibold uppercase tracking-wide">Conferidos</CardDescription><CardTitle className="text-2xl text-emerald-600">{cards.conf}</CardTitle></CardHeader></Card>
+        <Card className="border-t-4 border-t-destructive"><CardHeader className="pb-2"><CardDescription className="text-[11px] font-semibold uppercase tracking-wide">Divergentes</CardDescription><CardTitle className="text-2xl text-destructive">{cards.div}</CardTitle></CardHeader></Card>
+        <Card className="border-t-4 border-t-amber-500"><CardHeader className="pb-2"><CardDescription className="text-[11px] font-semibold uppercase tracking-wide">Sem Comprovante</CardDescription><CardTitle className="text-2xl">{cards.semComp}</CardTitle></CardHeader></Card>
+        <Card className="border-t-4 border-t-blue-500"><CardHeader className="pb-2"><CardDescription className="text-[11px] font-semibold uppercase tracking-wide">Pend. Conciliação</CardDescription><CardTitle className="text-2xl">{cards.pendCon}</CardTitle></CardHeader></Card>
       </div>
 
       <div className="grid grid-cols-12 gap-4">
