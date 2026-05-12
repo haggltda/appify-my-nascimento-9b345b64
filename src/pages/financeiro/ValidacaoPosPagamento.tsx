@@ -122,12 +122,16 @@ export default function ValidacaoPosPagamento() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-5 p-6">
       <PageHeader
         title="Validação Pós-Pagamento"
-        subtitle="Conferência aprovado × pago, comprovantes, baixa, divergências e envio para conciliação."
+        subtitle="Conferência aprovado × pago, comprovantes, baixa, divergências e envio para conciliação bancária."
         module="Financeiro"
         breadcrumb={["Financeiro", "Validação Pós-Pagamento"]}
+        actions={<>
+          <Button variant="outline" size="sm" onClick={exportar}><FileDown className="h-4 w-4 mr-2" />Exportar</Button>
+          <Button size="sm" onClick={() => refetch()}><RefreshCw className="h-4 w-4 mr-2" />Atualizar</Button>
+        </>}
       />
 
       <Card>
