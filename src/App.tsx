@@ -92,6 +92,7 @@ import PlanoAcaoDetalhe from "./pages/plano-acoes/Detalhe";
 import PlanoAcoesImportar from "./pages/plano-acoes/Importar";
 import PlanoAcoesAprovacoes from "./pages/plano-acoes/Aprovacoes";
 import PlanoAcoesConfiguracoes from "./pages/plano-acoes/Configuracoes";
+import CopilotoIA from "./pages/plano-acoes/CopilotoIA";
 
 const queryClient = new QueryClient();
 
