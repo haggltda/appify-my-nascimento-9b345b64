@@ -71,7 +71,7 @@ const licitacoesModule: ModuleDef = {
       label: "Visão Geral",
       defaultOpen: true,
       items: [
-        { label: "Painel Executivo", to: "/app", icon: LayoutDashboard },
+        { label: "Painel Executivo", to: "/app/painel-executivo", icon: LayoutDashboard },
         { label: "Presidência", to: "/app/presidencia", icon: LayoutDashboard },
         { label: "Pipeline", to: "/app/pipeline", icon: FolderKanban, badge: "32" },
       ],
