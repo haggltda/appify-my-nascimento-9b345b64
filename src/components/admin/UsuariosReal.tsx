@@ -258,6 +258,8 @@ function EditarUsuarioDialog({
           <DialogDescription>{profile.email}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          <AvatarUploadSection profile={profile} />
+
           <div>
             <Label>Nome de exibição</Label>
             <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ex.: Messias Souza" />
