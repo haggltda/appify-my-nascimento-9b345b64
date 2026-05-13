@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -160,8 +160,8 @@ export function PermissoesTab() {
               const menus = menusByModulo.get(m.id) ?? [];
               const isOpen = expanded.has(m.codigo);
               return (
-                <>
-                  <tr key={m.id} className="bg-muted/20 hover:bg-muted/40">
+                <Fragment key={m.id}>
+                  <tr className="bg-muted/20 hover:bg-muted/40">
                     <td className="px-5 py-3">
                       <button
                         type="button"
@@ -214,7 +214,7 @@ export function PermissoesTab() {
                       ))}
                     </tr>
                   ))}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
