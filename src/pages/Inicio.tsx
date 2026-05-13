@@ -7,9 +7,11 @@ export default function Inicio() {
     (user?.user_metadata as any)?.name ||
     user?.email?.split("@")[0] ||
     "";
-  const primeiroNome = fullName ? String(fullName).trim().split(" ")[0] : "";
+  const primeiroNome = fullName
+    ? String(fullName).trim().split(/[\s._-]+/)[0]
+    : "";
   const nomeFmt = primeiroNome
-    ? primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1)
+    ? primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1).toLowerCase()
     : "";
 
   return (
@@ -23,11 +25,11 @@ export default function Inicio() {
           <span className="text-primary">Consagre</span> o seu trabalho.
         </h2>
 
-        <p className="mt-8 text-lg leading-relaxed text-muted-foreground lg:text-xl">
+        <p className="mt-8 text-lg italic leading-relaxed text-muted-foreground lg:text-xl">
           Consagre ao Senhor tudo o que você faz, e os seus planos serão
           bem-sucedidos.
         </p>
-        <p className="mt-4 text-center text-lg text-muted-foreground lg:text-xl">
+        <p className="mt-1 text-center text-xl text-muted-foreground lg:text-2xl">
           (Provérbios 16:3)
         </p>
       </div>
