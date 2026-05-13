@@ -14,6 +14,73 @@ export type Database = {
   }
   public: {
     Tables: {
+      alcada_aprovacao: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          empresa_id: string
+          etapa: string
+          excecao: string | null
+          id: string
+          ordem: number
+          responsavel_nome: string | null
+          responsavel_user_id: string | null
+          updated_at: string
+          valor_max: number | null
+          valor_min: number
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          empresa_id: string
+          etapa: string
+          excecao?: string | null
+          id?: string
+          ordem?: number
+          responsavel_nome?: string | null
+          responsavel_user_id?: string | null
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          empresa_id?: string
+          etapa?: string
+          excecao?: string | null
+          id?: string
+          ordem?: number
+          responsavel_nome?: string | null
+          responsavel_user_id?: string | null
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alcada_aprovacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alcada_aprovacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "alcada_aprovacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       almoxarifado: {
         Row: {
           ativo: boolean
@@ -186,6 +253,86 @@ export type Database = {
             referencedColumns: ["empresa_id"]
           },
         ]
+      }
+      app_menu: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          id: string
+          modulo_id: string
+          nome: string
+          ordem: number
+          rota: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          id?: string
+          modulo_id: string
+          nome: string
+          ordem?: number
+          rota?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          id?: string
+          modulo_id?: string
+          nome?: string
+          ordem?: number
+          rota?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_menu_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "app_modulo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      app_modulo: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string | null
+          icone: string | null
+          id: string
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          nome: string
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       aprov_etapa: {
         Row: {
@@ -3934,6 +4081,64 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ia_provedores"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      identidade_visual: {
+        Row: {
+          cor_destaque: string | null
+          cor_primaria: string | null
+          cor_secundaria: string | null
+          empresa_id: string
+          logo_path: string | null
+          nome_empresarial: string | null
+          subtitulo: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cor_destaque?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
+          empresa_id: string
+          logo_path?: string | null
+          nome_empresarial?: string | null
+          subtitulo?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cor_destaque?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
+          empresa_id?: string
+          logo_path?: string | null
+          nome_empresarial?: string | null
+          subtitulo?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "identidade_visual_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "identidade_visual_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "identidade_visual_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
           },
         ]
       }
@@ -9057,6 +9262,76 @@ export type Database = {
           },
         ]
       }
+      ocorrencia_operacional: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          empresa_id: string | null
+          id: string
+          ocorreu_em: string
+          resolvida: boolean
+          resolvida_em: string | null
+          resolvida_por: string | null
+          severidade: string
+          tipo: string
+          titulo: string
+          usuario_id: string | null
+          usuario_nome: string | null
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string | null
+          id?: string
+          ocorreu_em?: string
+          resolvida?: boolean
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          severidade?: string
+          tipo: string
+          titulo: string
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string | null
+          id?: string
+          ocorreu_em?: string
+          resolvida?: boolean
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          severidade?: string
+          tipo?: string
+          titulo?: string
+          usuario_id?: string | null
+          usuario_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ocorrencia_operacional_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "ocorrencia_operacional_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       orcamento_ciclo: {
         Row: {
           ano: number
@@ -9408,6 +9683,64 @@ export type Database = {
           },
         ]
       }
+      parametro_geral: {
+        Row: {
+          categoria: string | null
+          chave: string
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          id: string
+          tipo: string
+          updated_at: string
+          valor: string | null
+        }
+        Insert: {
+          categoria?: string | null
+          chave: string
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          tipo?: string
+          updated_at?: string
+          valor?: string | null
+        }
+        Update: {
+          categoria?: string | null
+          chave?: string
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          tipo?: string
+          updated_at?: string
+          valor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parametro_geral_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parametro_geral_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "parametro_geral_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       parametro_integracao_bancaria: {
         Row: {
           baixa_automatica: boolean
@@ -9602,6 +9935,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      perfil_metadata: {
+        Row: {
+          cor: string | null
+          descricao: string | null
+          icone: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cor?: string | null
+          descricao?: string | null
+          icone?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cor?: string | null
+          descricao?: string | null
+          icone?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       plano_acao: {
         Row: {
@@ -14728,6 +15088,28 @@ export type Database = {
     }
     Functions: {
       admin_exec_dml: { Args: { p_sql: string }; Returns: undefined }
+      admin_list_active_sessions: {
+        Args: never
+        Returns: {
+          created_at: string
+          display_name: string
+          email: string
+          id: string
+          ip: string
+          refreshed_at: string
+          user_agent: string
+          user_id: string
+        }[]
+      }
+      admin_list_auth_logs: {
+        Args: { _limit?: number }
+        Returns: {
+          created_at: string
+          id: string
+          ip_address: string
+          payload: Json
+        }[]
+      }
       aplicar_plano_mestre: { Args: { _empresa_id: string }; Returns: number }
       apurar_impostos_competencia: {
         Args: { _competencia: string; _empresa_id: string }
