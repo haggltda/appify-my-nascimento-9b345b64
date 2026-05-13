@@ -23,9 +23,12 @@ export default function Inicio() {
           <span className="text-primary">Consagre</span> o seu trabalho.
         </h2>
 
-        <p className="mt-8 text-base leading-relaxed text-muted-foreground lg:text-lg">
-          {nomeFmt ? `${nomeFmt}, consagre` : "Consagre"} ao Senhor tudo o que
-          você faz, e os seus planos serão bem-sucedidos. (Provérbios 16:3)
+        <p className="mt-8 text-lg leading-relaxed text-muted-foreground lg:text-xl">
+          Consagre ao Senhor tudo o que você faz, e os seus planos serão
+          bem-sucedidos.
+        </p>
+        <p className="mt-4 text-center text-lg text-muted-foreground lg:text-xl">
+          (Provérbios 16:3)
         </p>
       </div>
     </div>
