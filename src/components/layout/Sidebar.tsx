@@ -283,21 +283,24 @@ const integracaoModule: ModuleDef = {
   }],
 };
 
-const planoAcoesModule: ModuleDef = {
-  id: "plano-acoes", label: "Plano de Ações", description: "Gestão de ações e comitês",
-  icon: Target, basePath: "/app/plano-acoes", status: "active",
-  groups: [{
-    label: "Plano de Ações", defaultOpen: true,
-    items: [
-      { label: "Lista", to: "/app/plano-acoes", icon: ListChecks },
-      { label: "Dashboard", to: "/app/plano-acoes/dashboard", icon: BarChart3 },
-      { label: "Kanban", to: "/app/plano-acoes/kanban", icon: FolderKanban },
-      { label: "Aprovações", to: "/app/plano-acoes/aprovacoes", icon: ClipboardCheck },
-      { label: "Importar", to: "/app/plano-acoes/importar", icon: DatabaseZap },
-      { label: "Configurações", to: "/app/plano-acoes/configuracoes", icon: Settings },
-    ],
-  }],
-};
+function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
+  const items: NavItem[] = [
+    { label: "Lista", to: "/app/plano-acoes", icon: ListChecks },
+    { label: "Dashboard", to: "/app/plano-acoes/dashboard", icon: BarChart3 },
+    { label: "Kanban", to: "/app/plano-acoes/kanban", icon: FolderKanban },
+    { label: "Aprovações", to: "/app/plano-acoes/aprovacoes", icon: ClipboardCheck },
+    { label: "Importar", to: "/app/plano-acoes/importar", icon: DatabaseZap },
+    { label: "Configurações", to: "/app/plano-acoes/configuracoes", icon: Settings },
+  ];
+  if (podeCopiloto) {
+    items.splice(1, 0, { label: "Copiloto IA", to: "/app/plano-acoes/copiloto", icon: Sparkles, badge: "IA" });
+  }
+  return {
+    id: "plano-acoes", label: "Plano de Ações", description: "Gestão de ações e comitês",
+    icon: Target, basePath: "/app/plano-acoes", status: "active",
+    groups: [{ label: "Plano de Ações", defaultOpen: true, items }],
+  };
+}
 
 const erpModules: ModuleDef[] = [
   licitacoesModule,
