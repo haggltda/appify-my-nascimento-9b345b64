@@ -11063,6 +11063,7 @@ export type Database = {
       profiles: {
         Row: {
           ativo: boolean
+          avatar_url: string | null
           created_at: string
           display_name: string | null
           email: string | null
@@ -11073,6 +11074,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -11083,6 +11085,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -12484,6 +12487,7 @@ export type Database = {
           acao: Database["public"]["Enums"]["app_acao"]
           created_at: string
           id: string
+          menu_codigo: string | null
           modulo: string
           role: Database["public"]["Enums"]["app_role"]
         }
@@ -12491,6 +12495,7 @@ export type Database = {
           acao: Database["public"]["Enums"]["app_acao"]
           created_at?: string
           id?: string
+          menu_codigo?: string | null
           modulo: string
           role: Database["public"]["Enums"]["app_role"]
         }
@@ -12498,6 +12503,7 @@ export type Database = {
           acao?: Database["public"]["Enums"]["app_acao"]
           created_at?: string
           id?: string
+          menu_codigo?: string | null
           modulo?: string
           role?: Database["public"]["Enums"]["app_role"]
         }
