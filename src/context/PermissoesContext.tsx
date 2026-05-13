@@ -12,6 +12,7 @@ export type Role =
   | "sst"
   | "diretor_adm"
   | "diretor_op"
+  | "presidencia"
   | "visitante";
 
 export type Acao =
