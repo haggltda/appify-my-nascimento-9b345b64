@@ -2502,6 +2502,71 @@ export type Database = {
           },
         ]
       }
+      copiloto_conversa: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          id: string
+          titulo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          id?: string
+          titulo?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          titulo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      copiloto_mensagem: {
+        Row: {
+          audio_path: string | null
+          content: string
+          conversa_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          role: string
+        }
+        Insert: {
+          audio_path?: string | null
+          content?: string
+          conversa_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          role: string
+        }
+        Update: {
+          audio_path?: string | null
+          content?: string
+          conversa_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copiloto_mensagem_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "copiloto_conversa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cotacao: {
         Row: {
           created_at: string
@@ -15419,6 +15484,7 @@ export type Database = {
         Args: { _empresa: string; _payload: Json }
         Returns: Json
       }
+      pode_usar_copiloto: { Args: { _uid: string }; Returns: boolean }
       pre_titulo_aprovar: { Args: { _id: string }; Returns: undefined }
       pre_titulo_promover: { Args: { _id: string }; Returns: string }
       pre_titulo_rejeitar: {
