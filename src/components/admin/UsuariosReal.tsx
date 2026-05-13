@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff } from "lucide-react";
+import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound, Copy, AlertTriangle } from "lucide-react";
 
 const ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","visitante"];
 
@@ -280,6 +280,10 @@ function EditarUsuarioDialog({
               ))}
             </div>
           </div>
+
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <ResetSenhaSection userId={profile.id} email={profile.email ?? ""} />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -287,6 +291,79 @@ function EditarUsuarioDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ResetSenhaSection({ userId, email }: { userId: string; email: string }) {
+  const [loading, setLoading] = useState(false);
+  const [novaSenha, setNovaSenha] = useState<string | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
+
+  const reset = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+        body: { user_id: userId },
+      });
+      if (error) {
+        const ctx = (error as any).context;
+        let msg = error.message;
+        try { if (ctx && typeof ctx.json === "function") { const j = await ctx.json(); if (j?.error) msg = j.error; } } catch { /* */ }
+        throw new Error(msg);
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setNovaSenha((data as any)?.password ?? null);
+      setConfirmando(false);
+      toast({ title: "Senha resetada", description: "Nova senha gerada. Compartilhe com o usuário." });
+    } catch (e: any) {
+      toast({ title: "Erro ao resetar senha", description: e?.message ?? "Falha", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copiar = async () => {
+    if (!novaSenha) return;
+    try { await navigator.clipboard.writeText(novaSenha); toast({ title: "Senha copiada" }); } catch { /* */ }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="flex items-center gap-1.5 text-xs font-semibold"><KeyRound className="h-3.5 w-3.5" /> Resetar senha do usuário</p>
+          <p className="text-[11px] text-muted-foreground">Gera uma nova senha temporária. O usuário será obrigado a criar uma nova senha no próximo login.</p>
+        </div>
+        {!confirmando && !novaSenha && (
+          <Button size="sm" variant="outline" onClick={() => setConfirmando(true)} disabled={loading}>Resetar</Button>
+        )}
+      </div>
+
+      {confirmando && !novaSenha && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-2.5 text-xs">
+          <p className="flex items-start gap-1.5"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 text-warning" /> Confirma resetar a senha de <strong>{email}</strong>? A senha atual deixará de funcionar.</p>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setConfirmando(false)}>Cancelar</Button>
+            <Button size="sm" onClick={reset} disabled={loading}>{loading ? "Resetando…" : "Confirmar reset"}</Button>
+          </div>
+        </div>
+      )}
+
+      {novaSenha && (
+        <div className="rounded-md border border-success/40 bg-success-soft p-3 text-xs">
+          <p className="font-semibold text-foreground">Nova senha temporária</p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="flex-1 select-all rounded bg-background px-2 py-1.5 font-mono text-sm">{novaSenha}</code>
+            <Button size="sm" variant="outline" onClick={copiar} className="gap-1.5"><Copy className="h-3.5 w-3.5" /> Copiar</Button>
+          </div>
+          <p className="mt-2 leading-relaxed text-muted-foreground">
+            <strong>Guarde esta senha em local seguro</strong> (gerenciador de credenciais ou cofre)
+            e repasse-a ao usuário por canal confiável. Esta senha <strong>não será exibida novamente</strong>.
+            No próximo login, o sistema obrigará o usuário a definir uma nova senha pessoal.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 

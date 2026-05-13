@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login.tsx";
+import TrocarSenha from "./pages/TrocarSenha.tsx";
 import { AppShell } from "./components/layout/AppShell";
 import { DemoModeProvider } from "./context/DemoModeContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -106,6 +107,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/trocar-senha" element={<TrocarSenha />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<PainelExecutivo />} />
             <Route path="presidencia" element={<Presidencia />} />

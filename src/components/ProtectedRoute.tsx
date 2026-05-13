@@ -1,10 +1,13 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useDemoMode } from "@/context/DemoModeContext";
+import { useMustChangePassword } from "@/hooks/useMustChangePassword";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const { isDemo } = useDemoMode();
+  const { mustChange, loading: mcLoading } = useMustChangePassword();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -16,6 +19,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user && !isDemo) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Usuário real precisa trocar a senha (reset feito por admin)
+  if (user && !isDemo && !mcLoading && mustChange && location.pathname !== "/trocar-senha") {
+    return <Navigate to="/trocar-senha" replace />;
   }
 
   return <>{children}</>;
