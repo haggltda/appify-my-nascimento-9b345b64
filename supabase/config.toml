@@ -5,3 +5,12 @@ verify_jwt = true
 
 [functions.nf-consultar-sefaz]
 verify_jwt = true
+
+[functions.copiloto-acoes-chat]
+verify_jwt = true
+
+[functions.copiloto-acoes-transcrever]
+verify_jwt = true
+
+[functions.copiloto-acoes-criar]
+verify_jwt = true
