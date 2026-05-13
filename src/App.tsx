@@ -199,6 +199,7 @@ const App = () => (
             <Route path="plano-acoes/importar" element={<PlanoAcoesImportar />} />
             <Route path="plano-acoes/aprovacoes" element={<PlanoAcoesAprovacoes />} />
             <Route path="plano-acoes/configuracoes" element={<PlanoAcoesConfiguracoes />} />
+            <Route path="plano-acoes/copiloto" element={<CopilotoIA />} />
             <Route path="plano-acoes/:id" element={<PlanoAcaoDetalhe />} />
           </Route>
           <Route path="*" element={<NotFound />} />
