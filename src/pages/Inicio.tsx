@@ -7,9 +7,11 @@ export default function Inicio() {
     (user?.user_metadata as any)?.name ||
     user?.email?.split("@")[0] ||
     "";
-  const primeiroNome = fullName ? String(fullName).trim().split(" ")[0] : "";
+  const primeiroNome = fullName
+    ? String(fullName).trim().split(/[\s._-]+/)[0]
+    : "";
   const nomeFmt = primeiroNome
-    ? primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1)
+    ? primeiroNome.charAt(0).toUpperCase() + primeiroNome.slice(1).toLowerCase()
     : "";
 
   return (
