@@ -10,6 +10,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { DemoModeProvider } from "./context/DemoModeContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import PainelExecutivo from "./pages/PainelExecutivo";
+import Inicio from "./pages/Inicio";
 import Presidencia from "./pages/Presidencia";
 import Pipeline from "./pages/Pipeline";
 import CadastroEdital from "./pages/CadastroEdital";
