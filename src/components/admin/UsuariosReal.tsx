@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound, Copy, AlertTriangle } from "lucide-react";
+import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound, Copy, AlertTriangle, Upload, Trash2 } from "lucide-react";
 
 const ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","visitante"];
 
@@ -20,6 +20,7 @@ interface ProfileRow {
   email: string | null;
   display_name: string | null;
   empresa_id: string | null;
+  avatar_url: string | null;
 }
 
 export function UsuariosReal() {
@@ -34,7 +35,7 @@ export function UsuariosReal() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id,email,display_name,empresa_id")
+        .select("id,email,display_name,empresa_id,avatar_url")
         .order("display_name");
       if (error) throw error;
       return (data ?? []) as ProfileRow[];
@@ -140,9 +141,13 @@ export function UsuariosReal() {
               <tr key={u.id} className="hover:bg-muted/40">
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-primary text-xs font-semibold text-primary-foreground">
-                      {(u.display_name ?? u.email ?? "?").split(" ").map((s) => s[0]).slice(0,2).join("").toUpperCase()}
-                    </div>
+                    {u.avatar_url ? (
+                      <img src={u.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-primary text-xs font-semibold text-primary-foreground">
+                        {(u.display_name ?? u.email ?? "?").split(" ").map((s) => s[0]).slice(0,2).join("").toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm font-medium">
                         {u.display_name ?? "—"} {ehVoce && <Badge variant="outline" className="ml-1 text-[10px]">você</Badge>}
