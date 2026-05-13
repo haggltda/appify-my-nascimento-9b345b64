@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound, Copy, AlertTriangle } from "lucide-react";
+import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound, Copy, AlertTriangle, Upload, Trash2 } from "lucide-react";
 
 const ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","visitante"];
 
@@ -20,6 +20,7 @@ interface ProfileRow {
   email: string | null;
   display_name: string | null;
   empresa_id: string | null;
+  avatar_url: string | null;
 }
 
 export function UsuariosReal() {
@@ -34,7 +35,7 @@ export function UsuariosReal() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id,email,display_name,empresa_id")
+        .select("id,email,display_name,empresa_id,avatar_url")
         .order("display_name");
       if (error) throw error;
       return (data ?? []) as ProfileRow[];
@@ -140,9 +141,13 @@ export function UsuariosReal() {
               <tr key={u.id} className="hover:bg-muted/40">
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-primary text-xs font-semibold text-primary-foreground">
-                      {(u.display_name ?? u.email ?? "?").split(" ").map((s) => s[0]).slice(0,2).join("").toUpperCase()}
-                    </div>
+                    {u.avatar_url ? (
+                      <img src={u.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-primary text-xs font-semibold text-primary-foreground">
+                        {(u.display_name ?? u.email ?? "?").split(" ").map((s) => s[0]).slice(0,2).join("").toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm font-medium">
                         {u.display_name ?? "—"} {ehVoce && <Badge variant="outline" className="ml-1 text-[10px]">você</Badge>}
@@ -253,6 +258,8 @@ function EditarUsuarioDialog({
           <DialogDescription>{profile.email}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          <AvatarUploadSection profile={profile} />
+
           <div>
             <Label>Nome de exibição</Label>
             <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ex.: Messias Souza" />
@@ -382,6 +389,11 @@ function NovoUsuarioDialog({
   const [selectedRoles, setSelectedRoles] = useState<Role[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Credenciais geradas após criação (mostrado em modal flutuante)
+  const [credenciaisCriadas, setCredenciaisCriadas] = useState<{
+    email: string; password: string; display_name: string | null;
+  } | null>(null);
+
   const reset = () => {
     setDisplayName(""); setEmail(""); setPassword("");
     setEmpresaId("_none"); setSelectedRoles([]); setShowPwd(false);
@@ -420,7 +432,6 @@ function NovoUsuarioDialog({
         },
       });
       if (error) {
-        // Tenta extrair mensagem do corpo
         const ctx = (error as any).context;
         let msg = error.message;
         try {
@@ -433,7 +444,12 @@ function NovoUsuarioDialog({
       }
       if ((data as any)?.error) throw new Error((data as any).error);
 
-      toast({ title: "Usuário criado", description: email });
+      // Mostra modal de credenciais e fecha o de criação
+      setCredenciaisCriadas({
+        email: email.trim(),
+        password,
+        display_name: displayName.trim() || null,
+      });
       reset();
       setOpen(false);
       onCreated();
@@ -450,83 +466,271 @@ function NovoUsuarioDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="gap-1.5">
-          <UserPlus className="h-3.5 w-3.5" /> Novo usuário
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
+    <>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+        <DialogTrigger asChild>
+          <Button size="sm" className="gap-1.5">
+            <UserPlus className="h-3.5 w-3.5" /> Novo usuário
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Novo usuário</DialogTitle>
+            <DialogDescription>
+              Cria o acesso e vincula perfil(is) e empresa. Apenas administradores.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome completo</Label>
+              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ex.: Messias Souza" />
+            </div>
+            <div>
+              <Label>E-mail corporativo *</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.com.br" />
+            </div>
+            <div>
+              <Label>Senha temporária *</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showPwd ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button type="button" variant="outline" onClick={gerarSenha}>Gerar</Button>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                O usuário será obrigado a definir uma nova senha pessoal no primeiro login.
+              </p>
+            </div>
+            <div>
+              <Label>Empresa vinculada</Label>
+              <Select value={empresaId} onValueChange={setEmpresaId}>
+                <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">— Sem vínculo —</SelectItem>
+                  {empresas.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Perfis (roles)</Label>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {ROLES.map((r) => (
+                  <label key={r} className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
+                    <Checkbox checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
+                    <span className="font-medium">{r}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
+            <Button onClick={criar} disabled={saving}>
+              {saving ? "Criando…" : "Criar usuário"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <CredenciaisDialog
+        creds={credenciaisCriadas}
+        onClose={() => setCredenciaisCriadas(null)}
+      />
+    </>
+  );
+}
+
+function CredenciaisDialog({
+  creds, onClose,
+}: {
+  creds: { email: string; password: string; display_name: string | null } | null;
+  onClose: () => void;
+}) {
+  const textoCompleto = creds
+    ? [
+        "Acesso ao ERP Gestão Nascimento",
+        creds.display_name ? `Nome: ${creds.display_name}` : null,
+        `Login (e-mail): ${creds.email}`,
+        `Senha temporária: ${creds.password}`,
+        "",
+        "Importante: no primeiro login o sistema solicitará a criação de uma nova senha pessoal.",
+      ].filter(Boolean).join("\n")
+    : "";
+
+  const copiar = async (texto: string, msg: string) => {
+    try { await navigator.clipboard.writeText(texto); toast({ title: msg }); } catch { /* */ }
+  };
+
+  return (
+    <Dialog open={!!creds} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Novo usuário</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-success" /> Usuário criado com sucesso
+          </DialogTitle>
           <DialogDescription>
-            Cria o acesso e vincula perfil(is) e empresa. Apenas administradores.
+            Estas credenciais <strong>não serão exibidas novamente</strong>. Copie e repasse ao usuário por canal seguro.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Nome completo</Label>
-            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ex.: Messias Souza" />
-          </div>
-          <div>
-            <Label>E-mail corporativo *</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.com.br" />
-          </div>
-          <div>
-            <Label>Senha temporária *</Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type={showPwd ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+
+        {creds && (
+          <div className="space-y-3">
+            {creds.display_name && (
+              <div>
+                <Label className="text-[11px] uppercase text-muted-foreground">Nome</Label>
+                <p className="text-sm font-medium">{creds.display_name}</p>
               </div>
-              <Button type="button" variant="outline" onClick={gerarSenha}>Gerar</Button>
+            )}
+            <div>
+              <Label className="text-[11px] uppercase text-muted-foreground">Login (e-mail)</Label>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 select-all rounded bg-muted px-2 py-1.5 font-mono text-sm">{creds.email}</code>
+                <Button size="sm" variant="outline" onClick={() => copiar(creds.email, "E-mail copiado")} className="gap-1.5">
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Compartilhe a senha com o usuário; ele poderá alterá-la depois.
-            </p>
-          </div>
-          <div>
-            <Label>Empresa vinculada</Label>
-            <Select value={empresaId} onValueChange={setEmpresaId}>
-              <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_none">— Sem vínculo —</SelectItem>
-                {empresas.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Perfis (roles)</Label>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {ROLES.map((r) => (
-                <label key={r} className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
-                  <Checkbox checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
-                  <span className="font-medium">{r}</span>
-                </label>
-              ))}
+            <div>
+              <Label className="text-[11px] uppercase text-muted-foreground">Senha temporária</Label>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 select-all rounded bg-muted px-2 py-1.5 font-mono text-sm">{creds.password}</code>
+                <Button size="sm" variant="outline" onClick={() => copiar(creds.password, "Senha copiada")} className="gap-1.5">
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs leading-relaxed">
+              <p className="flex items-start gap-1.5">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                <span>
+                  <strong>Guarde estas informações em um gerenciador de senhas</strong> antes de fechar.
+                  Ao acessar com a senha temporária, o ERP exigirá a definição de uma nova senha pessoal.
+                </span>
+              </p>
             </div>
           </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={criar} disabled={saving}>
-            {saving ? "Criando…" : "Criar usuário"}
+        )}
+
+        <DialogFooter className="sm:justify-between">
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => copiar(textoCompleto, "Credenciais copiadas para a área de transferência")}
+          >
+            <Copy className="h-4 w-4" /> Copiar tudo
           </Button>
+          <Button onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
+function AvatarUploadSection({ profile }: { profile: ProfileRow }) {
+  const qc = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const inputId = `avatar-input-${profile.id}`;
+
+  const upload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Arquivo inválido", description: "Selecione uma imagem.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Imagem muito grande", description: "Tamanho máximo 5 MB.", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const path = `${profile.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+      });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+      const url = pub.publicUrl;
+      const { error: updErr } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", profile.id);
+      if (updErr) throw updErr;
+      toast({ title: "Foto atualizada" });
+      qc.invalidateQueries({ queryKey: ["admin-profiles"] });
+    } catch (e: any) {
+      toast({ title: "Erro no upload", description: e?.message ?? "Falha", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remover = async () => {
+    setUploading(true);
+    try {
+      const { error } = await supabase.from("profiles").update({ avatar_url: null }).eq("id", profile.id);
+      if (error) throw error;
+      toast({ title: "Foto removida" });
+      qc.invalidateQueries({ queryKey: ["admin-profiles"] });
+    } catch (e: any) {
+      toast({ title: "Erro", description: e?.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const iniciais = (profile.display_name ?? profile.email ?? "?")
+    .split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+
+  return (
+    <div className="flex items-center gap-4 rounded-lg border border-border bg-muted/20 p-3">
+      {profile.avatar_url ? (
+        <img src={profile.avatar_url} alt="" className="h-16 w-16 rounded-full object-cover ring-2 ring-border" />
+      ) : (
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-gradient-primary text-base font-semibold text-primary-foreground ring-2 ring-border">
+          {iniciais}
+        </div>
+      )}
+      <div className="flex-1 space-y-1">
+        <p className="text-xs font-semibold">Foto do perfil</p>
+        <p className="text-[11px] text-muted-foreground">PNG ou JPG, até 5 MB.</p>
+        <div className="mt-1 flex gap-2">
+          <input
+            id={inputId}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => document.getElementById(inputId)?.click()}
+            disabled={uploading}
+          >
+            <Upload className="h-3.5 w-3.5" /> {uploading ? "Enviando…" : "Carregar foto"}
+          </Button>
+          {profile.avatar_url && (
+            <Button size="sm" variant="ghost" className="gap-1.5 text-destructive" onClick={remover} disabled={uploading}>
+              <Trash2 className="h-3.5 w-3.5" /> Remover
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+

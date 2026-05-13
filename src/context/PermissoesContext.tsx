@@ -32,8 +32,8 @@ interface PermissoesCtx {
   empresaId: string | null;
   /** True se carregando. */
   loading: boolean;
-  /** Verifica permissão localmente. */
-  can: (acao: Acao, modulo?: string) => boolean;
+  /** Verifica permissão localmente. Se `menu` for informado, aceita também permissões específicas de menu. */
+  can: (acao: Acao, modulo?: string, menu?: string) => boolean;
   /** Define manualmente o role (usado no modo demo). */
   setRole: (r: Role) => void;
 }
@@ -45,7 +45,7 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
   const { isDemo } = useDemoMode();
 
   const [roles, setRoles] = useState<Role[]>([]);
-  const [permissoes, setPermissoes] = useState<Array<{ modulo: string; acao: Acao }>>([]);
+  const [permissoes, setPermissoes] = useState<Array<{ modulo: string; acao: Acao; menu: string | null }>>([]);
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [demoRole, setDemoRole] = useState<Role>(() => {
@@ -87,14 +87,14 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
       // 3) Permissões matriz
       const { data: permsData } = await supabase
         .from("role_permissions")
-        .select("modulo, acao, role")
+        .select("modulo, acao, role, menu_codigo")
         .in("role", userRoles.length ? userRoles : ["visitante"]);
 
       if (!cancelled) {
         setRoles(userRoles.length ? userRoles : ["visitante"]);
         setEmpresaId(profile?.empresa_id ?? null);
         setPermissoes(
-          (permsData ?? []).map((p) => ({ modulo: p.modulo, acao: p.acao as Acao })),
+          (permsData ?? []).map((p: any) => ({ modulo: p.modulo, acao: p.acao as Acao, menu: p.menu_codigo ?? null })),
         );
         setLoading(false);
       }
@@ -113,7 +113,7 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
       setDemoRole(r);
       try { localStorage.setItem("gn:role", r); } catch { /* noop */ }
     },
-    can: (acao, modulo) => {
+    can: (acao, modulo, menu) => {
       // Admin sempre pode
       if (roles.includes("admin")) return true;
 
@@ -124,10 +124,16 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
         return acao === "visualizar" || acao === "exportar";
       }
 
-      // Verifica matriz vinda do Supabase
-      return permissoes.some(
-        (p) => p.acao === acao && (p.modulo === modulo || p.modulo === "*"),
-      );
+      // Verifica matriz vinda do Supabase.
+      // Permissão de módulo (menu = null) cobre todas as telas.
+      // Permissão de menu cobre apenas aquele menu.
+      return permissoes.some((p) => {
+        if (p.acao !== acao) return false;
+        if (p.modulo === "*") return true;
+        if (p.modulo !== modulo) return false;
+        if (p.menu === null) return true; // módulo inteiro
+        return menu !== undefined && p.menu === menu;
+      });
     },
   }), [roles, empresaId, loading, permissoes, user, isDemo, demoRole]);
 

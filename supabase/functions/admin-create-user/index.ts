@@ -111,6 +111,7 @@ Deno.serve(async (req) => {
         email,
         display_name,
         empresa_id,
+        must_change_password: true,
       }, { onConflict: "id" });
     if (profErr) {
       // rollback: remove usuário criado se profile falhar
