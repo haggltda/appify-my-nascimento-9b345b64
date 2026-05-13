@@ -318,9 +318,10 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const { roles } = usePermissoes();
   const { perms, isAdmin } = usePlanoAcaoPermissao();
   const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
+  const podeCopiloto = roles.includes("admin") || roles.includes("presidencia");
   const visibleModules = [
     ...erpModules,
-    ...(podeVerPlanoAcoes ? [planoAcoesModule] : []),
+    ...(podeVerPlanoAcoes ? [buildPlanoAcoesModule(podeCopiloto)] : []),
     ...(roles.includes("admin") ? [integracaoModule] : []),
   ];
   // Determina qual módulo está ativo pela rota
