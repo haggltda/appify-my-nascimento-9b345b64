@@ -25,11 +25,11 @@ export default function Inicio() {
           <span className="text-primary">Consagre</span> o seu trabalho.
         </h2>
 
-        <p className="mt-8 text-lg leading-relaxed text-muted-foreground lg:text-xl">
+        <p className="mt-8 text-lg italic leading-relaxed text-muted-foreground lg:text-xl">
           Consagre ao Senhor tudo o que você faz, e os seus planos serão
           bem-sucedidos.
         </p>
-        <p className="mt-4 text-center text-lg text-muted-foreground lg:text-xl">
+        <p className="mt-1 text-center text-xl text-muted-foreground lg:text-2xl">
           (Provérbios 16:3)
         </p>
       </div>
