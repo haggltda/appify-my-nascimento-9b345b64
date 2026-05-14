@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.copiloto-acoes-criar]
 verify_jwt = true
+
+[functions.copiloto-acoes-analise]
+verify_jwt = true
