@@ -113,7 +113,7 @@ export default function PlanoAcaoDetalhe() {
     } else {
       const { error } = await supabase.from("plano_acao").update({
         titulo: form.titulo, problema: form.problema, acao: form.acao,
-        comite: form.comite, area: form.area,
+        comite: form.comite, area: form.area, setor: form.setor || null,
         prioridade_normalizada: form.prioridade_normalizada,
         status_normalizado: form.status_normalizado,
         responsavel_nome_origem: form.responsavel_nome_origem,
