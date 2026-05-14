@@ -44,6 +44,7 @@ import { EmpresaAtivaProvider } from "./context/EmpresaAtivaContext";
 import { PermissoesProvider } from "./context/PermissoesContext";
 import Empresas from "./pages/controladoria/Empresas";
 import CentrosCusto from "./pages/controladoria/CentrosCusto";
+import EstruturaOrganizacional from "./pages/controladoria/EstruturaOrganizacional";
 import LinhasDRE from "./pages/controladoria/DRE";
 import Classificadores from "./pages/controladoria/Classificadores";
 import PlanejadorOBZ from "./pages/controladoria/PlanejadorOBZ";
@@ -145,6 +146,7 @@ const App = () => (
             <Route path="administracao" element={<Administracao />} />
             <Route path="co/empresas" element={<Empresas />} />
             <Route path="co/centros-custo" element={<CentrosCusto />} />
+            <Route path="co/estrutura-organizacional" element={<EstruturaOrganizacional />} />
             <Route path="co/dre" element={<LinhasDRE />} />
             <Route path="co/classificadores" element={<Classificadores />} />
             <Route path="co/obz" element={<PlanejadorOBZ />} />

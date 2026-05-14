@@ -146,6 +146,7 @@ const controladoriaOrcModule: ModuleDef = {
       items: [
         { label: "Empresas do Grupo", to: "/app/co/empresas", icon: Building2 },
         { label: "Centros de Custo", to: "/app/co/centros-custo", icon: FolderKanban },
+        { label: "Estrutura Organizacional", to: "/app/co/estrutura-organizacional", icon: FolderKanban },
         { label: "Linhas da DRE", to: "/app/co/dre", icon: BookOpen },
         { label: "Classificadores & Drivers", to: "/app/co/classificadores", icon: ListChecks },
       ],

@@ -570,6 +570,81 @@ export type Database = {
           },
         ]
       }
+      area: {
+        Row: {
+          ativo: boolean
+          centro_custo_id: string | null
+          comite_id: string
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          gestor_profile_id: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          centro_custo_id?: string | null
+          comite_id: string
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          gestor_profile_id?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          centro_custo_id?: string | null
+          comite_id?: string
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          gestor_profile_id?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "area_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "area_comite_id_fkey"
+            columns: ["comite_id"]
+            isOneToOne: false
+            referencedRelation: "comite"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "area_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "area_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "area_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           diff: Json | null
@@ -1719,6 +1794,61 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "integration_batches"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      comite: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          gestor_profile_id: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          gestor_profile_id?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          gestor_profile_id?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comite_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comite_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "comite_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
           },
         ]
       }
@@ -12759,6 +12889,81 @@ export type Database = {
         }
         Relationships: []
       }
+      setor: {
+        Row: {
+          area_id: string
+          ativo: boolean
+          centro_custo_id: string | null
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          gestor_profile_id: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          area_id: string
+          ativo?: boolean
+          centro_custo_id?: string | null
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          gestor_profile_id?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          area_id?: string
+          ativo?: boolean
+          centro_custo_id?: string | null
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          gestor_profile_id?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setor_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "area"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "setor_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "setor_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "setor_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "setor_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       solicitacao_desbloqueio: {
         Row: {
           comentario_decisor: string | null
@@ -15431,6 +15636,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_estrutura_admin: { Args: { _uid: string }; Returns: boolean }
       layout_aprovar_versao: { Args: { _versao_id: string }; Returns: Json }
       layout_nova_versao: { Args: { _layout_id: string }; Returns: Json }
       layout_rejeitar_versao: {
