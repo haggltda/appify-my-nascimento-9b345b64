@@ -234,7 +234,7 @@ export default function CopilotoIA() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs uppercase tracking-wide text-muted-foreground">Problema</Label>
-                    <Textarea rows={2} value={draft.problema ?? ""} onChange={(e) => updateDraft({ problema: e.target.value })} className="bg-background/50" />
+                    <Textarea ref={problemaRef} rows={2} value={draft.problema ?? ""} onChange={(e) => updateDraft({ problema: e.target.value })} className="bg-background/50" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
