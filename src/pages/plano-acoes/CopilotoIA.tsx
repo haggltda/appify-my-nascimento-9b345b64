@@ -51,6 +51,30 @@ export default function CopilotoIA() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [creating, setCreating] = useState(false);
 
+  const { data: comitesMap = {} } = useComitesMap();
+  const comitesList = Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const areasDoComite = (draft.comite && comitesMap[draft.comite]?.areas) || [];
+  const areaAtual = areasDoComite.find((a: any) => a.nome === draft.area) || null;
+  const setoresDaArea: string[] = areaAtual?.setores ?? [];
+
+  // Auto-preenche líder/responsável quando comitê ou área mudam
+  useEffect(() => {
+    if (!draft.comite) return;
+    const info = comitesMap[draft.comite];
+    if (!info) return;
+    if (draft.area && !info.areasNomes.includes(draft.area)) {
+      updateDraft({ area: "", setor: "" });
+    }
+  }, [draft.comite, comitesMap]);
+
+  useEffect(() => {
+    if (!draft.area || !areaAtual) return;
+    const patch: Partial<Draft> = {};
+    if (areaAtual.gestor && !draft.responsavel_nome) patch.responsavel_nome = areaAtual.gestor;
+    if (draft.setor && !setoresDaArea.includes(draft.setor)) patch.setor = "";
+    if (Object.keys(patch).length) updateDraft(patch as Draft);
+  }, [draft.area, areaAtual]);
+
   useEffect(() => {
     if (error) toast({ title: "Copiloto IA", description: error, variant: "destructive" });
   }, [error]);
