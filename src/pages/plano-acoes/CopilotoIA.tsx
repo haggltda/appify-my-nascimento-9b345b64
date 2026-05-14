@@ -147,15 +147,34 @@ export default function CopilotoIA() {
   const faltando = camposObrig.filter((c) => !(draft as any)[c]);
   const podeCriar = pronto && faltando.length === 0;
 
-  const handleCriar = async () => {
+  const executarCriacao = async () => {
     setCreating(true);
     const id = await criar();
     setCreating(false);
     if (id) {
       toast({ title: "Ação criada", description: "Plano de ação registrado com sucesso." });
+      setSimilaresOpen(false);
       reset();
       navigate(`/app/plano-acoes/${id}`);
     }
+  };
+
+  const handleCriar = async () => {
+    setCreating(true);
+    let encontrados: AcaoSimilar[] = [];
+    try {
+      encontrados = await similares.buscar(draft);
+    } catch (e: any) {
+      toast({ title: "Validação de duplicidade", description: e?.message ?? "Falha ao consultar ações similares.", variant: "destructive" });
+    }
+    setCreating(false);
+    const relevantes = encontrados.filter((s) => s.nivel !== "baixa");
+    if (relevantes.length === 0) {
+      await executarCriacao();
+      return;
+    }
+    setSimilaresList(encontrados);
+    setSimilaresOpen(true);
   };
 
   return (
