@@ -2,50 +2,81 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes } from "@/context/PermissoesContext";
 
+export interface AreaInfo {
+  nome: string;
+  gestor: string | null;
+  setores: string[];
+}
+
 export interface ComiteInfo {
   comite: string;
-  areas: string[];
+  areas: AreaInfo[];
+  /** Compat: lista plana de nomes das áreas */
+  areasNomes: string[];
   lider: string | null;
 }
 
 /**
- * Mapa Comitê → { áreas, líder } por empresa.
- * Fonte primária: tabelas oficiais `comite` / `area` (Estrutura Organizacional).
- * Fallback: histórico de `plano_acao` (legado) — empresas sem cadastro ainda funcionam.
+ * Mapa Comitê → { áreas (com gestor + setores), líder } por empresa.
+ * Fonte: tabelas oficiais `comite` / `area` / `setor`.
+ * Fallback: histórico de `plano_acao` quando nenhuma estrutura está cadastrada.
  */
 export function useComitesMap() {
   const { empresaId, loading } = usePermissoes();
   return useQuery({
-    queryKey: ["comites_map", empresaId],
+    queryKey: ["comites_map_v2", empresaId],
     enabled: !loading && !!empresaId,
     queryFn: async (): Promise<Record<string, ComiteInfo>> => {
-      // 1) Cadastro oficial
-      const [cRes, aRes, profRes] = await Promise.all([
-        supabase.from("comite").select("id, nome, gestor_profile_id, ativo")
+      const [cRes, aRes, sRes, profRes] = await Promise.all([
+        supabase.from("comite").select("id, nome, descricao, gestor_profile_id, ativo")
           .eq("empresa_id", empresaId!).eq("ativo", true).order("nome"),
-        supabase.from("area").select("id, comite_id, nome, ativo")
+        supabase.from("area").select("id, comite_id, nome, descricao, gestor_profile_id, ativo")
           .eq("empresa_id", empresaId!).eq("ativo", true).order("nome"),
-        supabase.from("profiles").select("id, display_name").limit(1000),
+        supabase.from("setor").select("id, area_id, nome, ativo")
+          .eq("empresa_id", empresaId!).eq("ativo", true).order("nome"),
+        supabase.from("profiles").select("id, display_name").limit(2000),
       ]);
 
-      const comites = (cRes.data ?? []) as { id: string; nome: string; gestor_profile_id: string | null }[];
-      const areas = (aRes.data ?? []) as { id: string; comite_id: string; nome: string }[];
+      const comites = (cRes.data ?? []) as { id: string; nome: string; descricao: string | null; gestor_profile_id: string | null }[];
+      const areas = (aRes.data ?? []) as { id: string; comite_id: string; nome: string; descricao: string | null; gestor_profile_id: string | null }[];
+      const setores = (sRes.data ?? []) as { id: string; area_id: string; nome: string }[];
       const profiles = (profRes.data ?? []) as { id: string; display_name: string | null }[];
       const profileNome = new Map(profiles.map(p => [p.id, p.display_name ?? ""]));
 
+      const liderFrom = (gid: string | null, descricao: string | null): string | null => {
+        if (gid && profileNome.get(gid)) return profileNome.get(gid)!;
+        const m = (descricao ?? "").match(/^(?:l[ií]der|gestor)\s*:\s*(.+)$/i);
+        return m ? m[1].trim() : null;
+      };
+
+      const setoresPorArea = new Map<string, string[]>();
+      for (const s of setores) {
+        const arr = setoresPorArea.get(s.area_id) ?? [];
+        arr.push(s.nome);
+        setoresPorArea.set(s.area_id, arr);
+      }
+
       const out: Record<string, ComiteInfo> = {};
       for (const c of comites) {
-        const lider = c.gestor_profile_id ? (profileNome.get(c.gestor_profile_id) || null) : null;
+        const lider = liderFrom(c.gestor_profile_id, c.descricao);
+        const myAreas = areas
+          .filter(a => a.comite_id === c.id)
+          .map<AreaInfo>(a => ({
+            nome: a.nome,
+            gestor: liderFrom(a.gestor_profile_id, a.descricao),
+            setores: (setoresPorArea.get(a.id) ?? []).sort((x, y) => x.localeCompare(y, "pt-BR")),
+          }));
         out[c.nome] = {
           comite: c.nome,
-          areas: areas.filter(a => a.comite_id === c.id).map(a => a.nome),
+          areas: myAreas,
+          areasNomes: myAreas.map(a => a.nome),
           lider,
         };
       }
 
       if (Object.keys(out).length > 0) return out;
 
-      // 2) Fallback legado: deriva do histórico do plano_acao
+      // Fallback legado a partir do histórico
       const { data, error } = await supabase
         .from("plano_acao")
         .select("comite, area, lider_comite_nome_origem")
@@ -68,7 +99,12 @@ export function useComitesMap() {
       for (const [c, v] of Object.entries(map)) {
         const arr = Array.from(v.areas.entries()).sort((a, b) => b[1] - a[1]).map(([k]) => k);
         const lider = Array.from(v.lideres.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-        fallback[c] = { comite: c, areas: arr, lider };
+        fallback[c] = {
+          comite: c,
+          areas: arr.map(n => ({ nome: n, gestor: null, setores: [] })),
+          areasNomes: arr,
+          lider,
+        };
       }
       return fallback;
     },

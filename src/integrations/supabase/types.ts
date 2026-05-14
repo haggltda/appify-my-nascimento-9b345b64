@@ -10242,6 +10242,7 @@ export type Database = {
           score_fim_original: string | null
           score_geral_original: string | null
           score_inicio_original: string | null
+          setor: string | null
           status_normalizado: string
           status_original: string | null
           titulo: string | null
@@ -10299,6 +10300,7 @@ export type Database = {
           score_fim_original?: string | null
           score_geral_original?: string | null
           score_inicio_original?: string | null
+          setor?: string | null
           status_normalizado?: string
           status_original?: string | null
           titulo?: string | null
@@ -10356,6 +10358,7 @@ export type Database = {
           score_fim_original?: string | null
           score_geral_original?: string | null
           score_inicio_original?: string | null
+          setor?: string | null
           status_normalizado?: string
           status_original?: string | null
           titulo?: string | null
