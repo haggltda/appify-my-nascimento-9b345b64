@@ -54,9 +54,11 @@ export default function CopilotoIA() {
   const allowed = roles.includes("admin") || roles.includes("presidencia");
 
   const { messages, draft, pronto, thinking, transcribing, error, send, transcribe, criar, reset, updateDraft } = useCopilotoChat();
+  const analise = useCopilotoAnalise();
   const recorder = useAudioRecorder();
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
+  const problemaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { data: comitesMap = {} } = useComitesMap();
   const comitesList = Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR"));
