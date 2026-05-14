@@ -58,8 +58,36 @@ const tools = [
             required: ["clareza", "problema_original", "problema_sugerido", "pontos_ausentes", "perguntas_recomendadas"],
             additionalProperties: false,
           },
+          gantt_etapas: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                etapa: { type: "string" },
+                inicio: { type: "string" },
+                fim: { type: "string" },
+                status: { type: "string" },
+              },
+              required: ["etapa", "inicio", "fim", "status"],
+              additionalProperties: false,
+            },
+          },
+          riscos: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                risco: { type: "string" },
+                severidade: { type: "string", enum: ["Alta", "Média", "Baixa"] },
+                justificativa: { type: "string" },
+                recomendacao: { type: "string" },
+              },
+              required: ["risco", "severidade", "justificativa", "recomendacao"],
+              additionalProperties: false,
+            },
+          },
         },
-        required: ["contexto", "sugestoes", "qualificacao_problema"],
+        required: ["contexto", "sugestoes", "qualificacao_problema", "gantt_etapas", "riscos"],
         additionalProperties: false,
       },
     },
