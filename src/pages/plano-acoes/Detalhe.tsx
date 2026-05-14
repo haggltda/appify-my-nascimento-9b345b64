@@ -58,15 +58,19 @@ export default function PlanoAcaoDetalhe() {
     }
   }, [data]);
 
-  if (lp) return null;
-  if (!can("visualizar")) return <ForbiddenCard />;
-  const podeEdit = isNew ? can("criar") : can("editar");
-
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
   const { data: comitesMap = {} } = useComitesMap();
   const comitesList = useMemo(() => Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR")), [comitesMap]);
-  const areasDoComite = useMemo(() => (form.comite && comitesMap[form.comite]?.areas) || [], [form.comite, comitesMap]);
+  const areasDoComite = useMemo(
+    () => (form.comite && comitesMap[form.comite]?.areas) || [],
+    [form.comite, comitesMap]
+  );
+  const areaAtual = useMemo(
+    () => areasDoComite.find((a: any) => a.nome === form.area) || null,
+    [areasDoComite, form.area]
+  );
+  const setoresDaArea: string[] = areaAtual?.setores ?? [];
 
   // Auto-preenche líder do comitê e ajusta área quando comitê muda
   useEffect(() => {
@@ -75,12 +79,26 @@ export default function PlanoAcaoDetalhe() {
     if (!info) return;
     setForm((f: any) => {
       const next = { ...f };
-      if (info.lider && !f.lider_comite_nome_origem) next.lider_comite_nome_origem = info.lider;
-      else if (info.lider) next.lider_comite_nome_origem = info.lider;
-      if (f.area && !info.areas.includes(f.area)) next.area = "";
+      if (info.lider) next.lider_comite_nome_origem = info.lider;
+      if (f.area && !info.areasNomes.includes(f.area)) { next.area = ""; next.setor = ""; }
       return next;
     });
   }, [form.comite, comitesMap]);
+
+  // Auto-preenche responsável com o gestor da área e zera setor quando área muda
+  useEffect(() => {
+    if (!form.area) return;
+    if (areaAtual?.gestor) {
+      setForm((f: any) => ({ ...f, responsavel_nome_origem: areaAtual.gestor || f.responsavel_nome_origem }));
+    }
+    if (form.setor && !setoresDaArea.includes(form.setor)) {
+      setForm((f: any) => ({ ...f, setor: "" }));
+    }
+  }, [form.area, areaAtual]);
+
+  if (lp) return null;
+  if (!can("visualizar")) return <ForbiddenCard />;
+  const podeEdit = isNew ? can("criar") : can("editar");
 
   const salvar = async () => {
     if (!podeEdit || !empresaId) return;
