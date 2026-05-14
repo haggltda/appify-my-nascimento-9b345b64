@@ -108,6 +108,12 @@ export default function CopilotoIA() {
   };
 
   const camposObrig = ["titulo", "acao", "prioridade_normalizada", "data_fim_planejado"] as const;
+  const CAMPO_LABEL: Record<typeof camposObrig[number], string> = {
+    titulo: "título",
+    acao: "ação",
+    prioridade_normalizada: "prioridade normalizada",
+    data_fim_planejado: "data fim planejada",
+  };
   const faltando = camposObrig.filter((c) => !(draft as any)[c]);
   const podeCriar = pronto && faltando.length === 0;
 
