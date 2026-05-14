@@ -189,11 +189,37 @@ function CCSection({
               <th className="px-4 py-2 text-left">Código</th>
               <th className="px-4 py-2 text-left">Nome</th>
               <th className="px-4 py-2 text-left">Empresa</th>
+              <th className="px-4 py-2 text-left">Origem</th>
               <th className="px-4 py-2 text-left">Responsável</th>
               <th className="px-4 py-2 text-left">Status</th>
               <th className="px-4 py-2 text-right">Ações</th>
             </tr>
           </thead>
+          <tbody>
+            {lista.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-6 text-center text-xs text-muted-foreground">
+                  Nenhum centro de custo cadastrado.
+                </td>
+              </tr>
+            ) : (
+              lista.map((c) => (
+                <tr key={c.id} className="border-t border-border/60">
+                  <td className="px-4 py-2 font-mono text-xs font-semibold text-primary">
+                    {c.codigo}
+                    {c.codigo_legado && <span className="ml-2 chip bg-muted text-[10px] text-muted-foreground">legado</span>}
+                  </td>
+                  <td className="px-4 py-2">{c.nome}</td>
+                  <td className="px-4 py-2 font-mono text-xs">{empresaCodigo(c.empresa_id)}</td>
+                  <td className="px-4 py-2">
+                    <span className={`chip text-[10px] ${
+                      c.origem_cadastro === "manual" ? "bg-muted text-muted-foreground" :
+                      c.origem_cadastro === "contrato" ? "bg-primary/10 text-primary" :
+                      "bg-accent/10 text-accent"
+                    }`}>
+                      {c.origem_cadastro}
+                    </span>
+                  </td>
           <tbody>
             {lista.length === 0 ? (
               <tr>
