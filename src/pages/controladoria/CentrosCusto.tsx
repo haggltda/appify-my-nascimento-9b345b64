@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 type CCTipo = "adm" | "operacional";
 
+type CCOrigem = "manual" | "contrato" | "licitacao" | "rateio" | "corporativo";
+
 type CentroCusto = {
   id: string;
   empresa_id: string;
@@ -15,6 +17,9 @@ type CentroCusto = {
   tipo: CCTipo;
   responsavel: string | null;
   ativo: boolean;
+  origem_cadastro: CCOrigem;
+  codigo_legado: boolean;
+  entidade_origem_tabela: string | null;
 };
 
 type Empresa = { id: string; codigo: string; razao_social: string };
@@ -184,6 +189,7 @@ function CCSection({
               <th className="px-4 py-2 text-left">Código</th>
               <th className="px-4 py-2 text-left">Nome</th>
               <th className="px-4 py-2 text-left">Empresa</th>
+              <th className="px-4 py-2 text-left">Origem</th>
               <th className="px-4 py-2 text-left">Responsável</th>
               <th className="px-4 py-2 text-left">Status</th>
               <th className="px-4 py-2 text-right">Ações</th>
@@ -192,16 +198,28 @@ function CCSection({
           <tbody>
             {lista.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-xs text-muted-foreground">
+                <td colSpan={7} className="px-4 py-6 text-center text-xs text-muted-foreground">
                   Nenhum centro de custo cadastrado.
                 </td>
               </tr>
             ) : (
               lista.map((c) => (
                 <tr key={c.id} className="border-t border-border/60">
-                  <td className="px-4 py-2 font-mono text-xs font-semibold text-primary">{c.codigo}</td>
+                  <td className="px-4 py-2 font-mono text-xs font-semibold text-primary">
+                    {c.codigo}
+                    {c.codigo_legado && <span className="ml-2 chip bg-muted text-[10px] text-muted-foreground">legado</span>}
+                  </td>
                   <td className="px-4 py-2">{c.nome}</td>
                   <td className="px-4 py-2 font-mono text-xs">{empresaCodigo(c.empresa_id)}</td>
+                  <td className="px-4 py-2">
+                    <span className={`chip text-[10px] ${
+                      c.origem_cadastro === "manual" ? "bg-muted text-muted-foreground" :
+                      c.origem_cadastro === "contrato" ? "bg-primary/10 text-primary" :
+                      "bg-accent/10 text-accent"
+                    }`}>
+                      {c.origem_cadastro}
+                    </span>
+                  </td>
                   <td className="px-4 py-2 text-xs">{c.responsavel ?? "—"}</td>
                   <td className="px-4 py-2">
                     <span className={c.ativo ? "chip bg-success-soft text-success" : "chip bg-muted text-muted-foreground"}>
@@ -213,7 +231,9 @@ function CCSection({
                       <button
                         data-write
                         onClick={() => onToggle(c)}
-                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
+                        disabled={c.origem_cadastro !== "manual" && c.entidade_origem_tabela === "contrato"}
+                        title={c.origem_cadastro !== "manual" ? "CC vinculado a contrato — gerenciado automaticamente" : ""}
+                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <PowerOff className="h-3 w-3" />
                         {c.ativo ? "Desativar" : "Reativar"}
