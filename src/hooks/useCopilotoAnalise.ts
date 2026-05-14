@@ -10,10 +10,26 @@ export interface QualificacaoProblema {
   perguntas_recomendadas: string[];
 }
 
+export interface GanttEtapa {
+  etapa: string;
+  inicio: string;
+  fim: string;
+  status: string;
+}
+
+export interface RiscoAnalise {
+  risco: string;
+  severidade: "Alta" | "Média" | "Baixa";
+  justificativa: string;
+  recomendacao: string;
+}
+
 export interface AnaliseCopiloto {
   contexto: string[];
   sugestoes: string[];
   qualificacao_problema: QualificacaoProblema;
+  gantt_etapas: GanttEtapa[];
+  riscos: RiscoAnalise[];
 }
 
 export function useCopilotoAnalise() {
