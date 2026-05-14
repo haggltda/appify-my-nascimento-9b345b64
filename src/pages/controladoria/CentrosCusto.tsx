@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 type CCTipo = "adm" | "operacional";
 
+type CCOrigem = "manual" | "contrato" | "licitacao" | "rateio" | "corporativo";
+
 type CentroCusto = {
   id: string;
   empresa_id: string;
@@ -15,6 +17,9 @@ type CentroCusto = {
   tipo: CCTipo;
   responsavel: string | null;
   ativo: boolean;
+  origem_cadastro: CCOrigem;
+  codigo_legado: boolean;
+  entidade_origem_tabela: string | null;
 };
 
 type Empresa = { id: string; codigo: string; razao_social: string };
