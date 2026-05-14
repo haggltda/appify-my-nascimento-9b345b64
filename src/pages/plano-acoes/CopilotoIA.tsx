@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Loader2, RefreshCcw, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useCopilotoChat, type Draft } from "@/hooks/useCopilotoChat";
+import { useCopilotoAnalise } from "@/hooks/useCopilotoAnalise";
 import { useComitesMap } from "@/hooks/useComitesMap";
 import { PRIORIDADE_LABEL, PRIORIDADES } from "@/types/planoAcao";
 
@@ -53,9 +54,11 @@ export default function CopilotoIA() {
   const allowed = roles.includes("admin") || roles.includes("presidencia");
 
   const { messages, draft, pronto, thinking, transcribing, error, send, transcribe, criar, reset, updateDraft } = useCopilotoChat();
+  const analise = useCopilotoAnalise();
   const recorder = useAudioRecorder();
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
+  const problemaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const { data: comitesMap = {} } = useComitesMap();
   const comitesList = Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -83,6 +86,28 @@ export default function CopilotoIA() {
   useEffect(() => {
     if (error) toast({ title: "Copiloto IA", description: error, variant: "destructive" });
   }, [error]);
+
+  useEffect(() => {
+    if (analise.error) toast({ title: "Análise IA", description: analise.error, variant: "destructive" });
+  }, [analise.error]);
+
+  const handleAnalisar = async () => {
+    await analise.run(draft, messages);
+  };
+
+  const handleUsarSugestao = (texto: string) => {
+    if (!texto?.trim()) return;
+    updateDraft({ problema: texto });
+    toast({ title: "Problema atualizado", description: "Texto sugerido pela IA aplicado ao rascunho." });
+  };
+
+  const handleManterProblema = () => {
+    toast({ title: "Mantido", description: "Texto original do problema preservado." });
+  };
+
+  const handleEditarProblema = () => {
+    problemaRef.current?.focus();
+  };
 
   if (loading) return <div className="p-8 flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</div>;
   if (!allowed) return <PermissionDenied />;
@@ -141,10 +166,11 @@ export default function CopilotoIA() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled title="Disponível no Bloco 2">
-            <Sparkles className="h-4 w-4 mr-1" /> Atualizar análise
+          <Button variant="outline" size="sm" onClick={handleAnalisar} disabled={analise.loading}>
+            {analise.loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+            Atualizar análise
           </Button>
-          <Button variant="ghost" size="sm" onClick={reset}>
+          <Button variant="ghost" size="sm" onClick={() => { reset(); analise.reset(); }}>
             <RefreshCcw className="h-4 w-4 mr-1" /> Nova conversa
           </Button>
         </div>
@@ -170,9 +196,15 @@ export default function CopilotoIA() {
         <div className="lg:col-span-5 xl:col-span-5 flex flex-col min-h-0">
           <ScrollArea className="flex-1 lg:max-h-[calc(100vh-12rem)]">
             <div className="space-y-4 pr-2">
-              <ContextoCard />
-              <SugestoesCard />
-              <QualificacaoProblemaCard />
+              <ContextoCard contexto={analise.data?.contexto} loading={analise.loading} />
+              <SugestoesCard sugestoes={analise.data?.sugestoes} loading={analise.loading} />
+              <QualificacaoProblemaCard
+                qualificacao={analise.data?.qualificacao_problema}
+                loading={analise.loading}
+                onUsarSugestao={handleUsarSugestao}
+                onManter={handleManterProblema}
+                onEditarManual={handleEditarProblema}
+              />
               <GanttSimplificado />
             </div>
           </ScrollArea>
@@ -202,7 +234,7 @@ export default function CopilotoIA() {
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs uppercase tracking-wide text-muted-foreground">Problema</Label>
-                    <Textarea rows={2} value={draft.problema ?? ""} onChange={(e) => updateDraft({ problema: e.target.value })} className="bg-background/50" />
+                    <Textarea ref={problemaRef} rows={2} value={draft.problema ?? ""} onChange={(e) => updateDraft({ problema: e.target.value })} className="bg-background/50" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
