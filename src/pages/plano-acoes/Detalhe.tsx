@@ -178,8 +178,48 @@ export default function PlanoAcaoDetalhe() {
               <Label>Ação</Label>
               <Textarea rows={4} value={form.acao ?? ""} disabled={!podeEdit} onChange={e => set("acao", e.target.value)} />
             </div>
-            <div><Label>Comitê</Label><Input value={form.comite ?? ""} disabled={!podeEdit} onChange={e => set("comite", e.target.value)} /></div>
-            <div><Label>Área</Label><Input value={form.area ?? ""} disabled={!podeEdit} onChange={e => set("area", e.target.value)} /></div>
+            <div>
+              <Label>Comitê</Label>
+              {comitesList.length > 0 ? (
+                <Select
+                  value={form.comite || "__none"}
+                  disabled={!podeEdit}
+                  onValueChange={v => set("comite", v === "__none" ? "" : v)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione o comitê" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {comitesList.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {form.comite && !comitesList.includes(form.comite) && (
+                      <SelectItem value={form.comite}>{form.comite}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input value={form.comite ?? ""} disabled={!podeEdit} onChange={e => set("comite", e.target.value)} />
+              )}
+            </div>
+            <div>
+              <Label>Área</Label>
+              {areasDoComite.length > 0 ? (
+                <Select
+                  value={form.area || "__none"}
+                  disabled={!podeEdit || !form.comite}
+                  onValueChange={v => set("area", v === "__none" ? "" : v)}
+                >
+                  <SelectTrigger><SelectValue placeholder={form.comite ? "Selecione a área" : "Escolha o comitê primeiro"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {areasDoComite.map((a: string) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                    {form.area && !areasDoComite.includes(form.area) && (
+                      <SelectItem value={form.area}>{form.area}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input value={form.area ?? ""} disabled={!podeEdit} onChange={e => set("area", e.target.value)} placeholder={form.comite ? "Digite a área" : "Escolha o comitê primeiro"} />
+              )}
+            </div>
             <div>
               <Label>Status</Label>
               <Select value={form.status_normalizado} disabled={!podeEdit} onValueChange={v => set("status_normalizado", v)}>
@@ -195,10 +235,11 @@ export default function PlanoAcaoDetalhe() {
               </Select>
             </div>
             <div><Label>Responsável</Label><Input value={form.responsavel_nome_origem ?? ""} disabled={!podeEdit} onChange={e => set("responsavel_nome_origem", e.target.value)} /></div>
-            <div><Label>Líder do comitê</Label><Input value={form.lider_comite_nome_origem ?? ""} disabled={!podeEdit} onChange={e => set("lider_comite_nome_origem", e.target.value)} /></div>
-            <div><Label>Líder do setor</Label><Input value={form.lider_setor_nome_origem ?? ""} disabled={!podeEdit} onChange={e => set("lider_setor_nome_origem", e.target.value)} /></div>
+            <div>
+              <Label>Líder do comitê <span className="text-xs text-muted-foreground">(automático)</span></Label>
+              <Input value={form.lider_comite_nome_origem ?? ""} readOnly placeholder={form.comite ? "—" : "Selecione o comitê"} className="bg-muted/40" />
+            </div>
             <div><Label>Custo previsto</Label><Input type="number" step="0.01" value={form.custo_previsto ?? 0} disabled={!podeEdit} onChange={e => set("custo_previsto", parseFloat(e.target.value) || 0)} /></div>
-            <div><Label>Custo realizado</Label><Input type="number" step="0.01" value={form.custo_realizado ?? 0} disabled={!podeEdit} onChange={e => set("custo_realizado", parseFloat(e.target.value) || 0)} /></div>
             <div className="sm:col-span-2">
               <Label>Comentários</Label>
               <Textarea rows={3} value={form.comentarios ?? ""} disabled={!podeEdit} onChange={e => set("comentarios", e.target.value)} />
