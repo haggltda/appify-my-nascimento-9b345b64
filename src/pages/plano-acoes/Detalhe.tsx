@@ -28,7 +28,7 @@ export default function PlanoAcaoDetalhe() {
   const { can, loading: lp } = usePlanoAcaoPermissao();
 
   const [form, setForm] = useState<any>({
-    titulo: "", problema: "", acao: "", comite: "", area: "",
+    titulo: "", problema: "", acao: "", comite: "", area: "", setor: "",
     prioridade_normalizada: "media", status_normalizado: "a_definir",
     responsavel_nome_origem: "", lider_comite_nome_origem: "",
     data_inicio_planejado_original: "", data_fim_planejado_original: "",
