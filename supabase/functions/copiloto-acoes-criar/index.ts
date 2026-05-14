@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
       problema: draft.problema ?? null,
       comite: draft.comite ?? null,
       area: draft.area ?? null,
+      setor: draft.setor ?? null,
       prioridade_normalizada: prioridade,
       data_fim_planejado: dataFim,
       data_inicio_planejado: isISODate(draft.data_inicio_planejado) ? draft.data_inicio_planejado : null,

@@ -9,6 +9,7 @@ export type Draft = Partial<{
   problema: string;
   comite: string;
   area: string;
+  setor: string;
   prioridade_normalizada: "emergencial"|"alta"|"media"|"baixa"|"nao_informada";
   data_fim_planejado: string;
   data_inicio_planejado: string;

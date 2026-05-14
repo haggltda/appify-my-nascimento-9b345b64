@@ -28,7 +28,7 @@ export default function PlanoAcaoDetalhe() {
   const { can, loading: lp } = usePlanoAcaoPermissao();
 
   const [form, setForm] = useState<any>({
-    titulo: "", problema: "", acao: "", comite: "", area: "",
+    titulo: "", problema: "", acao: "", comite: "", area: "", setor: "",
     prioridade_normalizada: "media", status_normalizado: "a_definir",
     responsavel_nome_origem: "", lider_comite_nome_origem: "",
     data_inicio_planejado_original: "", data_fim_planejado_original: "",
@@ -58,15 +58,19 @@ export default function PlanoAcaoDetalhe() {
     }
   }, [data]);
 
-  if (lp) return null;
-  if (!can("visualizar")) return <ForbiddenCard />;
-  const podeEdit = isNew ? can("criar") : can("editar");
-
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
   const { data: comitesMap = {} } = useComitesMap();
   const comitesList = useMemo(() => Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR")), [comitesMap]);
-  const areasDoComite = useMemo(() => (form.comite && comitesMap[form.comite]?.areas) || [], [form.comite, comitesMap]);
+  const areasDoComite = useMemo(
+    () => (form.comite && comitesMap[form.comite]?.areas) || [],
+    [form.comite, comitesMap]
+  );
+  const areaAtual = useMemo(
+    () => areasDoComite.find((a: any) => a.nome === form.area) || null,
+    [areasDoComite, form.area]
+  );
+  const setoresDaArea: string[] = areaAtual?.setores ?? [];
 
   // Auto-preenche líder do comitê e ajusta área quando comitê muda
   useEffect(() => {
@@ -75,12 +79,26 @@ export default function PlanoAcaoDetalhe() {
     if (!info) return;
     setForm((f: any) => {
       const next = { ...f };
-      if (info.lider && !f.lider_comite_nome_origem) next.lider_comite_nome_origem = info.lider;
-      else if (info.lider) next.lider_comite_nome_origem = info.lider;
-      if (f.area && !info.areas.includes(f.area)) next.area = "";
+      if (info.lider) next.lider_comite_nome_origem = info.lider;
+      if (f.area && !info.areasNomes.includes(f.area)) { next.area = ""; next.setor = ""; }
       return next;
     });
   }, [form.comite, comitesMap]);
+
+  // Auto-preenche responsável com o gestor da área e zera setor quando área muda
+  useEffect(() => {
+    if (!form.area) return;
+    if (areaAtual?.gestor) {
+      setForm((f: any) => ({ ...f, responsavel_nome_origem: areaAtual.gestor || f.responsavel_nome_origem }));
+    }
+    if (form.setor && !setoresDaArea.includes(form.setor)) {
+      setForm((f: any) => ({ ...f, setor: "" }));
+    }
+  }, [form.area, areaAtual]);
+
+  if (lp) return null;
+  if (!can("visualizar")) return <ForbiddenCard />;
+  const podeEdit = isNew ? can("criar") : can("editar");
 
   const salvar = async () => {
     if (!podeEdit || !empresaId) return;
@@ -95,7 +113,7 @@ export default function PlanoAcaoDetalhe() {
     } else {
       const { error } = await supabase.from("plano_acao").update({
         titulo: form.titulo, problema: form.problema, acao: form.acao,
-        comite: form.comite, area: form.area,
+        comite: form.comite, area: form.area, setor: form.setor || null,
         prioridade_normalizada: form.prioridade_normalizada,
         status_normalizado: form.status_normalizado,
         responsavel_nome_origem: form.responsavel_nome_origem,
@@ -210,14 +228,35 @@ export default function PlanoAcaoDetalhe() {
                   <SelectTrigger><SelectValue placeholder={form.comite ? "Selecione a área" : "Escolha o comitê primeiro"} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">—</SelectItem>
-                    {areasDoComite.map((a: string) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                    {form.area && !areasDoComite.includes(form.area) && (
+                    {areasDoComite.map((a: any) => <SelectItem key={a.nome} value={a.nome}>{a.nome}</SelectItem>)}
+                    {form.area && !areasDoComite.some((a: any) => a.nome === form.area) && (
                       <SelectItem value={form.area}>{form.area}</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
               ) : (
                 <Input value={form.area ?? ""} disabled={!podeEdit} onChange={e => set("area", e.target.value)} placeholder={form.comite ? "Digite a área" : "Escolha o comitê primeiro"} />
+              )}
+            </div>
+            <div>
+              <Label>Setor</Label>
+              {setoresDaArea.length > 0 ? (
+                <Select
+                  value={form.setor || "__none"}
+                  disabled={!podeEdit || !form.area}
+                  onValueChange={v => set("setor", v === "__none" ? "" : v)}
+                >
+                  <SelectTrigger><SelectValue placeholder={form.area ? "Selecione o setor" : "Escolha a área primeiro"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {setoresDaArea.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    {form.setor && !setoresDaArea.includes(form.setor) && (
+                      <SelectItem value={form.setor}>{form.setor}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input value={form.setor ?? ""} disabled={!podeEdit || !form.area} onChange={e => set("setor", e.target.value)} placeholder={form.area ? "Sem setores cadastrados" : "Escolha a área primeiro"} />
               )}
             </div>
             <div>

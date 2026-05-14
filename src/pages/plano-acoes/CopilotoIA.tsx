@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useCopilotoChat, type Draft } from "@/hooks/useCopilotoChat";
+import { useComitesMap } from "@/hooks/useComitesMap";
 import { PRIORIDADE_LABEL, PRIORIDADES } from "@/types/planoAcao";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,30 @@ export default function CopilotoIA() {
   const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [creating, setCreating] = useState(false);
+
+  const { data: comitesMap = {} } = useComitesMap();
+  const comitesList = Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const areasDoComite = (draft.comite && comitesMap[draft.comite]?.areas) || [];
+  const areaAtual = areasDoComite.find((a: any) => a.nome === draft.area) || null;
+  const setoresDaArea: string[] = areaAtual?.setores ?? [];
+
+  // Auto-preenche líder/responsável quando comitê ou área mudam
+  useEffect(() => {
+    if (!draft.comite) return;
+    const info = comitesMap[draft.comite];
+    if (!info) return;
+    if (draft.area && !info.areasNomes.includes(draft.area)) {
+      updateDraft({ area: "", setor: "" });
+    }
+  }, [draft.comite, comitesMap]);
+
+  useEffect(() => {
+    if (!draft.area || !areaAtual) return;
+    const patch: Partial<Draft> = {};
+    if (areaAtual.gestor && !draft.responsavel_nome) patch.responsavel_nome = areaAtual.gestor;
+    if (draft.setor && !setoresDaArea.includes(draft.setor)) patch.setor = "";
+    if (Object.keys(patch).length) updateDraft(patch as Draft);
+  }, [draft.area, areaAtual]);
 
   useEffect(() => {
     if (error) toast({ title: "Copiloto IA", description: error, variant: "destructive" });
@@ -224,8 +249,48 @@ export default function CopilotoIA() {
                 <DraftField label="Data fim *" type="date" value={draft.data_fim_planejado} onChange={(v) => updateDraft({ data_fim_planejado: v })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <DraftField label="Comitê" value={draft.comite} onChange={(v) => updateDraft({ comite: v })} />
-                <DraftField label="Área" value={draft.area} onChange={(v) => updateDraft({ area: v })} />
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Comitê</Label>
+                  {comitesList.length > 0 ? (
+                    <Select value={draft.comite || "__none"} onValueChange={(v) => updateDraft({ comite: v === "__none" ? "" : v })}>
+                      <SelectTrigger className="bg-background/50"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">—</SelectItem>
+                        {comitesList.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input value={draft.comite ?? ""} onChange={(e) => updateDraft({ comite: e.target.value })} className="bg-background/50" />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Área</Label>
+                  {areasDoComite.length > 0 ? (
+                    <Select value={draft.area || "__none"} disabled={!draft.comite} onValueChange={(v) => updateDraft({ area: v === "__none" ? "" : v })}>
+                      <SelectTrigger className="bg-background/50"><SelectValue placeholder={draft.comite ? "—" : "Escolha o comitê"} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">—</SelectItem>
+                        {areasDoComite.map((a: any) => <SelectItem key={a.nome} value={a.nome}>{a.nome}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input value={draft.area ?? ""} disabled={!draft.comite} onChange={(e) => updateDraft({ area: e.target.value })} placeholder={draft.comite ? "Digite a área" : "Escolha o comitê"} className="bg-background/50" />
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Setor</Label>
+                {setoresDaArea.length > 0 ? (
+                  <Select value={draft.setor || "__none"} disabled={!draft.area} onValueChange={(v) => updateDraft({ setor: v === "__none" ? "" : v })}>
+                    <SelectTrigger className="bg-background/50"><SelectValue placeholder={draft.area ? "—" : "Escolha a área"} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">—</SelectItem>
+                      {setoresDaArea.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={draft.setor ?? ""} disabled={!draft.area} onChange={(e) => updateDraft({ setor: e.target.value })} placeholder={draft.area ? "Sem setores cadastrados" : "Escolha a área"} className="bg-background/50" />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <DraftField label="Início planejado" type="date" value={draft.data_inicio_planejado} onChange={(v) => updateDraft({ data_inicio_planejado: v })} />
