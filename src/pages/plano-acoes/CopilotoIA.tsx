@@ -16,7 +16,6 @@ import { useCopilotoChat, type Draft } from "@/hooks/useCopilotoChat";
 import { useCopilotoAnalise } from "@/hooks/useCopilotoAnalise";
 import { useComitesMap } from "@/hooks/useComitesMap";
 import { PRIORIDADE_LABEL, PRIORIDADES } from "@/types/planoAcao";
-import { useRef } from "react";
 
 import { AssistantPanel } from "./copiloto/AssistantPanel";
 import { ContextoCard } from "./copiloto/ContextoCard";
