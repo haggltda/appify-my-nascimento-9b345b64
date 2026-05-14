@@ -44,6 +44,7 @@ import { EmpresaAtivaProvider } from "./context/EmpresaAtivaContext";
 import { PermissoesProvider } from "./context/PermissoesContext";
 import Empresas from "./pages/controladoria/Empresas";
 import CentrosCusto from "./pages/controladoria/CentrosCusto";
+import EstruturaOrganizacional from "./pages/controladoria/EstruturaOrganizacional";
 import LinhasDRE from "./pages/controladoria/DRE";
 import Classificadores from "./pages/controladoria/Classificadores";
 import PlanejadorOBZ from "./pages/controladoria/PlanejadorOBZ";
