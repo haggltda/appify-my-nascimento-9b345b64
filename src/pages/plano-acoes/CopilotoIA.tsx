@@ -108,6 +108,12 @@ export default function CopilotoIA() {
   };
 
   const camposObrig = ["titulo", "acao", "prioridade_normalizada", "data_fim_planejado"] as const;
+  const CAMPO_LABEL: Record<typeof camposObrig[number], string> = {
+    titulo: "título",
+    acao: "ação",
+    prioridade_normalizada: "prioridade normalizada",
+    data_fim_planejado: "data fim planejada",
+  };
   const faltando = camposObrig.filter((c) => !(draft as any)[c]);
   const podeCriar = pronto && faltando.length === 0;
 
@@ -146,7 +152,7 @@ export default function CopilotoIA() {
 
       <div className="grid flex-1 grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
         {/* Coluna esquerda — Assistente */}
-        <div className="lg:col-span-4 xl:col-span-4 flex flex-col min-h-0">
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col min-h-0">
           <AssistantPanel
             messages={messages}
             text={text}
@@ -173,7 +179,7 @@ export default function CopilotoIA() {
         </div>
 
         {/* Coluna direita — Ação em rascunho + extras */}
-        <div className="lg:col-span-3 xl:col-span-3 flex flex-col min-h-0">
+        <div className="lg:col-span-4 xl:col-span-4 flex flex-col min-h-0">
           <ScrollArea className="flex-1 lg:max-h-[calc(100vh-12rem)]">
             <div className="space-y-4 pr-2">
               <Card className="flex flex-col border-primary/10 overflow-hidden">
@@ -184,7 +190,7 @@ export default function CopilotoIA() {
                   </div>
                   {faltando.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Faltando: {faltando.map((c) => c.replace(/_/g, " ")).join(", ")}
+                      Faltando: {faltando.map((c) => CAMPO_LABEL[c]).join(", ")}
                     </p>
                   )}
                 </div>

@@ -11,13 +11,13 @@ export function GanttSimplificado() {
     <EmptyCard
       icon={CalendarRange}
       title="Cronograma / Gantt Simplificado"
-      badge="Preliminar"
+      badge="Placeholder"
       accent="emerald"
       emptyText=""
     >
       <div className="space-y-1.5">
         <p className="text-xs text-muted-foreground italic mb-3">
-          Cronograma preliminar será exibido após análise. As datas sugeridas não preenchem o rascunho automaticamente.
+          Exemplo visual preliminar. O cronograma real será gerado após a análise da ação. As datas sugeridas não preenchem o rascunho automaticamente.
         </p>
         <div className="space-y-1.5">
           {ETAPAS_PREVIEW.map((etapa, i) => (
