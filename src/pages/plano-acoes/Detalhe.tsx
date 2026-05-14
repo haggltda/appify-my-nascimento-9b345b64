@@ -100,9 +100,8 @@ export default function PlanoAcaoDetalhe() {
         status_normalizado: form.status_normalizado,
         responsavel_nome_origem: form.responsavel_nome_origem,
         lider_comite_nome_origem: form.lider_comite_nome_origem,
-        lider_setor_nome_origem: form.lider_setor_nome_origem,
         comentarios: form.comentarios,
-        custo_previsto: form.custo_previsto, custo_realizado: form.custo_realizado,
+        custo_previsto: form.custo_previsto,
       }).eq("id", id!);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
       toast({ title: "Ação atualizada" });
