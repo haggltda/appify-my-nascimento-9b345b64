@@ -220,19 +220,6 @@ function CCSection({
                       {c.origem_cadastro}
                     </span>
                   </td>
-          <tbody>
-            {lista.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-xs text-muted-foreground">
-                  Nenhum centro de custo cadastrado.
-                </td>
-              </tr>
-            ) : (
-              lista.map((c) => (
-                <tr key={c.id} className="border-t border-border/60">
-                  <td className="px-4 py-2 font-mono text-xs font-semibold text-primary">{c.codigo}</td>
-                  <td className="px-4 py-2">{c.nome}</td>
-                  <td className="px-4 py-2 font-mono text-xs">{empresaCodigo(c.empresa_id)}</td>
                   <td className="px-4 py-2 text-xs">{c.responsavel ?? "—"}</td>
                   <td className="px-4 py-2">
                     <span className={c.ativo ? "chip bg-success-soft text-success" : "chip bg-muted text-muted-foreground"}>
@@ -244,7 +231,9 @@ function CCSection({
                       <button
                         data-write
                         onClick={() => onToggle(c)}
-                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
+                        disabled={c.origem_cadastro !== "manual" && c.entidade_origem_tabela === "contrato"}
+                        title={c.origem_cadastro !== "manual" ? "CC vinculado a contrato — gerenciado automaticamente" : ""}
+                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <PowerOff className="h-3 w-3" />
                         {c.ativo ? "Desativar" : "Reativar"}
