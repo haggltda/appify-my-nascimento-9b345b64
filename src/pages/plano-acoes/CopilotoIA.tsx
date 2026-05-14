@@ -249,8 +249,48 @@ export default function CopilotoIA() {
                 <DraftField label="Data fim *" type="date" value={draft.data_fim_planejado} onChange={(v) => updateDraft({ data_fim_planejado: v })} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <DraftField label="Comitê" value={draft.comite} onChange={(v) => updateDraft({ comite: v })} />
-                <DraftField label="Área" value={draft.area} onChange={(v) => updateDraft({ area: v })} />
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Comitê</Label>
+                  {comitesList.length > 0 ? (
+                    <Select value={draft.comite || "__none"} onValueChange={(v) => updateDraft({ comite: v === "__none" ? "" : v })}>
+                      <SelectTrigger className="bg-background/50"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">—</SelectItem>
+                        {comitesList.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input value={draft.comite ?? ""} onChange={(e) => updateDraft({ comite: e.target.value })} className="bg-background/50" />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Área</Label>
+                  {areasDoComite.length > 0 ? (
+                    <Select value={draft.area || "__none"} disabled={!draft.comite} onValueChange={(v) => updateDraft({ area: v === "__none" ? "" : v })}>
+                      <SelectTrigger className="bg-background/50"><SelectValue placeholder={draft.comite ? "—" : "Escolha o comitê"} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">—</SelectItem>
+                        {areasDoComite.map((a: any) => <SelectItem key={a.nome} value={a.nome}>{a.nome}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input value={draft.area ?? ""} disabled={!draft.comite} onChange={(e) => updateDraft({ area: e.target.value })} placeholder={draft.comite ? "Digite a área" : "Escolha o comitê"} className="bg-background/50" />
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Setor</Label>
+                {setoresDaArea.length > 0 ? (
+                  <Select value={draft.setor || "__none"} disabled={!draft.area} onValueChange={(v) => updateDraft({ setor: v === "__none" ? "" : v })}>
+                    <SelectTrigger className="bg-background/50"><SelectValue placeholder={draft.area ? "—" : "Escolha a área"} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">—</SelectItem>
+                      {setoresDaArea.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input value={draft.setor ?? ""} disabled={!draft.area} onChange={(e) => updateDraft({ setor: e.target.value })} placeholder={draft.area ? "Sem setores cadastrados" : "Escolha a área"} className="bg-background/50" />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <DraftField label="Início planejado" type="date" value={draft.data_inicio_planejado} onChange={(v) => updateDraft({ data_inicio_planejado: v })} />
