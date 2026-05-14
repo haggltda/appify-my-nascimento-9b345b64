@@ -337,6 +337,16 @@ export default function CopilotoIA() {
           </ScrollArea>
         </div>
       </div>
+
+      <AcoesSimilaresDialog
+        open={similaresOpen}
+        onOpenChange={setSimilaresOpen}
+        similares={similaresList}
+        draft={draft}
+        onAbrirExistente={(id) => { setSimilaresOpen(false); navigate(`/app/plano-acoes/${id}`); }}
+        onCriarComplementar={() => { void executarCriacao(); }}
+        onCriarMesmoAssim={() => { void executarCriacao(); }}
+      />
     </div>
   );
 }
