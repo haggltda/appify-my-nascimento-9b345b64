@@ -1131,16 +1131,19 @@ export type Database = {
           ativo: boolean
           categoria_gerencial: string | null
           codigo: string
+          codigo_legado: boolean
           created_at: string
           dimensao: string | null
           direto_indireto: string | null
           empresa_id: string
+          entidade_origem_id: string | null
+          entidade_origem_tabela: string | null
           exige_contrato: boolean
           fixo_variavel: string | null
           id: string
           impacta_dre: boolean
           nome: string
-          origem_cadastro: string | null
+          origem_cadastro: Database["public"]["Enums"]["cc_origem"]
           responsavel: string | null
           status_cadastro: string
           tipo: Database["public"]["Enums"]["cc_tipo"]
@@ -1150,16 +1153,19 @@ export type Database = {
           ativo?: boolean
           categoria_gerencial?: string | null
           codigo: string
+          codigo_legado?: boolean
           created_at?: string
           dimensao?: string | null
           direto_indireto?: string | null
           empresa_id: string
+          entidade_origem_id?: string | null
+          entidade_origem_tabela?: string | null
           exige_contrato?: boolean
           fixo_variavel?: string | null
           id?: string
           impacta_dre?: boolean
           nome: string
-          origem_cadastro?: string | null
+          origem_cadastro?: Database["public"]["Enums"]["cc_origem"]
           responsavel?: string | null
           status_cadastro?: string
           tipo?: Database["public"]["Enums"]["cc_tipo"]
@@ -1169,16 +1175,19 @@ export type Database = {
           ativo?: boolean
           categoria_gerencial?: string | null
           codigo?: string
+          codigo_legado?: boolean
           created_at?: string
           dimensao?: string | null
           direto_indireto?: string | null
           empresa_id?: string
+          entidade_origem_id?: string | null
+          entidade_origem_tabela?: string | null
           exige_contrato?: boolean
           fixo_variavel?: string | null
           id?: string
           impacta_dre?: boolean
           nome?: string
-          origem_cadastro?: string | null
+          origem_cadastro?: Database["public"]["Enums"]["cc_origem"]
           responsavel?: string | null
           status_cadastro?: string
           tipo?: Database["public"]["Enums"]["cc_tipo"]
@@ -1207,6 +1216,30 @@ export type Database = {
             referencedColumns: ["empresa_id"]
           },
         ]
+      }
+      centros_custo_sequencia: {
+        Row: {
+          empresa_id: string
+          origem: Database["public"]["Enums"]["cc_origem"]
+          proximo: number
+          tipo: Database["public"]["Enums"]["cc_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          empresa_id: string
+          origem: Database["public"]["Enums"]["cc_origem"]
+          proximo?: number
+          tipo: Database["public"]["Enums"]["cc_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          empresa_id?: string
+          origem?: Database["public"]["Enums"]["cc_origem"]
+          proximo?: number
+          tipo?: Database["public"]["Enums"]["cc_tipo"]
+          updated_at?: string
+        }
+        Relationships: []
       }
       cfop: {
         Row: {
@@ -15348,6 +15381,14 @@ export type Database = {
           sem_empresa: number
         }[]
       }
+      gerar_codigo_cc: {
+        Args: {
+          _empresa_id: string
+          _origem: Database["public"]["Enums"]["cc_origem"]
+          _tipo: Database["public"]["Enums"]["cc_tipo"]
+        }
+        Returns: string
+      }
       gerar_orcamento_contrato: {
         Args: { _ciclo_id: string; _contrato_id: string }
         Returns: Json
@@ -15623,6 +15664,7 @@ export type Database = {
         | "rejeitada"
         | "arquivada"
       banco_tipo: "corrente" | "poupanca" | "aplicacao" | "vinculada"
+      cc_origem: "manual" | "contrato" | "licitacao" | "rateio" | "corporativo"
       cc_tipo: "adm" | "operacional"
       cobranca_registro_status:
         | "pendente"
@@ -16157,6 +16199,7 @@ export const Constants = {
         "arquivada",
       ],
       banco_tipo: ["corrente", "poupanca", "aplicacao", "vinculada"],
+      cc_origem: ["manual", "contrato", "licitacao", "rateio", "corporativo"],
       cc_tipo: ["adm", "operacional"],
       cobranca_registro_status: [
         "pendente",
