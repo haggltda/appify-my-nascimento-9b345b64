@@ -190,7 +190,7 @@ export default function CopilotoIA() {
                   </div>
                   {faltando.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Faltando: {faltando.map((c) => c.replace(/_/g, " ")).join(", ")}
+                      Faltando: {faltando.map((c) => CAMPO_LABEL[c]).join(", ")}
                     </p>
                   )}
                 </div>
