@@ -24,6 +24,8 @@ import { QualificacaoProblemaCard } from "./copiloto/QualificacaoProblemaCard";
 import { GanttSimplificado } from "./copiloto/GanttSimplificado";
 import { MembrosComiteCard } from "./copiloto/MembrosComiteCard";
 import { AnaliseRiscoCard } from "./copiloto/AnaliseRiscoCard";
+import { AcoesSimilaresDialog } from "./copiloto/AcoesSimilaresDialog";
+import { useAcoesSimilares, type AcaoSimilar } from "@/hooks/useAcoesSimilares";
 
 function PermissionDenied() {
   return (
