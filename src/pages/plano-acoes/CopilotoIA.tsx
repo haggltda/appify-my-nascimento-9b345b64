@@ -179,7 +179,7 @@ export default function CopilotoIA() {
         </div>
 
         {/* Coluna direita — Ação em rascunho + extras */}
-        <div className="lg:col-span-3 xl:col-span-3 flex flex-col min-h-0">
+        <div className="lg:col-span-4 xl:col-span-4 flex flex-col min-h-0">
           <ScrollArea className="flex-1 lg:max-h-[calc(100vh-12rem)]">
             <div className="space-y-4 pr-2">
               <Card className="flex flex-col border-primary/10 overflow-hidden">
