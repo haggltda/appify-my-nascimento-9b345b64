@@ -166,10 +166,11 @@ export default function CopilotoIA() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled title="Disponível no Bloco 2">
-            <Sparkles className="h-4 w-4 mr-1" /> Atualizar análise
+          <Button variant="outline" size="sm" onClick={handleAnalisar} disabled={analise.loading}>
+            {analise.loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+            Atualizar análise
           </Button>
-          <Button variant="ghost" size="sm" onClick={reset}>
+          <Button variant="ghost" size="sm" onClick={() => { reset(); analise.reset(); }}>
             <RefreshCcw className="h-4 w-4 mr-1" /> Nova conversa
           </Button>
         </div>
