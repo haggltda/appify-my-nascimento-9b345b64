@@ -61,6 +61,9 @@ export default function CopilotoIA() {
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
   const problemaRef = useRef<HTMLTextAreaElement | null>(null);
+  const similares = useAcoesSimilares();
+  const [similaresOpen, setSimilaresOpen] = useState(false);
+  const [similaresList, setSimilaresList] = useState<AcaoSimilar[]>([]);
 
   const { data: comitesMap = {} } = useComitesMap();
   const comitesList = Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR"));
