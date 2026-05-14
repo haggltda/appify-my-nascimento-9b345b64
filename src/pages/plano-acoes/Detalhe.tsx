@@ -64,6 +64,24 @@ export default function PlanoAcaoDetalhe() {
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
+  const { data: comitesMap = {} } = useComitesMap();
+  const comitesList = useMemo(() => Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR")), [comitesMap]);
+  const areasDoComite = useMemo(() => (form.comite && comitesMap[form.comite]?.areas) || [], [form.comite, comitesMap]);
+
+  // Auto-preenche líder do comitê e ajusta área quando comitê muda
+  useEffect(() => {
+    if (!form.comite) return;
+    const info = comitesMap[form.comite];
+    if (!info) return;
+    setForm((f: any) => {
+      const next = { ...f };
+      if (info.lider && !f.lider_comite_nome_origem) next.lider_comite_nome_origem = info.lider;
+      else if (info.lider) next.lider_comite_nome_origem = info.lider;
+      if (f.area && !info.areas.includes(f.area)) next.area = "";
+      return next;
+    });
+  }, [form.comite, comitesMap]);
+
   const salvar = async () => {
     if (!podeEdit || !empresaId) return;
     if (isNew) {
