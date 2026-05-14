@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 const SYSTEM_PROMPT = `Você é um analista sênior de gestão corporativa do ERP do Grupo Nascimento.
-Sua tarefa é analisar o RASCUNHO de uma ação (e o histórico curto de chat) e produzir três blocos:
+Sua tarefa é analisar o RASCUNHO de uma ação (e o histórico curto de chat) e produzir cinco blocos:
 
 1) "contexto": 4 a 8 bullets curtos com leitura estruturada (tema principal, objetivo, problema central, área impactada, comitê relacionado, prioridade sugerida, dependências, impacto esperado, pontos de atenção). Use português do Brasil, objetivo, sem floreio.
 
