@@ -87,6 +87,28 @@ export default function CopilotoIA() {
     if (error) toast({ title: "Copiloto IA", description: error, variant: "destructive" });
   }, [error]);
 
+  useEffect(() => {
+    if (analise.error) toast({ title: "Análise IA", description: analise.error, variant: "destructive" });
+  }, [analise.error]);
+
+  const handleAnalisar = async () => {
+    await analise.run(draft, messages);
+  };
+
+  const handleUsarSugestao = (texto: string) => {
+    if (!texto?.trim()) return;
+    updateDraft({ problema: texto });
+    toast({ title: "Problema atualizado", description: "Texto sugerido pela IA aplicado ao rascunho." });
+  };
+
+  const handleManterProblema = () => {
+    toast({ title: "Mantido", description: "Texto original do problema preservado." });
+  };
+
+  const handleEditarProblema = () => {
+    problemaRef.current?.focus();
+  };
+
   if (loading) return <div className="p-8 flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</div>;
   if (!allowed) return <PermissionDenied />;
 
