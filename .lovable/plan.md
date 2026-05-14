@@ -1,64 +1,54 @@
-## Diagnóstico do CSV recebido
+## Diagnóstico
 
-Arquivo: `02_Estrutura_Setores_IA.csv` — **290 linhas**, separador `;`, colunas: `ID_Estrutura; Empresa; Comitê; Área; Setor; Gestor`.
+**Estado atual (HAGG):**
+- Líderes de comitê hoje no banco:
+  - Administrativo → Helena Nascimento ❌ (deveria ser Fernanda)
+  - Operacional → Senilton Nascimento ✅
+  - Controladoria → Yuri Rosa ✅
+  - Reunião Extraordinária → Helena Nascimento ❌ (deveria ser Érica Souza Ávila)
+  - "Gestor" → o comitê foi descartado na importação (era guarda-chuva)
+- Profiles existentes: Yuri, Senilton, Helena, Érica Souza Ávila. **Fernanda não tem profile** — vai como nome livre via campo `descricao` do comitê.
+- Tela `Detalhe` (rota `/app/plano-acoes/nova` e `:id`) já tem Comitê e Área em lista suspensa (via `useComitesMap`), mas:
+  - **Não traz o gestor da área** ao selecionar a Área (campo Responsável fica em branco)
+  - **Não tem campo Setor**
+- Tela `CopilotoIA` (painel de rascunho) tem Comitê e Área como **Input de texto livre**, sem Setor e sem auto-preenchimento.
+- Tabela `plano_acao` **não possui coluna `setor`** — só `comite` e `area` (texto). Precisa nova coluna `setor` (text).
 
-### Hierarquia detectada
+## O que será feito
 
-- **Empresa:** apenas `Grupo Nascimento` (1 valor) — **não existe** nas `empresas` do banco. Empresa mais provável p/ vincular: **HAGG** (`5a61c769-…-bce8`), que é a única com dados ativos hoje. ⚠️ Confirmar.
-- **Comitês (5):** Administrativo (13 áreas), Operacional (9), Controladoria (4), Reunião Extraordinária (4), **Gestor (2)**.
-  - ⚠️ "Gestor" tem só 2 áreas (Presidência, Comitê Gestor) e parece ser erro de digitação ou rótulo solto. Sugestão: **descartar** o comitê "Gestor" (já existe "Comitê Gestor" como Área dentro de Administrativo). Confirmar.
-- **Áreas:** mesmo nome de área pode aparecer em comitês diferentes (ex.: "Controladoria" em Administrativo, Operacional e Controladoria) — serão **registros separados** por comitê (regra já validada).
-- **Setores totais:** ~265 únicos por (comitê,área).
+### 1. Banco (migração)
+- `ALTER TABLE plano_acao ADD COLUMN setor text` (idempotente).
+- Corrigir os líderes dos comitês HAGG:
+  - **Operacional** → vincular ao profile do **Senilton** (já está; mantém).
+  - **Controladoria** → **Yuri Rosa** (já está; mantém).
+  - **Administrativo** → desvincula profile e grava `descricao = 'Líder: Fernanda'` (Fernanda não tem profile).
+  - **Reunião Extraordinária** → vincula ao profile da **Érica Souza Ávila**.
+- (O comitê "Gestor – Helena Nascimento" não existe na empresa porque foi descartado na importação; não será recriado salvo se você pedir.)
 
-### Gestores
+### 2. Hook `useComitesMap`
+- Estender o retorno: cada comitê passa a expor `areas: Array<{ nome, gestor: string|null, setores: string[] }>` além de `lider` (já carrega `comite.descricao` como fallback quando não há profile).
+- Manter compatibilidade com chamadores atuais (campo `areas: string[]` continua disponível como derivação).
 
-Apenas 3 dos 13 nomes existem em `profiles` da HAGG:
+### 3. Tela Detalhe (`/app/plano-acoes/nova` e `:id`)
+- Ao selecionar **Área** → preencher automaticamente `Responsável` com o gestor cadastrado da área (sobrescreve apenas se estiver vazio ou se a área mudou).
+- Adicionar campo **Setor** (Select) abaixo de Área, populado com setores cadastrados daquela área. Seleção manual; salva em `plano_acao.setor`.
+- Líder do Comitê continua automático (já existe).
 
-| Nome no CSV | Existe em profiles? |
-|---|---|
-| Helena Nascimento | ✅ vincula |
-| Yuri (Rosa) | ✅ vincula |
-| Senilton (Nascimento) | ✅ vincula |
-| Alessandra, Caroline, Natália, Milena, Fernanda, Francieli, Daison, Cleidir, Lucas | ❌ não existem |
+### 4. Tela Copiloto IA (painel de rascunho à direita)
+- Trocar Inputs de **Comitê** e **Área** por **Selects** alimentados pelo `useComitesMap` (mesmas regras: área depende do comitê).
+- Adicionar **Setor** (Select dependente da Área).
+- Auto-preencher **Responsável** com o gestor da área ao selecionar a Área.
+- Estender `Draft` (em `useCopilotoChat`) e a edge `copiloto-acoes-criar` para aceitar e persistir `setor`.
 
-Para os 10 nomes sem perfil, **não há onde gravar o nome** (a coluna `gestor_profile_id` é uuid). Proposta: deixar `gestor_profile_id` NULL e gravar o nome em `descricao` do comitê/área no formato `Gestor: <nome>` para não perder a informação. Quando o perfil for criado, vinculamos depois.
+### 5. Tipos
+- Adicionar `setor: string | null` em `PlanoAcaoRow` (`src/hooks/usePlanoAcoes.ts`) e em `Draft` do copiloto.
 
----
+## Impacto
 
-## O que será executado (em UMA migration de dados)
+- **Banco:** 1 coluna nova (`plano_acao.setor`, nullable, sem default) + 3 updates de líderes em `comite`. Sem perda de dados; código antigo continua funcionando (coluna nullable).
+- **Frontend:** mudanças isoladas em `Detalhe.tsx`, `CopilotoIA.tsx`, `useComitesMap.ts`, `useCopilotoChat.ts`, `usePlanoAcoes.ts`.
+- **Edge function:** `copiloto-acoes-criar` passa a aceitar `setor` no draft (campo opcional; chamadas antigas seguem válidas).
+- **Lista/Kanban/Dashboard:** sem mudança nesta entrega (não foi pedido). A coluna `setor` aparece no detalhe e fica disponível para futuros filtros.
+- **Risco:** baixo. Se alguma área não tiver setores cadastrados, o Select de Setor exibe "Sem setores cadastrados" e o usuário pode salvar em branco.
 
-1. **Resolver `empresa_id`** = HAGG (`5a61c769-21d8-4e61-b9bb-506b8db0bce8`).
-2. **Descartar** linhas do comitê literal `"Gestor"` (5 linhas) — confirmar.
-3. **Inserir 4 comitês** (Administrativo, Operacional, Controladoria, Reunião Extraordinária) com `ativo=true`. Vínculo de gestor:
-   - Administrativo → Helena Nascimento
-   - Operacional → Senilton
-   - Controladoria → Yuri
-   - Reunião Extraordinária → Helena Nascimento
-   - (inferido a partir de quem aparece como gestor da área "Diretoria/Presidência" em cada comitê)
-4. **Inserir áreas** (uma por par único comitê+área, ~30 linhas), vinculando `gestor_profile_id` quando o nome bate com `profiles`. Para os demais, gravar `descricao = 'Gestor: <Nome>'`.
-5. **Inserir setores** (~265 linhas), com `area_id` correspondente e `gestor_profile_id` herdando do gestor da área (mesma regra: vincula se existir profile, senão grava em `descricao`).
-6. **Idempotência:** antes de inserir cada nível, verifica se já existe (`empresa_id` + `nome` + escopo pai). Não duplica.
-
-### O que **não** será feito
-
-- ❌ Não criar `profiles` para os 10 nomes faltantes (precisa email + senha — fora do escopo).
-- ❌ Não tocar em `centro_custo_id` (não veio no CSV).
-- ❌ Não modificar `plano_acao` antigo — segue com texto livre original; novos cadastros usarão o oficial.
-- ❌ Não alterar schema, só dados.
-
-### Resultado esperado na tela `/app/co/estrutura-organizacional`
-
-- Coluna 1: 4 comitês cadastrados.
-- Coluna 2: ao clicar Administrativo → 13 áreas; Operacional → 9; Controladoria → 4; Reunião Extraordinária → 4.
-- Coluna 3: ao clicar uma área → seus setores.
-- Gestores: 3 vinculados como pessoa, demais visíveis em "descrição" como texto.
-
----
-
-## Perguntas para aprovar
-
-1. **Empresa = HAGG**, ok?
-2. **Descartar o comitê "Gestor"** (5 linhas órfãs), ok?
-3. **Gestores sem perfil**: gravar o nome em `descricao` (proposta) **ou** prefere que eu já crie os profiles com email placeholder (`nome@haggltda.com.br`, sem login) para vincular como pessoa?
-
-Aguardando seu OK para executar.
+Aguardando seu **OK** para executar a migração e aplicar as mudanças.
