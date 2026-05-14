@@ -308,7 +308,7 @@ export default function CopilotoIA() {
               </Card>
 
               <MembrosComiteCard comiteSelecionado={draft.comite || undefined} />
-              <AnaliseRiscoCard />
+              <AnaliseRiscoCard riscos={analise.data?.riscos} loading={analise.loading} />
             </div>
           </ScrollArea>
         </div>
