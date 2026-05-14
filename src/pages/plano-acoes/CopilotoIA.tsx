@@ -205,7 +205,7 @@ export default function CopilotoIA() {
                 onManter={handleManterProblema}
                 onEditarManual={handleEditarProblema}
               />
-              <GanttSimplificado />
+              <GanttSimplificado etapas={analise.data?.gantt_etapas} loading={analise.loading} />
             </div>
           </ScrollArea>
         </div>
