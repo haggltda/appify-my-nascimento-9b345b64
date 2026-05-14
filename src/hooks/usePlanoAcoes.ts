@@ -10,6 +10,7 @@ export interface PlanoAcaoRow {
   titulo: string | null;
   comite: string | null;
   area: string | null;
+  setor: string | null;
   prioridade_normalizada: string | null;
   prioridade_original: string | null;
   problema: string | null;
