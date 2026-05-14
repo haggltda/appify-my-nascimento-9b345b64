@@ -196,9 +196,15 @@ export default function CopilotoIA() {
         <div className="lg:col-span-5 xl:col-span-5 flex flex-col min-h-0">
           <ScrollArea className="flex-1 lg:max-h-[calc(100vh-12rem)]">
             <div className="space-y-4 pr-2">
-              <ContextoCard />
-              <SugestoesCard />
-              <QualificacaoProblemaCard />
+              <ContextoCard contexto={analise.data?.contexto} loading={analise.loading} />
+              <SugestoesCard sugestoes={analise.data?.sugestoes} loading={analise.loading} />
+              <QualificacaoProblemaCard
+                qualificacao={analise.data?.qualificacao_problema}
+                loading={analise.loading}
+                onUsarSugestao={handleUsarSugestao}
+                onManter={handleManterProblema}
+                onEditarManual={handleEditarProblema}
+              />
               <GanttSimplificado />
             </div>
           </ScrollArea>
