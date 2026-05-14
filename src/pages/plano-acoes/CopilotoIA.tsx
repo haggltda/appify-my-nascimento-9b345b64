@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useCopilotoChat, type Draft } from "@/hooks/useCopilotoChat";
+import { useComitesMap } from "@/hooks/useComitesMap";
 import { PRIORIDADE_LABEL, PRIORIDADES } from "@/types/planoAcao";
 import { cn } from "@/lib/utils";
 
