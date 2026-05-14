@@ -16,6 +16,8 @@ import { STATUS_LABELS, STATUS_ORDEM, STATUS_COR, PRIORIDADES, PRIORIDADE_LABEL 
 import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2 } from "lucide-react";
+import { useComitesMap } from "@/hooks/useComitesMap";
+import { useEffect as useEffectAuto, useMemo } from "react";
 
 export default function PlanoAcaoDetalhe() {
   const { id } = useParams<{ id: string }>();
