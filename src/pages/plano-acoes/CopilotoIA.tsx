@@ -205,7 +205,7 @@ export default function CopilotoIA() {
                 onManter={handleManterProblema}
                 onEditarManual={handleEditarProblema}
               />
-              <GanttSimplificado />
+              <GanttSimplificado etapas={analise.data?.gantt_etapas} loading={analise.loading} />
             </div>
           </ScrollArea>
         </div>
@@ -308,7 +308,7 @@ export default function CopilotoIA() {
               </Card>
 
               <MembrosComiteCard comiteSelecionado={draft.comite || undefined} />
-              <AnaliseRiscoCard />
+              <AnaliseRiscoCard riscos={analise.data?.riscos} loading={analise.loading} />
             </div>
           </ScrollArea>
         </div>

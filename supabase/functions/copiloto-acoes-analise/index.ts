@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 const SYSTEM_PROMPT = `Você é um analista sênior de gestão corporativa do ERP do Grupo Nascimento.
-Sua tarefa é analisar o RASCUNHO de uma ação (e o histórico curto de chat) e produzir três blocos:
+Sua tarefa é analisar o RASCUNHO de uma ação (e o histórico curto de chat) e produzir cinco blocos:
 
 1) "contexto": 4 a 8 bullets curtos com leitura estruturada (tema principal, objetivo, problema central, área impactada, comitê relacionado, prioridade sugerida, dependências, impacto esperado, pontos de atenção). Use português do Brasil, objetivo, sem floreio.
 
@@ -23,6 +23,16 @@ Sua tarefa é analisar o RASCUNHO de uma ação (e o histórico curto de chat) e
    - perguntas_recomendadas: 2 a 4 perguntas que o gestor deveria responder
 
 Se faltar contexto suficiente (sem título, ação e problema), retorne contexto/sugestoes vazios e clareza "Baixa" com perguntas pedindo o mínimo.
+
+4) "gantt_etapas": entre 3 e 8 etapas sugeridas para o cronograma da ação. Cada etapa: { etapa, inicio (YYYY-MM-DD), fim (YYYY-MM-DD), status: "sugerido" }.
+   - Use as etapas relevantes dentre: Diagnóstico, Validação, Planejamento, Execução, Testes, Treinamento, Implantação, Acompanhamento.
+   - Se o rascunho tiver "data_inicio_planejado" use-a como base; senão, use a data de hoje (assuma o dia atual). Distribua de forma realista até "data_fim_planejado" (se houver) ou em ~60 dias.
+   - NUNCA invente etapas inúteis; se faltar contexto, retorne lista vazia.
+
+5) "riscos": entre 0 e 6 riscos materiais. Cada risco: { risco (nome curto), severidade ("Alta"|"Média"|"Baixa"), justificativa (1 frase), recomendacao (1 frase prática) }.
+   - Tipos a considerar: Dados, Cronograma, Financeiro, Operacional, Integração, Governança, Compliance/LGPD.
+   - Se faltar contexto, retorne lista vazia.
+
 NUNCA invente dados de banco. NUNCA escreva nada além de chamar a tool "analise_acao".`;
 
 const tools = [
@@ -48,8 +58,36 @@ const tools = [
             required: ["clareza", "problema_original", "problema_sugerido", "pontos_ausentes", "perguntas_recomendadas"],
             additionalProperties: false,
           },
+          gantt_etapas: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                etapa: { type: "string" },
+                inicio: { type: "string" },
+                fim: { type: "string" },
+                status: { type: "string" },
+              },
+              required: ["etapa", "inicio", "fim", "status"],
+              additionalProperties: false,
+            },
+          },
+          riscos: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                risco: { type: "string" },
+                severidade: { type: "string", enum: ["Alta", "Média", "Baixa"] },
+                justificativa: { type: "string" },
+                recomendacao: { type: "string" },
+              },
+              required: ["risco", "severidade", "justificativa", "recomendacao"],
+              additionalProperties: false,
+            },
+          },
         },
-        required: ["contexto", "sugestoes", "qualificacao_problema"],
+        required: ["contexto", "sugestoes", "qualificacao_problema", "gantt_etapas", "riscos"],
         additionalProperties: false,
       },
     },
