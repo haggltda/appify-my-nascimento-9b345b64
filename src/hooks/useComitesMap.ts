@@ -25,13 +25,13 @@ export function useComitesMap() {
           .eq("empresa_id", empresaId!).eq("ativo", true).order("nome"),
         supabase.from("area").select("id, comite_id, nome, ativo")
           .eq("empresa_id", empresaId!).eq("ativo", true).order("nome"),
-        supabase.from("profiles").select("id, nome").limit(1000),
+        supabase.from("profiles").select("id, display_name").limit(1000),
       ]);
 
       const comites = (cRes.data ?? []) as { id: string; nome: string; gestor_profile_id: string | null }[];
       const areas = (aRes.data ?? []) as { id: string; comite_id: string; nome: string }[];
-      const profiles = (profRes.data ?? []) as { id: string; nome: string | null }[];
-      const profileNome = new Map(profiles.map(p => [p.id, p.nome ?? ""]));
+      const profiles = (profRes.data ?? []) as { id: string; display_name: string | null }[];
+      const profileNome = new Map(profiles.map(p => [p.id, p.display_name ?? ""]));
 
       const out: Record<string, ComiteInfo> = {};
       for (const c of comites) {
