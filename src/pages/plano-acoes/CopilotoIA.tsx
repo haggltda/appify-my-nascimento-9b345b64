@@ -24,6 +24,8 @@ import { QualificacaoProblemaCard } from "./copiloto/QualificacaoProblemaCard";
 import { GanttSimplificado } from "./copiloto/GanttSimplificado";
 import { MembrosComiteCard } from "./copiloto/MembrosComiteCard";
 import { AnaliseRiscoCard } from "./copiloto/AnaliseRiscoCard";
+import { AcoesSimilaresDialog } from "./copiloto/AcoesSimilaresDialog";
+import { useAcoesSimilares, type AcaoSimilar } from "@/hooks/useAcoesSimilares";
 
 function PermissionDenied() {
   return (
@@ -59,6 +61,9 @@ export default function CopilotoIA() {
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
   const problemaRef = useRef<HTMLTextAreaElement | null>(null);
+  const similares = useAcoesSimilares();
+  const [similaresOpen, setSimilaresOpen] = useState(false);
+  const [similaresList, setSimilaresList] = useState<AcaoSimilar[]>([]);
 
   const { data: comitesMap = {} } = useComitesMap();
   const comitesList = Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -142,15 +147,34 @@ export default function CopilotoIA() {
   const faltando = camposObrig.filter((c) => !(draft as any)[c]);
   const podeCriar = pronto && faltando.length === 0;
 
-  const handleCriar = async () => {
+  const executarCriacao = async () => {
     setCreating(true);
     const id = await criar();
     setCreating(false);
     if (id) {
       toast({ title: "Ação criada", description: "Plano de ação registrado com sucesso." });
+      setSimilaresOpen(false);
       reset();
       navigate(`/app/plano-acoes/${id}`);
     }
+  };
+
+  const handleCriar = async () => {
+    setCreating(true);
+    let encontrados: AcaoSimilar[] = [];
+    try {
+      encontrados = await similares.buscar(draft);
+    } catch (e: any) {
+      toast({ title: "Validação de duplicidade", description: e?.message ?? "Falha ao consultar ações similares.", variant: "destructive" });
+    }
+    setCreating(false);
+    const relevantes = encontrados.filter((s) => s.nivel !== "baixa");
+    if (relevantes.length === 0) {
+      await executarCriacao();
+      return;
+    }
+    setSimilaresList(encontrados);
+    setSimilaresOpen(true);
   };
 
   return (
@@ -313,6 +337,16 @@ export default function CopilotoIA() {
           </ScrollArea>
         </div>
       </div>
+
+      <AcoesSimilaresDialog
+        open={similaresOpen}
+        onOpenChange={setSimilaresOpen}
+        similares={similaresList}
+        draft={draft}
+        onAbrirExistente={(id) => { setSimilaresOpen(false); navigate(`/app/plano-acoes/${id}`); }}
+        onCriarComplementar={() => { void executarCriacao(); }}
+        onCriarMesmoAssim={() => { void executarCriacao(); }}
+      />
     </div>
   );
 }
