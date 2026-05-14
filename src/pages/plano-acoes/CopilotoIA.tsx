@@ -152,7 +152,7 @@ export default function CopilotoIA() {
 
       <div className="grid flex-1 grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
         {/* Coluna esquerda — Assistente */}
-        <div className="lg:col-span-4 xl:col-span-4 flex flex-col min-h-0">
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col min-h-0">
           <AssistantPanel
             messages={messages}
             text={text}
