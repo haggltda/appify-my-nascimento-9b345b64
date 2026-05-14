@@ -228,14 +228,35 @@ export default function PlanoAcaoDetalhe() {
                   <SelectTrigger><SelectValue placeholder={form.comite ? "Selecione a área" : "Escolha o comitê primeiro"} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">—</SelectItem>
-                    {areasDoComite.map((a: string) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                    {form.area && !areasDoComite.includes(form.area) && (
+                    {areasDoComite.map((a: any) => <SelectItem key={a.nome} value={a.nome}>{a.nome}</SelectItem>)}
+                    {form.area && !areasDoComite.some((a: any) => a.nome === form.area) && (
                       <SelectItem value={form.area}>{form.area}</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
               ) : (
                 <Input value={form.area ?? ""} disabled={!podeEdit} onChange={e => set("area", e.target.value)} placeholder={form.comite ? "Digite a área" : "Escolha o comitê primeiro"} />
+              )}
+            </div>
+            <div>
+              <Label>Setor</Label>
+              {setoresDaArea.length > 0 ? (
+                <Select
+                  value={form.setor || "__none"}
+                  disabled={!podeEdit || !form.area}
+                  onValueChange={v => set("setor", v === "__none" ? "" : v)}
+                >
+                  <SelectTrigger><SelectValue placeholder={form.area ? "Selecione o setor" : "Escolha a área primeiro"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">—</SelectItem>
+                    {setoresDaArea.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    {form.setor && !setoresDaArea.includes(form.setor) && (
+                      <SelectItem value={form.setor}>{form.setor}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input value={form.setor ?? ""} disabled={!podeEdit || !form.area} onChange={e => set("setor", e.target.value)} placeholder={form.area ? "Sem setores cadastrados" : "Escolha a área primeiro"} />
               )}
             </div>
             <div>
