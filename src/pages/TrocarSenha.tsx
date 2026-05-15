@@ -52,7 +52,16 @@ export default function TrocarSenha() {
     setSaving(true);
     try {
       const { error: updErr } = await supabase.auth.updateUser({ password: pwd });
-      if (updErr) throw updErr;
+      if (updErr) {
+        const msg = (updErr.message || "").toLowerCase();
+        if (msg.includes("session") && (msg.includes("missing") || msg.includes("not found") || msg.includes("expired"))) {
+          setSessionInvalid(true);
+          await supabase.auth.signOut().catch(() => {});
+          navigate("/login", { replace: true, state: { reason: "session_expired" } });
+          return;
+        }
+        throw updErr;
+      }
       const { error: pErr } = await supabase
         .from("profiles")
         .update({ must_change_password: false })
