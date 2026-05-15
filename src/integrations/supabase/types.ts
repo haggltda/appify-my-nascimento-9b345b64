@@ -15399,6 +15399,10 @@ export type Database = {
       }
     }
     Functions: {
+      _conta_contabil_de_banco: {
+        Args: { p_conta_bancaria_id: string }
+        Returns: string
+      }
       admin_exec_dml: { Args: { p_sql: string }; Returns: undefined }
       admin_list_active_sessions: {
         Args: never
@@ -15477,6 +15481,10 @@ export type Database = {
       }
       contabilizar_baixa_receber: {
         Args: { _baixa_id: string }
+        Returns: string
+      }
+      contabilizar_nf_entrada: {
+        Args: { p_codigo_evento: string; p_nf_id: string }
         Returns: string
       }
       contabilizar_nota_fiscal: { Args: { _nota_id: string }; Returns: string }
