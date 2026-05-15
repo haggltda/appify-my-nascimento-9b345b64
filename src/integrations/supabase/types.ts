@@ -4086,6 +4086,135 @@ export type Database = {
           },
         ]
       }
+      folha_evento: {
+        Row: {
+          centro_custo_id: string | null
+          colaborador_id: string | null
+          created_at: string
+          descricao: string | null
+          empresa_id: string
+          folha_periodo_id: string
+          id: string
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          centro_custo_id?: string | null
+          colaborador_id?: string | null
+          created_at?: string
+          descricao?: string | null
+          empresa_id: string
+          folha_periodo_id: string
+          id?: string
+          tipo: string
+          valor?: number
+        }
+        Update: {
+          centro_custo_id?: string | null
+          colaborador_id?: string | null
+          created_at?: string
+          descricao?: string | null
+          empresa_id?: string
+          folha_periodo_id?: string
+          id?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folha_evento_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_evento_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "colaborador"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_evento_folha_periodo_id_fkey"
+            columns: ["folha_periodo_id"]
+            isOneToOne: false
+            referencedRelation: "folha_periodo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folha_periodo: {
+        Row: {
+          competencia: string
+          conta_banco_id: string | null
+          created_at: string
+          data_encargos: string | null
+          data_pagamento: string | null
+          data_provisao: string | null
+          empresa_id: string
+          id: string
+          observacoes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          competencia: string
+          conta_banco_id?: string | null
+          created_at?: string
+          data_encargos?: string | null
+          data_pagamento?: string | null
+          data_provisao?: string | null
+          empresa_id: string
+          id?: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          competencia?: string
+          conta_banco_id?: string | null
+          created_at?: string
+          data_encargos?: string | null
+          data_pagamento?: string | null
+          data_provisao?: string | null
+          empresa_id?: string
+          id?: string
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folha_periodo_conta_banco_id_fkey"
+            columns: ["conta_banco_id"]
+            isOneToOne: false
+            referencedRelation: "conta_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_periodo_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folha_periodo_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "folha_periodo_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       fornecedor: {
         Row: {
           ativo: boolean
@@ -5588,6 +5717,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lancamento_contabil"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamento_partida_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_conciliacao_eventos"
+            referencedColumns: ["lancamento_id"]
           },
         ]
       }
@@ -15349,6 +15485,22 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_conciliacao_eventos: {
+        Row: {
+          contabilizado: boolean | null
+          data: string | null
+          doc: string | null
+          empresa_id: string | null
+          lancamento_id: string | null
+          lancamento_numero: string | null
+          lancamento_status: string | null
+          origem_id: string | null
+          origem_tipo: string | null
+          status_origem: string | null
+          valor: number | null
+        }
+        Relationships: []
+      }
       vw_dre_contrato: {
         Row: {
           ciclo_id: string | null
@@ -15483,6 +15635,10 @@ export type Database = {
         Args: { _baixa_id: string }
         Returns: string
       }
+      contabilizar_folha: {
+        Args: { _evento: string; _periodo_id: string }
+        Returns: string
+      }
       contabilizar_nf_entrada: {
         Args: { p_codigo_evento: string; p_nf_id: string }
         Returns: string
@@ -15497,6 +15653,20 @@ export type Database = {
           _vencedor_fornecedor_id: string
         }
         Returns: Json
+      }
+      dre_gerencial_competencia: {
+        Args: { _ano: number; _empresa_id: string; _versao_obz?: string }
+        Returns: {
+          codigo: string
+          descricao: string
+          dre_linha_id: string
+          mes: number
+          natureza: string
+          orcado: number
+          ordem: number
+          realizado: number
+          variacao: number
+        }[]
       }
       dre_gerencial_mensal: {
         Args: { _ano: number; _empresa_id: string; _versao_obz?: string }
