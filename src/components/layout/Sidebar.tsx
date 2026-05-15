@@ -314,7 +314,13 @@ const erpModules: ModuleDef[] = [
   biModule,
 ];
 
-export function Sidebar({ collapsed }: { collapsed: boolean }) {
+interface SidebarProps {
+  collapsed: boolean;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: SidebarProps) {
   const location = useLocation();
   const { roles } = usePermissoes();
   const { perms, isAdmin } = usePlanoAcaoPermissao();
@@ -331,11 +337,27 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   )?.id ?? "licitacoes";
   const [expandedModule, setExpandedModule] = useState<string | null>(activeModuleId);
 
+  // No mobile a sidebar nunca aparece colapsada (sempre full); colapso é só desktop.
+  const desktopCollapsed = collapsed;
+
+  // Fecha drawer mobile ao clicar em um link de navegação
+  const handleNavClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (!onMobileClose) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("a")) onMobileClose();
+  };
+
   return (
     <aside
+      onClick={handleNavClick}
       className={cn(
-        "sticky top-0 z-30 flex h-screen flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300",
-        collapsed ? "w-[72px]" : "w-[268px]",
+        // Mobile: drawer fixo off-canvas
+        "fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-300 ease-out",
+        "w-[268px]",
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+        // Desktop: sticky, sem transform, larguras originais
+        "lg:sticky lg:top-0 lg:z-30 lg:translate-x-0 lg:shadow-none lg:transition-all",
+        desktopCollapsed ? "lg:w-[72px]" : "lg:w-[268px]",
       )}
     >
       {/* Brand */}

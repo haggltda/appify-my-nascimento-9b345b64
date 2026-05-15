@@ -30,7 +30,7 @@ type Sessao = {
   ativa: boolean;
 };
 
-export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
+export function Topbar({ onToggleSidebar, onOpenMobile }: { onToggleSidebar: () => void; onOpenMobile?: () => void }) {
   const { empresa, empresas, setEmpresa } = useEmpresaAtiva();
   const [openSelector, setOpenSelector] = useState(false);
   const [openNotif, setOpenNotif] = useState(false);
@@ -116,28 +116,36 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const fecharTodos = () => { setOpenSelector(false); setOpenNotif(false); setOpenHelp(false); setOpenSettings(false); setOpenProfile(false); };
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border/70 bg-surface/80 px-4 backdrop-blur-md lg:px-6">
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-border/70 bg-surface/80 px-3 backdrop-blur-md sm:gap-4 sm:px-4 lg:px-6">
+      {/* Hambúrguer: abre drawer no mobile, alterna colapso no desktop */}
       <button
-        onClick={onToggleSidebar}
-        className="grid h-9 w-9 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+        onClick={() => {
+          if (typeof window !== "undefined" && window.innerWidth < 1024 && onOpenMobile) {
+            onOpenMobile();
+          } else {
+            onToggleSidebar();
+          }
+        }}
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
         aria-label="Alternar menu"
       >
         <PanelLeft className="h-4 w-4" />
       </button>
 
       {/* Empresa selector */}
-      <div className="relative">
+      <div className="relative min-w-0">
         <button
           onClick={() => { fecharTodos(); setOpenSelector((o) => !o); }}
-          className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-1.5 text-left shadow-sm transition-colors hover:border-border-strong"
+          className="flex max-w-[60vw] items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5 text-left shadow-sm transition-colors hover:border-border-strong sm:max-w-none sm:gap-2.5 sm:px-3"
         >
-          <div className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
+          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
             <Building2 className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Empresa ativa</p>
+            <p className="hidden text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:block">Empresa ativa</p>
             <p className="truncate text-xs font-semibold text-foreground">
-              {empresa.sigla} · <span className="font-mono">{empresa.cnpj}</span>
+              {empresa.sigla}
+              <span className="hidden sm:inline"> · <span className="font-mono">{empresa.cnpj}</span></span>
             </p>
           </div>
           <span className="hidden rounded-md bg-primary-soft px-1.5 py-0.5 text-[10px] font-semibold text-primary md:inline-block">
@@ -149,7 +157,7 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
               Validar
             </span>
           )}
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          <ChevronDown className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground sm:block" />
         </button>
 
         {openSelector && (
