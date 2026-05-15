@@ -303,7 +303,7 @@ export default function CapitalGiro() {
       </div>
 
       <Card className="overflow-auto">
-        <table className="w-full text-xs">
+        <table className="w-full min-w-[800px] text-xs">
           <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2 text-left">Data</th>
