@@ -193,9 +193,12 @@ const App = () => (
             <Route path="contabil/aprovacao-contas" element={<AprovacaoContas />} />
             <Route path="contabil/balancete" element={<Balancete />} />
             <Route path="contabil/razao" element={<Razao />} />
+            <Route path="contabil/dre-gerencial-real" element={<DREGerencialReal />} />
+            <Route path="contabil/conciliacao-eventos" element={<ConciliacaoEventos />} />
             {/* RH */}
             <Route path="rh/colaboradores" element={<Colaboradores />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
+            <Route path="rh/folha" element={<Folha />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}
