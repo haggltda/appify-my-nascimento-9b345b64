@@ -199,7 +199,7 @@ export default function CapitalGiro() {
         title="Análise de Capital de Giro"
         subtitle="Projeção de necessidade de caixa, compromissos futuros e impacto operacional / não operacional."
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => { realQ.refetch(); orcQ.refetch(); }}>
               <RefreshCw className="mr-2 h-4 w-4" /> Atualizar análise
             </Button>
@@ -210,10 +210,10 @@ export default function CapitalGiro() {
       />
 
       <Card className="flex flex-wrap items-end gap-3 p-4">
-        <div>
+        <div className="w-full sm:w-auto">
           <Label>Empresa</Label>
           <Select value={empresaId} onValueChange={setEmpresaId}>
-            <SelectTrigger className="w-[260px]"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[260px]"><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Consolidado — Todas as empresas</SelectItem>
               {(empresasQ.data ?? []).map((e) => (
@@ -222,7 +222,7 @@ export default function CapitalGiro() {
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <Label>Horizonte</Label>
           <div className="flex gap-1 flex-wrap">
             {(["15", "30", "45", "90", "180"] as Hor[]).map((h) => (
@@ -232,16 +232,16 @@ export default function CapitalGiro() {
             ))}
           </div>
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <Label>Saldo Mínimo</Label>
-          <Input type="number" value={saldoMinimo} onChange={(e) => setSaldoMinimo(Number(e.target.value) || 0)} className="w-44" />
+          <Input type="number" value={saldoMinimo} onChange={(e) => setSaldoMinimo(Number(e.target.value) || 0)} className="w-full sm:w-44" />
         </div>
-        <div className="ml-auto text-xs text-muted-foreground">
+        <div className="w-full text-xs text-muted-foreground sm:ml-auto sm:w-auto">
           {dias.length} dias · {temPrevisto ? "previsto (mz_41)" : "realizado (mz_40)"}
         </div>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-6">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <Kpi icon={<Wallet className="h-4 w-4" />} titulo="Saldo Inicial" valor={saldoInicialBase} cor="text-primary" />
         <Kpi icon={<TrendingUp className="h-4 w-4" />} titulo={labelEntradas} valor={totalEntradas} cor="text-emerald-600" />
         <Kpi icon={<TrendingDown className="h-4 w-4" />} titulo="Saídas Operacionais" valor={totalSOp} cor="text-rose-600" />
@@ -253,20 +253,22 @@ export default function CapitalGiro() {
       <div className="grid gap-3 lg:grid-cols-3">
         <Card className="p-4 lg:col-span-2">
           <h3 className="font-semibold mb-2">Projeção de Caixa e Necessidade de Capital de Giro</h3>
-          <ResponsiveContainer width="100%" height={360}>
-            <ComposedChart data={projecao} barCategoryGap="18%" barGap={2}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="label" fontSize={11} />
-              <YAxis fontSize={11} tickFormatter={(v) => v.toLocaleString("pt-BR", { notation: "compact" })} />
-              <Tooltip formatter={(v: number) => fmtBRL(v)} />
-              <Legend />
-              <ReferenceLine y={saldoMinimo} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: "Saldo mínimo", fontSize: 10, fill: "hsl(var(--destructive))" }} />
-              <Bar dataKey="entradas" name={labelEntradas} fill="hsl(142 71% 45%)" maxBarSize={28} />
-              <Bar dataKey="saidasOp" name="Saídas operacionais" fill="hsl(0 84% 60%)" maxBarSize={28} />
-              <Bar dataKey="saidasNaoOp" name="Saídas não operacionais" fill="hsl(38 92% 50%)" maxBarSize={28} />
-              <Line type="monotone" dataKey="saldoFinal" name="Saldo projetado" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <div className="chart-h">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={projecao} barCategoryGap="18%" barGap={2}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="label" fontSize={11} />
+                <YAxis fontSize={11} tickFormatter={(v) => v.toLocaleString("pt-BR", { notation: "compact" })} />
+                <Tooltip formatter={(v: number) => fmtBRL(v)} />
+                <Legend />
+                <ReferenceLine y={saldoMinimo} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: "Saldo mínimo", fontSize: 10, fill: "hsl(var(--destructive))" }} />
+                <Bar dataKey="entradas" name={labelEntradas} fill="hsl(142 71% 45%)" maxBarSize={28} />
+                <Bar dataKey="saidasOp" name="Saídas operacionais" fill="hsl(0 84% 60%)" maxBarSize={28} />
+                <Bar dataKey="saidasNaoOp" name="Saídas não operacionais" fill="hsl(38 92% 50%)" maxBarSize={28} />
+                <Line type="monotone" dataKey="saldoFinal" name="Saldo projetado" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
         </Card>
 
         <Card className="p-4">
@@ -301,7 +303,7 @@ export default function CapitalGiro() {
       </div>
 
       <Card className="overflow-auto">
-        <table className="w-full text-xs">
+        <table className="w-full min-w-[800px] text-xs">
           <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-3 py-2 text-left">Data</th>
