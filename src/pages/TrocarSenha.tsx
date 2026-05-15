@@ -7,7 +7,7 @@ import { useMustChangePassword } from "@/hooks/useMustChangePassword";
 
 export default function TrocarSenha() {
   const { user, loading: authLoading } = useAuth();
-  const { mustChange, loading: mcLoading, refetch } = useMustChangePassword();
+  const { mustChange, loading: mcLoading, refetch } = useMustChangePassword(user?.id);
   const [pwd, setPwd] = useState("");
   const [pwd2, setPwd2] = useState("");
   const [showPwd, setShowPwd] = useState(false);
