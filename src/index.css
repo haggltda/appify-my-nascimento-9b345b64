@@ -214,3 +214,18 @@
   .scroll-elegant::-webkit-scrollbar-thumb { @apply bg-border-strong rounded-full; }
   .scroll-elegant::-webkit-scrollbar-track { background: transparent; }
 }
+
+@layer utilities {
+  /* Wrapper para tabelas densas em mobile (scroll horizontal limpo) */
+  .table-scroll { @apply -mx-4 sm:mx-0 overflow-x-auto; }
+  /* Grid padrão para formulários */
+  .grid-form { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4; }
+  /* Padding responsivo para Cards densos */
+  .card-pad { @apply p-4 sm:p-6; }
+  /* Altura adaptativa para containers de gráficos */
+  .chart-h { @apply h-[260px] sm:h-[320px] lg:h-[380px]; }
+}
+
+@layer base {
+  img, svg, video, canvas { max-width: 100%; height: auto; }
+}
