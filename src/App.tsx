@@ -80,6 +80,9 @@ import PlanoContas from "./pages/contabil/PlanoContas";
 import AprovacaoContas from "./pages/contabil/AprovacaoContas";
 import Balancete from "./pages/contabil/Balancete";
 import Razao from "./pages/contabil/Razao";
+import DREGerencialReal from "./pages/contabil/DREGerencialReal";
+import ConciliacaoEventos from "./pages/contabil/ConciliacaoEventos";
+import Folha from "./pages/rh/Folha";
 import Contabilidade from "./pages/Contabilidade";
 import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
@@ -190,9 +193,12 @@ const App = () => (
             <Route path="contabil/aprovacao-contas" element={<AprovacaoContas />} />
             <Route path="contabil/balancete" element={<Balancete />} />
             <Route path="contabil/razao" element={<Razao />} />
+            <Route path="contabil/dre-gerencial-real" element={<DREGerencialReal />} />
+            <Route path="contabil/conciliacao-eventos" element={<ConciliacaoEventos />} />
             {/* RH */}
             <Route path="rh/colaboradores" element={<Colaboradores />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
+            <Route path="rh/folha" element={<Folha />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}

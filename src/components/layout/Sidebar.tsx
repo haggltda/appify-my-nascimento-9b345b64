@@ -233,6 +233,8 @@ const contabilModule: ModuleDef = {
       { label: "Plano de Contas", to: "/app/contabil/plano-contas", icon: BookOpen },
       { label: "Contabilidade Avançada", to: "/app/contabil/avancada", icon: BookOpen },
       { label: "Aprovação de Contas", to: "/app/contabil/aprovacao-contas", icon: ClipboardCheck },
+      { label: "DRE Gerencial (real)", to: "/app/contabil/dre-gerencial-real", icon: BookOpen },
+      { label: "Conciliação Eventos", to: "/app/contabil/conciliacao-eventos", icon: ClipboardCheck },
     ],
   }],
 };
@@ -258,6 +260,7 @@ const rhModule: ModuleDef = {
     items: [
       { label: "Colaboradores", to: "/app/rh/colaboradores", icon: Users2 },
       { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
+      { label: "Folha de Pagamento", to: "/app/rh/folha", icon: ListChecks },
     ],
   }],
 };
