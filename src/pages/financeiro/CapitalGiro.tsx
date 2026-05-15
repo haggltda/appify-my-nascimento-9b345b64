@@ -253,20 +253,22 @@ export default function CapitalGiro() {
       <div className="grid gap-3 lg:grid-cols-3">
         <Card className="p-4 lg:col-span-2">
           <h3 className="font-semibold mb-2">Projeção de Caixa e Necessidade de Capital de Giro</h3>
-          <ResponsiveContainer width="100%" height={360}>
-            <ComposedChart data={projecao} barCategoryGap="18%" barGap={2}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-              <XAxis dataKey="label" fontSize={11} />
-              <YAxis fontSize={11} tickFormatter={(v) => v.toLocaleString("pt-BR", { notation: "compact" })} />
-              <Tooltip formatter={(v: number) => fmtBRL(v)} />
-              <Legend />
-              <ReferenceLine y={saldoMinimo} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: "Saldo mínimo", fontSize: 10, fill: "hsl(var(--destructive))" }} />
-              <Bar dataKey="entradas" name={labelEntradas} fill="hsl(142 71% 45%)" maxBarSize={28} />
-              <Bar dataKey="saidasOp" name="Saídas operacionais" fill="hsl(0 84% 60%)" maxBarSize={28} />
-              <Bar dataKey="saidasNaoOp" name="Saídas não operacionais" fill="hsl(38 92% 50%)" maxBarSize={28} />
-              <Line type="monotone" dataKey="saldoFinal" name="Saldo projetado" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <div className="chart-h">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={projecao} barCategoryGap="18%" barGap={2}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="label" fontSize={11} />
+                <YAxis fontSize={11} tickFormatter={(v) => v.toLocaleString("pt-BR", { notation: "compact" })} />
+                <Tooltip formatter={(v: number) => fmtBRL(v)} />
+                <Legend />
+                <ReferenceLine y={saldoMinimo} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: "Saldo mínimo", fontSize: 10, fill: "hsl(var(--destructive))" }} />
+                <Bar dataKey="entradas" name={labelEntradas} fill="hsl(142 71% 45%)" maxBarSize={28} />
+                <Bar dataKey="saidasOp" name="Saídas operacionais" fill="hsl(0 84% 60%)" maxBarSize={28} />
+                <Bar dataKey="saidasNaoOp" name="Saídas não operacionais" fill="hsl(38 92% 50%)" maxBarSize={28} />
+                <Line type="monotone" dataKey="saldoFinal" name="Saldo projetado" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
         </Card>
 
         <Card className="p-4">
