@@ -210,10 +210,10 @@ export default function CapitalGiro() {
       />
 
       <Card className="flex flex-wrap items-end gap-3 p-4">
-        <div>
+        <div className="w-full sm:w-auto">
           <Label>Empresa</Label>
           <Select value={empresaId} onValueChange={setEmpresaId}>
-            <SelectTrigger className="w-[260px]"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[260px]"><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>Consolidado — Todas as empresas</SelectItem>
               {(empresasQ.data ?? []).map((e) => (
@@ -222,7 +222,7 @@ export default function CapitalGiro() {
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <Label>Horizonte</Label>
           <div className="flex gap-1 flex-wrap">
             {(["15", "30", "45", "90", "180"] as Hor[]).map((h) => (
@@ -232,16 +232,16 @@ export default function CapitalGiro() {
             ))}
           </div>
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <Label>Saldo Mínimo</Label>
-          <Input type="number" value={saldoMinimo} onChange={(e) => setSaldoMinimo(Number(e.target.value) || 0)} className="w-44" />
+          <Input type="number" value={saldoMinimo} onChange={(e) => setSaldoMinimo(Number(e.target.value) || 0)} className="w-full sm:w-44" />
         </div>
-        <div className="ml-auto text-xs text-muted-foreground">
+        <div className="w-full text-xs text-muted-foreground sm:ml-auto sm:w-auto">
           {dias.length} dias · {temPrevisto ? "previsto (mz_41)" : "realizado (mz_40)"}
         </div>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-6">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <Kpi icon={<Wallet className="h-4 w-4" />} titulo="Saldo Inicial" valor={saldoInicialBase} cor="text-primary" />
         <Kpi icon={<TrendingUp className="h-4 w-4" />} titulo={labelEntradas} valor={totalEntradas} cor="text-emerald-600" />
         <Kpi icon={<TrendingDown className="h-4 w-4" />} titulo="Saídas Operacionais" valor={totalSOp} cor="text-rose-600" />
