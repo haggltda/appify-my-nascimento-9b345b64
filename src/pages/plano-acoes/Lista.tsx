@@ -97,9 +97,9 @@ export default function PlanoAcoesLista() {
             </SelectContent>
           </Select>
         </div>
-        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>{filtered.length} de {rows.length} ações</span>
-          <span className="flex items-center gap-3">
+          <span className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-destructive" /> {rows.filter(r => r.status_normalizado === "atrasada").length} atrasadas</span>
             <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-amber-600" /> {rows.filter(r => r.pendencia_evidencia).length} aguardam evidência</span>
             <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-600" /> {rows.filter(r => r.status_normalizado === "concluida_validada").length} validadas</span>
@@ -109,7 +109,7 @@ export default function PlanoAcoesLista() {
 
       <Card className="overflow-hidden">
         <div className="max-h-[calc(100vh-360px)] overflow-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="sticky top-0 z-10 bg-muted/50 backdrop-blur">
               <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <th className="p-2 px-3">ID</th>
