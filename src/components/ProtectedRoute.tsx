@@ -6,10 +6,10 @@ import { useMustChangePassword } from "@/hooks/useMustChangePassword";
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const { isDemo } = useDemoMode();
-  const { mustChange, loading: mcLoading } = useMustChangePassword();
+  const { mustChange, loading: mcLoading } = useMustChangePassword(user?.id);
   const location = useLocation();
 
-  if (loading) {
+  if (loading || (user && !isDemo && mcLoading)) {
     return (
       <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">
         Carregando sessão…
