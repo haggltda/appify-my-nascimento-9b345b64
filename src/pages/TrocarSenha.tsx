@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Lock, AlertCircle, ShieldCheck, Eye, EyeOff, KeyRound } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,13 @@ export default function TrocarSenha() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const bloqueandoTroca = authLoading || mcLoading || (!!user && mustChange);
+
+  useEffect(() => {
+    if (bloqueandoTroca) {
+      window.history.replaceState(null, "", "/trocar-senha");
+    }
+  }, [bloqueandoTroca]);
 
   if (!authLoading && !user) return <Navigate to="/login" replace />;
   // Se não precisa trocar, manda pro app
