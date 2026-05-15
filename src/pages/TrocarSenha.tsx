@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Lock, AlertCircle, ShieldCheck, Eye, EyeOff, KeyRound } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,14 +6,37 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMustChangePassword } from "@/hooks/useMustChangePassword";
 
 export default function TrocarSenha() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const { mustChange, loading: mcLoading, refetch } = useMustChangePassword(user?.id);
   const [pwd, setPwd] = useState("");
   const [pwd2, setPwd2] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionInvalid, setSessionInvalid] = useState(false);
   const navigate = useNavigate();
+
+  // Valida a sessão contra o servidor: token em cache pode estar órfão
+  // (session_not_found) após reset feito pelo admin.
+  useEffect(() => {
+    if (authLoading || !user) return;
+    let cancelled = false;
+    (async () => {
+      const { error } = await supabase.auth.getUser();
+      if (cancelled) return;
+      if (error) {
+        setSessionInvalid(true);
+        await supabase.auth.signOut().catch(() => {});
+        navigate("/login", { replace: true, state: { reason: "session_expired" } });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [authLoading, user, navigate]);
+
+  const handleRelogin = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   if (!authLoading && !user) return <Navigate to="/login" replace />;
   // Se não precisa trocar, manda pro app
@@ -29,7 +52,16 @@ export default function TrocarSenha() {
     setSaving(true);
     try {
       const { error: updErr } = await supabase.auth.updateUser({ password: pwd });
-      if (updErr) throw updErr;
+      if (updErr) {
+        const msg = (updErr.message || "").toLowerCase();
+        if (msg.includes("session") && (msg.includes("missing") || msg.includes("not found") || msg.includes("expired"))) {
+          setSessionInvalid(true);
+          await supabase.auth.signOut().catch(() => {});
+          navigate("/login", { replace: true, state: { reason: "session_expired" } });
+          return;
+        }
+        throw updErr;
+      }
       const { error: pErr } = await supabase
         .from("profiles")
         .update({ must_change_password: false })
