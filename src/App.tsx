@@ -78,6 +78,8 @@ import ValidacaoPosPagamento from "./pages/financeiro/ValidacaoPosPagamento";
 import Lancamentos from "./pages/contabil/Lancamentos";
 import PlanoContas from "./pages/contabil/PlanoContas";
 import AprovacaoContas from "./pages/contabil/AprovacaoContas";
+import Balancete from "./pages/contabil/Balancete";
+import Razao from "./pages/contabil/Razao";
 import Contabilidade from "./pages/Contabilidade";
 import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
