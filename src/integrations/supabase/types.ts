@@ -15535,6 +15535,10 @@ export type Database = {
         }
         Returns: Json
       }
+      estornar_lancamento_contabil: {
+        Args: { p_lancamento_id: string; p_motivo?: string }
+        Returns: string
+      }
       extrato_importar: {
         Args: {
           _conta_bancaria_id: string
@@ -15594,6 +15598,22 @@ export type Database = {
           _empresa_id: string
           _origem: Database["public"]["Enums"]["cc_origem"]
           _tipo: Database["public"]["Enums"]["cc_tipo"]
+        }
+        Returns: string
+      }
+      gerar_lancamento_contabil: {
+        Args: {
+          p_centro_custo_id?: string
+          p_codigo_evento: string
+          p_conta_banco_id?: string
+          p_conta_credito_id?: string
+          p_conta_debito_id?: string
+          p_data: string
+          p_empresa_id: string
+          p_historico: string
+          p_origem_id?: string
+          p_origem_tipo?: string
+          p_valor: number
         }
         Returns: string
       }
