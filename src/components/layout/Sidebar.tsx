@@ -260,6 +260,7 @@ const rhModule: ModuleDef = {
     items: [
       { label: "Colaboradores", to: "/app/rh/colaboradores", icon: Users2 },
       { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
+      { label: "Folha de Pagamento", to: "/app/rh/folha", icon: ListChecks },
     ],
   }],
 };
