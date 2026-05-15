@@ -15794,6 +15794,24 @@ export type Database = {
         Args: { _empresa_id: string }
         Returns: string
       }
+      razao_contabil: {
+        Args: {
+          _conta_id: string
+          _data_fim: string
+          _data_ini: string
+          _empresa_id: string
+        }
+        Returns: {
+          contrapartida: string
+          credito: number
+          data_lancamento: string
+          dc: string
+          debito: number
+          historico: string
+          numero: string
+          saldo: number
+        }[]
+      }
       recebimento_confirmar: {
         Args: { _recebimento_id: string }
         Returns: Json

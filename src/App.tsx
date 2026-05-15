@@ -78,6 +78,8 @@ import ValidacaoPosPagamento from "./pages/financeiro/ValidacaoPosPagamento";
 import Lancamentos from "./pages/contabil/Lancamentos";
 import PlanoContas from "./pages/contabil/PlanoContas";
 import AprovacaoContas from "./pages/contabil/AprovacaoContas";
+import Balancete from "./pages/contabil/Balancete";
+import Razao from "./pages/contabil/Razao";
 import Contabilidade from "./pages/Contabilidade";
 import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
@@ -186,6 +188,8 @@ const App = () => (
             <Route path="contabil/plano-contas" element={<PlanoContas />} />
             <Route path="contabil/avancada" element={<Contabilidade />} />
             <Route path="contabil/aprovacao-contas" element={<AprovacaoContas />} />
+            <Route path="contabil/balancete" element={<Balancete />} />
+            <Route path="contabil/razao" element={<Razao />} />
             {/* RH */}
             <Route path="rh/colaboradores" element={<Colaboradores />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
