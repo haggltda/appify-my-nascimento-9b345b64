@@ -199,7 +199,7 @@ export default function CapitalGiro() {
         title="Análise de Capital de Giro"
         subtitle="Projeção de necessidade de caixa, compromissos futuros e impacto operacional / não operacional."
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => { realQ.refetch(); orcQ.refetch(); }}>
               <RefreshCw className="mr-2 h-4 w-4" /> Atualizar análise
             </Button>
