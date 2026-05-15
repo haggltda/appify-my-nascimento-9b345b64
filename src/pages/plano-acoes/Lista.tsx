@@ -53,7 +53,7 @@ export default function PlanoAcoesLista() {
         module="Plano de Ações"
         breadcrumb={["Lista geral"]}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm"><Link to="/app/plano-acoes/dashboard">Dashboard</Link></Button>
             <Button asChild variant="outline" size="sm"><Link to="/app/plano-acoes/kanban">Kanban</Link></Button>
             {can("importar") && <Button asChild variant="outline" size="sm"><Link to="/app/plano-acoes/importar">Importar</Link></Button>}
