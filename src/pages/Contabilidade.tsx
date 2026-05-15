@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, ScrollText, Calculator, FileBarChart, LineChart, Landmark } from "lucide-react";
+import { BookOpen, ScrollText, Calculator, FileBarChart, LineChart, Landmark, HeartPulse } from "lucide-react";
 import RegrasContabilizacao from "./contabil/RegrasContabilizacao";
+import SaudeRegras from "./contabil/SaudeRegras";
 import Balancete from "./contabil/Balancete";
 import DRERealizado from "./contabil/DRE";
 import BalancoPatrimonial from "./contabil/Balanco";
