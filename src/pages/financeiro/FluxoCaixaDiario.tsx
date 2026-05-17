@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, FileText, ChevronDown, ChevronRight, BarChart3 } from "lucide-react";
+import { Download, FileText, ChevronDown, ChevronRight, BarChart3, Building2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { usePermissoes } from "@/context/PermissoesContext";
+
+const ALL_EMPRESAS = "__ALL__";
 
 type BlocoKey = "ENTRADAS" | "SAIDAS_OP" | "FINANCEIRAS" | "SAIDAS_NAO_OP";
 type RawRow = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number; saldo_inicial: number };
@@ -61,6 +64,9 @@ export default function FluxoCaixaDiario() {
   const [empresaNome, setEmpresaNome] = useState<string>("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [visao, setVisao] = useState<Visao>("realizado");
+  const { can } = usePermissoes();
+  const podeConsolidar = can("visualizar", "financeiro", "financeiro.fluxo_caixa_diario.consolidado_empresas");
+  const isConsolidado = empresaId === ALL_EMPRESAS;
 
   const empresasQ = useQuery({
     queryKey: ["empresas-fcd"],
@@ -81,19 +87,20 @@ export default function FluxoCaixaDiario() {
   }, [empresasQ.data, empresaId]);
 
   useEffect(() => {
+    if (isConsolidado) { setEmpresaNome("Todas as empresas (consolidado)"); return; }
     const sel = empresasQ.data?.find((e) => e.id === empresaId);
     if (sel) setEmpresaNome(`${sel.codigo} — ${sel.razao_social}`);
-  }, [empresaId, empresasQ.data]);
+  }, [empresaId, empresasQ.data, isConsolidado]);
 
   const dadosQ = useQuery({
     queryKey: ["fluxo_caixa_diario", empresaId, dataIni, dataFim],
     enabled: !!empresaId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("fluxo_caixa_diario", {
-        _empresa_id: empresaId,
-        _data_ini: dataIni,
-        _data_fim: dataFim,
-      });
+      const rpcName = isConsolidado ? "fluxo_caixa_diario_consolidado" : "fluxo_caixa_diario";
+      const params: Record<string, unknown> = isConsolidado
+        ? { _data_ini: dataIni, _data_fim: dataFim }
+        : { _empresa_id: empresaId, _data_ini: dataIni, _data_fim: dataFim };
+      const { data, error } = await (supabase as any).rpc(rpcName, params);
       if (error) throw error;
       return (data ?? []) as RawRow[];
     },
@@ -103,9 +110,11 @@ export default function FluxoCaixaDiario() {
     queryKey: ["fluxo_caixa_diario_orcado", empresaId, dataIni, dataFim],
     enabled: !!empresaId && visao === "comparativo",
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("fluxo_caixa_diario_orcado", {
-        _empresa_id: empresaId, _data_ini: dataIni, _data_fim: dataFim,
-      });
+      const rpcName = isConsolidado ? "fluxo_caixa_diario_orcado_consolidado" : "fluxo_caixa_diario_orcado";
+      const params: Record<string, unknown> = isConsolidado
+        ? { _data_ini: dataIni, _data_fim: dataFim }
+        : { _empresa_id: empresaId, _data_ini: dataIni, _data_fim: dataFim };
+      const { data, error } = await (supabase as any).rpc(rpcName, params);
       if (error) throw error;
       return (data ?? []) as OrcRow[];
     },
@@ -358,6 +367,13 @@ export default function FluxoCaixaDiario() {
           <Select value={empresaId ?? ""} onValueChange={setEmpresaId}>
             <SelectTrigger className="w-[220px]"><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
+              {podeConsolidar && (
+                <SelectItem value={ALL_EMPRESAS}>
+                  <span className="inline-flex items-center gap-2 font-medium">
+                    <Building2 className="h-3 w-3" /> Todas as empresas (consolidado)
+                  </span>
+                </SelectItem>
+              )}
               {(empresasQ.data ?? []).map((e) => (
                 <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
               ))}

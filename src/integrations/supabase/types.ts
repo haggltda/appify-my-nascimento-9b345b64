@@ -15750,8 +15750,27 @@ export type Database = {
           valor: number
         }[]
       }
+      fluxo_caixa_diario_consolidado: {
+        Args: { _data_fim: string; _data_ini: string }
+        Returns: {
+          bloco: string
+          categoria: string
+          dia: string
+          saldo_inicial: number
+          valor: number
+        }[]
+      }
       fluxo_caixa_diario_orcado: {
         Args: { _data_fim: string; _data_ini: string; _empresa_id: string }
+        Returns: {
+          bloco: string
+          categoria: string
+          dia: string
+          valor: number
+        }[]
+      }
+      fluxo_caixa_diario_orcado_consolidado: {
+        Args: { _data_fim: string; _data_ini: string }
         Returns: {
           bloco: string
           categoria: string
