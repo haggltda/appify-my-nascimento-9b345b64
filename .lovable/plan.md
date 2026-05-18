@@ -1,115 +1,64 @@
-## Vínculo D/C nas Regras de Contabilização — Bloco A
+## Estado atual
 
-Objetivo: deixar as **15 regras-mãe + sub-regras** com **conta de DÉBITO e CRÉDITO vinculadas** nas 6 empresas, **sem mexer em backend, sem alterar schema, sem apagar nada**. Apenas **INSERT** de sub-regras novas e **UPDATE** dos campos `conta_debito_id`, `conta_credito_id`, `ativo`, `prioridade`, `filtro` nas linhas existentes.
+- Lote **"criado"** aparece em `fcr_batch` (arquivo já no bucket `fcr-uploads`, sem parse ainda).
+- `fcr_raw_excel` = 0 linhas. `mz_40_fato_fluxo_caixa_realizado` intacto. Fluxo de Caixa Diário em produção continua lendo a fonte antiga.
+- Período do Excel: 01/01/2026 → 18/05/2026. Empresa: Consolidado.
 
----
+## Próximo passo seguro: clicar **Parse** (dry-run, somente leitura)
 
-### §1 Premissas confirmadas (suas respostas)
+O botão Parse chama `fcr-load/parse`, que:
 
-- **Q1 — EVT-001** dividida em **3 sub-regras por empresa**: Limpeza · EPIs/Uniformes · Peças/Equip. Cada uma com sua conta de estoque específica.
-- **Q2 — EVT-004 / EVT-007 / EVT-009 / EVT-010** = conta bancária **dinâmica** (resolvida em runtime pela conta bancária do título/movimento). Na regra fica como “bridge” = conta-pai sintética `01.1.1.02 BANCOS CONTA MOVIMENTO` apenas como referência (sub-conta analítica é definida pelo movimento).
-- **Q3 — EVT-006** (impostos s/ faturamento) → **3 filhas + Simples** (4 sub-regras: PIS, COFINS, ISS, Simples). **EVT-007 retenções** → **2 filhas (INSS, ISS) + IRRF NÃO** ativo.
-- **Q4** — Aplicar nas **6 empresas**.
-- **Q5** — Após Bloco A, seguir Bloco B (Validador “Saúde das Regras”).
+1. Baixa o `.xlsx` do bucket privado.
+2. Detecta layout `long_table` (18 colunas: ID, Data, Tipo, Classificação, Empresas, Banco, Valor, …).
+3. Insere linha-a-linha em **`fcr_raw_excel`** (tabela de staging nova, isolada).
+4. Calcula `valor_assinado_caixa` (+ENTRADA / −SAÍDA), marca `fora_do_periodo` para 2024/2025, registra `id_origem_texto`.
+5. Atualiza `fcr_batch.status` → `parseando` → `dry_run_ok` (ou `erro_parse`).
 
----
+### Garantias do Parse (não muda nada em produção)
 
-### §2 Sem mudança estrutural
+| Tabela | Efeito do Parse |
+|---|---|
+| `mz_40_fato_fluxo_caixa_realizado` | **Nenhum** (0 writes) |
+| `realizado_lancamentos` | **Nenhum** |
+| `saldos_iniciais_caixa` (30 linhas) | **Nenhum** |
+| RPCs `fluxo_caixa_diario*` | **Nenhum** (continuam lendo mz_40) |
+| `fcr_raw_excel` | INSERT ~60k linhas (staging isolada, com RLS) |
+| `fcr_batch` | UPDATE de status do próprio lote |
 
-- Schema `regra_contabilizacao` já tem `conta_debito_id`, `conta_credito_id`, `filtro jsonb`, `prioridade`, `ativo`. **Nada novo.**
-- `conta_contabil` é por empresa, ligada por `classificacao` ao `plano_contas_master`. **Lookup por classificação + empresa_id** garante portabilidade entre as 6 empresas.
-- Sub-regras adicionais (EVT-001 A/B/C, EVT-006 A/B/C/D, EVT-007 A/B) são **novas linhas** com mesmo `evento` (enum), `codigo_evento` sufixado (ex.: `EVT-001-A`) e `filtro` discriminando.
+## O que validar logo após o Parse
 
----
+Antes de clicar **Reconcile**, conferir em `fcr_batch` / `fcr_raw_excel`:
 
-### §3 Mapa final de vínculos (por classificação contábil)
+1. `linhas_lidas` ≈ 59.957 (tamanho do arquivo enviado).
+2. `linhas_fora_do_periodo` > 0 (linhas 2024/2025 isoladas, não somam).
+3. Nenhuma linha com `valor_assinado_caixa` nulo onde `tipo` ∈ {ENTRADA, SAÍDA}.
+4. `pendencias` zeradas ou listadas em `fcr_sugestoes_pendencias` (empresa/banco não resolvidos, transferência sem par, id duplicado).
+5. Status final = `dry_run_ok`. Se vier `erro_parse`, **não** seguir para Reconcile.
 
-Todas as contas abaixo são analíticas existentes em `plano_contas_master`/`conta_contabil` para cada empresa.
+## Depois do Parse: Reconcile (ainda dry-run)
 
-| Código | Sub | Descrição | DÉBITO (classificação) | CRÉDITO (classificação) | Filtro |
-|---|---|---|---|---|---|
-| EVT-001 | A | NF entrada — Limpeza | 01.1.4.01 Estoques de limpeza | 02.1.1.01 Fornecedores nacionais | `{"categoria":"limpeza"}` |
-| EVT-001 | B | NF entrada — EPIs/Uniformes | 01.1.4.02 Estoques de EPIs e uniformes | 02.1.1.01 | `{"categoria":"epi_uniforme"}` |
-| EVT-001 | C | NF entrada — Peças/Equip. | 01.1.4.03 Estoques peças/equip. consumo | 02.1.1.01 | `{"categoria":"pecas_equip"}` |
-| EVT-002 | — | NF consumo direto p/ contrato | 04.1.3.03.003 Bens não imobilizáveis | 02.1.1.01 | `—` |
-| EVT-003 | — | NF serviço administrativo | 04.2.1.03.020 Serviços terceiros PJ adm | 02.1.1.01 | `—` |
-| EVT-004 | — | Pagamento fornecedor | 02.1.1.01 Fornecedores nacionais | 01.1.1.02 BANCOS (dinâmica) | `—` |
-| EVT-005 | — | NF saída / faturamento contrato | 01.1.2.01 Clientes a Receber | 03.1.1.03.003 Serviços prestados a prazo | `—` |
-| EVT-006 | A | Tributos faturamento — PIS | 03.1.2.02.002 PIS s/ vendas | 02.1.3.02 PIS a recolher | `{"tributo":"PIS"}` |
-| EVT-006 | B | Tributos faturamento — COFINS | 03.1.2.02.003 COFINS s/ vendas | 02.1.3.03 COFINS a recolher | `{"tributo":"COFINS"}` |
-| EVT-006 | C | Tributos faturamento — ISS | 03.1.2.02.007 ISSQN | 02.1.3.01 ISS a recolher | `{"tributo":"ISS"}` |
-| EVT-006 | D | Tributos faturamento — Simples (HAGG) | 03.1.2.02.008 Simples | 02.1.3.04 IRRF/CSRF retidos (proxy) | `{"tributo":"SIMPLES"}` `ativo=true só HAGG` |
-| EVT-007 | mãe | Recebimento cliente | 01.1.1.02 BANCOS (dinâmica) | 01.1.2.01 Clientes a Receber | `—` |
-| EVT-007 | A | Retenção INSS s/ recebimento | 01.1.3.03 INSS retido a compensar | 01.1.2.01 Clientes a Receber | `{"retencao":"INSS"}` |
-| EVT-007 | B | Retenção ISS s/ recebimento | 01.1.3.04 ISS retido a compensar | 01.1.2.01 Clientes a Receber | `{"retencao":"ISS"}` |
-| EVT-007 | (IRRF) | NÃO criar — desativada | — | — | — |
-| EVT-008 | — | Provisão folha operacional | 04.1.3.02.013 Salários operacionais | 02.1.2.01 Salários a pagar | `—` |
-| EVT-009 | — | Pagamento folha | 02.1.2.01 Salários a pagar | 01.1.1.02 BANCOS (dinâmica) | `—` |
-| EVT-010 | — | Recolhimento FGTS/INSS/tributos folha | 02.1.2.04 FGTS a recolher (default) | 01.1.1.02 BANCOS (dinâmica) | `—` |
-| EVT-011 | — | Mútuo intercompany saída | 01.1.2.03 Intercompany a Receber | 01.1.1.02 BANCOS (dinâmica) | `—` |
-| EVT-012 | — | Mútuo intercompany entrada | 01.1.1.02 BANCOS (dinâmica) | 02.1.4 Contas a Pagar Intercompany | `—` |
-| EVT-013 | — | Rateio admin intercompany | 04.2.1.03.020 Serviços terceiros PJ adm | 02.1.4 Contas a Pagar Intercompany | `—` |
-| EVT-014 | — | Ajuste contábil manual | NULL (livre) | NULL (livre) | `ativo=true, exige preenchimento manual` |
-| EVT-015 | — | Baixa de estoque p/ contrato | 04.1.3.03.003 Bens não imobilizáveis | 01.1.4.0x estoque (resolvido pelo produto) | `—` |
+Só clicar **Reconcile** se Parse fechar limpo. O Reconcile:
 
-Total final: **15 mães originais** + **6 novas sub-regras** (3 EVT-001 + 3 EVT-006 + 2 EVT-007 − 2 que viram filhas e a mãe EVT-001/EVT-006 ficam como “agrupador inativo”) = **~21 linhas por empresa × 6 = 126 linhas**.
+- Agrega por dia/banco/empresa/bloco usando `valor_assinado_caixa`.
+- Compara saldo inicial calculado vs. `saldos_iniciais_caixa` (esperado R$ 4.307.442,06 em 01/01/2026).
+- Grava resultados em `fcr_reconciliacao_lote`.
+- **Bloqueia** virada se diferença > R$ 0,01, transferência sem par, ou empresa/banco não resolvido.
+- **Não escreve em `realizado_lancamentos` nem em `mz_40`.**
 
----
+## O que **não** fazer agora
 
-### §4 Estratégia técnica (sem alterar backend)
+- Não aprovar PR-4 (cutover) antes de ler o relatório de reconciliação.
+- Não apagar o lote atual: ele é a evidência auditável do dry-run.
+- Não trocar o período nem reenviar o arquivo: o `file_sha256` daria 409 e atrapalha o rastro.
 
-Tudo fica em **DML idempotente** executada via tool de inserção/update do banco:
+## Sequência recomendada
 
-1. **CTE de lookup** por empresa: monta um mapa `{classificacao → conta_contabil.id}` filtrando `WHERE empresa_id = X`.
-2. **UPDATE** das 15 linhas existentes preenchendo `conta_debito_id`, `conta_credito_id`, `prioridade=10`, `ativo=true` (exceto EVT-006-D Simples = ativo só na empresa HAGG; EVT-014 manual fica `ativo=true` mas com contas NULL).
-3. **INSERT … ON CONFLICT DO NOTHING** das 6 sub-regras novas por empresa (EVT-001-A/B/C, EVT-006-A/B/C/D, EVT-007-A/B). Como não há unique constraint em `(empresa_id, codigo_evento)`, usamos `WHERE NOT EXISTS` para garantir idempotência.
-4. Marcar EVT-001 mãe e EVT-006 mãe como **agrupadores** (`prioridade=99`, `ativo=false`, `observacao='Substituída por sub-regras'`) — sem deletar.
-
-Tudo cabe em **uma migration de DML** (na verdade `data-only`) = **0 alteração de schema, 0 alteração de função, 0 alteração de RLS, 0 alteração de edge function**.
-
----
-
-### §5 Frontend (mínimo necessário — só leitura adicional)
-
-A tela `src/pages/contabil/RegrasContabilizacao.tsx` **já lê** `conta_debito_id` e `conta_credito_id` (linhas 62–75). Após o UPDATE, as colunas DÉBITO e CRÉDITO param de mostrar “não vinculada” automaticamente. Ajustes pequenos opcionais:
-
-- Mostrar `filtro.categoria` / `filtro.tributo` / `filtro.retencao` como badge ao lado do código do evento, para diferenciar sub-regras visualmente.
-- Agrupar visualmente sub-regras sob a regra-mãe (EVT-001 A/B/C aninhadas).
-
-Se preferir 100% sem mexer em frontend, isso fica para o Bloco B.
-
----
-
-### §6 O que NÃO será feito neste bloco
-
-- Sem `ALTER TABLE`, sem novo enum, sem novo trigger, sem nova função, sem nova edge function.
-- Sem mexer em `pacote02-load` nem em qualquer arquivo de seed.
-- Sem deletar linha alguma; só `UPDATE`/`INSERT` idempotentes.
-- Sem tocar em `conta_contabil`, `plano_contas_master`, `empresas`, RLS, auth.
-
----
-
-### §7 Validação pós-execução
-
-Query única (read-only) que mostra, por empresa:
 ```
-SELECT empresa_id, codigo_evento, descricao,
-       (conta_debito_id IS NOT NULL) AS d_ok,
-       (conta_credito_id IS NOT NULL) AS c_ok,
-       ativo
-FROM regra_contabilizacao
-ORDER BY empresa_id, codigo_evento;
+[agora] Parse  →  ver fcr_batch + fcr_sugestoes_pendencias
+       ↓ (se dry_run_ok)
+       Reconcile  →  ler fcr_reconciliacao_lote
+       ↓ (se diffs ≤ R$ 0,01)
+       Abrir PR-4 (cutover) para sua aprovação explícita
 ```
-Esperado: todas as linhas (exceto EVT-014 manual e EVT-006-D fora da HAGG) com `d_ok = c_ok = true` e `ativo = true`.
 
----
-
-### §8 Próximo passo (Bloco B, depois deste)
-
-Tela “Saúde das Regras”: matriz Evento × Empresa mostrando ✅/❌ de vínculo e ativação, com link direto p/ corrigir. Pure frontend, sem nova tabela.
-
----
-
-### §9 Confirmação para implantar
-
-Aguardando seu **OK** para gerar a migration **data-only** (UPDATE + INSERT idempotentes). Nada será executado antes da sua aprovação.
+Nada além de **Parse** é necessário neste momento. Tudo continua reversível: basta apagar o lote (`fcr_batch` em cascata) que `fcr_raw_excel` zera junto, sem tocar em produção.
