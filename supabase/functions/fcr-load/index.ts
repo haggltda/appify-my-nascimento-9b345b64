@@ -270,11 +270,66 @@ interface RawRow {
   historico_original: string | null;
   valor_celula_texto: string | null;
   valor_numerico: number | null;
+  valor_assinado_caixa: number | null;
+  fora_do_periodo: boolean;
+  id_origem_texto: string | null;
   tipo_linha: string;
   bloco_funcional: string;
   par_transferencia_id: string | null;
   raw_json: Record<string, unknown>;
   hash_idempotencia: string;
+}
+
+// ----- long_table helpers (PR-2.1) -----
+
+const LT_ALIASES: Record<string, string[]> = {
+  data: ["DATA", "DATA MOVIMENTO", "DATA CAIXA", "DATA OPERACAO", "DT", "DT MOVIMENTO"],
+  valor: ["VALOR", "VALOR MOVIMENTO", "VL", "VLR"],
+  classificacao: ["CLASSIFICACAO", "CLASSIFICACAO CAIXA", "CATEGORIA", "NATUREZA"],
+  empresa: ["EMPRESA", "FILIAL", "UNIDADE", "RAZAO SOCIAL"],
+  banco: ["BANCO", "INSTITUICAO", "INSTITUICAO FINANCEIRA"],
+  conta: ["CONTA", "CONTA CORRENTE", "CC", "NUMERO CONTA"],
+  historico: ["HISTORICO", "DESCRICAO", "OBSERVACAO", "MEMO"],
+  id_origem: ["ID", "ID ORIGEM", "IDORIGEM", "DOCUMENTO", "DOC", "REFERENCIA", "NUMERO DOC"],
+};
+
+function mapLongTableHeaders(headers: string[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (let c = 0; c < headers.length; c++) {
+    const n = normalize(headers[c] ?? "");
+    if (!n) continue;
+    for (const [key, aliases] of Object.entries(LT_ALIASES)) {
+      if (map[key] !== undefined) continue;
+      if (aliases.some((a) => n === a || n.startsWith(a + " ") || n.endsWith(" " + a))) {
+        map[key] = c;
+        break;
+      }
+    }
+  }
+  return map;
+}
+
+function isLongTable(map: Record<string, number>): boolean {
+  return map.valor !== undefined &&
+    map.data !== undefined &&
+    map.classificacao !== undefined;
+}
+
+function parseCellDate(cell: any): string | null {
+  if (!cell) return null;
+  if (cell.v instanceof Date) {
+    const d = cell.v as Date;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  const s = cell.w ?? (cell.v != null ? String(cell.v) : "");
+  return tryParseDateFromHeader(String(s));
+}
+
+function periodoFromBatch(batch: any): { inicio: string; fim: string } {
+  const p = batch?.totais_excel?.periodo;
+  if (p?.inicio && p?.fim) return { inicio: p.inicio, fim: p.fim };
+  const ano = Number(batch?.totais_excel?.ano ?? 2026);
+  return { inicio: `${ano}-01-01`, fim: `${ano}-12-31` };
 }
 
 function classifyBloco(label: string): string {
