@@ -102,6 +102,7 @@ import PlanoAcoesConfiguracoes from "./pages/plano-acoes/Configuracoes";
 import CopilotoIA from "./pages/plano-acoes/CopilotoIA";
 import Ajuda from "./pages/ajuda/Ajuda";
 import AjudaTopico from "./pages/ajuda/AjudaTopico";
+import InboxAprovacoes from "./pages/aprovacoes/Inbox";
 
 const queryClient = new QueryClient();
 
@@ -137,6 +138,7 @@ const App = () => (
             <Route path="parecer-gerencial" element={<Parecer papel="gerencial" />} />
             <Route path="controladoria" element={<Controladoria />} />
             <Route path="aprovacoes" element={<Aprovacoes />} />
+            <Route path="aprovacoes/inbox" element={<InboxAprovacoes />} />
             <Route path="pregao" element={<Pregao />} />
             <Route path="resultado" element={<Resultado />} />
             <Route path="prontas-contrato" element={<ProntasContrato />} />
