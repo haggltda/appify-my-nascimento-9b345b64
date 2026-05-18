@@ -206,7 +206,11 @@ export default function MigracaoFcr() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success(`${action === "parse" ? "Parse" : "Reconcile"} concluído.`);
+      if (action === "parse") {
+        toast.success("Parse iniciado em background. Acompanhe o progresso na tabela.");
+      } else {
+        toast.success("Reconcile concluído.");
+      }
       await loadBatches();
     } catch (e) {
       toast.error(
