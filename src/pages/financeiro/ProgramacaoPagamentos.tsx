@@ -62,9 +62,9 @@ export default function ProgramacaoPagamentos() {
       const { data: u } = await supabase.auth.getUser();
       if (u.user) {
         const { data: p } = await (supabase as any).from("profiles")
-          .select("empresa_id, nome_completo").eq("id", u.user.id).maybeSingle();
+          .select("empresa_id, display_name, email").eq("id", u.user.id).maybeSingle();
         if (p?.empresa_id) setEmpresaId(p.empresa_id);
-        if (p?.nome_completo) setResponsavelNome(p.nome_completo);
+        setResponsavelNome(p?.display_name || p?.email || "—");
       }
     })();
   }, []);
@@ -72,7 +72,7 @@ export default function ProgramacaoPagamentos() {
   const { data: empresas = [] } = useQuery<any[]>({
     queryKey: ["empresas_min"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("empresa").select("id, razao_social").order("razao_social");
+      const { data } = await (supabase as any).from("empresas").select("id, razao_social").order("razao_social");
       return data ?? [];
     },
   });
@@ -381,12 +381,13 @@ export default function ProgramacaoPagamentos() {
             </div>
             <div className="md:col-span-2">
               <Label className="text-xs">Conta Bancária Prevista <span className="text-destructive">*</span></Label>
-              <Select value={contaId} onValueChange={setContaId} disabled={!editavel}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <Select value={contaId} onValueChange={setContaId} disabled={!editavel || contas.length === 0}>
+                <SelectTrigger><SelectValue placeholder={contas.length === 0 ? "Nenhuma conta cadastrada — vá em Integração Bancária" : "Selecione..."} /></SelectTrigger>
                 <SelectContent>
                   {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome} ({c.agencia}/{c.conta})</SelectItem>)}
                 </SelectContent>
               </Select>
+              {contas.length === 0 && <p className="text-[11px] text-destructive mt-1">Cadastre uma conta em Financeiro › Integração Bancária.</p>}
             </div>
             <div>
               <Label className="text-xs">Forma de Pagamento <span className="text-destructive">*</span></Label>
