@@ -252,6 +252,9 @@ async function handleUpload(req: Request, ctx: AuthCtx): Promise<Response> {
       file_sha256,
       size: file.size,
       mime: file.type || null,
+      ...(periodoInicio && periodoFim
+        ? { periodo: { inicio: periodoInicio, fim: periodoFim } }
+        : {}),
     },
   });
   if (insErr) {
