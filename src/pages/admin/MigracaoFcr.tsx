@@ -100,7 +100,7 @@ export default function MigracaoFcr() {
     const { data, error } = await supabase
       .from("fcr_batch")
       .select(
-        "id, empresa_id, escopo_carga, arquivo_origem, storage_path, status, totais_excel, totais_promovidos, saldos_finais_reconciliacao, observacao, created_at, updated_at",
+        "id, empresa_id, escopo_carga, arquivo_origem, storage_path, status, totais_excel, totais_promovidos, saldos_finais_reconciliacao, observacao, created_at, updated_at, linhas_lidas, linhas_inseridas, chunks_total, chunk_atual, ultimo_erro",
       )
       .order("created_at", { ascending: false })
       .limit(50);
@@ -108,6 +108,14 @@ export default function MigracaoFcr() {
     setBatches((data ?? []) as Batch[]);
     setLoading(false);
   }
+
+  // Polling automático enquanto algum batch estiver "parseando"
+  useEffect(() => {
+    const hasRunning = batches.some((b) => b.status === "parseando");
+    if (!hasRunning) return;
+    const t = setInterval(() => loadBatches(), 2500);
+    return () => clearInterval(t);
+  }, [batches]);
 
   useEffect(() => {
     loadEmpresas();
