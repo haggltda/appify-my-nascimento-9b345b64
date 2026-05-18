@@ -3,6 +3,7 @@
 
 import programacaoPagamentos from "./financeiro/programacao-pagamentos.md?raw";
 import contasPagarListar from "./financeiro/contas-pagar-listar.md?raw";
+import novoPreTitulo from "./financeiro/novo-pre-titulo.md?raw";
 import aprovarPagamento from "./financeiro/aprovar-pagamento.md?raw";
 import conciliacaoBancaria from "./financeiro/conciliacao-bancaria.md?raw";
 import fluxoCaixaDiario from "./financeiro/fluxo-caixa-diario.md?raw";
@@ -91,6 +92,19 @@ export const ARTIGOS: ArtigoMeta[] = [
     updatedAt: "2026-05-18",
     conteudo: contasPagarListar,
     personas: ["financeiro", "controladoria", "diretoria"],
+    status: "disponivel",
+  },
+  {
+    slug: "novo-pre-titulo",
+    modulo: "financeiro",
+    moduloLabel: "Financeiro",
+    titulo: "Como lançar um novo pré-título (NF a pagar)?",
+    resumo: "Passo a passo detalhado: onde clicar, o que preencher, conferir antes de salvar e próximos passos.",
+    tags: ["pré-título", "nf", "lançamento", "contas a pagar", "rateio"],
+    rotasRelacionadas: ["/app/financeiro/contas-pagar"],
+    updatedAt: "2026-05-18",
+    conteudo: novoPreTitulo,
+    personas: ["financeiro", "controladoria"],
     status: "disponivel",
   },
   {
