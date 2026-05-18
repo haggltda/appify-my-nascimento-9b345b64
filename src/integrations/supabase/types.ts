@@ -3817,6 +3817,391 @@ export type Database = {
           },
         ]
       }
+      fcr_batch: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          arquivo_origem: string
+          created_at: string
+          criado_por: string
+          empresa_id: string | null
+          escopo_carga: string
+          id: string
+          modo: string
+          observacao: string | null
+          revertido_em: string | null
+          revertido_por: string | null
+          saldos_finais_reconciliacao: Json | null
+          status: string
+          storage_path: string
+          totais_excel: Json | null
+          totais_promovidos: Json | null
+          updated_at: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          arquivo_origem: string
+          created_at?: string
+          criado_por: string
+          empresa_id?: string | null
+          escopo_carga: string
+          id?: string
+          modo: string
+          observacao?: string | null
+          revertido_em?: string | null
+          revertido_por?: string | null
+          saldos_finais_reconciliacao?: Json | null
+          status?: string
+          storage_path: string
+          totais_excel?: Json | null
+          totais_promovidos?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          arquivo_origem?: string
+          created_at?: string
+          criado_por?: string
+          empresa_id?: string | null
+          escopo_carga?: string
+          id?: string
+          modo?: string
+          observacao?: string | null
+          revertido_em?: string | null
+          revertido_por?: string | null
+          saldos_finais_reconciliacao?: Json | null
+          status?: string
+          storage_path?: string
+          totais_excel?: Json | null
+          totais_promovidos?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fcr_batch_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fcr_batch_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "fcr_batch_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      fcr_raw_excel: {
+        Row: {
+          aba_origem: string
+          arquivo_origem: string
+          banco_origem_texto: string | null
+          batch_id: string
+          bloco_funcional: string
+          cabecalho_coluna: string | null
+          classificacao_excel_original: string | null
+          coluna_origem: number
+          conta_origem_texto: string | null
+          created_at: string
+          data_caixa_derivada: string | null
+          empresa_id_origem_celula: string | null
+          empresa_id_resolvida: string | null
+          endereco_celula: string
+          hash_idempotencia: string
+          historico_original: string | null
+          id: string
+          linha_origem: number
+          par_transferencia_id: string | null
+          raw_json: Json | null
+          status_resolucao_empresa: string
+          tipo_linha: string
+          updated_at: string
+          valor_celula_texto: string | null
+          valor_numerico: number | null
+        }
+        Insert: {
+          aba_origem: string
+          arquivo_origem: string
+          banco_origem_texto?: string | null
+          batch_id: string
+          bloco_funcional?: string
+          cabecalho_coluna?: string | null
+          classificacao_excel_original?: string | null
+          coluna_origem: number
+          conta_origem_texto?: string | null
+          created_at?: string
+          data_caixa_derivada?: string | null
+          empresa_id_origem_celula?: string | null
+          empresa_id_resolvida?: string | null
+          endereco_celula: string
+          hash_idempotencia: string
+          historico_original?: string | null
+          id?: string
+          linha_origem: number
+          par_transferencia_id?: string | null
+          raw_json?: Json | null
+          status_resolucao_empresa?: string
+          tipo_linha?: string
+          updated_at?: string
+          valor_celula_texto?: string | null
+          valor_numerico?: number | null
+        }
+        Update: {
+          aba_origem?: string
+          arquivo_origem?: string
+          banco_origem_texto?: string | null
+          batch_id?: string
+          bloco_funcional?: string
+          cabecalho_coluna?: string | null
+          classificacao_excel_original?: string | null
+          coluna_origem?: number
+          conta_origem_texto?: string | null
+          created_at?: string
+          data_caixa_derivada?: string | null
+          empresa_id_origem_celula?: string | null
+          empresa_id_resolvida?: string | null
+          endereco_celula?: string
+          hash_idempotencia?: string
+          historico_original?: string | null
+          id?: string
+          linha_origem?: number
+          par_transferencia_id?: string | null
+          raw_json?: Json | null
+          status_resolucao_empresa?: string
+          tipo_linha?: string
+          updated_at?: string
+          valor_celula_texto?: string | null
+          valor_numerico?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fcr_raw_excel_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "fcr_batch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fcr_raw_excel_empresa_id_resolvida_fkey"
+            columns: ["empresa_id_resolvida"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fcr_raw_excel_empresa_id_resolvida_fkey"
+            columns: ["empresa_id_resolvida"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "fcr_raw_excel_empresa_id_resolvida_fkey"
+            columns: ["empresa_id_resolvida"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      fcr_reconciliacao_lote: {
+        Row: {
+          batch_id: string
+          chave: string
+          created_at: string
+          diferenca: number | null
+          empresa_id: string | null
+          escopo: string
+          id: string
+          qtd_linhas_excel: number
+          qtd_linhas_sistema: number
+          qtd_pendencias: number
+          valor_excel: number
+          valor_sistema: number
+        }
+        Insert: {
+          batch_id: string
+          chave: string
+          created_at?: string
+          diferenca?: number | null
+          empresa_id?: string | null
+          escopo: string
+          id?: string
+          qtd_linhas_excel?: number
+          qtd_linhas_sistema?: number
+          qtd_pendencias?: number
+          valor_excel?: number
+          valor_sistema?: number
+        }
+        Update: {
+          batch_id?: string
+          chave?: string
+          created_at?: string
+          diferenca?: number | null
+          empresa_id?: string | null
+          escopo?: string
+          id?: string
+          qtd_linhas_excel?: number
+          qtd_linhas_sistema?: number
+          qtd_pendencias?: number
+          valor_excel?: number
+          valor_sistema?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fcr_reconciliacao_lote_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "fcr_batch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fcr_reconciliacao_lote_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fcr_reconciliacao_lote_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "fcr_reconciliacao_lote_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      fcr_sugestoes_pendencias: {
+        Row: {
+          batch_id: string
+          classificacao_excel_original: string | null
+          created_at: string
+          data_caixa: string | null
+          destino_proposto: string | null
+          empresa_id: string | null
+          historico_original: string | null
+          id: string
+          motivo: string | null
+          raw_id: string
+          resolvido_em: string | null
+          resolvido_por: string | null
+          status: string
+          sugestao_conta_contabil_id: string | null
+          sugestao_dre_linha_id: string | null
+          tipo_pendencia: string
+          updated_at: string
+          valor_original: number | null
+        }
+        Insert: {
+          batch_id: string
+          classificacao_excel_original?: string | null
+          created_at?: string
+          data_caixa?: string | null
+          destino_proposto?: string | null
+          empresa_id?: string | null
+          historico_original?: string | null
+          id?: string
+          motivo?: string | null
+          raw_id: string
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: string
+          sugestao_conta_contabil_id?: string | null
+          sugestao_dre_linha_id?: string | null
+          tipo_pendencia: string
+          updated_at?: string
+          valor_original?: number | null
+        }
+        Update: {
+          batch_id?: string
+          classificacao_excel_original?: string | null
+          created_at?: string
+          data_caixa?: string | null
+          destino_proposto?: string | null
+          empresa_id?: string | null
+          historico_original?: string | null
+          id?: string
+          motivo?: string | null
+          raw_id?: string
+          resolvido_em?: string | null
+          resolvido_por?: string | null
+          status?: string
+          sugestao_conta_contabil_id?: string | null
+          sugestao_dre_linha_id?: string | null
+          tipo_pendencia?: string
+          updated_at?: string
+          valor_original?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fcr_sugestoes_pendencias_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "fcr_batch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fcr_sugestoes_pendencias_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fcr_sugestoes_pendencias_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "fcr_sugestoes_pendencias_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "fcr_sugestoes_pendencias_raw_id_fkey"
+            columns: ["raw_id"]
+            isOneToOne: false
+            referencedRelation: "fcr_raw_excel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fcr_sugestoes_pendencias_sugestao_conta_contabil_id_fkey"
+            columns: ["sugestao_conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fcr_sugestoes_pendencias_sugestao_dre_linha_id_fkey"
+            columns: ["sugestao_dre_linha_id"]
+            isOneToOne: false
+            referencedRelation: "dre_linhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financeiro_pagamento_aprovacao: {
         Row: {
           aprovador_id: string | null
