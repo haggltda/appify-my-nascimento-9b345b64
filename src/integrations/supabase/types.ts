@@ -1797,6 +1797,80 @@ export type Database = {
           },
         ]
       }
+      colaborador_conta_bancaria: {
+        Row: {
+          agencia: string
+          agencia_digito: string | null
+          ativa: boolean
+          banco_codigo: string
+          banco_nome: string
+          colaborador_id: string
+          conta: string
+          conta_digito: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          observacoes: string | null
+          pix_chave: string | null
+          pix_tipo: string | null
+          principal: boolean
+          tipo: string
+          titular_documento: string | null
+          titular_nome: string | null
+          updated_at: string
+        }
+        Insert: {
+          agencia: string
+          agencia_digito?: string | null
+          ativa?: boolean
+          banco_codigo: string
+          banco_nome: string
+          colaborador_id: string
+          conta: string
+          conta_digito?: string | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          observacoes?: string | null
+          pix_chave?: string | null
+          pix_tipo?: string | null
+          principal?: boolean
+          tipo?: string
+          titular_documento?: string | null
+          titular_nome?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agencia?: string
+          agencia_digito?: string | null
+          ativa?: boolean
+          banco_codigo?: string
+          banco_nome?: string
+          colaborador_id?: string
+          conta?: string
+          conta_digito?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          observacoes?: string | null
+          pix_chave?: string | null
+          pix_tipo?: string | null
+          principal?: boolean
+          tipo?: string
+          titular_documento?: string | null
+          titular_nome?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "colaborador_conta_bancaria_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "colaborador"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comite: {
         Row: {
           ativo: boolean
@@ -16386,6 +16460,10 @@ export type Database = {
         Returns: Json
       }
       get_user_empresa: { Args: { _user_id: string }; Returns: string }
+      has_permissao: {
+        Args: { _acao: string; _menu: string; _modulo: string; _user: string }
+        Returns: boolean
+      }
       has_permission: {
         Args: {
           _acao: Database["public"]["Enums"]["app_acao"]

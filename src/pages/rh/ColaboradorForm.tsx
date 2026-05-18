@@ -11,6 +11,7 @@ import { useEmpresaId } from "@/hooks/useEmpresaId";
 import { useUpsert } from "@/hooks/useGenericCrud";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, User2 } from "lucide-react";
+import { ContasBancariasGenericTab } from "@/components/contas-bancarias/ContasBancariasGenericTab";
 
 const FOTO_BUCKET = "colaboradores-fotos";
 const FOTO_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
@@ -278,6 +279,23 @@ export function ColaboradorForm({ open, onOpenChange, initial, onSaved }: Props)
               <Textarea rows={4} value={val.observacoes ?? ""} onChange={(e) => set("observacoes", e.target.value)} />
             </AccordionContent>
           </AccordionItem>
+
+          {/* CONTAS BANCÁRIAS — só após salvar */}
+          {val.id && (val.empresa_id ?? empresaId) && (
+            <AccordionItem value="contas">
+              <AccordionTrigger className="text-sm font-semibold">Contas Bancárias</AccordionTrigger>
+              <AccordionContent>
+                <ContasBancariasGenericTab
+                  tableName="colaborador_conta_bancaria"
+                  parentField="colaborador_id"
+                  parentId={val.id}
+                  empresaId={(val.empresa_id ?? empresaId) as string}
+                  modulo="rh"
+                  menu="colaborador.conta_bancaria"
+                />
+              </AccordionContent>
+            </AccordionItem>
+          )}
         </Accordion>
 
         <DialogFooter>
