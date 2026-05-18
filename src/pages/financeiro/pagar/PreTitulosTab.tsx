@@ -569,7 +569,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                             <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
                             <SelectContent>
                               {contas.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>
+                                <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
