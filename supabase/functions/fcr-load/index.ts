@@ -1413,6 +1413,30 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const path = url.pathname.replace(/^.*\/fcr-load/, "") || "/";
 
+    // Dispatch por action (frontend usa supabase.functions.invoke, que bate em "/")
+    if ((path === "/" || path === "") && req.method === "POST") {
+      const ct = req.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        const raw = await req.text();
+        let body: any = {};
+        try { body = raw ? JSON.parse(raw) : {}; } catch { body = {}; }
+        const action = String(body.action ?? "");
+        if (action === "register") {
+          return await handleRegister(body, ctx);
+        }
+        const reqWithBody = new Request(req.url, {
+          method: "POST",
+          headers: req.headers,
+          body: JSON.stringify(body),
+        });
+        if (action === "parse") return await handleParse(reqWithBody, ctx);
+        if (action === "reconcile") return await handleReconcile(reqWithBody, ctx);
+        if (action === "rollback") return await handleRollback(reqWithBody, ctx);
+        if (action === "status") return await handleStatus(reqWithBody, ctx);
+        return json(400, { error: `action inválida: ${action || "(vazia)"}` });
+      }
+    }
+
     if (path === "/upload" && req.method === "POST") {
       const ct = req.headers.get("content-type") || "";
       if (ct.includes("application/json")) {
