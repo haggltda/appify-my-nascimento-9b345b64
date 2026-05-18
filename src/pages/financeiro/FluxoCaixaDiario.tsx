@@ -469,10 +469,28 @@ export default function FluxoCaixaDiario() {
             </Button>
           </div>
         </div>
+        <div>
+          <Label>Visão de mútuos e transferências</Label>
+          <Select value={modoMutuo} onValueChange={(v) => setModoMutuo(v as ModoMutuo)}>
+            <SelectTrigger className="w-[260px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tudo_junto">Tudo junto</SelectItem>
+              <SelectItem value="separado">Separado</SelectItem>
+              <SelectItem value="ocultar">Ocultar da visão principal</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="ml-auto text-xs text-muted-foreground">
           {dias.length} dias · {dadosQ.data?.length ?? 0} categorias·dia
         </div>
       </Card>
+
+      <div className="flex items-center gap-2 text-[11px]">
+        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 ${modoMutuo === "tudo_junto" ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" : "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"}`}>
+          {modoMutuo === "tudo_junto" ? "Saldo oficial completo" : "Saldo gerencial sem mútuos/transferências"}
+        </span>
+        <span className="text-muted-foreground">Modo atual: {MODO_MUTUO_LABEL[modoMutuo]}</span>
+      </div>
 
       <div className="grid gap-3 md:grid-cols-6">
         <Kpi titulo="Saldo Inicial" valor={saldoInicialBase} sub={`Em ${new Date(dataIni + "T00:00:00").toLocaleDateString("pt-BR")}`} />
@@ -482,6 +500,43 @@ export default function FluxoCaixaDiario() {
         <Kpi titulo="Saídas Não Operacionais" valor={tSNop.total} cor="text-amber-600" sub={`${dias.length} dias`} />
         <Kpi titulo="Saldo Final" valor={saldoFinal} sub={`Em ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`} />
       </div>
+
+      {modoMutuo === "separado" && gridMutuo.porCategoria.size > 0 && (
+        <Card className="p-4 border-l-4 border-sky-500">
+          <h3 className="font-semibold mb-3 text-sky-900 dark:text-sky-200">
+            Mútuos / Intercompany / Transferências internas
+          </h3>
+          <div className="grid gap-3 md:grid-cols-3 mb-3">
+            <Kpi titulo="Entradas" valor={gridMutuo.entradas} cor="text-emerald-600" />
+            <Kpi titulo="Saídas" valor={gridMutuo.saidas} cor="text-rose-600" />
+            <Kpi titulo="Líquido" valor={gridMutuo.liquido} cor={gridMutuo.liquido >= 0 ? "text-emerald-600" : "text-rose-600"} />
+          </div>
+          <div className="overflow-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-left">Categoria</th>
+                  <th className="px-3 py-2 text-right">Total Período</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...gridMutuo.porCategoria.entries()].sort(([a], [c]) => a.localeCompare(c)).map(([nome, cat]) => {
+                  const total = Object.values(cat).reduce((a, c) => a + c, 0);
+                  return (
+                    <tr key={nome} className="border-t border-border/40">
+                      <td className="px-3 py-2">{nome}</td>
+                      <td className={`px-3 py-2 text-right tabular-nums font-medium ${total >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>{fmt(total)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            Visão exclusiva: itens classificados como mútuo, intercompany, conta transitória ou transferência interna. Base oficial permanece intacta — nada é apagado nem reclassificado.
+          </p>
+        </Card>
+      )}
 
       <Card className="overflow-auto">
         {dadosQ.isLoading ? (
