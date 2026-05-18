@@ -717,7 +717,7 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("pre_titulo_rateio")
-        .select("*, centros_custo(codigo, nome), conta_contabil(codigo, nome)")
+        .select("*, centros_custo(codigo, nome), conta_contabil(classificacao, descricao)")
         .eq("pre_titulo_id", id);
       return data ?? [];
     },
