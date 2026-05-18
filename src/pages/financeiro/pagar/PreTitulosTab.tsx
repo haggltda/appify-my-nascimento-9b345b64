@@ -513,7 +513,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
         </section>
 
         {/* Bloco 2: Rateio */}
-        <section className="rounded-xl border bg-card p-4 space-y-3">
+        <section className="rounded-xl border bg-card p-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <FileSpreadsheet className="h-4 w-4 text-primary" /> Rateio por centro de custo <span className="text-xs text-muted-foreground font-normal">(obrigatório — mesmo que seja 1 só)</span>
@@ -637,7 +637,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
         </section>
 
         {/* Bloco 3: Anexos */}
-        <section className="rounded-xl border bg-card p-4 space-y-3">
+        <section className="rounded-xl border bg-card p-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Paperclip className="h-4 w-4 text-primary" /> Anexos (NF, rescisão, boletos)
