@@ -398,6 +398,22 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
           {!collapsed && <span>Início</span>}
         </NavLink>
 
+        <NavLink
+          to="/app/presidencia"
+          className={({ isActive }) =>
+            cn(
+              "mt-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              isActive
+                ? "bg-sidebar-accent text-white"
+                : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-white",
+              collapsed && "justify-center px-2",
+            )
+          }
+        >
+          <LayoutDashboard className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Painel da Presidência</span>}
+        </NavLink>
+
         {temAlcada && (
           <NavLink
             to="/app/aprovacoes/inbox"
