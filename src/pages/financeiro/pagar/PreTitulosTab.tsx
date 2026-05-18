@@ -430,24 +430,24 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-6 pt-6 pb-3 border-b sticky top-0 bg-background z-10">
+      <DialogContent className="max-w-[1400px] w-[97vw] max-h-[92vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-5 pb-3 border-b sticky top-0 bg-background z-10">
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" /> Novo lançamento de NF / pré-título
           </DialogTitle>
           <DialogDescription>
-            Preencha os dados, ratee por centro de custo e anexe o documento fiscal.
+            Preencha os dados, ratee por centro de custo (obrigatório, mesmo que seja apenas 1) e anexe o documento fiscal.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
 
         {/* Bloco 1: Documento */}
-        <section className="rounded-xl border bg-muted/30 p-4 space-y-3">
+        <section className="rounded-xl border bg-muted/30 p-3 space-y-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Building2 className="h-4 w-4 text-primary" /> Dados do documento
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-3">
             <div className="md:col-span-3">
               <Label>Empresa *</Label>
               <Select value={empresaId} onValueChange={setEmpresaId}>
