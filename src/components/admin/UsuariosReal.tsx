@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound, Copy, AlertTriangle, Upload, Trash2 } from "lucide-react";
 
-const ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","visitante"];
+const ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","usuario"];
+const LINK_ACESSO = `${window.location.origin}/login`;
 
 interface ProfileRow {
   id: string;
@@ -329,10 +330,20 @@ function ResetSenhaSection({ userId, email }: { userId: string; email: string })
     }
   };
 
-  const copiar = async () => {
-    if (!novaSenha) return;
-    try { await navigator.clipboard.writeText(novaSenha); toast({ title: "Senha copiada" }); } catch { /* */ }
+  const copiar = async (texto: string, msg: string) => {
+    try { await navigator.clipboard.writeText(texto); toast({ title: msg }); } catch { /* */ }
   };
+
+  const textoCompleto = novaSenha
+    ? [
+        "Acesso ao ERP Gestão Nascimento",
+        `Link de acesso: ${LINK_ACESSO}`,
+        `Login (e-mail): ${email}`,
+        `Senha temporária: ${novaSenha}`,
+        "",
+        "Importante: no primeiro login o sistema solicitará a criação de uma nova senha pessoal.",
+      ].join("\n")
+    : "";
 
   return (
     <div className="space-y-2">
@@ -357,16 +368,32 @@ function ResetSenhaSection({ userId, email }: { userId: string; email: string })
       )}
 
       {novaSenha && (
-        <div className="rounded-md border border-success/40 bg-success-soft p-3 text-xs">
+        <div className="rounded-md border border-success/40 bg-success-soft p-3 text-xs space-y-2">
           <p className="font-semibold text-foreground">Nova senha temporária</p>
-          <div className="mt-2 flex items-center gap-2">
-            <code className="flex-1 select-all rounded bg-background px-2 py-1.5 font-mono text-sm">{novaSenha}</code>
-            <Button size="sm" variant="outline" onClick={copiar} className="gap-1.5"><Copy className="h-3.5 w-3.5" /> Copiar</Button>
+
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">Link de acesso</Label>
+            <div className="mt-1 flex items-center gap-2">
+              <code className="flex-1 select-all rounded bg-background px-2 py-1.5 font-mono text-xs break-all">{LINK_ACESSO}</code>
+              <Button size="sm" variant="outline" onClick={() => copiar(LINK_ACESSO, "Link copiado")} className="gap-1.5"><Copy className="h-3.5 w-3.5" /></Button>
+            </div>
           </div>
-          <p className="mt-2 leading-relaxed text-muted-foreground">
-            <strong>Guarde esta senha em local seguro</strong> (gerenciador de credenciais ou cofre)
-            e repasse-a ao usuário por canal confiável. Esta senha <strong>não será exibida novamente</strong>.
-            No próximo login, o sistema obrigará o usuário a definir uma nova senha pessoal.
+
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">Senha</Label>
+            <div className="mt-1 flex items-center gap-2">
+              <code className="flex-1 select-all rounded bg-background px-2 py-1.5 font-mono text-sm">{novaSenha}</code>
+              <Button size="sm" variant="outline" onClick={() => copiar(novaSenha, "Senha copiada")} className="gap-1.5"><Copy className="h-3.5 w-3.5" /></Button>
+            </div>
+          </div>
+
+          <Button size="sm" variant="outline" className="w-full gap-1.5" onClick={() => copiar(textoCompleto, "Credenciais copiadas")}>
+            <Copy className="h-3.5 w-3.5" /> Copiar tudo (link + e-mail + senha)
+          </Button>
+
+          <p className="leading-relaxed text-muted-foreground">
+            <strong>Guarde estas informações em local seguro</strong> e repasse ao usuário por canal confiável.
+            Esta senha <strong>não será exibida novamente</strong>. No próximo login, o ERP exigirá a definição de uma nova senha pessoal.
           </p>
         </div>
       )}
@@ -564,6 +591,7 @@ function CredenciaisDialog({
     ? [
         "Acesso ao ERP Gestão Nascimento",
         creds.display_name ? `Nome: ${creds.display_name}` : null,
+        `Link de acesso: ${LINK_ACESSO}`,
         `Login (e-mail): ${creds.email}`,
         `Senha temporária: ${creds.password}`,
         "",
@@ -595,6 +623,15 @@ function CredenciaisDialog({
                 <p className="text-sm font-medium">{creds.display_name}</p>
               </div>
             )}
+            <div>
+              <Label className="text-[11px] uppercase text-muted-foreground">Link de acesso</Label>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 select-all rounded bg-muted px-2 py-1.5 font-mono text-xs break-all">{LINK_ACESSO}</code>
+                <Button size="sm" variant="outline" onClick={() => copiar(LINK_ACESSO, "Link copiado")} className="gap-1.5">
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
             <div>
               <Label className="text-[11px] uppercase text-muted-foreground">Login (e-mail)</Label>
               <div className="flex items-center gap-2">
