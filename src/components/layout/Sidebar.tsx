@@ -40,6 +40,8 @@ import {
 } from "lucide-react";
 import { usePermissoes } from "@/context/PermissoesContext";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
+import { useTemAlcada } from "@/hooks/useTemAlcada";
+import { Inbox } from "lucide-react";
 import { Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -329,6 +331,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const location = useLocation();
   const { roles } = usePermissoes();
   const { perms, isAdmin } = usePlanoAcaoPermissao();
+  const { temAlcada, pendentes } = useTemAlcada();
   const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
   const podeCopiloto = roles.includes("admin") || roles.includes("presidencia");
   const visibleModules = [
@@ -394,6 +397,31 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
           <Home className="h-4 w-4 shrink-0" />
           {!collapsed && <span>Início</span>}
         </NavLink>
+
+        {temAlcada && (
+          <NavLink
+            to="/app/aprovacoes/inbox"
+            className={({ isActive }) =>
+              cn(
+                "mt-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-sidebar-accent text-white"
+                  : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-white",
+                collapsed && "justify-center px-2",
+              )
+            }
+          >
+            <Inbox className="h-4 w-4 shrink-0" />
+            {!collapsed && (
+              <>
+                <span className="flex-1">Aguardando Aprovação</span>
+                {pendentes > 0 && (
+                  <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{pendentes}</span>
+                )}
+              </>
+            )}
+          </NavLink>
+        )}
       </div>
 
       {/* Section label */}

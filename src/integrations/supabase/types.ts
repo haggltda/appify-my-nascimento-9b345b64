@@ -24,7 +24,7 @@ export type Database = {
           id: string
           ordem: number
           responsavel_nome: string | null
-          responsavel_user_id: string | null
+          responsavel_user_id: string
           updated_at: string
           valor_max: number | null
           valor_min: number
@@ -38,7 +38,7 @@ export type Database = {
           id?: string
           ordem?: number
           responsavel_nome?: string | null
-          responsavel_user_id?: string | null
+          responsavel_user_id: string
           updated_at?: string
           valor_max?: number | null
           valor_min?: number
@@ -52,7 +52,7 @@ export type Database = {
           id?: string
           ordem?: number
           responsavel_nome?: string | null
-          responsavel_user_id?: string | null
+          responsavel_user_id?: string
           updated_at?: string
           valor_max?: number | null
           valor_min?: number
