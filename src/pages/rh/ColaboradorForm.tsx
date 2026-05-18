@@ -11,6 +11,7 @@ import { useEmpresaId } from "@/hooks/useEmpresaId";
 import { useUpsert } from "@/hooks/useGenericCrud";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, User2 } from "lucide-react";
+import { ContasBancariasGenericTab } from "@/components/contas-bancarias/ContasBancariasGenericTab";
 
 const FOTO_BUCKET = "colaboradores-fotos";
 const FOTO_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
