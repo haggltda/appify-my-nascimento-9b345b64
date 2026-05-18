@@ -757,7 +757,7 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
             <Info label="Emissão" value={fmtDate(pretit.data_emissao)} />
             <Info label="Status" value={pretit.status} />
             <Info label="Fornecedor" value={pretit.fornecedor?.razao_social ?? "—"} />
-            <Info label="Conta" value={pretit.conta_contabil ? `${pretit.conta_contabil.codigo}` : "—"} />
+            <Info label="Conta" value={pretit.conta_contabil ? `${pretit.conta_contabil.classificacao} — ${pretit.conta_contabil.descricao}` : "—"} />
           </div>
         )}
 
