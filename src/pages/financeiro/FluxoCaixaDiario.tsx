@@ -19,6 +19,18 @@ type BlocoKey = "ENTRADAS" | "SAIDAS_OP" | "FINANCEIRAS" | "SAIDAS_NAO_OP";
 type RawRow = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number; saldo_inicial: number };
 type OrcRow = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number };
 type Visao = "realizado" | "comparativo";
+type ModoMutuo = "tudo_junto" | "separado" | "ocultar";
+
+const MODO_MUTUO_LABEL: Record<ModoMutuo, string> = {
+  tudo_junto: "Tudo junto",
+  separado: "Separado",
+  ocultar: "Ocultar da visão principal",
+};
+
+// Classificação textual de mútuos / intercompany / transferências internas.
+// Regra: apenas filtragem visual; nada é reclassificado ou apagado na base.
+const MUTUO_RE = /(M[ÚU]TUO|INTERCOMPANY|CONTA\s+TRANSIT[ÓO]RIA|TRANSF(?:ER[ÊE]NCIA)?\.?\s+(ENTRE\s+CONTAS|INTERNA)|TRANSFER[ÊE]NCIA\s+INTERNA|TRANSFERENCIA\s+INTERNA|EMPR[ÉE]STIMO\s+ENTRE\s+EMPRESAS)/i;
+const isMutuo = (categoria: string = "") => MUTUO_RE.test(categoria);
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtBRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -65,6 +77,7 @@ export default function FluxoCaixaDiario() {
   const [empresaNome, setEmpresaNome] = useState<string>("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [visao, setVisao] = useState<Visao>("realizado");
+  const [modoMutuo, setModoMutuo] = useState<ModoMutuo>("separado");
   const { can } = usePermissoes();
   const podeConsolidar = can("visualizar", "financeiro", "financeiro.fluxo_caixa_diario.consolidado_empresas");
   const isConsolidado = empresaId === ALL_EMPRESAS;
@@ -146,6 +159,9 @@ export default function FluxoCaixaDiario() {
       SAIDAS_NAO_OP: new Map(),
     };
     (dadosQ.data ?? []).forEach((r) => {
+      // Em modo "separado" ou "ocultar", mútuos/intercompany/transferências
+      // não compõem o grid principal. A base oficial permanece intacta.
+      if (modoMutuo !== "tudo_junto" && isMutuo(r.categoria)) return;
       const b = reclassify(r.bloco, r.categoria);
       const m = blocos[b];
       if (!m) return;
@@ -153,6 +169,23 @@ export default function FluxoCaixaDiario() {
       m.get(r.categoria)![r.dia] = (m.get(r.categoria)![r.dia] ?? 0) + Number(r.valor);
     });
     return blocos;
+  }, [dadosQ.data, modoMutuo]);
+
+  // Agregado próprio de mútuos/intercompany/transferências.
+  // Sempre calculado a partir da base ORIGINAL retornada pela RPC (não do grid filtrado).
+  const gridMutuo = useMemo(() => {
+    const porCategoria = new Map<string, Record<string, number>>();
+    let entradas = 0;
+    let saidas = 0;
+    (dadosQ.data ?? []).forEach((r) => {
+      if (!isMutuo(r.categoria)) return;
+      const v = Number(r.valor) || 0;
+      if (!porCategoria.has(r.categoria)) porCategoria.set(r.categoria, {});
+      porCategoria.get(r.categoria)![r.dia] = (porCategoria.get(r.categoria)![r.dia] ?? 0) + v;
+      if (v >= 0) entradas += v;
+      else saidas += v;
+    });
+    return { porCategoria, entradas, saidas, liquido: entradas + saidas };
   }, [dadosQ.data]);
 
   const totaisBloco = (b: BlocoKey) => {
@@ -213,6 +246,8 @@ export default function FluxoCaixaDiario() {
   const exportCsv = () => {
     const header = ["Bloco", "Categoria", ...dias, "Total Período"];
     const rows: (string | number)[][] = [];
+    // Cabeçalho informando o modo da visão de mútuos/transferências.
+    rows.push([`Visão de mútuos/transferências: ${MODO_MUTUO_LABEL[modoMutuo]}`]);
     rows.push(["—", "Saldo Inicial", ...dias.map((d) => saldosIniciaisDia[d]), ""]);
     rows.push(["—", "Movimentação do Dia", ...dias.map((d) => movimentoDia(d)), saldoTotalPeriodo]);
     (Object.keys(grid) as BlocoKey[]).forEach((b) => {
@@ -221,6 +256,15 @@ export default function FluxoCaixaDiario() {
         rows.push([BLOCO_LABEL[b], nome, ...dias.map((d) => cat[d] ?? 0), total]);
       });
     });
+    if (modoMutuo === "separado" && gridMutuo.porCategoria.size > 0) {
+      rows.push(["MÚTUOS/INTERCOMPANY/TRANSFERÊNCIAS", `Entradas`, "", ...Array(dias.length - 1).fill(""), gridMutuo.entradas]);
+      rows.push(["MÚTUOS/INTERCOMPANY/TRANSFERÊNCIAS", `Saídas`, "", ...Array(dias.length - 1).fill(""), gridMutuo.saidas]);
+      rows.push(["MÚTUOS/INTERCOMPANY/TRANSFERÊNCIAS", `Líquido`, "", ...Array(dias.length - 1).fill(""), gridMutuo.liquido]);
+      gridMutuo.porCategoria.forEach((cat, nome) => {
+        const total = Object.values(cat).reduce((a, c) => a + c, 0);
+        rows.push(["MÚTUOS/INTERCOMPANY/TRANSFERÊNCIAS", nome, ...dias.map((d) => cat[d] ?? 0), total]);
+      });
+    }
     const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -244,6 +288,7 @@ export default function FluxoCaixaDiario() {
       `Período: ${new Date(dataIni + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`,
       40, 66,
     );
+    pdf.text(`Visão de mútuos/transferências: ${MODO_MUTUO_LABEL[modoMutuo]}`, 40, 78);
     pdf.text(`Emitido em ${new Date().toLocaleString("pt-BR")}`, W - 40, 36, { align: "right" });
 
     const head = [["Categoria", ...dias.map((d) => {
@@ -286,6 +331,23 @@ export default function FluxoCaixaDiario() {
     pushBloco("FINANCEIRAS");
     pushBloco("SAIDAS_NAO_OP");
 
+    if (modoMutuo === "separado" && gridMutuo.porCategoria.size > 0) {
+      const rgb: [number, number, number] = [226, 232, 240];
+      body.push([
+        { content: "MÚTUOS / INTERCOMPANY / TRANSFERÊNCIAS INTERNAS", styles: { fillColor: rgb, textColor: [15, 23, 42], fontStyle: "bold" } },
+        ...dias.map(() => ({ content: "—", styles: { fillColor: rgb, halign: "right" } })),
+        { content: fmt(gridMutuo.liquido), styles: { fillColor: rgb, halign: "right", fontStyle: "bold" } },
+      ]);
+      [...gridMutuo.porCategoria.entries()].sort(([a], [c]) => a.localeCompare(c)).forEach(([nome, cat]) => {
+        const total = Object.values(cat).reduce((a, c) => a + c, 0);
+        body.push([
+          { content: "    " + nome },
+          ...dias.map((d) => ({ content: cat[d] ? fmt(cat[d]) : "—", styles: { halign: "right" } })),
+          { content: fmt(total), styles: { halign: "right" } },
+        ]);
+      });
+    }
+
     body.push([
       { content: "SALDO FINAL", styles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" } },
       ...dias.map((d) => ({
@@ -296,7 +358,7 @@ export default function FluxoCaixaDiario() {
     ]);
 
     autoTable(pdf, {
-      head, body, startY: 80, theme: "grid",
+      head, body, startY: 92, theme: "grid",
       styles: { fontSize: 7, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.3 },
       headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: "bold", halign: "center" },
       columnStyles: { 0: { cellWidth: 140, halign: "left" } },
@@ -407,10 +469,28 @@ export default function FluxoCaixaDiario() {
             </Button>
           </div>
         </div>
+        <div>
+          <Label>Visão de mútuos e transferências</Label>
+          <Select value={modoMutuo} onValueChange={(v) => setModoMutuo(v as ModoMutuo)}>
+            <SelectTrigger className="w-[260px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tudo_junto">Tudo junto</SelectItem>
+              <SelectItem value="separado">Separado</SelectItem>
+              <SelectItem value="ocultar">Ocultar da visão principal</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="ml-auto text-xs text-muted-foreground">
           {dias.length} dias · {dadosQ.data?.length ?? 0} categorias·dia
         </div>
       </Card>
+
+      <div className="flex items-center gap-2 text-[11px]">
+        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 ${modoMutuo === "tudo_junto" ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" : "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"}`}>
+          {modoMutuo === "tudo_junto" ? "Saldo oficial completo" : "Saldo gerencial sem mútuos/transferências"}
+        </span>
+        <span className="text-muted-foreground">Modo atual: {MODO_MUTUO_LABEL[modoMutuo]}</span>
+      </div>
 
       <div className="grid gap-3 md:grid-cols-6">
         <Kpi titulo="Saldo Inicial" valor={saldoInicialBase} sub={`Em ${new Date(dataIni + "T00:00:00").toLocaleDateString("pt-BR")}`} />
@@ -420,6 +500,43 @@ export default function FluxoCaixaDiario() {
         <Kpi titulo="Saídas Não Operacionais" valor={tSNop.total} cor="text-amber-600" sub={`${dias.length} dias`} />
         <Kpi titulo="Saldo Final" valor={saldoFinal} sub={`Em ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`} />
       </div>
+
+      {modoMutuo === "separado" && gridMutuo.porCategoria.size > 0 && (
+        <Card className="p-4 border-l-4 border-sky-500">
+          <h3 className="font-semibold mb-3 text-sky-900 dark:text-sky-200">
+            Mútuos / Intercompany / Transferências internas
+          </h3>
+          <div className="grid gap-3 md:grid-cols-3 mb-3">
+            <Kpi titulo="Entradas" valor={gridMutuo.entradas} cor="text-emerald-600" />
+            <Kpi titulo="Saídas" valor={gridMutuo.saidas} cor="text-rose-600" />
+            <Kpi titulo="Líquido" valor={gridMutuo.liquido} cor={gridMutuo.liquido >= 0 ? "text-emerald-600" : "text-rose-600"} />
+          </div>
+          <div className="overflow-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-left">Categoria</th>
+                  <th className="px-3 py-2 text-right">Total Período</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...gridMutuo.porCategoria.entries()].sort(([a], [c]) => a.localeCompare(c)).map(([nome, cat]) => {
+                  const total = Object.values(cat).reduce((a, c) => a + c, 0);
+                  return (
+                    <tr key={nome} className="border-t border-border/40">
+                      <td className="px-3 py-2">{nome}</td>
+                      <td className={`px-3 py-2 text-right tabular-nums font-medium ${total >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>{fmt(total)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            Visão exclusiva: itens classificados como mútuo, intercompany, conta transitória ou transferência interna. Base oficial permanece intacta — nada é apagado nem reclassificado.
+          </p>
+        </Card>
+      )}
 
       <Card className="overflow-auto">
         {dadosQ.isLoading ? (
