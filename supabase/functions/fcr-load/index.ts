@@ -752,24 +752,113 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
       inserted_count += data?.length ?? 0;
     }
 
-    // pendências por linha oculta com valor numérico não-zero classificada como movimento
-    const pendencias = raws
-      .filter((r) =>
+    // Recupera IDs persistidos para anexar pendências com raw_id NOT NULL
+    const hashToId = new Map<string, string>();
+    {
+      const PAGE = 1000;
+      let from = 0;
+      while (true) {
+        const { data, error } = await admin.from("fcr_raw_excel")
+          .select("id, hash_idempotencia")
+          .eq("batch_id", batch_id)
+          .range(from, from + PAGE - 1);
+        if (error) throw new Error("fetch raw ids: " + error.message);
+        if (!data || data.length === 0) break;
+        for (const row of data) hashToId.set(row.hash_idempotencia, row.id);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+    }
+
+    const pendencias: Array<Record<string, unknown>> = [];
+
+    // (a) linha oculta com valor numérico classificada como movimento
+    for (const r of raws) {
+      if (
         r.tipo_linha === "movimento" &&
-        r.raw_json.exclude_from_math &&
+        (r.raw_json as any).exclude_from_math &&
         r.valor_numerico !== null && Math.abs(r.valor_numerico) > 0
-      )
-      .map((r) => ({
+      ) {
+        const raw_id = hashToId.get(r.hash_idempotencia);
+        if (!raw_id) continue;
+        pendencias.push({
+          batch_id,
+          raw_id,
+          empresa_id: r.empresa_id_resolvida,
+          classificacao_excel_original: r.classificacao_excel_original,
+          historico_original: r.historico_original,
+          data_caixa: r.data_caixa_derivada,
+          valor_original: r.valor_numerico,
+          tipo_pendencia: "linha_calculada_ambigua",
+          destino_proposto: "a_conciliar",
+          status: "pendente",
+          motivo: "cell_hidden_has_numeric_value",
+        });
+      }
+    }
+
+    // (b) pendências long_table acumuladas durante o parse
+    const ltPends: Array<{ tipo_pendencia: string; motivo: string; destino_proposto: string; row_index: number }> =
+      ((batch as any).__lt_pendencias ?? []) as any;
+    for (const p of ltPends) {
+      const r = raws[p.row_index];
+      if (!r) continue;
+      const raw_id = hashToId.get(r.hash_idempotencia);
+      if (!raw_id) continue;
+      pendencias.push({
         batch_id,
-        raw_id: null,
+        raw_id,
         empresa_id: r.empresa_id_resolvida,
-        tipo_pendencia: "linha_calculada_ambigua",
-        destino_proposto: "a_conciliar",
+        classificacao_excel_original: r.classificacao_excel_original,
+        historico_original: r.historico_original,
+        data_caixa: r.data_caixa_derivada,
+        valor_original: r.valor_numerico,
+        tipo_pendencia: p.tipo_pendencia,
+        destino_proposto: p.destino_proposto,
         status: "pendente",
-        motivo: "cell_hidden_has_numeric_value",
-      }));
+        motivo: p.motivo,
+      });
+    }
+
+    // (c) id_origem duplicado dentro do mesmo batch
+    {
+      const idGroups = new Map<string, number[]>();
+      for (let i = 0; i < raws.length; i++) {
+        const id = raws[i].id_origem_texto;
+        if (!id) continue;
+        const list = idGroups.get(id) ?? [];
+        list.push(i);
+        idGroups.set(id, list);
+      }
+      for (const [, idxs] of idGroups) {
+        if (idxs.length < 2) continue;
+        for (const i of idxs) {
+          const r = raws[i];
+          const raw_id = hashToId.get(r.hash_idempotencia);
+          if (!raw_id) continue;
+          pendencias.push({
+            batch_id,
+            raw_id,
+            empresa_id: r.empresa_id_resolvida,
+            classificacao_excel_original: r.classificacao_excel_original,
+            historico_original: r.historico_original,
+            data_caixa: r.data_caixa_derivada,
+            valor_original: r.valor_numerico,
+            tipo_pendencia: "id_origem_duplicado",
+            destino_proposto: "a_conciliar",
+            status: "pendente",
+            motivo: `id_origem '${r.id_origem_texto}' repetido ${idxs.length}x`,
+          });
+        }
+      }
+    }
+
     if (pendencias.length) {
-      // raw_id ficaria null — só registramos no fluxo de bloqueio via raw_json
+      for (let i = 0; i < pendencias.length; i += 1000) {
+        const slice = pendencias.slice(i, i + 1000);
+        const { error } = await admin.from("fcr_sugestoes_pendencias").insert(slice);
+        if (error) throw new Error("insert pendencias: " + error.message);
+      }
     }
 
     // estatísticas long_table
