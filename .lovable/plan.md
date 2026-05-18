@@ -1,75 +1,109 @@
-# Plano: Catálogo de bancos unificado
+# Plano: Permissões para Contas Bancárias (Fornecedor / Colaborador)
 
-## Situação atual
+## Diagnóstico
 
-Existe um único catálogo em `src/pages/financeiro/builder/types.ts` → `BANCOS_CATALOGO` com apenas 10 itens (BB, Caixa, Bradesco, Itaú, Santander, Sicoob, Sicredi, Inter, BTG, "Outro"). Ele é usado em:
+- Sistema de permissões já existe: tabela `role_permissions` (role × módulo × ação × menu_codigo opcional), consumida via `PermissoesContext.can(acao, modulo, menu)` e `<RoleGate>`.
+- Ações disponíveis: `visualizar | incluir | alterar | excluir | aprovar | exportar | executar_ia`.
+- Hoje **não existe** menu específico para contas bancárias de fornecedores/colaboradores — quem tem permissão em `suprimentos` ou `rh` (menu_codigo NULL = módulo inteiro) acaba podendo tudo.
+- Tabelas no banco (`fornecedor_conta_bancaria`, futura `colaborador_conta_bancaria`) hoje têm RLS aberta para qualquer authenticated. Isso precisa ser restringido por função SECURITY DEFINER que consulta `role_permissions`.
 
-- `ContaBancariaDialog` (fornecedores) — selecione o banco da conta do fornecedor
-- Builder CNAB (integração bancária)
-- Contas bancárias da própria empresa (tabela `conta_bancaria`)
+## Objetivo
 
-Não há ainda local de cadastro de **contas de colaboradores** (será necessário criar — ver seção 4).
+Restringir criar/alterar/excluir contas bancárias de **fornecedores** e **colaboradores** a usuários com permissão dedicada, tanto no frontend (esconder botões) quanto no backend (RLS).
 
-## 1. Expandir o catálogo (sem duplicar)
+## 1. Novos menu_codigo em `role_permissions`
 
-Adicionar ao `BANCOS_CATALOGO` os bancos solicitados + uma lista média representativa do mercado BR. Padrão: `codigo` (string, 3 dígitos com zero à esquerda) + `nome`.
+Cadastrar 2 escopos novos (granulares) usados pelas rotinas:
 
-Novos solicitados pelo usuário:
-- 041 — Banrisul
-- 336 — C6 Bank
-- 260 — Nubank (Nu Pagamentos)
-- 292 — Mentore (BS2 / código a confirmar — Mentore atua sob conta-corrente parceira; código provisório 292/BS2)
-- — Próspera (não possui código COMPE próprio; opera como correspondente — listar como "Próspera (correspondente)" com código provisório `999P` ou pedir confirmação ao usuário)
-- 526 — Ticket / Edenred (conta-pagamento)
+| módulo | menu_codigo | descrição |
+|--------|-------------|-----------|
+| suprimentos | fornecedor.conta_bancaria | Contas bancárias do fornecedor |
+| rh | colaborador.conta_bancaria | Contas bancárias do colaborador |
 
-Lista média a incluir (códigos COMPE oficiais), sem duplicar os 10 já existentes:
-003 Basa, 004 BNB, 021 Banestes, 025 Alfa, 037 Banpará, 041 Banrisul, 047 Banese, 070 BRB, 077 Inter (já existe), 082 Banco Topázio, 084 Uniprime Norte PR, 085 Ailos/Cecred, 097 Credisis, 121 Agibank, 197 Stone, 208 BTG (já existe), 212 Banco Original, 213 Banco Arbi, 218 BS2, 222 Credit Agricole, 224 Fibra, 237 Bradesco (já existe), 246 ABC Brasil, 260 Nubank, 290 PagBank/PagSeguro, 323 Mercado Pago, 335 Digio, 336 C6, 341 Itaú (já), 380 PicPay, 389 Mercantil do Brasil, 422 Safra, 453 Rural, 473 Caixa Geral, 477 Citibank, 487 Deutsche, 526 Ticket, 600 Luso Brasileiro, 604 Industrial, 611 Paulista, 612 Guanabara, 623 Pan, 633 Rendimento, 637 Sofisa, 643 Pine, 652 Itaú Holding, 653 Indusval, 655 Votorantim, 707 Daycoval, 735 BRK / Neon, 739 Cetelem, 741 BRP, 745 Citibank, 746 Modal, 748 Sicredi (já), 752 BNP Paribas, 755 BofA, 756 Sicoob (já), 757 KEB.
+Para cada um, semear linhas em `role_permissions` para as ações: `visualizar`, `incluir`, `alterar`, `excluir`. Roles default:
 
-Total estimado: ~55 bancos (10 existentes + ~45 novos). Mantém UX fluida no Select.
+- `admin` — todas as ações (já é bypass implícito no `can`, mas semear por consistência)
+- `controladoria` — visualizar
+- `diretor_adm` — visualizar, incluir, alterar, excluir (fornecedor)
+- Demais roles — sem permissão (precisam ser vinculadas pelo admin)
 
-Regra anti-duplicação: chave única = `codigo`. Antes de adicionar, conferir lista atual.
+(O cadastro fica em `supabase--migration` via INSERT seed; o admin pode reajustar pela aba Permissões.)
 
-Itens sem código COMPE definido ("Próspera", "Mentore") serão marcados visualmente (ex.: nome + "(correspondente)") e usarão prefixo `9xx` reservado, sujeito a confirmação.
+## 2. Função SECURITY DEFINER para checar permissão no banco
 
-## 2. Onde o catálogo é usado hoje
+Criar `public.has_permissao(_user_id uuid, _modulo text, _acao text, _menu text)` que retorna boolean:
 
-- `ContaBancariaDialog` (fornecedores) — OK, passa a ver lista completa automaticamente.
-- Builder CNAB — OK.
-- Modal de cadastro de `conta_bancaria` (empresa) — verificar; se ainda usa lista hardcoded local, trocar para `BANCOS_CATALOGO`.
+- Admin (em `user_roles`) → true.
+- Caso contrário, JOIN `user_roles` × `role_permissions` matching `modulo=_modulo AND acao=_acao AND (menu_codigo IS NULL OR menu_codigo=_menu) AND modulo='*' OR modulo=_modulo`.
 
-Nenhuma migração de dados necessária — `banco_codigo` continua string.
+A função roda em SECURITY DEFINER + `SET search_path = public` para uso em RLS sem recursão.
 
-## 3. Contas bancárias da própria empresa
+## 3. RLS endurecida nas tabelas de contas
 
-Já existem: tabela `conta_bancaria` + tela na trilha de Integração Bancária / Financeiro. Ação: garantir que o Select de banco use `BANCOS_CATALOGO` (mesma fonte única).
+### `fornecedor_conta_bancaria` (já existe — substituir policies)
 
-## 4. Contas bancárias de colaboradores (novo)
+- SELECT: `has_permissao(auth.uid(), 'suprimentos', 'visualizar', 'fornecedor.conta_bancaria')`
+- INSERT: `... 'incluir' ...` (em WITH CHECK)
+- UPDATE: `... 'alterar' ...`
+- DELETE: `... 'excluir' ...`
 
-Hoje não existe. Padrão a seguir (espelhando `fornecedor_conta_bancaria`):
+### `colaborador_conta_bancaria` (a criar)
 
-- Nova tabela `colaborador_conta_bancaria` com: `colaborador_id` (FK CASCADE), `empresa_id`, `banco_codigo`, `banco_nome`, `agencia`/dígito, `conta`/dígito, `tipo`, `titular_nome` (default = nome do colaborador), `titular_documento` (default = CPF do colaborador), `pix_tipo`, `pix_chave`, `principal`, `ativa`, `observacoes`, timestamps. RLS + trigger `principal_unica` por colaborador + trigger `updated_at`.
-- UI: aba "Contas Bancárias" dentro do cadastro do colaborador em `src/pages/rh/ColaboradorForm.tsx` (ou novo `ColaboradorDialog` se preferirem), reaproveitando `ContaBancariaDialog` parametrizado (extrair para componente genérico `ContaBancariaForm` que receba `parentId`, `parentTable`, `tituloPadrao`).
-- Uso futuro: folha de pagamento, reembolsos, adiantamentos.
+Mesmo padrão com módulo `rh` e menu `colaborador.conta_bancaria`.
 
-## 5. Refatoração leve sugerida
+## 4. Frontend — gates
 
-- Mover `BANCOS_CATALOGO` para `src/lib/bancos.ts` (fonte única, fora do módulo builder/CNAB) e reexportar do path antigo para não quebrar imports.
-- Função helper `getBancoNome(codigo)` para usar em listagens.
+- `src/pages/suprimentos/fornecedores/ContasBancariasTab.tsx`:
+  - Botão "Nova conta" envolvido em `<RoleGate acao="incluir" modulo="suprimentos" menu="fornecedor.conta_bancaria">`
+  - Botões Editar/Excluir condicionados a `can("alterar"/"excluir", ...)`.
+  - Aba só renderiza se `can("visualizar", ...)`.
+- Equivalente na futura aba do colaborador (módulo `rh`, menu `colaborador.conta_bancaria`).
+
+## 5. Tela de administração
+
+A tela `PermissoesTab.tsx` já lê dinamicamente da `role_permissions`, então os novos menus aparecem automaticamente após o seed. Verificar se a UI lista menus do tipo `xxx.yyy` corretamente (se não, ajustar rótulos).
+
+## 6. Auditoria
+
+Toda alteração já passa pelo trigger `updated_at`. Opcional (fora deste plano): inserir registro em `audit_log` via trigger.
 
 ## Detalhes técnicos
 
-- Tipo `BancoCatalogo` ganha `cor` opcional — novos itens podem usar `hsl(220 10% 50%)` como default neutro.
-- Ordenação: alfabética por `nome`, exceto os 5-6 "Top" (BB, Caixa, Bradesco, Itaú, Santander, Sicoob/Sicredi) fixados no topo + separador.
-- Componente `Select` shadcn já comporta ~60 itens; se passar de 80 considerar `Command` (combobox com busca).
+```sql
+-- Função
+CREATE OR REPLACE FUNCTION public.has_permissao(_user uuid, _modulo text, _acao text, _menu text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM user_roles WHERE user_id=_user AND role='admin')
+      OR EXISTS (
+        SELECT 1
+          FROM user_roles ur
+          JOIN role_permissions rp ON rp.role = ur.role
+         WHERE ur.user_id = _user
+           AND rp.acao = _acao
+           AND (rp.modulo = '*' OR rp.modulo = _modulo)
+           AND (rp.menu_codigo IS NULL OR rp.menu_codigo = _menu)
+      );
+$$;
+```
 
-## Fora de escopo deste plano
+Replace policies:
 
-- Migrar dados existentes (não há mudança de schema em tabelas atuais).
-- Validação de dígito-banco por algoritmo específico.
-- Importação massiva de contas.
+```sql
+DROP POLICY "auth select fornecedor_conta" ON fornecedor_conta_bancaria;
+-- ... idem insert/update/delete
+CREATE POLICY "sel" ON fornecedor_conta_bancaria FOR SELECT TO authenticated
+  USING (has_permissao(auth.uid(),'suprimentos','visualizar','fornecedor.conta_bancaria'));
+-- etc.
+```
 
-## Pendências de confirmação
+## Fora de escopo
 
-1. Códigos para **Próspera** e **Mentore** — quais usar? (não têm COMPE próprio)
-2. Aprovar criação da tabela `colaborador_conta_bancaria` agora ou em etapa separada?
-3. Manter "Outro / Customizado" (999) como fallback? (recomendo sim)
+- Auditoria detalhada de leitura.
+- Permissão por empresa específica (apenas por role).
+- Reprocessar registros existentes.
+
+## Confirmações antes de executar
+
+1. **Roles default** que devem nascer com acesso a fornecedor.conta_bancaria — confirmar lista (sugeri: admin, diretor_adm, controladoria-só-leitura).
+2. **Roles default** para colaborador.conta_bancaria (sugeri: admin, diretor_adm; RH se existir como role separado — hoje não há, podemos criar role `rh`).
+3. Os usuários atuais sem essa permissão **perderão acesso** assim que a RLS for atualizada — confirmar OK.
