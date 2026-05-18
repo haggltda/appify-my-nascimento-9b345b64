@@ -11,6 +11,7 @@ import { Download, FileText, ChevronDown, ChevronRight, BarChart3, Building2 } f
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { usePermissoes } from "@/context/PermissoesContext";
+import { toast } from "sonner";
 
 const ALL_EMPRESAS = "__ALL__";
 
@@ -119,6 +120,13 @@ export default function FluxoCaixaDiario() {
       return (data ?? []) as OrcRow[];
     },
   });
+
+  useEffect(() => {
+    if (dadosQ.error) toast.error("Falha ao carregar fluxo de caixa", { description: (dadosQ.error as Error).message });
+  }, [dadosQ.error]);
+  useEffect(() => {
+    if (orcQ.error) toast.error("Falha ao carregar orçado", { description: (orcQ.error as Error).message });
+  }, [orcQ.error]);
 
   const dias = useMemo(() => {
     const out: string[] = [];
