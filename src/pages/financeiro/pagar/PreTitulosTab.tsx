@@ -706,7 +706,7 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("pre_titulo_pagar")
-        .select("*, fornecedor(razao_social), conta_contabil(codigo, nome)")
+        .select("*, fornecedor(razao_social), conta_contabil(classificacao, descricao)")
         .eq("id", id)
         .maybeSingle();
       return data;
