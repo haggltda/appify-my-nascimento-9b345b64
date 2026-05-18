@@ -671,7 +671,9 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
           )}
         </section>
 
-        <DialogFooter>
+        </div>
+
+        <DialogFooter className="px-6 py-3 border-t sticky bottom-0 bg-background z-10 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
             {salvar.isPending ? "Salvando..." : "Salvar rascunho"}
