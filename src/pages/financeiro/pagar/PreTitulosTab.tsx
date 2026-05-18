@@ -430,7 +430,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-[1400px] w-[97vw] max-h-[92vh] flex flex-col p-0 gap-0">
+      <DialogContent className="!max-w-[min(1600px,98vw)] sm:!max-w-[min(1600px,98vw)] w-[98vw] max-h-[94vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-5 pb-3 border-b sticky top-0 bg-background z-10">
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" /> Novo lançamento de NF / pré-título
