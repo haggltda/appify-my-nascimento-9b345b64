@@ -784,7 +784,7 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
                 {rateios.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>{r.centros_custo?.codigo}</TableCell>
-                    <TableCell>{r.conta_contabil?.codigo ?? "—"}</TableCell>
+                    <TableCell>{r.conta_contabil ? `${r.conta_contabil.classificacao} — ${r.conta_contabil.descricao}` : "—"}</TableCell>
                     <TableCell>{r.descricao ?? "—"}</TableCell>
                     <TableCell className="text-right">{r.percentual ? `${r.percentual}%` : "—"}</TableCell>
                     <TableCell className="text-right font-medium">{fmtMoney(r.valor)}</TableCell>
