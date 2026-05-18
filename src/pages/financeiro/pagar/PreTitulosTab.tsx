@@ -289,38 +289,46 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
       return data ?? [];
     },
   });
-  const { data: contasRaw = [] } = useQuery<any[]>({
-    queryKey: ["conta_contabil_analitica"],
+  const { data: contas = [] } = useQuery<any[]>({
+    queryKey: ["conta_contabil_dre", empresaId],
+    enabled: !!empresaId,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("conta_contabil")
-        .select("id, classificacao, descricao, natureza, grupo_dre, empresa_id, ativo, tipo")
+        .select("id, classificacao, descricao, natureza, grupo_dre, centro_custo_padrao, empresa_id, ativo, tipo")
         .eq("tipo", "analitica")
         .eq("ativo", true)
+        .eq("grupo_dre", "dre")
+        .eq("empresa_id", empresaId)
         .order("classificacao");
       if (error) throw error;
       return data ?? [];
     },
   });
-  const contas = useMemo(() => {
-    const filtered = empresaId
-      ? contasRaw.filter((c) => !c.empresa_id || c.empresa_id === empresaId)
-      : contasRaw;
-    // Despesa/custo primeiro
-    return [...filtered].sort((a, b) => {
-      const da = /despesa|custo|resultado/i.test(String(a.grupo_dre ?? a.natureza ?? "")) ? 0 : 1;
-      const db = /despesa|custo|resultado/i.test(String(b.grupo_dre ?? b.natureza ?? "")) ? 0 : 1;
-      if (da !== db) return da - db;
-      return String(a.classificacao).localeCompare(String(b.classificacao));
-    });
-  }, [contasRaw, empresaId]);
   const { data: ccs = [] } = useQuery<any[]>({
-    queryKey: ["centros_custo"],
+    queryKey: ["centros_custo_empresa", empresaId],
+    enabled: !!empresaId,
     queryFn: async () => {
-      const { data } = await (supabase as any).from("centros_custo").select("id, codigo, nome").order("codigo");
+      const { data } = await (supabase as any)
+        .from("centros_custo")
+        .select("id, codigo, nome, empresa_id")
+        .eq("empresa_id", empresaId)
+        .eq("ativo", true)
+        .order("codigo");
       return data ?? [];
     },
   });
+
+  // Mapa CC.codigo -> conta de resultado vinculada (centro_custo_padrao)
+  const ccCodigoToContaId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of contas) {
+      if (c.centro_custo_padrao && !m.has(c.centro_custo_padrao)) {
+        m.set(String(c.centro_custo_padrao), c.id);
+      }
+    }
+    return m;
+  }, [contas]);
 
   const totalRateio = rateios.reduce((s, r) => {
     if (r.modo === "percentual") return s + (Number(r.percentual) || 0) * valorNum / 100;
@@ -334,8 +342,28 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
       { centro_custo_id: "", modo: "percentual", percentual: "", valor: "", descricao: "" },
     ]);
   const updateRateio = (i: number, patch: Partial<RateioItem>) =>
-    setRateios((r) => r.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+    setRateios((r) =>
+      r.map((x, k) => {
+        if (k !== i) return x;
+        const next = { ...x, ...patch };
+        // Auto-sugerir conta contábil ao escolher CC (não sobrescreve escolha manual)
+        if (patch.centro_custo_id && !x.conta_contabil_id) {
+          const cc = ccs.find((c) => c.id === patch.centro_custo_id);
+          if (cc) {
+            const sugerida = ccCodigoToContaId.get(String(cc.codigo));
+            if (sugerida) next.conta_contabil_id = sugerida;
+          }
+        }
+        return next;
+      }),
+    );
   const removeRateio = (i: number) => setRateios((r) => r.filter((_, k) => k !== i));
+
+  const handleEmpresaChange = (v: string) => {
+    setEmpresaId(v);
+    setContaContabilId("");
+    setRateios((r) => r.map((x) => ({ ...x, centro_custo_id: "", conta_contabil_id: "" })));
+  };
 
   const distribuirIgual = () => {
     if (rateios.length === 0) return;
@@ -450,7 +478,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-3">
             <div className="md:col-span-3 lg:col-span-4">
               <Label className="text-xs">Empresa *</Label>
-              <Select value={empresaId} onValueChange={setEmpresaId}>
+              <Select value={empresaId} onValueChange={handleEmpresaChange}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
                   {empresas.map((e) => (
@@ -496,8 +524,8 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div className="md:col-span-3 lg:col-span-6">
               <Label className="text-xs">Conta contábil (default)</Label>
-              <Select value={contaContabilId} onValueChange={setContaContabilId}>
-                <SelectTrigger><SelectValue placeholder="Opcional — usada quando a linha de rateio não tiver conta" /></SelectTrigger>
+              <Select value={contaContabilId} onValueChange={setContaContabilId} disabled={!empresaId}>
+                <SelectTrigger><SelectValue placeholder={empresaId ? (contas.length ? "Opcional — usada quando a linha de rateio não tiver conta" : "Nenhuma conta de resultado para esta empresa") : "Selecione a empresa primeiro"} /></SelectTrigger>
                 <SelectContent>
                   {contas.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>
@@ -555,8 +583,8 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                     return (
                       <TableRow key={i}>
                         <TableCell>
-                          <Select value={r.centro_custo_id} onValueChange={(v) => updateRateio(i, { centro_custo_id: v })}>
-                            <SelectTrigger><SelectValue placeholder="CC..." /></SelectTrigger>
+                          <Select value={r.centro_custo_id} onValueChange={(v) => updateRateio(i, { centro_custo_id: v })} disabled={!empresaId}>
+                            <SelectTrigger><SelectValue placeholder={empresaId ? "CC..." : "Selecione a empresa"} /></SelectTrigger>
                             <SelectContent>
                               {ccs.map((c) => (
                                 <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>
@@ -565,8 +593,8 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                           </Select>
                         </TableCell>
                         <TableCell>
-                          <Select value={r.conta_contabil_id ?? ""} onValueChange={(v) => updateRateio(i, { conta_contabil_id: v })}>
-                            <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
+                          <Select value={r.conta_contabil_id ?? ""} onValueChange={(v) => updateRateio(i, { conta_contabil_id: v })} disabled={!empresaId}>
+                            <SelectTrigger><SelectValue placeholder={empresaId ? "Auto pelo CC..." : "Selecione a empresa"} /></SelectTrigger>
                             <SelectContent>
                               {contas.map((c) => (
                                 <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>

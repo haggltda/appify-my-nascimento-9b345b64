@@ -16,7 +16,9 @@ Tenha em mãos / confirme:
 - **Empresa ativa correta** no seletor do topo da tela (canto superior direito). Se lançar na empresa errada, o título cai no caixa errado.
 - **Fornecedor já cadastrado** em *Suprimentos › Fornecedores*. Se não existir, cadastre primeiro — o modal não cria fornecedor.
 - **Centro(s) de custo** que receberão o rateio. Conferir em *Controladoria › Centros de Custo*.
-- **Conta contábil default** (opcional, mas recomendado).
+- **Conta contábil default** (opcional). As contas exibidas são sempre **contas de resultado (DRE)** da empresa selecionada — não aparecem contas de Ativo/Passivo/Caixa.
+
+> **Importante — auto-sugestão CC → conta contábil:** ao selecionar o **centro de custo** numa linha de rateio, o sistema preenche automaticamente a **conta de resultado** vinculada àquele CC (via `centro_custo_padrao` no plano de contas). Você pode trocar manualmente se necessário. Se a empresa mudar, CC e conta da linha são limpos para evitar lançamento cruzado.
 - **Documento físico/digital**: NF, rescisão, boleto, contrato — com número, data de emissão, vencimento e valor total.
 
 ---

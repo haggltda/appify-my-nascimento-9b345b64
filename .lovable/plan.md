@@ -1,108 +1,71 @@
-# PR-FIN-UX-2 — Correção de conta contábil + ampliação horizontal do modal Novo Pré-título
+## Diagnóstico
 
-Escopo pequeno, frontend-only. **Nenhuma** alteração em banco, RLS ou Edge Functions.
+Cenário: Notas de despesas das áreas (honorários, FGTS, rescisões), fora do fluxo de requisição/PC. O modal **Novo lançamento de NF / pré-título** já está aberto.
 
----
+### Problemas identificados em `src/pages/financeiro/pagar/PreTitulosTab.tsx`
 
-## 1. Diagnóstico
+1. **Centro de custo não filtra por empresa**
+   - Query (linha 320): `from("centros_custo").select("id, codigo, nome").order("codigo")` — traz **todos os CC de todas as empresas**.
+   - Banco confirma duplicidade: `ADM.001 — ADMINISTRATIVO GERAL` existe em 6 empresas (mesmo `codigo`, `empresa_id` diferente). Daí a tela mostrar a lista repetida (print 1).
+   - Resultado: usuário não consegue distinguir qual CC pertence à empresa selecionada.
 
-### 1.1 Por que a conta contábil não aparece (bug real)
-A query do modal pede colunas que **não existem** na tabela `conta_contabil`:
+2. **Conta contábil não filtra "contas de resultado"**
+   - Query (linha 293-297) traz **todas** as `analitica`, incluindo Ativo/Passivo/Caixa/Bancos (print 2 mostra "01 — ATIVO", "CAIXA", "BANCOS"…).
+   - O correto para despesa é **conta de resultado** = `grupo_dre = 'dre'` (banco confirma: 1.014 analíticas, 2 grupos: `dre` e `balanco/balanco_gerencial`).
+   - Hoje só filtra por `empresa_id` (e ainda aceita contas sem empresa).
 
-```ts
-.from("conta_contabil")
-.select("id, codigo, nome, tipo")   // ❌ não existe codigo nem nome
-.eq("tipo", "analitica")
-.order("codigo");                    // ❌ falha
-```
+3. **Sem auto-preenchimento por CC**
+   - Usuário precisa escolher CC **e** conta contábil manualmente em cada linha de rateio.
+   - O banco já tem o vínculo: `conta_contabil.centro_custo_padrao` (texto com código do CC) — preenchido em 432 das 1.014 analíticas.
+   - Não há nenhuma lógica que, ao escolher CC no rateio, sugira a conta de resultado vinculada.
 
-Schema real da tabela:
-- `classificacao` (ex.: `3.1.01.001`) — equivalente ao "código"
-- `descricao` — equivalente ao "nome"
-- `natureza`, `grupo_dre`, `ativo`, `empresa_id`
+4. **Conta contábil default (bloco 1) está deslocada do propósito**
+   - O label diz "usada quando a linha de rateio não tiver conta". Para despesas de área, a conta deveria vir do CC, não default da empresa. Mantém-se opcional, mas com filtro correto.
 
-Resultado: a query devolve erro/array vazio e o `<Select>` fica sem itens. Por isso "não aparecem contas para amarrar".
+## Solução proposta (apenas frontend, sem backend/migrations)
 
-O mesmo problema afeta:
-- O select **Conta contábil (default)** no bloco 1.
-- O select **Conta / verba** em cada linha de rateio.
-- A listagem principal de pré-títulos (`select("...conta_contabil(codigo, nome)...")`).
+### A) Filtrar CC por empresa selecionada
+- Mudar query para receber `empresaId` e filtrar:
+  ```ts
+  .from("centros_custo").select("id, codigo, nome, empresa_id")
+  .eq("empresa_id", empresaId).eq("ativo", true).order("codigo")
+  ```
+- `enabled: !!empresaId`. Limpar rateios/CC ao trocar empresa.
 
-### 1.2 Resposta à dúvida funcional
-> "O centro de custo se escolhe na parte do rateio? Mesmo sendo um único CC?"
-
-**Sim, sempre na seção Rateio**, mesmo quando é só um CC. O bloco 1 só guarda a **conta contábil default** (regra contábil), e o bloco 2 (Rateio) é onde se decide **para qual centro de custo** vai a despesa. Se houver só 1 CC, basta 1 linha de rateio com 100%.
-
-Para não confundir o usuário, vamos:
-- Renomear o cabeçalho do bloco 2 para **"Rateio por centro de custo (obrigatório)"**.
-- Quando o usuário abrir o modal, **criar automaticamente 1 linha de rateio vazia em 100%** (caso comum). Ele só preenche o CC.
-- Trocar o texto do estado vazio: deixar claro "Adicione pelo menos 1 centro de custo".
-- Atualizar o artigo de ajuda `novo-pre-titulo.md` reforçando esse fluxo.
-
-### 1.3 Layout muito vertical / estreito
-O modal já está em `max-w-6xl w-[95vw]`, mas no print o conteúdo está renderizando em ~1 coluna porque o grid usa breakpoint `md:` (768px) e o painel do chat/devtools rouba largura. Vamos:
-- Subir para `max-w-[1400px] w-[97vw]`.
-- Reorganizar o bloco "Dados do documento" usando grid `lg:grid-cols-12` com colunas mais compactas (Empresa 4 / Fornecedor 4 / Nº doc 2 / Valor 2 — Descrição 8 / Emissão 2 / Vencimento 2 — etc).
-- Diminuir paddings internos das `<section>` de `p-4` para `p-3`.
-- Usar `Label` em fonte menor (`text-xs`) para ganhar altura útil.
-- Tabela de rateio: usar `overflow-x-auto` (já tem) + colunas com `min-w` para evitar quebra feia.
-
----
-
-## 2. Mudanças (apenas 2 arquivos)
-
-### 2.1 `src/pages/financeiro/pagar/PreTitulosTab.tsx`
-**Correção de dados:**
-- Trocar a query `contas` para:
+### B) Filtrar conta contábil para "contas de resultado" da empresa
+- Mudar query:
   ```ts
   .from("conta_contabil")
-  .select("id, classificacao, descricao, natureza, grupo_dre, empresa_id")
-  .eq("tipo", "analitica")
-  .eq("ativo", true)
+  .select("id, classificacao, descricao, natureza, grupo_dre, centro_custo_padrao, empresa_id, ativo, tipo")
+  .eq("tipo", "analitica").eq("ativo", true).eq("grupo_dre", "dre")
+  .eq("empresa_id", empresaId)
   .order("classificacao")
   ```
-- Filtrar opcionalmente por `empresa_id === empresaId` no client (assim só mostra contas da empresa selecionada; se vazio, mostra todas).
-- Filtrar para **contas de resultado** (despesa) por default, usando `grupo_dre` (mostrar primeiro os grupos de despesa/custo, depois "ver todas"). Versão mínima: só ordenar pelas de despesa primeiro.
-- Renderizar `{c.classificacao} — {c.descricao}` nos `<SelectItem>` (3 ocorrências: default, rateio, e DetalheDialog/listagem).
-- Ajustar `.select(..., conta_contabil(codigo, nome) ...)` → `conta_contabil(classificacao, descricao)` em **2 lugares** (lista principal + DetalheDialog) e usar esses campos no render.
+- `enabled: !!empresaId`. Aplicar tanto no bloco 1 (default) quanto no select da linha de rateio.
 
-**UX / rateio:**
-- Inicializar `rateios` com 1 linha vazia (em vez de `[]`).
-- Texto do bloco 2 atualizado.
-- Bloqueio: se `rateios.length === 0 || qualquer linha sem CC` → desabilitar Salvar com tooltip.
+### C) Auto-sugerir conta contábil pelo CC escolhido no rateio
+- Construir mapa `ccCodigoToConta` a partir de `conta_contabil` (where `centro_custo_padrao` = `cc.codigo`).
+- Em `updateRateio`, ao mudar `centro_custo_id`, se `conta_contabil_id` ainda estiver vazio:
+  - Buscar CC selecionado → pegar `codigo` → procurar conta com `centro_custo_padrao === cc.codigo` → preencher.
+- Comportamento não destrutivo: nunca sobrescreve uma conta já escolhida pelo usuário.
 
-**Layout horizontal:**
-- `DialogContent`: `max-w-[1400px] w-[97vw] max-h-[92vh]`.
-- Bloco 1: grid `lg:grid-cols-12` com a distribuição descrita acima.
-- Labels `text-xs font-medium`.
-- Reduzir `space-y-4` → `space-y-3` e `p-4` → `p-3` nas seções.
+### D) Pequenos ajustes de UX
+- Selects de CC e conta ficam desabilitados (placeholder "Selecione a empresa primeiro") enquanto `empresaId` vazio.
+- Ao trocar de empresa, resetar `contaContabilId` default e `rateios[].centro_custo_id` / `conta_contabil_id`.
+- Atualizar texto da ajuda em `src/content/ajuda/financeiro/novo-pre-titulo.md` explicando o vínculo automático CC → conta de resultado.
 
-### 2.2 `src/content/ajuda/financeiro/novo-pre-titulo.md`
-- Adicionar nota no bloco 2: "Mesmo que haja apenas 1 centro de custo, ele **deve** ser informado aqui — o sistema já cria 1 linha vazia para você."
-- Esclarecer diferença entre "Conta contábil default" (bloco 1) e "Conta/verba" da linha de rateio.
+## Arquivos a alterar
+- `src/pages/financeiro/pagar/PreTitulosTab.tsx` — 3 queries, `useMemo` de filtros, handler `updateRateio`, reset ao trocar empresa, estados disabled dos selects.
+- `src/content/ajuda/financeiro/novo-pre-titulo.md` — nota sobre auto-sugestão.
 
----
+## Fora de escopo
+- Migration/coluna nova (usa `centro_custo_padrao` que já existe).
+- Mudança em RPCs (`pre_titulo_*`).
+- Cadastro de regra CC→conta via UI (continua editável no Plano de Contas).
 
-## 3. Fora de escopo (não fazer agora)
-- Multi-seleção / busca tipo combobox nas contas (volume é grande, mas resolver depois se necessário).
-- Filtro por empresa server-side (RLS já cuida).
-- Migração de banco.
-- Alterar fluxo de aprovação / promoção.
+## Riscos
+- CCs sem `centro_custo_padrao` mapeado: auto-sugestão silenciosamente não preenche — usuário escolhe manual (sem erro).
+- Empresas sem contas DRE cadastradas: lista vazia com mensagem "Nenhuma conta de resultado para esta empresa".
 
----
-
-## 4. Risco e validação
-- **Risco baixo** — só ajusta nomes de coluna e layout.
-- Pós-implementação: abrir modal, conferir que a lista de contas aparece com `3.x.xx.xxx — Descrição`, criar 1 pré-título de teste com 1 linha de rateio, conferir listagem.
-
----
-
-## 5. Créditos estimados
-| Etapa | Créditos |
-|---|---|
-| Correção das 3 queries + render | ~baixo |
-| Reorganização do grid (1 bloco) | ~baixo |
-| Atualizar artigo de ajuda | ~baixo |
-| **Total estimado** | **1 PR pequeno (~1 chamada de implementação)** |
-
-Sem varredura ampla, sem abrir outros módulos, sem mexer em banco. Aguardando aprovação para executar.
+## Créditos estimados
+1 PR pequeno (~80 linhas alteradas em 1 arquivo + 1 .md). Risco baixo, só presentation/data-fetching no cliente.
