@@ -3918,15 +3918,18 @@ export type Database = {
           empresa_id_origem_celula: string | null
           empresa_id_resolvida: string | null
           endereco_celula: string
+          fora_do_periodo: boolean
           hash_idempotencia: string
           historico_original: string | null
           id: string
+          id_origem_texto: string | null
           linha_origem: number
           par_transferencia_id: string | null
           raw_json: Json | null
           status_resolucao_empresa: string
           tipo_linha: string
           updated_at: string
+          valor_assinado_caixa: number | null
           valor_celula_texto: string | null
           valor_numerico: number | null
         }
@@ -3945,15 +3948,18 @@ export type Database = {
           empresa_id_origem_celula?: string | null
           empresa_id_resolvida?: string | null
           endereco_celula: string
+          fora_do_periodo?: boolean
           hash_idempotencia: string
           historico_original?: string | null
           id?: string
+          id_origem_texto?: string | null
           linha_origem: number
           par_transferencia_id?: string | null
           raw_json?: Json | null
           status_resolucao_empresa?: string
           tipo_linha?: string
           updated_at?: string
+          valor_assinado_caixa?: number | null
           valor_celula_texto?: string | null
           valor_numerico?: number | null
         }
@@ -3972,15 +3978,18 @@ export type Database = {
           empresa_id_origem_celula?: string | null
           empresa_id_resolvida?: string | null
           endereco_celula?: string
+          fora_do_periodo?: boolean
           hash_idempotencia?: string
           historico_original?: string | null
           id?: string
+          id_origem_texto?: string | null
           linha_origem?: number
           par_transferencia_id?: string | null
           raw_json?: Json | null
           status_resolucao_empresa?: string
           tipo_linha?: string
           updated_at?: string
+          valor_assinado_caixa?: number | null
           valor_celula_texto?: string | null
           valor_numerico?: number | null
         }
