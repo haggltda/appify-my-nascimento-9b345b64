@@ -15358,6 +15358,7 @@ export type Database = {
           competencia: string
           conta_bancaria_id: string | null
           conta_contabil_id: string | null
+          contrato_id: string | null
           created_at: string
           data_agendamento: string | null
           data_emissao: string
@@ -15390,6 +15391,7 @@ export type Database = {
           competencia: string
           conta_bancaria_id?: string | null
           conta_contabil_id?: string | null
+          contrato_id?: string | null
           created_at?: string
           data_agendamento?: string | null
           data_emissao?: string
@@ -15424,6 +15426,7 @@ export type Database = {
           competencia?: string
           conta_bancaria_id?: string | null
           conta_contabil_id?: string | null
+          contrato_id?: string | null
           created_at?: string
           data_agendamento?: string | null
           data_emissao?: string
@@ -15453,6 +15456,34 @@ export type Database = {
           valor_pago?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "titulo_pagar_centro_custo_fk"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "titulo_pagar_conta_bancaria_fk"
+            columns: ["conta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "conta_bancaria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "titulo_pagar_contrato_fk"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "titulo_pagar_fornecedor_fk"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedor"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "titulo_pagar_nf_entrada_id_fkey"
             columns: ["nf_entrada_id"]
@@ -16718,7 +16749,12 @@ export type Database = {
         | "cancelada"
       lote_origem: "manual" | "erp" | "extrato_bancario" | "planilha" | "api"
       lote_status: "pendente" | "processado" | "erro" | "cancelado"
-      malote_status: "rascunho" | "enviado" | "executado" | "cancelado"
+      malote_status:
+        | "rascunho"
+        | "enviado"
+        | "executado"
+        | "cancelado"
+        | "aprovado"
       mov_banco_tipo: "debito" | "credito"
       nf_item_status: "ok" | "pendente_revisao" | "produto_novo" | "divergencia"
       nf_origem: "xml" | "manual"
@@ -17271,7 +17307,13 @@ export const Constants = {
       ],
       lote_origem: ["manual", "erp", "extrato_bancario", "planilha", "api"],
       lote_status: ["pendente", "processado", "erro", "cancelado"],
-      malote_status: ["rascunho", "enviado", "executado", "cancelado"],
+      malote_status: [
+        "rascunho",
+        "enviado",
+        "executado",
+        "cancelado",
+        "aprovado",
+      ],
       mov_banco_tipo: ["debito", "credito"],
       nf_item_status: ["ok", "pendente_revisao", "produto_novo", "divergencia"],
       nf_origem: ["xml", "manual"],
