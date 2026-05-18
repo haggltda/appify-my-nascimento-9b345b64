@@ -19,6 +19,18 @@ type BlocoKey = "ENTRADAS" | "SAIDAS_OP" | "FINANCEIRAS" | "SAIDAS_NAO_OP";
 type RawRow = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number; saldo_inicial: number };
 type OrcRow = { bloco: "ENTRADAS" | "SAIDAS_OP" | "SAIDAS_NAO_OP"; categoria: string; dia: string; valor: number };
 type Visao = "realizado" | "comparativo";
+type ModoMutuo = "tudo_junto" | "separado" | "ocultar";
+
+const MODO_MUTUO_LABEL: Record<ModoMutuo, string> = {
+  tudo_junto: "Tudo junto",
+  separado: "Separado",
+  ocultar: "Ocultar da visão principal",
+};
+
+// Classificação textual de mútuos / intercompany / transferências internas.
+// Regra: apenas filtragem visual; nada é reclassificado ou apagado na base.
+const MUTUO_RE = /(M[ÚU]TUO|INTERCOMPANY|CONTA\s+TRANSIT[ÓO]RIA|TRANSF(?:ER[ÊE]NCIA)?\.?\s+(ENTRE\s+CONTAS|INTERNA)|TRANSFER[ÊE]NCIA\s+INTERNA|TRANSFERENCIA\s+INTERNA|EMPR[ÉE]STIMO\s+ENTRE\s+EMPRESAS)/i;
+const isMutuo = (categoria: string = "") => MUTUO_RE.test(categoria);
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtBRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
