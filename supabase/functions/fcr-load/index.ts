@@ -928,71 +928,145 @@ async function handleReconcile(
     return json(409, { error: `status inválido para reconcile: ${batch.status}` });
   }
 
-  // agrega por dia
-  const { data: raws } = await admin.from("fcr_raw_excel")
-    .select("data_caixa_derivada, valor_numerico, tipo_linha, bloco_funcional, raw_json")
-    .eq("batch_id", batch_id);
+  // Busca raws paginado (carga oficial pode ter > 1000 linhas)
+  const allRaws: any[] = [];
+  {
+    const PAGE = 1000;
+    let from = 0;
+    while (true) {
+      const { data, error } = await admin.from("fcr_raw_excel")
+        .select(
+          "data_caixa_derivada, valor_numerico, valor_assinado_caixa, fora_do_periodo, tipo_linha, bloco_funcional, classificacao_excel_original, banco_origem_texto, empresa_id_resolvida, empresa_id_origem_celula, status_resolucao_empresa, raw_json",
+        )
+        .eq("batch_id", batch_id)
+        .range(from, from + PAGE - 1);
+      if (error) return json(500, { error: "fetch raws falhou", detail: error.message });
+      if (!data || data.length === 0) break;
+      allRaws.push(...data);
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+  }
+  const raws = allRaws;
 
-  const byDay = new Map<
-    string,
-    { soma: number; qtd: number }
-  >();
-  let saldoInicial: number | null = null;
+  // Detecta layout long_table (qualquer raw com layout_mode='long_table')
+  const isLT = raws.some((r) => (r.raw_json as any)?.layout_mode === "long_table");
+
+  // -------- Reconciliação LONG_TABLE --------
+  // valor_numerico = bruto original (preservado)
+  // valor_assinado_caixa = derivado para composição de caixa
+  // SALDO ANTERIOR não entra como movimento; vira saldo inicial
+  // fora_do_periodo não entra na reconciliação do período oficial
+  const totalLinhas = raws.length;
+  const linhasComValor = raws.filter((r) => r.valor_numerico !== null).length;
+  const linhasSemValor = totalLinhas - linhasComValor;
+  const linhasForaPeriodo = raws.filter((r) => r.fora_do_periodo).length;
+  const linhas2026 = raws.filter((r) => !r.fora_do_periodo).length;
+
+  let saldoInicial = 0;
+  let entradas = 0;
+  let saidas = 0;
+  let liquido = 0;
   let saldoFinalExcel: number | null = null;
 
-  for (const r of raws ?? []) {
+  const byDay = new Map<string, { entradas: number; saidas: number; liquido: number; qtd: number }>();
+  const byBanco = new Map<string, { saldo_inicial: number; entradas: number; saidas: number; liquido: number }>();
+  const byEmpresa = new Map<string, { saldo_inicial: number; entradas: number; saidas: number; liquido: number }>();
+  const byClass = new Map<string, { total_bruto: number; total_assinado: number; qtd: number }>();
+  const byBloco = new Map<string, { total_bruto: number; total_assinado: number; qtd: number }>();
+  const empresasSet = new Set<string>();
+  const bancosSet = new Set<string>();
+  const classifSet = new Set<string>();
+
+  const bumpClass = (key: string, bruto: number, assinado: number) => {
+    const e = byClass.get(key) ?? { total_bruto: 0, total_assinado: 0, qtd: 0 };
+    e.total_bruto += bruto; e.total_assinado += assinado; e.qtd += 1;
+    byClass.set(key, e);
+  };
+  const bumpBloco = (key: string, bruto: number, assinado: number) => {
+    const e = byBloco.get(key) ?? { total_bruto: 0, total_assinado: 0, qtd: 0 };
+    e.total_bruto += bruto; e.total_assinado += assinado; e.qtd += 1;
+    byBloco.set(key, e);
+  };
+
+  for (const r of raws) {
     const ex = (r.raw_json as any)?.exclude_from_math;
     if (ex) continue;
-    if (r.tipo_linha === "saldo_inicial" && r.valor_numerico !== null) {
-      saldoInicial = (saldoInicial ?? 0) + Number(r.valor_numerico);
+
+    const cls = r.classificacao_excel_original || "(sem classificacao)";
+    const banco = r.banco_origem_texto || "(sem banco)";
+    const empresa = r.empresa_id_resolvida || r.empresa_id_origem_celula || "(sem empresa)";
+    classifSet.add(cls); bancosSet.add(banco); empresasSet.add(String(empresa));
+
+    const vnum = r.valor_numerico !== null ? Number(r.valor_numerico) : null;
+    const vass = r.valor_assinado_caixa !== null ? Number(r.valor_assinado_caixa) : null;
+
+    // SALDO ANTERIOR: só agrega saldo inicial; não entra como movimento
+    if (r.tipo_linha === "saldo_inicial") {
+      if (vnum !== null) {
+        saldoInicial += vnum;
+        const eb = byBanco.get(banco) ?? { saldo_inicial: 0, entradas: 0, saidas: 0, liquido: 0 };
+        eb.saldo_inicial += vnum; byBanco.set(banco, eb);
+        const ee = byEmpresa.get(String(empresa)) ?? { saldo_inicial: 0, entradas: 0, saidas: 0, liquido: 0 };
+        ee.saldo_inicial += vnum; byEmpresa.set(String(empresa), ee);
+        bumpClass(cls, vnum, vnum); bumpBloco("saldo", vnum, vnum);
+      }
       continue;
     }
-    if (r.tipo_linha === "saldo_final" && r.valor_numerico !== null) {
-      saldoFinalExcel = (saldoFinalExcel ?? 0) + Number(r.valor_numerico);
+    if (r.tipo_linha === "saldo_final" && vnum !== null) {
+      saldoFinalExcel = (saldoFinalExcel ?? 0) + vnum;
       continue;
     }
     if (r.tipo_linha !== "movimento") continue;
-    if (r.bloco_funcional === "subtotal" || r.bloco_funcional === "saldo") continue;
-    if (!r.data_caixa_derivada || r.valor_numerico === null) continue;
-    const k = r.data_caixa_derivada;
-    const e = byDay.get(k) ?? { soma: 0, qtd: 0 };
-    e.soma += Number(r.valor_numerico);
-    e.qtd += 1;
-    byDay.set(k, e);
+    if (r.bloco_funcional === "subtotal") continue;
+    if (r.fora_do_periodo) continue; // não entra na reconciliação 2026
+    if (vass === null) continue;     // sem sinal definido → pendência; não compõe
+
+    if (vass > 0) entradas += vass; else saidas += Math.abs(vass);
+    liquido += vass;
+
+    if (r.data_caixa_derivada) {
+      const d = byDay.get(r.data_caixa_derivada) ?? { entradas: 0, saidas: 0, liquido: 0, qtd: 0 };
+      if (vass > 0) d.entradas += vass; else d.saidas += Math.abs(vass);
+      d.liquido += vass; d.qtd += 1;
+      byDay.set(r.data_caixa_derivada, d);
+    }
+    const eb = byBanco.get(banco) ?? { saldo_inicial: 0, entradas: 0, saidas: 0, liquido: 0 };
+    if (vass > 0) eb.entradas += vass; else eb.saidas += Math.abs(vass);
+    eb.liquido += vass; byBanco.set(banco, eb);
+
+    const ee = byEmpresa.get(String(empresa)) ?? { saldo_inicial: 0, entradas: 0, saidas: 0, liquido: 0 };
+    if (vass > 0) ee.entradas += vass; else ee.saidas += Math.abs(vass);
+    ee.liquido += vass; byEmpresa.set(String(empresa), ee);
+
+    bumpClass(cls, vnum ?? 0, vass);
+    bumpBloco(r.bloco_funcional, vnum ?? 0, vass);
   }
 
-  const recRows = Array.from(byDay.entries()).map(([dia, v]) => ({
-    batch_id,
-    empresa_id: batch.empresa_id,
-    escopo: "dia",
-    chave: dia,
-    valor_excel: v.soma,
-    valor_sistema: v.soma,
-    qtd_linhas_excel: v.qtd,
-    qtd_linhas_sistema: v.qtd,
-    qtd_pendencias: 0,
-  }));
+  const saldoCalculado = saldoInicial + liquido;
 
-  let saldoCalculado: number | null = null;
-  if (saldoInicial !== null) {
-    saldoCalculado = saldoInicial +
-      Array.from(byDay.values()).reduce((a, b) => a + b.soma, 0);
-  }
-  if (saldoFinalExcel !== null) {
+  // Linhas para fcr_reconciliacao_lote (escopos: dia/banco/empresa/total)
+  const recRows: any[] = [];
+  for (const [dia, v] of byDay) {
     recRows.push({
-      batch_id,
-      empresa_id: batch.empresa_id,
-      escopo: "total",
-      chave: "saldo_final",
-      valor_excel: saldoFinalExcel,
-      valor_sistema: saldoCalculado ?? 0,
-      qtd_linhas_excel: 1,
-      qtd_linhas_sistema: 1,
-      qtd_pendencias: 0,
+      batch_id, empresa_id: batch.empresa_id, escopo: "dia", chave: dia,
+      valor_excel: v.liquido, valor_sistema: v.liquido,
+      qtd_linhas_excel: v.qtd, qtd_linhas_sistema: v.qtd, qtd_pendencias: 0,
     });
   }
+  for (const [banco, v] of byBanco) {
+    recRows.push({
+      batch_id, empresa_id: batch.empresa_id, escopo: "banco", chave: banco,
+      valor_excel: v.liquido, valor_sistema: v.liquido,
+      qtd_linhas_excel: 0, qtd_linhas_sistema: 0, qtd_pendencias: 0,
+    });
+  }
+  recRows.push({
+    batch_id, empresa_id: batch.empresa_id, escopo: "total", chave: "saldo_final",
+    valor_excel: saldoFinalExcel ?? saldoCalculado, valor_sistema: saldoCalculado,
+    qtd_linhas_excel: 1, qtd_linhas_sistema: 1, qtd_pendencias: 0,
+  });
 
-  // limpa reconciliação anterior do batch (idempotente)
   await admin.from("fcr_reconciliacao_lote").delete().eq("batch_id", batch_id);
   if (recRows.length) {
     const { error } = await admin.from("fcr_reconciliacao_lote").insert(recRows);
@@ -1008,7 +1082,7 @@ async function handleReconcile(
   // avalia bloqueios
   const bloqueios: string[] = [];
   if (batch.escopo_carga === "consolidado") {
-    const pendentes = (raws ?? []).filter((r) =>
+    const pendentes = raws.filter((r) =>
       r.tipo_linha === "movimento" &&
       (r as any).status_resolucao_empresa !== "resolvida"
     ).length;
@@ -1016,32 +1090,105 @@ async function handleReconcile(
   }
   const { data: pend } = await admin.from("fcr_sugestoes_pendencias")
     .select("tipo_pendencia").eq("batch_id", batch_id).eq("status", "pendente");
+  const pendByTipo: Record<string, number> = {};
+  for (const p of pend ?? []) {
+    pendByTipo[p.tipo_pendencia] = (pendByTipo[p.tipo_pendencia] ?? 0) + 1;
+  }
   const blockers = new Set([
     "banco_nao_reconhecido",
     "de_para_ambiguo",
+    "sinal_inconsistente",
+    "transferencia_sem_par",
   ]);
-  for (const p of pend ?? []) {
-    if (blockers.has(p.tipo_pendencia)) bloqueios.push(p.tipo_pendencia);
+  for (const tipo of Object.keys(pendByTipo)) {
+    if (blockers.has(tipo)) bloqueios.push(`${tipo}:${pendByTipo[tipo]}`);
   }
-  // saldo divergente
-  for (const r of recRows) {
-    if (Math.abs((r.valor_excel ?? 0) - (r.valor_sistema ?? 0)) > 0.01) {
-      bloqueios.push(`diferenca_${r.escopo}_${r.chave}`);
-    }
+  if (saldoFinalExcel !== null && Math.abs(saldoFinalExcel - saldoCalculado) > 0.01) {
+    bloqueios.push(`diferenca_saldo_final:${(saldoFinalExcel - saldoCalculado).toFixed(2)}`);
   }
 
   const novoStatus = bloqueios.length === 0 ? "dry_run_ok" : "dry_run_erro";
+
+  const relatorio = {
+    layout_mode: isLT ? "long_table" : "matrix",
+    cobertura: {
+      total_linhas: totalLinhas,
+      linhas_no_periodo: linhas2026,
+      linhas_fora_do_periodo: linhasForaPeriodo,
+      linhas_com_valor: linhasComValor,
+      linhas_sem_valor: linhasSemValor,
+      empresas: empresasSet.size,
+      bancos: bancosSet.size,
+      classificacoes: classifSet.size,
+    },
+    saldos: {
+      saldo_anterior_total: round2(saldoInicial),
+      entradas: round2(entradas),
+      saidas: round2(saidas),
+      movimento_liquido: round2(liquido),
+      saldo_final_calculado: round2(saldoCalculado),
+      saldo_final_excel: saldoFinalExcel !== null ? round2(saldoFinalExcel) : null,
+    },
+    por_dia: (() => {
+      const arr = Array.from(byDay.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+      let acc = saldoInicial;
+      return arr.map(([dia, v]) => {
+        acc += v.liquido;
+        return {
+          dia, entradas: round2(v.entradas), saidas: round2(v.saidas),
+          liquido: round2(v.liquido), saldo_acumulado: round2(acc), qtd: v.qtd,
+        };
+      });
+    })(),
+    por_banco: Array.from(byBanco.entries()).map(([banco, v]) => ({
+      banco,
+      saldo_inicial: round2(v.saldo_inicial),
+      entradas: round2(v.entradas),
+      saidas: round2(v.saidas),
+      liquido: round2(v.liquido),
+      saldo_final_calculado: round2(v.saldo_inicial + v.liquido),
+    })),
+    por_empresa: Array.from(byEmpresa.entries()).map(([empresa, v]) => ({
+      empresa,
+      saldo_inicial: round2(v.saldo_inicial),
+      entradas: round2(v.entradas),
+      saidas: round2(v.saidas),
+      liquido: round2(v.liquido),
+      saldo_final_calculado: round2(v.saldo_inicial + v.liquido),
+    })),
+    por_classificacao: Array.from(byClass.entries()).map(([cls, v]) => ({
+      classificacao: cls,
+      total_bruto: round2(v.total_bruto),
+      total_assinado: round2(v.total_assinado),
+      qtd: v.qtd,
+    })),
+    por_bloco_funcional: Array.from(byBloco.entries()).map(([bloco, v]) => ({
+      bloco, total_bruto: round2(v.total_bruto),
+      total_assinado: round2(v.total_assinado), qtd: v.qtd,
+    })),
+    pendencias_por_tipo: pendByTipo,
+    bloqueios,
+    impacto_substituicao: {
+      observacao:
+        "PR-3 deverá ser substituição oficial, não append. Comparação detalhada contra carga antiga será gerada no PR-3 (fora do escopo desta Fase A2).",
+    },
+  };
+
   await admin.from("fcr_batch").update({
     status: novoStatus,
     saldos_finais_reconciliacao: {
-      saldo_inicial_excel: saldoInicial,
-      saldo_final_excel: saldoFinalExcel,
-      saldo_final_calculado: saldoCalculado,
+      saldo_inicial_total: round2(saldoInicial),
+      entradas: round2(entradas),
+      saidas: round2(saidas),
+      movimento_liquido: round2(liquido),
+      saldo_final_calculado: round2(saldoCalculado),
+      saldo_final_excel: saldoFinalExcel !== null ? round2(saldoFinalExcel) : null,
       bloqueios,
+      relatorio,
     },
   }).eq("id", batch_id);
 
-  return json(200, { batch_id, status: novoStatus, bloqueios });
+  return json(200, { batch_id, status: novoStatus, bloqueios, relatorio });
 }
 
 async function handleRollback(
