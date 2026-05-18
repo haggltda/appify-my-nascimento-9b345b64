@@ -111,10 +111,9 @@ async function getUserAndRoles(authHeader: string): Promise<
   { userId: string; roles: Set<Role>; empresaId: string | null } | null
 > {
   const user = clientWithAuth(authHeader);
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  const { data, error } = await user.auth.getClaims(token);
-  if (error || !data?.claims?.sub) return null;
-  const userId = data.claims.sub as string;
+  const { data, error } = await user.auth.getUser();
+  if (error || !data?.user?.id) return null;
+  const userId = data.user.id;
   const admin = adminClient();
   const [{ data: rolesRows }, { data: emp }] = await Promise.all([
     admin.from("user_roles").select("role").eq("user_id", userId),
