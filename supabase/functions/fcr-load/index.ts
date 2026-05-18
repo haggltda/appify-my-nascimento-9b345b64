@@ -91,6 +91,10 @@ function parseBR(value: unknown): number | null {
   return neg ? -Math.abs(n) : n;
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 function clientWithAuth(authHeader: string): SupabaseClient {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
@@ -285,13 +289,27 @@ interface RawRow {
 const LT_ALIASES: Record<string, string[]> = {
   data: ["DATA", "DATA MOVIMENTO", "DATA CAIXA", "DATA OPERACAO", "DT", "DT MOVIMENTO"],
   valor: ["VALOR", "VALOR MOVIMENTO", "VL", "VLR"],
+  tipo: ["TIPO", "TIPO MOVIMENTO", "TIPO LANCAMENTO", "E/S", "D/C"],
   classificacao: ["CLASSIFICACAO", "CLASSIFICACAO CAIXA", "CATEGORIA", "NATUREZA"],
-  empresa: ["EMPRESA", "FILIAL", "UNIDADE", "RAZAO SOCIAL"],
+  empresa: ["EMPRESA", "EMPRESAS", "FILIAL", "UNIDADE", "RAZAO SOCIAL"],
   banco: ["BANCO", "INSTITUICAO", "INSTITUICAO FINANCEIRA"],
   conta: ["CONTA", "CONTA CORRENTE", "CC", "NUMERO CONTA"],
   historico: ["HISTORICO", "DESCRICAO", "OBSERVACAO", "MEMO"],
   id_origem: ["ID", "ID ORIGEM", "IDORIGEM", "DOCUMENTO", "DOC", "REFERENCIA", "NUMERO DOC"],
 };
+
+// Normaliza valor da coluna Tipo do Excel para 'entrada' | 'saida' | 'desconhecido'
+function normalizeTipoMovimento(raw: unknown): "entrada" | "saida" | "desconhecido" {
+  if (raw == null) return "desconhecido";
+  const n = normalize(String(raw));
+  if (!n) return "desconhecido";
+  if (/^(E|ENTRADA|ENTRADAS|CREDITO|CR|RECEBIMENTO|D)$/.test(n)) {
+    // 'D' (débito bancário) representa entrada no extrato; mantemos só ENTRADA explícita
+  }
+  if (/^E$|ENTRADA|CREDITO|RECEBIMENTO/.test(n)) return "entrada";
+  if (/^S$|SAIDA|SA[IÍ]DA|DEBITO|D[ÉE]BITO|PAGAMENTO/.test(n)) return "saida";
+  return "desconhecido";
+}
 
 function mapLongTableHeaders(headers: string[]): Record<string, number> {
   const map: Record<string, number> = {};
@@ -335,16 +353,21 @@ function periodoFromBatch(batch: any): { inicio: string; fim: string } {
 function classifyBloco(label: string): string {
   const n = normalize(label);
   if (!n) return "operacional";
+  if (/SALDO\s+ANTERIOR/.test(n)) return "saldo";
   if (/SALDO\s+INICIAL/.test(n)) return "saldo";
   if (/SALDO\s+FINAL/.test(n)) return "saldo";
   if (/SUBTOTAL|TOTAL/.test(n)) return "subtotal";
-  if (/TRANSFER/.test(n)) return "transferencia_interna";
+  if (/TRANSF/.test(n)) return "transferencia_interna";
   if (/APLIC|RESGATE|CDB|FUNDO/.test(n)) return "aplicacao_resgate";
-  if (/CHEQUE\s+ESPECIAL|CREDITO|EMPRESTIMO|FINANCIAMENTO/.test(n)) {
+  if (/CHEQUE\s+ESPECIAL/.test(n)) return "credito_cheque_especial";
+  if (/CREDITO|EMPRESTIMO|FINANCIAMENTO/.test(n)) {
     return "credito_cheque_especial";
   }
-  if (/SOCIO|ACIONISTA|DIVIDENDO|JCP/.test(n)) return "socios";
+  if (/PRO\s*LABORE|RETIRADA\s+DE\s+SOCIO|^SOCIOS?$|ACIONISTA|DIVIDENDO|JCP/.test(n)) {
+    return "socios";
+  }
   if (/INTERCOMP|MUTUO|MÚTUO/.test(n)) return "intercompany_mutuo";
+  if (/CONTA\s+VINCULADA/.test(n)) return "a_conciliar";
   if (/CONCILIAR|A\s+CLASSIFICAR|N\s*AO\s+IDENTIFICAD/.test(n)) {
     return "a_conciliar";
   }
@@ -357,6 +380,7 @@ function classifyBloco(label: string): string {
 
 function classifyTipoLinha(label: string): string {
   const n = normalize(label);
+  if (/SALDO\s+ANTERIOR/.test(n)) return "saldo_inicial";
   if (/SALDO\s+INICIAL/.test(n)) return "saldo_inicial";
   if (/SALDO\s+FINAL/.test(n)) return "saldo_final";
   if (/SUBTOTAL|TOTAL/.test(n)) return "subtotal";
@@ -471,17 +495,24 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
         const cValor = ltMap.valor!;
         const cData = ltMap.data!;
         const cClass = ltMap.classificacao!;
+        const cTipo = ltMap.tipo;
         const cEmpresa = ltMap.empresa;
         const cBanco = ltMap.banco;
         const cConta = ltMap.conta;
         const cHist = ltMap.historico;
         const cId = ltMap.id_origem;
 
+        const ltPendencias: Array<{
+          tipo_pendencia: string;
+          motivo: string;
+          destino_proposto: string;
+          row_index: number;
+        }> = [];
+
         for (let r = headerRow + 1; r <= range.e.r; r++) {
           const rowHidden = Boolean(rowsMeta[r]?.hidden);
           const colHiddenValor = Boolean(colsMeta[cValor]?.hidden);
 
-          // raw_json preserva TODAS as 18 colunas
           const fullRow: Record<string, unknown> = {};
           let rowHasAnyValue = false;
           for (let c = range.s.c; c <= range.e.c; c++) {
@@ -497,6 +528,9 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
           const valorCell = ws[XLSX.utils.encode_cell({ r, c: cValor })];
           const classCell = ws[XLSX.utils.encode_cell({ r, c: cClass })];
           const dataCell = ws[XLSX.utils.encode_cell({ r, c: cData })];
+          const tipoCell = cTipo !== undefined
+            ? ws[XLSX.utils.encode_cell({ r, c: cTipo })]
+            : undefined;
 
           const classificacao = classCell?.v != null ? String(classCell.v) : "";
           const tipo = classifyTipoLinha(classificacao);
@@ -510,35 +544,43 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
           const addr = XLSX.utils.encode_cell({ r, c: cValor });
           const formula = valorCell?.f ?? "";
 
-          const banco_txt = cBanco !== undefined
-            ? (ws[XLSX.utils.encode_cell({ r, c: cBanco })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: cBanco })].v)
-              : null)
+          const cellTxt = (col: number | undefined) =>
+            col !== undefined && ws[XLSX.utils.encode_cell({ r, c: col })]?.v != null
+              ? String(ws[XLSX.utils.encode_cell({ r, c: col })].v)
+              : null;
+          const banco_txt = cellTxt(cBanco);
+          const conta_txt = cellTxt(cConta);
+          const empresa_txt = cellTxt(cEmpresa);
+          const hist_txt = cellTxt(cHist);
+          const id_origem = cId !== undefined && ws[XLSX.utils.encode_cell({ r, c: cId })]?.v != null
+            ? String(ws[XLSX.utils.encode_cell({ r, c: cId })].v).trim()
             : null;
-          const conta_txt = cConta !== undefined
-            ? (ws[XLSX.utils.encode_cell({ r, c: cConta })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: cConta })].v)
-              : null)
-            : null;
-          const empresa_txt = cEmpresa !== undefined
-            ? (ws[XLSX.utils.encode_cell({ r, c: cEmpresa })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: cEmpresa })].v)
-              : null)
-            : null;
-          const hist_txt = cHist !== undefined
-            ? (ws[XLSX.utils.encode_cell({ r, c: cHist })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: cHist })].v)
-              : null)
-            : null;
-          const id_origem = cId !== undefined
-            ? (ws[XLSX.utils.encode_cell({ r, c: cId })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: cId })].v).trim()
-              : null)
-            : null;
+          const tipo_mov_orig = tipoCell?.v != null ? String(tipoCell.v) : null;
+          const tipo_mov_norm = normalizeTipoMovimento(tipo_mov_orig);
 
-          // regra de sinal por empresa+banco: pass-through nesta fase;
-          // refinamento (de_para_sinal) acontece em PR-3/promoção.
-          const valor_assinado = valor_num;
+          // REGRA OFICIAL DE SINAL (long_table)
+          // valor_numerico = bruto original do Excel (preservado)
+          // valor_assinado_caixa = derivado:
+          //   SALDO ANTERIOR  -> valor_numerico (não entra como movimento)
+          //   Tipo=ENTRADA    -> +ABS(valor_numerico)
+          //   Tipo=SAÍDA      -> -ABS(valor_numerico)
+          //   Tipo inválido p/ movimento -> null + pendência sinal_inconsistente
+          let valor_assinado: number | null = null;
+          let pend_sinal = false;
+          if (tipo === "saldo_inicial") {
+            valor_assinado = valor_num;
+          } else if (tipo === "movimento" && valor_num !== null) {
+            if (tipo_mov_norm === "entrada") {
+              valor_assinado = Math.abs(valor_num);
+            } else if (tipo_mov_norm === "saida") {
+              valor_assinado = -Math.abs(valor_num);
+            } else {
+              valor_assinado = null;
+              pend_sinal = true;
+            }
+          } else {
+            valor_assinado = valor_num;
+          }
 
           const fora = data_caixa
             ? (data_caixa < periodo.inicio || data_caixa > periodo.fim)
@@ -547,6 +589,8 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
           const hashInput =
             `${batch_id}|${file_sha256}|${sheetName}|${addr}|${valor_texto ?? ""}|${formula}|LT|${id_origem ?? ""}`;
           const hash = await sha256(new TextEncoder().encode(hashInput));
+
+          const requer_revisao = /CONTA\s+VINCULADA/.test(normalize(classificacao));
 
           raws.push({
             batch_id,
@@ -581,15 +625,47 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
               sheet_hidden: sheetHidden,
               row_hidden: rowHidden,
               col_hidden: colHiddenValor,
-              exclude_from_math: sheetHidden || rowHidden || colHiddenValor || fora,
+              exclude_from_math: sheetHidden || rowHidden || colHiddenValor,
               formula: formula || null,
               cell_type: valorCell?.t ?? null,
               full_row: fullRow,
               header_map: ltMap,
+              id_origem: id_origem,
+              tipo_movimento_original: tipo_mov_orig,
+              tipo_movimento_normalizado: tipo_mov_norm,
+              requer_revisao,
             },
             hash_idempotencia: hash,
           });
+
+          if (pend_sinal) {
+            ltPendencias.push({
+              tipo_pendencia: "sinal_inconsistente",
+              motivo: `Tipo invalido/ausente p/ movimento: '${tipo_mov_orig ?? ""}'`,
+              destino_proposto: "a_conciliar",
+              row_index: raws.length - 1,
+            });
+          }
+          if (fora) {
+            ltPendencias.push({
+              tipo_pendencia: "fora_do_periodo",
+              motivo: `data ${data_caixa} fora de ${periodo.inicio}..${periodo.fim}`,
+              destino_proposto: "ignorar",
+              row_index: raws.length - 1,
+            });
+          }
+          if (requer_revisao) {
+            ltPendencias.push({
+              tipo_pendencia: "a_conciliar",
+              motivo: "CONTA VINCULADA — requer revisão",
+              destino_proposto: "a_conciliar",
+              row_index: raws.length - 1,
+            });
+          }
         }
+
+        (batch as any).__lt_pendencias =
+          ((batch as any).__lt_pendencias ?? []).concat(ltPendencias);
         continue;
       }
 
@@ -680,24 +756,113 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
       inserted_count += data?.length ?? 0;
     }
 
-    // pendências por linha oculta com valor numérico não-zero classificada como movimento
-    const pendencias = raws
-      .filter((r) =>
+    // Recupera IDs persistidos para anexar pendências com raw_id NOT NULL
+    const hashToId = new Map<string, string>();
+    {
+      const PAGE = 1000;
+      let from = 0;
+      while (true) {
+        const { data, error } = await admin.from("fcr_raw_excel")
+          .select("id, hash_idempotencia")
+          .eq("batch_id", batch_id)
+          .range(from, from + PAGE - 1);
+        if (error) throw new Error("fetch raw ids: " + error.message);
+        if (!data || data.length === 0) break;
+        for (const row of data) hashToId.set(row.hash_idempotencia, row.id);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+    }
+
+    const pendencias: Array<Record<string, unknown>> = [];
+
+    // (a) linha oculta com valor numérico classificada como movimento
+    for (const r of raws) {
+      if (
         r.tipo_linha === "movimento" &&
-        r.raw_json.exclude_from_math &&
+        (r.raw_json as any).exclude_from_math &&
         r.valor_numerico !== null && Math.abs(r.valor_numerico) > 0
-      )
-      .map((r) => ({
+      ) {
+        const raw_id = hashToId.get(r.hash_idempotencia);
+        if (!raw_id) continue;
+        pendencias.push({
+          batch_id,
+          raw_id,
+          empresa_id: r.empresa_id_resolvida,
+          classificacao_excel_original: r.classificacao_excel_original,
+          historico_original: r.historico_original,
+          data_caixa: r.data_caixa_derivada,
+          valor_original: r.valor_numerico,
+          tipo_pendencia: "linha_calculada_ambigua",
+          destino_proposto: "a_conciliar",
+          status: "pendente",
+          motivo: "cell_hidden_has_numeric_value",
+        });
+      }
+    }
+
+    // (b) pendências long_table acumuladas durante o parse
+    const ltPends: Array<{ tipo_pendencia: string; motivo: string; destino_proposto: string; row_index: number }> =
+      ((batch as any).__lt_pendencias ?? []) as any;
+    for (const p of ltPends) {
+      const r = raws[p.row_index];
+      if (!r) continue;
+      const raw_id = hashToId.get(r.hash_idempotencia);
+      if (!raw_id) continue;
+      pendencias.push({
         batch_id,
-        raw_id: null,
+        raw_id,
         empresa_id: r.empresa_id_resolvida,
-        tipo_pendencia: "linha_calculada_ambigua",
-        destino_proposto: "a_conciliar",
+        classificacao_excel_original: r.classificacao_excel_original,
+        historico_original: r.historico_original,
+        data_caixa: r.data_caixa_derivada,
+        valor_original: r.valor_numerico,
+        tipo_pendencia: p.tipo_pendencia,
+        destino_proposto: p.destino_proposto,
         status: "pendente",
-        motivo: "cell_hidden_has_numeric_value",
-      }));
+        motivo: p.motivo,
+      });
+    }
+
+    // (c) id_origem duplicado dentro do mesmo batch
+    {
+      const idGroups = new Map<string, number[]>();
+      for (let i = 0; i < raws.length; i++) {
+        const id = raws[i].id_origem_texto;
+        if (!id) continue;
+        const list = idGroups.get(id) ?? [];
+        list.push(i);
+        idGroups.set(id, list);
+      }
+      for (const [, idxs] of idGroups) {
+        if (idxs.length < 2) continue;
+        for (const i of idxs) {
+          const r = raws[i];
+          const raw_id = hashToId.get(r.hash_idempotencia);
+          if (!raw_id) continue;
+          pendencias.push({
+            batch_id,
+            raw_id,
+            empresa_id: r.empresa_id_resolvida,
+            classificacao_excel_original: r.classificacao_excel_original,
+            historico_original: r.historico_original,
+            data_caixa: r.data_caixa_derivada,
+            valor_original: r.valor_numerico,
+            tipo_pendencia: "id_origem_duplicado",
+            destino_proposto: "a_conciliar",
+            status: "pendente",
+            motivo: `id_origem '${r.id_origem_texto}' repetido ${idxs.length}x`,
+          });
+        }
+      }
+    }
+
     if (pendencias.length) {
-      // raw_id ficaria null — só registramos no fluxo de bloqueio via raw_json
+      for (let i = 0; i < pendencias.length; i += 1000) {
+        const slice = pendencias.slice(i, i + 1000);
+        const { error } = await admin.from("fcr_sugestoes_pendencias").insert(slice);
+        if (error) throw new Error("insert pendencias: " + error.message);
+      }
     }
 
     // estatísticas long_table
@@ -767,71 +932,145 @@ async function handleReconcile(
     return json(409, { error: `status inválido para reconcile: ${batch.status}` });
   }
 
-  // agrega por dia
-  const { data: raws } = await admin.from("fcr_raw_excel")
-    .select("data_caixa_derivada, valor_numerico, tipo_linha, bloco_funcional, raw_json")
-    .eq("batch_id", batch_id);
+  // Busca raws paginado (carga oficial pode ter > 1000 linhas)
+  const allRaws: any[] = [];
+  {
+    const PAGE = 1000;
+    let from = 0;
+    while (true) {
+      const { data, error } = await admin.from("fcr_raw_excel")
+        .select(
+          "data_caixa_derivada, valor_numerico, valor_assinado_caixa, fora_do_periodo, tipo_linha, bloco_funcional, classificacao_excel_original, banco_origem_texto, empresa_id_resolvida, empresa_id_origem_celula, status_resolucao_empresa, raw_json",
+        )
+        .eq("batch_id", batch_id)
+        .range(from, from + PAGE - 1);
+      if (error) return json(500, { error: "fetch raws falhou", detail: error.message });
+      if (!data || data.length === 0) break;
+      allRaws.push(...data);
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+  }
+  const raws = allRaws;
 
-  const byDay = new Map<
-    string,
-    { soma: number; qtd: number }
-  >();
-  let saldoInicial: number | null = null;
+  // Detecta layout long_table (qualquer raw com layout_mode='long_table')
+  const isLT = raws.some((r) => (r.raw_json as any)?.layout_mode === "long_table");
+
+  // -------- Reconciliação LONG_TABLE --------
+  // valor_numerico = bruto original (preservado)
+  // valor_assinado_caixa = derivado para composição de caixa
+  // SALDO ANTERIOR não entra como movimento; vira saldo inicial
+  // fora_do_periodo não entra na reconciliação do período oficial
+  const totalLinhas = raws.length;
+  const linhasComValor = raws.filter((r) => r.valor_numerico !== null).length;
+  const linhasSemValor = totalLinhas - linhasComValor;
+  const linhasForaPeriodo = raws.filter((r) => r.fora_do_periodo).length;
+  const linhas2026 = raws.filter((r) => !r.fora_do_periodo).length;
+
+  let saldoInicial = 0;
+  let entradas = 0;
+  let saidas = 0;
+  let liquido = 0;
   let saldoFinalExcel: number | null = null;
 
-  for (const r of raws ?? []) {
+  const byDay = new Map<string, { entradas: number; saidas: number; liquido: number; qtd: number }>();
+  const byBanco = new Map<string, { saldo_inicial: number; entradas: number; saidas: number; liquido: number }>();
+  const byEmpresa = new Map<string, { saldo_inicial: number; entradas: number; saidas: number; liquido: number }>();
+  const byClass = new Map<string, { total_bruto: number; total_assinado: number; qtd: number }>();
+  const byBloco = new Map<string, { total_bruto: number; total_assinado: number; qtd: number }>();
+  const empresasSet = new Set<string>();
+  const bancosSet = new Set<string>();
+  const classifSet = new Set<string>();
+
+  const bumpClass = (key: string, bruto: number, assinado: number) => {
+    const e = byClass.get(key) ?? { total_bruto: 0, total_assinado: 0, qtd: 0 };
+    e.total_bruto += bruto; e.total_assinado += assinado; e.qtd += 1;
+    byClass.set(key, e);
+  };
+  const bumpBloco = (key: string, bruto: number, assinado: number) => {
+    const e = byBloco.get(key) ?? { total_bruto: 0, total_assinado: 0, qtd: 0 };
+    e.total_bruto += bruto; e.total_assinado += assinado; e.qtd += 1;
+    byBloco.set(key, e);
+  };
+
+  for (const r of raws) {
     const ex = (r.raw_json as any)?.exclude_from_math;
     if (ex) continue;
-    if (r.tipo_linha === "saldo_inicial" && r.valor_numerico !== null) {
-      saldoInicial = (saldoInicial ?? 0) + Number(r.valor_numerico);
+
+    const cls = r.classificacao_excel_original || "(sem classificacao)";
+    const banco = r.banco_origem_texto || "(sem banco)";
+    const empresa = r.empresa_id_resolvida || r.empresa_id_origem_celula || "(sem empresa)";
+    classifSet.add(cls); bancosSet.add(banco); empresasSet.add(String(empresa));
+
+    const vnum = r.valor_numerico !== null ? Number(r.valor_numerico) : null;
+    const vass = r.valor_assinado_caixa !== null ? Number(r.valor_assinado_caixa) : null;
+
+    // SALDO ANTERIOR: só agrega saldo inicial; não entra como movimento
+    if (r.tipo_linha === "saldo_inicial") {
+      if (vnum !== null) {
+        saldoInicial += vnum;
+        const eb = byBanco.get(banco) ?? { saldo_inicial: 0, entradas: 0, saidas: 0, liquido: 0 };
+        eb.saldo_inicial += vnum; byBanco.set(banco, eb);
+        const ee = byEmpresa.get(String(empresa)) ?? { saldo_inicial: 0, entradas: 0, saidas: 0, liquido: 0 };
+        ee.saldo_inicial += vnum; byEmpresa.set(String(empresa), ee);
+        bumpClass(cls, vnum, vnum); bumpBloco("saldo", vnum, vnum);
+      }
       continue;
     }
-    if (r.tipo_linha === "saldo_final" && r.valor_numerico !== null) {
-      saldoFinalExcel = (saldoFinalExcel ?? 0) + Number(r.valor_numerico);
+    if (r.tipo_linha === "saldo_final" && vnum !== null) {
+      saldoFinalExcel = (saldoFinalExcel ?? 0) + vnum;
       continue;
     }
     if (r.tipo_linha !== "movimento") continue;
-    if (r.bloco_funcional === "subtotal" || r.bloco_funcional === "saldo") continue;
-    if (!r.data_caixa_derivada || r.valor_numerico === null) continue;
-    const k = r.data_caixa_derivada;
-    const e = byDay.get(k) ?? { soma: 0, qtd: 0 };
-    e.soma += Number(r.valor_numerico);
-    e.qtd += 1;
-    byDay.set(k, e);
+    if (r.bloco_funcional === "subtotal") continue;
+    if (r.fora_do_periodo) continue; // não entra na reconciliação 2026
+    if (vass === null) continue;     // sem sinal definido → pendência; não compõe
+
+    if (vass > 0) entradas += vass; else saidas += Math.abs(vass);
+    liquido += vass;
+
+    if (r.data_caixa_derivada) {
+      const d = byDay.get(r.data_caixa_derivada) ?? { entradas: 0, saidas: 0, liquido: 0, qtd: 0 };
+      if (vass > 0) d.entradas += vass; else d.saidas += Math.abs(vass);
+      d.liquido += vass; d.qtd += 1;
+      byDay.set(r.data_caixa_derivada, d);
+    }
+    const eb = byBanco.get(banco) ?? { saldo_inicial: 0, entradas: 0, saidas: 0, liquido: 0 };
+    if (vass > 0) eb.entradas += vass; else eb.saidas += Math.abs(vass);
+    eb.liquido += vass; byBanco.set(banco, eb);
+
+    const ee = byEmpresa.get(String(empresa)) ?? { saldo_inicial: 0, entradas: 0, saidas: 0, liquido: 0 };
+    if (vass > 0) ee.entradas += vass; else ee.saidas += Math.abs(vass);
+    ee.liquido += vass; byEmpresa.set(String(empresa), ee);
+
+    bumpClass(cls, vnum ?? 0, vass);
+    bumpBloco(r.bloco_funcional, vnum ?? 0, vass);
   }
 
-  const recRows = Array.from(byDay.entries()).map(([dia, v]) => ({
-    batch_id,
-    empresa_id: batch.empresa_id,
-    escopo: "dia",
-    chave: dia,
-    valor_excel: v.soma,
-    valor_sistema: v.soma,
-    qtd_linhas_excel: v.qtd,
-    qtd_linhas_sistema: v.qtd,
-    qtd_pendencias: 0,
-  }));
+  const saldoCalculado = saldoInicial + liquido;
 
-  let saldoCalculado: number | null = null;
-  if (saldoInicial !== null) {
-    saldoCalculado = saldoInicial +
-      Array.from(byDay.values()).reduce((a, b) => a + b.soma, 0);
-  }
-  if (saldoFinalExcel !== null) {
+  // Linhas para fcr_reconciliacao_lote (escopos: dia/banco/empresa/total)
+  const recRows: any[] = [];
+  for (const [dia, v] of byDay) {
     recRows.push({
-      batch_id,
-      empresa_id: batch.empresa_id,
-      escopo: "total",
-      chave: "saldo_final",
-      valor_excel: saldoFinalExcel,
-      valor_sistema: saldoCalculado ?? 0,
-      qtd_linhas_excel: 1,
-      qtd_linhas_sistema: 1,
-      qtd_pendencias: 0,
+      batch_id, empresa_id: batch.empresa_id, escopo: "dia", chave: dia,
+      valor_excel: v.liquido, valor_sistema: v.liquido,
+      qtd_linhas_excel: v.qtd, qtd_linhas_sistema: v.qtd, qtd_pendencias: 0,
     });
   }
+  for (const [banco, v] of byBanco) {
+    recRows.push({
+      batch_id, empresa_id: batch.empresa_id, escopo: "banco", chave: banco,
+      valor_excel: v.liquido, valor_sistema: v.liquido,
+      qtd_linhas_excel: 0, qtd_linhas_sistema: 0, qtd_pendencias: 0,
+    });
+  }
+  recRows.push({
+    batch_id, empresa_id: batch.empresa_id, escopo: "total", chave: "saldo_final",
+    valor_excel: saldoFinalExcel ?? saldoCalculado, valor_sistema: saldoCalculado,
+    qtd_linhas_excel: 1, qtd_linhas_sistema: 1, qtd_pendencias: 0,
+  });
 
-  // limpa reconciliação anterior do batch (idempotente)
   await admin.from("fcr_reconciliacao_lote").delete().eq("batch_id", batch_id);
   if (recRows.length) {
     const { error } = await admin.from("fcr_reconciliacao_lote").insert(recRows);
@@ -847,7 +1086,7 @@ async function handleReconcile(
   // avalia bloqueios
   const bloqueios: string[] = [];
   if (batch.escopo_carga === "consolidado") {
-    const pendentes = (raws ?? []).filter((r) =>
+    const pendentes = raws.filter((r) =>
       r.tipo_linha === "movimento" &&
       (r as any).status_resolucao_empresa !== "resolvida"
     ).length;
@@ -855,32 +1094,105 @@ async function handleReconcile(
   }
   const { data: pend } = await admin.from("fcr_sugestoes_pendencias")
     .select("tipo_pendencia").eq("batch_id", batch_id).eq("status", "pendente");
+  const pendByTipo: Record<string, number> = {};
+  for (const p of pend ?? []) {
+    pendByTipo[p.tipo_pendencia] = (pendByTipo[p.tipo_pendencia] ?? 0) + 1;
+  }
   const blockers = new Set([
     "banco_nao_reconhecido",
     "de_para_ambiguo",
+    "sinal_inconsistente",
+    "transferencia_sem_par",
   ]);
-  for (const p of pend ?? []) {
-    if (blockers.has(p.tipo_pendencia)) bloqueios.push(p.tipo_pendencia);
+  for (const tipo of Object.keys(pendByTipo)) {
+    if (blockers.has(tipo)) bloqueios.push(`${tipo}:${pendByTipo[tipo]}`);
   }
-  // saldo divergente
-  for (const r of recRows) {
-    if (Math.abs((r.valor_excel ?? 0) - (r.valor_sistema ?? 0)) > 0.01) {
-      bloqueios.push(`diferenca_${r.escopo}_${r.chave}`);
-    }
+  if (saldoFinalExcel !== null && Math.abs(saldoFinalExcel - saldoCalculado) > 0.01) {
+    bloqueios.push(`diferenca_saldo_final:${(saldoFinalExcel - saldoCalculado).toFixed(2)}`);
   }
 
   const novoStatus = bloqueios.length === 0 ? "dry_run_ok" : "dry_run_erro";
+
+  const relatorio = {
+    layout_mode: isLT ? "long_table" : "matrix",
+    cobertura: {
+      total_linhas: totalLinhas,
+      linhas_no_periodo: linhas2026,
+      linhas_fora_do_periodo: linhasForaPeriodo,
+      linhas_com_valor: linhasComValor,
+      linhas_sem_valor: linhasSemValor,
+      empresas: empresasSet.size,
+      bancos: bancosSet.size,
+      classificacoes: classifSet.size,
+    },
+    saldos: {
+      saldo_anterior_total: round2(saldoInicial),
+      entradas: round2(entradas),
+      saidas: round2(saidas),
+      movimento_liquido: round2(liquido),
+      saldo_final_calculado: round2(saldoCalculado),
+      saldo_final_excel: saldoFinalExcel !== null ? round2(saldoFinalExcel) : null,
+    },
+    por_dia: (() => {
+      const arr = Array.from(byDay.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+      let acc = saldoInicial;
+      return arr.map(([dia, v]) => {
+        acc += v.liquido;
+        return {
+          dia, entradas: round2(v.entradas), saidas: round2(v.saidas),
+          liquido: round2(v.liquido), saldo_acumulado: round2(acc), qtd: v.qtd,
+        };
+      });
+    })(),
+    por_banco: Array.from(byBanco.entries()).map(([banco, v]) => ({
+      banco,
+      saldo_inicial: round2(v.saldo_inicial),
+      entradas: round2(v.entradas),
+      saidas: round2(v.saidas),
+      liquido: round2(v.liquido),
+      saldo_final_calculado: round2(v.saldo_inicial + v.liquido),
+    })),
+    por_empresa: Array.from(byEmpresa.entries()).map(([empresa, v]) => ({
+      empresa,
+      saldo_inicial: round2(v.saldo_inicial),
+      entradas: round2(v.entradas),
+      saidas: round2(v.saidas),
+      liquido: round2(v.liquido),
+      saldo_final_calculado: round2(v.saldo_inicial + v.liquido),
+    })),
+    por_classificacao: Array.from(byClass.entries()).map(([cls, v]) => ({
+      classificacao: cls,
+      total_bruto: round2(v.total_bruto),
+      total_assinado: round2(v.total_assinado),
+      qtd: v.qtd,
+    })),
+    por_bloco_funcional: Array.from(byBloco.entries()).map(([bloco, v]) => ({
+      bloco, total_bruto: round2(v.total_bruto),
+      total_assinado: round2(v.total_assinado), qtd: v.qtd,
+    })),
+    pendencias_por_tipo: pendByTipo,
+    bloqueios,
+    impacto_substituicao: {
+      observacao:
+        "PR-3 deverá ser substituição oficial, não append. Comparação detalhada contra carga antiga será gerada no PR-3 (fora do escopo desta Fase A2).",
+    },
+  };
+
   await admin.from("fcr_batch").update({
     status: novoStatus,
     saldos_finais_reconciliacao: {
-      saldo_inicial_excel: saldoInicial,
-      saldo_final_excel: saldoFinalExcel,
-      saldo_final_calculado: saldoCalculado,
+      saldo_inicial_total: round2(saldoInicial),
+      entradas: round2(entradas),
+      saidas: round2(saidas),
+      movimento_liquido: round2(liquido),
+      saldo_final_calculado: round2(saldoCalculado),
+      saldo_final_excel: saldoFinalExcel !== null ? round2(saldoFinalExcel) : null,
       bloqueios,
+      relatorio,
     },
   }).eq("id", batch_id);
 
-  return json(200, { batch_id, status: novoStatus, bloqueios });
+  return json(200, { batch_id, status: novoStatus, bloqueios, relatorio });
 }
 
 async function handleRollback(
