@@ -1,64 +1,75 @@
-## Contexto importante (decisão necessária)
+# Plano: Catálogo de bancos unificado
 
-A tabela `conta_bancaria` que mencionei na resposta anterior é, na verdade, **das contas da empresa** (com `empresa_id NOT NULL`, integração CNAB, convênio, certificado, webhook, etc.). Ela não foi projetada para guardar contas de **terceiros (fornecedores)** — colocar contas de fornecedor ali misturaria conceitos e quebraria a integração bancária (toda conta passaria a exigir CNAB layout, ambiente, status, etc.).
+## Situação atual
 
-Por isso, recomendo criar uma **nova tabela dedicada** `fornecedor_conta_bancaria`, vinculada ao fornecedor. É o padrão usado em ERPs (TOTVS, Sankhya, SAP) e mantém `conta_bancaria` limpa para as contas próprias.
+Existe um único catálogo em `src/pages/financeiro/builder/types.ts` → `BANCOS_CATALOGO` com apenas 10 itens (BB, Caixa, Bradesco, Itaú, Santander, Sicoob, Sicredi, Inter, BTG, "Outro"). Ele é usado em:
 
-> Se ainda assim você preferir usar a tabela `conta_bancaria` para guardar contas de fornecedor, me avise antes de eu executar — terei que tornar vários campos opcionais e adicionar `fornecedor_id`, o que enfraquece as regras atuais de integração bancária.
+- `ContaBancariaDialog` (fornecedores) — selecione o banco da conta do fornecedor
+- Builder CNAB (integração bancária)
+- Contas bancárias da própria empresa (tabela `conta_bancaria`)
 
----
+Não há ainda local de cadastro de **contas de colaboradores** (será necessário criar — ver seção 4).
 
-## Plano (assumindo nova tabela dedicada)
+## 1. Expandir o catálogo (sem duplicar)
 
-### 1. Banco de dados — migration
-Criar `public.fornecedor_conta_bancaria`:
-- `fornecedor_id` (FK → fornecedor, ON DELETE CASCADE)
-- `empresa_id`
-- `banco_codigo`, `banco_nome`
-- `agencia`, `agencia_digito`
-- `conta`, `conta_digito`
-- `tipo` (corrente / poupança / pagamento)
-- `titular_nome`, `titular_documento` (CNPJ/CPF — pode diferir do fornecedor)
-- `pix_tipo` (cpf/cnpj/email/telefone/aleatoria), `pix_chave`
-- `principal` (boolean — uma marcada como principal por fornecedor via trigger)
-- `ativa` (boolean default true)
-- `observacoes`, `created_at`, `updated_at`
+Adicionar ao `BANCOS_CATALOGO` os bancos solicitados + uma lista média representativa do mercado BR. Padrão: `codigo` (string, 3 dígitos com zero à esquerda) + `nome`.
 
-RLS: habilitar e replicar as policies da tabela `fornecedor` (mesma regra de empresa).
-Trigger `update_updated_at_column`.
-Índice em `(fornecedor_id, ativa)`.
+Novos solicitados pelo usuário:
+- 041 — Banrisul
+- 336 — C6 Bank
+- 260 — Nubank (Nu Pagamentos)
+- 292 — Mentore (BS2 / código a confirmar — Mentore atua sob conta-corrente parceira; código provisório 292/BS2)
+- — Próspera (não possui código COMPE próprio; opera como correspondente — listar como "Próspera (correspondente)" com código provisório `999P` ou pedir confirmação ao usuário)
+- 526 — Ticket / Edenred (conta-pagamento)
 
-### 2. Frontend — tela de Fornecedor
-A tela atual (`src/pages/suprimentos/Fornecedores.tsx`) usa o componente genérico `EntityCrudPage`, que **não suporta sub-coleções**. Substituir por um CRUD próprio com Dialog de edição em abas:
+Lista média a incluir (códigos COMPE oficiais), sem duplicar os 10 já existentes:
+003 Basa, 004 BNB, 021 Banestes, 025 Alfa, 037 Banpará, 041 Banrisul, 047 Banese, 070 BRB, 077 Inter (já existe), 082 Banco Topázio, 084 Uniprime Norte PR, 085 Ailos/Cecred, 097 Credisis, 121 Agibank, 197 Stone, 208 BTG (já existe), 212 Banco Original, 213 Banco Arbi, 218 BS2, 222 Credit Agricole, 224 Fibra, 237 Bradesco (já existe), 246 ABC Brasil, 260 Nubank, 290 PagBank/PagSeguro, 323 Mercado Pago, 335 Digio, 336 C6, 341 Itaú (já), 380 PicPay, 389 Mercantil do Brasil, 422 Safra, 453 Rural, 473 Caixa Geral, 477 Citibank, 487 Deutsche, 526 Ticket, 600 Luso Brasileiro, 604 Industrial, 611 Paulista, 612 Guanabara, 623 Pan, 633 Rendimento, 637 Sofisa, 643 Pine, 652 Itaú Holding, 653 Indusval, 655 Votorantim, 707 Daycoval, 735 BRK / Neon, 739 Cetelem, 741 BRP, 745 Citibank, 746 Modal, 748 Sicredi (já), 752 BNP Paribas, 755 BofA, 756 Sicoob (já), 757 KEB.
 
-- **Aba "Dados Gerais"** — campos atuais (tipo, CNPJ/CPF, razão social, contato, etc.)
-- **Aba "Contas Bancárias"** *(nova)* — lista das contas do fornecedor com:
-  - Botão **+ Nova conta** → abre sub-dialog com formulário (validação Zod)
-  - Ações por linha: **Editar**, **Definir como principal**, **Inativar/Excluir**
-  - Tabela com banco, agência, conta, tipo, PIX, principal, status
+Total estimado: ~55 bancos (10 existentes + ~45 novos). Mantém UX fluida no Select.
 
-A aba só fica habilitada após o fornecedor ser salvo pela primeira vez (precisa de `fornecedor_id`).
+Regra anti-duplicação: chave única = `codigo`. Antes de adicionar, conferir lista atual.
 
-### 3. Onde as contas serão consumidas
-Manter o que já existe. Os locais que hoje leem `conta_bancaria` (Programação de Pagamentos, Builder CNAB) **continuam usando `conta_bancaria` para a conta pagadora da empresa** — sem mudança. A nova `fornecedor_conta_bancaria` será usada futuramente para definir a conta de destino do pagamento (fora deste escopo, só preparando a base).
+Itens sem código COMPE definido ("Próspera", "Mentore") serão marcados visualmente (ex.: nome + "(correspondente)") e usarão prefixo `9xx` reservado, sujeito a confirmação.
 
-### 4. Validações (Zod + server)
-- Agência/conta: somente dígitos
-- PIX: validar formato conforme `pix_tipo`
-- Apenas uma conta `principal=true` por fornecedor (trigger ao inserir/atualizar)
-- Limites de tamanho em todos os textos
+## 2. Onde o catálogo é usado hoje
 
-### Arquivos a alterar/criar
-- `supabase/migrations/<timestamp>_fornecedor_conta_bancaria.sql` *(novo)*
-- `src/pages/suprimentos/Fornecedores.tsx` *(reescrever — sai do EntityCrudPage)*
-- `src/pages/suprimentos/fornecedores/FornecedorDialog.tsx` *(novo — abas Dados/Contas)*
-- `src/pages/suprimentos/fornecedores/ContasBancariasTab.tsx` *(novo)*
-- `src/pages/suprimentos/fornecedores/ContaBancariaDialog.tsx` *(novo)*
+- `ContaBancariaDialog` (fornecedores) — OK, passa a ver lista completa automaticamente.
+- Builder CNAB — OK.
+- Modal de cadastro de `conta_bancaria` (empresa) — verificar; se ainda usa lista hardcoded local, trocar para `BANCOS_CATALOGO`.
 
-### Fora do escopo
-- Vincular a conta do fornecedor a títulos a pagar / programações (próxima entrega)
-- Importação em massa de contas
+Nenhuma migração de dados necessária — `banco_codigo` continua string.
 
----
+## 3. Contas bancárias da própria empresa
 
-**Confirma?** Posso seguir com a tabela dedicada (recomendado), ou prefere forçar tudo dentro de `conta_bancaria`?
+Já existem: tabela `conta_bancaria` + tela na trilha de Integração Bancária / Financeiro. Ação: garantir que o Select de banco use `BANCOS_CATALOGO` (mesma fonte única).
+
+## 4. Contas bancárias de colaboradores (novo)
+
+Hoje não existe. Padrão a seguir (espelhando `fornecedor_conta_bancaria`):
+
+- Nova tabela `colaborador_conta_bancaria` com: `colaborador_id` (FK CASCADE), `empresa_id`, `banco_codigo`, `banco_nome`, `agencia`/dígito, `conta`/dígito, `tipo`, `titular_nome` (default = nome do colaborador), `titular_documento` (default = CPF do colaborador), `pix_tipo`, `pix_chave`, `principal`, `ativa`, `observacoes`, timestamps. RLS + trigger `principal_unica` por colaborador + trigger `updated_at`.
+- UI: aba "Contas Bancárias" dentro do cadastro do colaborador em `src/pages/rh/ColaboradorForm.tsx` (ou novo `ColaboradorDialog` se preferirem), reaproveitando `ContaBancariaDialog` parametrizado (extrair para componente genérico `ContaBancariaForm` que receba `parentId`, `parentTable`, `tituloPadrao`).
+- Uso futuro: folha de pagamento, reembolsos, adiantamentos.
+
+## 5. Refatoração leve sugerida
+
+- Mover `BANCOS_CATALOGO` para `src/lib/bancos.ts` (fonte única, fora do módulo builder/CNAB) e reexportar do path antigo para não quebrar imports.
+- Função helper `getBancoNome(codigo)` para usar em listagens.
+
+## Detalhes técnicos
+
+- Tipo `BancoCatalogo` ganha `cor` opcional — novos itens podem usar `hsl(220 10% 50%)` como default neutro.
+- Ordenação: alfabética por `nome`, exceto os 5-6 "Top" (BB, Caixa, Bradesco, Itaú, Santander, Sicoob/Sicredi) fixados no topo + separador.
+- Componente `Select` shadcn já comporta ~60 itens; se passar de 80 considerar `Command` (combobox com busca).
+
+## Fora de escopo deste plano
+
+- Migrar dados existentes (não há mudança de schema em tabelas atuais).
+- Validação de dígito-banco por algoritmo específico.
+- Importação massiva de contas.
+
+## Pendências de confirmação
+
+1. Códigos para **Próspera** e **Mentore** — quais usar? (não têm COMPE próprio)
+2. Aprovar criação da tabela `colaborador_conta_bancaria` agora ou em etapa separada?
+3. Manter "Outro / Customizado" (999) como fallback? (recomendo sim)
