@@ -342,8 +342,28 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
       { centro_custo_id: "", modo: "percentual", percentual: "", valor: "", descricao: "" },
     ]);
   const updateRateio = (i: number, patch: Partial<RateioItem>) =>
-    setRateios((r) => r.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+    setRateios((r) =>
+      r.map((x, k) => {
+        if (k !== i) return x;
+        const next = { ...x, ...patch };
+        // Auto-sugerir conta contábil ao escolher CC (não sobrescreve escolha manual)
+        if (patch.centro_custo_id && !x.conta_contabil_id) {
+          const cc = ccs.find((c) => c.id === patch.centro_custo_id);
+          if (cc) {
+            const sugerida = ccCodigoToContaId.get(String(cc.codigo));
+            if (sugerida) next.conta_contabil_id = sugerida;
+          }
+        }
+        return next;
+      }),
+    );
   const removeRateio = (i: number) => setRateios((r) => r.filter((_, k) => k !== i));
+
+  const handleEmpresaChange = (v: string) => {
+    setEmpresaId(v);
+    setContaContabilId("");
+    setRateios((r) => r.map((x) => ({ ...x, centro_custo_id: "", conta_contabil_id: "" })));
+  };
 
   const distribuirIgual = () => {
     if (rateios.length === 0) return;
