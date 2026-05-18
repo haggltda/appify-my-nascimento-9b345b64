@@ -4722,6 +4722,80 @@ export type Database = {
         }
         Relationships: []
       }
+      fornecedor_conta_bancaria: {
+        Row: {
+          agencia: string
+          agencia_digito: string | null
+          ativa: boolean
+          banco_codigo: string
+          banco_nome: string
+          conta: string
+          conta_digito: string | null
+          created_at: string
+          empresa_id: string
+          fornecedor_id: string
+          id: string
+          observacoes: string | null
+          pix_chave: string | null
+          pix_tipo: string | null
+          principal: boolean
+          tipo: string
+          titular_documento: string | null
+          titular_nome: string | null
+          updated_at: string
+        }
+        Insert: {
+          agencia: string
+          agencia_digito?: string | null
+          ativa?: boolean
+          banco_codigo: string
+          banco_nome: string
+          conta: string
+          conta_digito?: string | null
+          created_at?: string
+          empresa_id: string
+          fornecedor_id: string
+          id?: string
+          observacoes?: string | null
+          pix_chave?: string | null
+          pix_tipo?: string | null
+          principal?: boolean
+          tipo?: string
+          titular_documento?: string | null
+          titular_nome?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agencia?: string
+          agencia_digito?: string | null
+          ativa?: boolean
+          banco_codigo?: string
+          banco_nome?: string
+          conta?: string
+          conta_digito?: string | null
+          created_at?: string
+          empresa_id?: string
+          fornecedor_id?: string
+          id?: string
+          observacoes?: string | null
+          pix_chave?: string | null
+          pix_tipo?: string | null
+          principal?: boolean
+          tipo?: string
+          titular_documento?: string | null
+          titular_nome?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fornecedor_conta_bancaria_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ia_feedback: {
         Row: {
           comentario: string | null
