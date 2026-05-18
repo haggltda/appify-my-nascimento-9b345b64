@@ -358,7 +358,7 @@ export default function FluxoCaixaDiario() {
     ]);
 
     autoTable(pdf, {
-      head, body, startY: 80, theme: "grid",
+      head, body, startY: 92, theme: "grid",
       styles: { fontSize: 7, cellPadding: 3, lineColor: [226, 232, 240], lineWidth: 0.3 },
       headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: "bold", halign: "center" },
       columnStyles: { 0: { cellWidth: 140, halign: "left" } },
