@@ -13,8 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
-  CheckCircle2, XCircle, RotateCcw, Wallet, ShoppingCart, FileText, Search,
-  Users, DollarSign, FolderOpen, Clock, FileIcon, Eye, Download,
+  CheckCircle2, XCircle, RotateCcw, Wallet, ShoppingCart, Search,
+  Users, DollarSign, FolderOpen, Clock, FileIcon, Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 
