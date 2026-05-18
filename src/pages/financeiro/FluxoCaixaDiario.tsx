@@ -331,6 +331,23 @@ export default function FluxoCaixaDiario() {
     pushBloco("FINANCEIRAS");
     pushBloco("SAIDAS_NAO_OP");
 
+    if (modoMutuo === "separado" && gridMutuo.porCategoria.size > 0) {
+      const rgb: [number, number, number] = [226, 232, 240];
+      body.push([
+        { content: "MÚTUOS / INTERCOMPANY / TRANSFERÊNCIAS INTERNAS", styles: { fillColor: rgb, textColor: [15, 23, 42], fontStyle: "bold" } },
+        ...dias.map(() => ({ content: "—", styles: { fillColor: rgb, halign: "right" } })),
+        { content: fmt(gridMutuo.liquido), styles: { fillColor: rgb, halign: "right", fontStyle: "bold" } },
+      ]);
+      [...gridMutuo.porCategoria.entries()].sort(([a], [c]) => a.localeCompare(c)).forEach(([nome, cat]) => {
+        const total = Object.values(cat).reduce((a, c) => a + c, 0);
+        body.push([
+          { content: "    " + nome },
+          ...dias.map((d) => ({ content: cat[d] ? fmt(cat[d]) : "—", styles: { halign: "right" } })),
+          { content: fmt(total), styles: { halign: "right" } },
+        ]);
+      });
+    }
+
     body.push([
       { content: "SALDO FINAL", styles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" } },
       ...dias.map((d) => ({
