@@ -1024,7 +1024,7 @@ async function runParseBackground(batch_id: string): Promise<void> {
       console.error("id_origem dedup falhou", e);
     }
 
-    const finalStatus = chunkErros === 0 ? "parseando" : "erro_parse";
+    const finalStatus = chunkErros === 0 ? "parseando" : "erro";
     // Mantemos status='parseando' quando ok para permitir Reconcile (que exige parseando).
     await admin.from("fcr_batch").update({
       status: finalStatus,
@@ -1045,7 +1045,7 @@ async function runParseBackground(batch_id: string): Promise<void> {
     }).eq("id", batch_id);
   } catch (e) {
     await admin.from("fcr_batch").update({
-      status: "erro_parse",
+      status: "erro",
       ultimo_erro: String(e instanceof Error ? e.message : e),
       parse_finalizado_em: new Date().toISOString(),
     }).eq("id", batch_id);
@@ -1063,7 +1063,7 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
   if (!canMutateBatch(ctx.roles, batch.escopo_carga, batch.empresa_id, ctx.empresaId)) {
     return json(403, { error: "sem permissão para mutar este batch" });
   }
-  if (!["criado", "parseando", "erro_parse"].includes(batch.status)) {
+  if (!["criado", "parseando", "erro"].includes(batch.status)) {
     return json(409, { error: `status inválido para parse: ${batch.status}` });
   }
 
