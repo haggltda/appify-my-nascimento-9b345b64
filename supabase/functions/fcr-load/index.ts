@@ -491,17 +491,24 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
         const cValor = ltMap.valor!;
         const cData = ltMap.data!;
         const cClass = ltMap.classificacao!;
+        const cTipo = ltMap.tipo;
         const cEmpresa = ltMap.empresa;
         const cBanco = ltMap.banco;
         const cConta = ltMap.conta;
         const cHist = ltMap.historico;
         const cId = ltMap.id_origem;
 
+        const ltPendencias: Array<{
+          tipo_pendencia: string;
+          motivo: string;
+          destino_proposto: string;
+          row_index: number;
+        }> = [];
+
         for (let r = headerRow + 1; r <= range.e.r; r++) {
           const rowHidden = Boolean(rowsMeta[r]?.hidden);
           const colHiddenValor = Boolean(colsMeta[cValor]?.hidden);
 
-          // raw_json preserva TODAS as 18 colunas
           const fullRow: Record<string, unknown> = {};
           let rowHasAnyValue = false;
           for (let c = range.s.c; c <= range.e.c; c++) {
@@ -517,6 +524,9 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
           const valorCell = ws[XLSX.utils.encode_cell({ r, c: cValor })];
           const classCell = ws[XLSX.utils.encode_cell({ r, c: cClass })];
           const dataCell = ws[XLSX.utils.encode_cell({ r, c: cData })];
+          const tipoCell = cTipo !== undefined
+            ? ws[XLSX.utils.encode_cell({ r, c: cTipo })]
+            : undefined;
 
           const classificacao = classCell?.v != null ? String(classCell.v) : "";
           const tipo = classifyTipoLinha(classificacao);
@@ -530,35 +540,43 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
           const addr = XLSX.utils.encode_cell({ r, c: cValor });
           const formula = valorCell?.f ?? "";
 
-          const banco_txt = cBanco !== undefined
-            ? (ws[XLSX.utils.encode_cell({ r, c: cBanco })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: cBanco })].v)
-              : null)
+          const cellTxt = (col: number | undefined) =>
+            col !== undefined && ws[XLSX.utils.encode_cell({ r, c: col })]?.v != null
+              ? String(ws[XLSX.utils.encode_cell({ r, c: col })].v)
+              : null;
+          const banco_txt = cellTxt(cBanco);
+          const conta_txt = cellTxt(cConta);
+          const empresa_txt = cellTxt(cEmpresa);
+          const hist_txt = cellTxt(cHist);
+          const id_origem = cId !== undefined && ws[XLSX.utils.encode_cell({ r, c: cId })]?.v != null
+            ? String(ws[XLSX.utils.encode_cell({ r, c: cId })].v).trim()
             : null;
-          const conta_txt = cConta !== undefined
-            ? (ws[XLSX.utils.encode_cell({ r, c: cConta })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: cConta })].v)
-              : null)
-            : null;
-          const empresa_txt = cEmpresa !== undefined
-            ? (ws[XLSX.utils.encode_cell({ r, c: cEmpresa })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: cEmpresa })].v)
-              : null)
-            : null;
-          const hist_txt = cHist !== undefined
-            ? (ws[XLSX.utils.encode_cell({ r, c: cHist })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: cHist })].v)
-              : null)
-            : null;
-          const id_origem = cId !== undefined
-            ? (ws[XLSX.utils.encode_cell({ r, c: cId })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: cId })].v).trim()
-              : null)
-            : null;
+          const tipo_mov_orig = tipoCell?.v != null ? String(tipoCell.v) : null;
+          const tipo_mov_norm = normalizeTipoMovimento(tipo_mov_orig);
 
-          // regra de sinal por empresa+banco: pass-through nesta fase;
-          // refinamento (de_para_sinal) acontece em PR-3/promoção.
-          const valor_assinado = valor_num;
+          // REGRA OFICIAL DE SINAL (long_table)
+          // valor_numerico = bruto original do Excel (preservado)
+          // valor_assinado_caixa = derivado:
+          //   SALDO ANTERIOR  -> valor_numerico (não entra como movimento)
+          //   Tipo=ENTRADA    -> +ABS(valor_numerico)
+          //   Tipo=SAÍDA      -> -ABS(valor_numerico)
+          //   Tipo inválido p/ movimento -> null + pendência sinal_inconsistente
+          let valor_assinado: number | null = null;
+          let pend_sinal = false;
+          if (tipo === "saldo_inicial") {
+            valor_assinado = valor_num;
+          } else if (tipo === "movimento" && valor_num !== null) {
+            if (tipo_mov_norm === "entrada") {
+              valor_assinado = Math.abs(valor_num);
+            } else if (tipo_mov_norm === "saida") {
+              valor_assinado = -Math.abs(valor_num);
+            } else {
+              valor_assinado = null;
+              pend_sinal = true;
+            }
+          } else {
+            valor_assinado = valor_num;
+          }
 
           const fora = data_caixa
             ? (data_caixa < periodo.inicio || data_caixa > periodo.fim)
@@ -567,6 +585,8 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
           const hashInput =
             `${batch_id}|${file_sha256}|${sheetName}|${addr}|${valor_texto ?? ""}|${formula}|LT|${id_origem ?? ""}`;
           const hash = await sha256(new TextEncoder().encode(hashInput));
+
+          const requer_revisao = /CONTA\s+VINCULADA/.test(normalize(classificacao));
 
           raws.push({
             batch_id,
@@ -601,15 +621,47 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
               sheet_hidden: sheetHidden,
               row_hidden: rowHidden,
               col_hidden: colHiddenValor,
-              exclude_from_math: sheetHidden || rowHidden || colHiddenValor || fora,
+              exclude_from_math: sheetHidden || rowHidden || colHiddenValor,
               formula: formula || null,
               cell_type: valorCell?.t ?? null,
               full_row: fullRow,
               header_map: ltMap,
+              id_origem: id_origem,
+              tipo_movimento_original: tipo_mov_orig,
+              tipo_movimento_normalizado: tipo_mov_norm,
+              requer_revisao,
             },
             hash_idempotencia: hash,
           });
+
+          if (pend_sinal) {
+            ltPendencias.push({
+              tipo_pendencia: "sinal_inconsistente",
+              motivo: `Tipo invalido/ausente p/ movimento: '${tipo_mov_orig ?? ""}'`,
+              destino_proposto: "a_conciliar",
+              row_index: raws.length - 1,
+            });
+          }
+          if (fora) {
+            ltPendencias.push({
+              tipo_pendencia: "fora_do_periodo",
+              motivo: `data ${data_caixa} fora de ${periodo.inicio}..${periodo.fim}`,
+              destino_proposto: "ignorar",
+              row_index: raws.length - 1,
+            });
+          }
+          if (requer_revisao) {
+            ltPendencias.push({
+              tipo_pendencia: "a_conciliar",
+              motivo: "CONTA VINCULADA — requer revisão",
+              destino_proposto: "a_conciliar",
+              row_index: raws.length - 1,
+            });
+          }
         }
+
+        (batch as any).__lt_pendencias =
+          ((batch as any).__lt_pendencias ?? []).concat(ltPendencias);
         continue;
       }
 
