@@ -516,7 +516,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
         <section className="rounded-xl border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold">
-              <FileSpreadsheet className="h-4 w-4 text-primary" /> Rateio por centro de custo
+              <FileSpreadsheet className="h-4 w-4 text-primary" /> Rateio por centro de custo <span className="text-xs text-muted-foreground font-normal">(obrigatório — mesmo que seja 1 só)</span>
             </div>
             <div className="flex gap-2">
               <Button type="button" size="sm" variant="outline" onClick={distribuirIgual} disabled={rateios.length === 0}>
@@ -530,7 +530,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
 
           {rateios.length === 0 ? (
             <div className="rounded-lg border border-dashed py-6 text-center text-sm text-muted-foreground">
-              Sem rateio — o lançamento usará a conta/CC default. Útil para rescisões com múltiplas obras.
+              Adicione pelo menos 1 centro de custo clicando em <strong>+ Linha</strong>.
             </div>
           ) : (
             <div className="overflow-x-auto">
