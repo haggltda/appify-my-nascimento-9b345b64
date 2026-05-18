@@ -285,13 +285,27 @@ interface RawRow {
 const LT_ALIASES: Record<string, string[]> = {
   data: ["DATA", "DATA MOVIMENTO", "DATA CAIXA", "DATA OPERACAO", "DT", "DT MOVIMENTO"],
   valor: ["VALOR", "VALOR MOVIMENTO", "VL", "VLR"],
+  tipo: ["TIPO", "TIPO MOVIMENTO", "TIPO LANCAMENTO", "E/S", "D/C"],
   classificacao: ["CLASSIFICACAO", "CLASSIFICACAO CAIXA", "CATEGORIA", "NATUREZA"],
-  empresa: ["EMPRESA", "FILIAL", "UNIDADE", "RAZAO SOCIAL"],
+  empresa: ["EMPRESA", "EMPRESAS", "FILIAL", "UNIDADE", "RAZAO SOCIAL"],
   banco: ["BANCO", "INSTITUICAO", "INSTITUICAO FINANCEIRA"],
   conta: ["CONTA", "CONTA CORRENTE", "CC", "NUMERO CONTA"],
   historico: ["HISTORICO", "DESCRICAO", "OBSERVACAO", "MEMO"],
   id_origem: ["ID", "ID ORIGEM", "IDORIGEM", "DOCUMENTO", "DOC", "REFERENCIA", "NUMERO DOC"],
 };
+
+// Normaliza valor da coluna Tipo do Excel para 'entrada' | 'saida' | 'desconhecido'
+function normalizeTipoMovimento(raw: unknown): "entrada" | "saida" | "desconhecido" {
+  if (raw == null) return "desconhecido";
+  const n = normalize(String(raw));
+  if (!n) return "desconhecido";
+  if (/^(E|ENTRADA|ENTRADAS|CREDITO|CR|RECEBIMENTO|D)$/.test(n)) {
+    // 'D' (débito bancário) representa entrada no extrato; mantemos só ENTRADA explícita
+  }
+  if (/^E$|ENTRADA|CREDITO|RECEBIMENTO/.test(n)) return "entrada";
+  if (/^S$|SAIDA|SA[IÍ]DA|DEBITO|D[ÉE]BITO|PAGAMENTO/.test(n)) return "saida";
+  return "desconhecido";
+}
 
 function mapLongTableHeaders(headers: string[]): Record<string, number> {
   const map: Record<string, number> = {};
