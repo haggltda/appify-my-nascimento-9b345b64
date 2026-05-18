@@ -2,6 +2,44 @@
 // Para adicionar um novo artigo: crie um .md em src/content/ajuda/<modulo>/ e registre aqui.
 
 import programacaoPagamentos from "./financeiro/programacao-pagamentos.md?raw";
+import contasPagarListar from "./financeiro/contas-pagar-listar.md?raw";
+import aprovarPagamento from "./financeiro/aprovar-pagamento.md?raw";
+import conciliacaoBancaria from "./financeiro/conciliacao-bancaria.md?raw";
+import fluxoCaixaDiario from "./financeiro/fluxo-caixa-diario.md?raw";
+import nfEntrada from "./suprimentos/nf-entrada.md?raw";
+import cotacao from "./suprimentos/cotacao.md?raw";
+import pedidoCompra from "./suprimentos/pedido-compra.md?raw";
+import aprovarPedido from "./suprimentos/aprovar-pedido.md?raw";
+import cadastroUsuario from "./admin/cadastro-usuario.md?raw";
+import cadastroColaborador from "./rh/cadastro-colaborador.md?raw";
+import minhasPendencias from "./geral/minhas-pendencias.md?raw";
+
+export type ArtigoStatus = "disponivel" | "em_implantacao" | "pendente";
+
+export type Persona =
+  | "solicitante"
+  | "compras"
+  | "financeiro"
+  | "fiscal"
+  | "gestor"
+  | "diretoria"
+  | "presidencia"
+  | "rh"
+  | "controladoria"
+  | "admin";
+
+export const PERSONAS: { id: Persona; label: string }[] = [
+  { id: "solicitante", label: "Solicitante" },
+  { id: "compras", label: "Compras" },
+  { id: "financeiro", label: "Financeiro" },
+  { id: "fiscal", label: "Fiscal" },
+  { id: "gestor", label: "Gestor" },
+  { id: "diretoria", label: "Diretoria" },
+  { id: "presidencia", label: "Presidência" },
+  { id: "rh", label: "RH" },
+  { id: "controladoria", label: "Controladoria" },
+  { id: "admin", label: "Administração" },
+];
 
 export type ArtigoMeta = {
   slug: string;
@@ -13,9 +51,12 @@ export type ArtigoMeta = {
   rotasRelacionadas: string[]; // prefixos de rota onde este artigo deve aparecer no painel contextual
   updatedAt: string;
   conteudo: string;
+  personas?: Persona[];
+  status?: ArtigoStatus; // default: "disponivel"
 };
 
 export const MODULOS: { id: string; label: string; descricao: string }[] = [
+  { id: "geral", label: "Geral", descricao: "Atalhos do dia a dia, pendências e dicas transversais." },
   { id: "financeiro", label: "Financeiro", descricao: "Contas a pagar/receber, fluxo, conciliação e integração bancária." },
   { id: "contabil", label: "Contábil", descricao: "Plano de contas, lançamentos, balancete e DRE." },
   { id: "rh", label: "RH", descricao: "Colaboradores, alocações e folha." },
@@ -36,6 +77,151 @@ export const ARTIGOS: ArtigoMeta[] = [
     rotasRelacionadas: ["/app/financeiro/programacao-pagamentos", "/app/financeiro/contas-pagar"],
     updatedAt: "2026-05-18",
     conteudo: programacaoPagamentos,
+    personas: ["financeiro", "controladoria", "diretoria"],
+    status: "disponivel",
+  },
+  {
+    slug: "contas-pagar-listar",
+    modulo: "financeiro",
+    moduloLabel: "Financeiro",
+    titulo: "Como vejo os títulos a pagar?",
+    resumo: "Consulta de títulos em aberto, filtros e atalhos para pagamento.",
+    tags: ["contas a pagar", "títulos", "consulta"],
+    rotasRelacionadas: ["/app/financeiro/contas-pagar"],
+    updatedAt: "2026-05-18",
+    conteudo: contasPagarListar,
+    personas: ["financeiro", "controladoria", "diretoria"],
+    status: "disponivel",
+  },
+  {
+    slug: "aprovar-pagamento",
+    modulo: "financeiro",
+    moduloLabel: "Financeiro",
+    titulo: "Como aprovo um pagamento?",
+    resumo: "Revisão e aprovação de malotes de pagamento por alçada.",
+    tags: ["aprovação", "pagamento", "malote", "alçada"],
+    rotasRelacionadas: ["/app/financeiro/programacao-pagamentos"],
+    updatedAt: "2026-05-18",
+    conteudo: aprovarPagamento,
+    personas: ["financeiro", "gestor", "diretoria"],
+    status: "em_implantacao",
+  },
+  {
+    slug: "conciliacao-bancaria",
+    modulo: "financeiro",
+    moduloLabel: "Financeiro",
+    titulo: "Como faço conciliação bancária?",
+    resumo: "Amarração entre movimentos bancários e títulos pagos/recebidos.",
+    tags: ["conciliação", "banco", "ofx", "cnab"],
+    rotasRelacionadas: ["/app/financeiro/conciliacao-fluxo-caixa", "/app/financeiro/movimentos"],
+    updatedAt: "2026-05-18",
+    conteudo: conciliacaoBancaria,
+    personas: ["financeiro", "controladoria"],
+    status: "em_implantacao",
+  },
+  {
+    slug: "fluxo-caixa-diario",
+    modulo: "financeiro",
+    moduloLabel: "Financeiro",
+    titulo: "Como vejo o fluxo de caixa diário?",
+    resumo: "Visão diária de entradas, saídas, saldo e visões gerenciais.",
+    tags: ["fluxo de caixa", "diário", "saldo"],
+    rotasRelacionadas: ["/app/financeiro/fluxo-caixa-diario", "/app/financeiro/fluxo-caixa"],
+    updatedAt: "2026-05-18",
+    conteudo: fluxoCaixaDiario,
+    personas: ["financeiro", "controladoria", "diretoria", "presidencia"],
+    status: "disponivel",
+  },
+  {
+    slug: "nf-entrada",
+    modulo: "suprimentos",
+    moduloLabel: "Suprimentos",
+    titulo: "Onde lanço uma nota fiscal de entrada?",
+    resumo: "Lançamento manual ou via XML, vínculo com pedido e geração de título.",
+    tags: ["nf", "entrada", "xml", "fiscal"],
+    rotasRelacionadas: ["/app/suprimentos/nf-entrada"],
+    updatedAt: "2026-05-18",
+    conteudo: nfEntrada,
+    personas: ["compras", "fiscal"],
+    status: "disponivel",
+  },
+  {
+    slug: "cotacao",
+    modulo: "suprimentos",
+    moduloLabel: "Suprimentos",
+    titulo: "Como faço uma cotação?",
+    resumo: "Convite a fornecedores, registro de propostas e escolha justificada.",
+    tags: ["cotação", "fornecedores", "propostas"],
+    rotasRelacionadas: ["/app/suprimentos/cotacoes"],
+    updatedAt: "2026-05-18",
+    conteudo: cotacao,
+    personas: ["compras"],
+    status: "disponivel",
+  },
+  {
+    slug: "pedido-compra",
+    modulo: "suprimentos",
+    moduloLabel: "Suprimentos",
+    titulo: "Como gero um pedido de compra?",
+    resumo: "Geração do pedido a partir da cotação e envio para aprovação.",
+    tags: ["pedido", "compra"],
+    rotasRelacionadas: ["/app/suprimentos/pedidos"],
+    updatedAt: "2026-05-18",
+    conteudo: pedidoCompra,
+    personas: ["compras"],
+    status: "disponivel",
+  },
+  {
+    slug: "aprovar-pedido",
+    modulo: "suprimentos",
+    moduloLabel: "Suprimentos",
+    titulo: "Como aprovo um pedido de compra?",
+    resumo: "Revisão e aprovação de pedidos por alçada.",
+    tags: ["aprovação", "pedido", "alçada"],
+    rotasRelacionadas: ["/app/suprimentos/aprovacoes"],
+    updatedAt: "2026-05-18",
+    conteudo: aprovarPedido,
+    personas: ["gestor", "diretoria"],
+    status: "disponivel",
+  },
+  {
+    slug: "cadastro-usuario",
+    modulo: "admin",
+    moduloLabel: "Administração",
+    titulo: "Como cadastro um usuário?",
+    resumo: "Criação de usuário, vínculo com empresa(s) e atribuição de papéis.",
+    tags: ["usuário", "permissão", "perfil", "roles"],
+    rotasRelacionadas: ["/app/administracao"],
+    updatedAt: "2026-05-18",
+    conteudo: cadastroUsuario,
+    personas: ["admin"],
+    status: "disponivel",
+  },
+  {
+    slug: "cadastro-colaborador",
+    modulo: "rh",
+    moduloLabel: "RH",
+    titulo: "Como cadastro um colaborador?",
+    resumo: "Ficha do colaborador, dados bancários e vínculo com postos.",
+    tags: ["colaborador", "rh", "ficha"],
+    rotasRelacionadas: ["/app/rh/colaboradores"],
+    updatedAt: "2026-05-18",
+    conteudo: cadastroColaborador,
+    personas: ["rh", "admin"],
+    status: "disponivel",
+  },
+  {
+    slug: "minhas-pendencias",
+    modulo: "geral",
+    moduloLabel: "Geral",
+    titulo: "Como consulto minhas pendências?",
+    resumo: "Onde encontrar aprovações, pareceres e itens pendentes hoje.",
+    tags: ["pendências", "minhas", "tarefas"],
+    rotasRelacionadas: [],
+    updatedAt: "2026-05-18",
+    conteudo: minhasPendencias,
+    personas: ["solicitante", "compras", "financeiro", "gestor", "diretoria", "rh", "admin"],
+    status: "em_implantacao",
   },
 ];
 
@@ -51,10 +237,12 @@ export function getArtigosPorRota(pathname: string): ArtigoMeta[] {
   return ARTIGOS.filter((a) => a.rotasRelacionadas.some((r) => pathname.startsWith(r)));
 }
 
-export function buscarArtigos(termo: string): ArtigoMeta[] {
+export function buscarArtigos(termo: string, persona?: Persona): ArtigoMeta[] {
   const t = termo.trim().toLowerCase();
-  if (!t) return ARTIGOS;
-  return ARTIGOS.filter(
+  let base = ARTIGOS;
+  if (persona) base = base.filter((a) => a.personas?.includes(persona));
+  if (!t) return base;
+  return base.filter(
     (a) =>
       a.titulo.toLowerCase().includes(t) ||
       a.resumo.toLowerCase().includes(t) ||

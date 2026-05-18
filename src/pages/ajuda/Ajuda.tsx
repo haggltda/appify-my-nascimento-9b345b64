@@ -3,12 +3,27 @@ import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ARTIGOS, MODULOS, buscarArtigos } from "@/content/ajuda";
-import { BookOpen, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ARTIGOS, MODULOS, PERSONAS, buscarArtigos, type ArtigoMeta, type ArtigoStatus, type Persona } from "@/content/ajuda";
+import { BookOpen, Search, ArrowRight } from "lucide-react";
+
+const STATUS_LABEL: Record<ArtigoStatus, string> = {
+  disponivel: "Disponível",
+  em_implantacao: "Em implantação",
+  pendente: "Pendente",
+};
+
+const STATUS_VARIANT: Record<ArtigoStatus, "default" | "secondary" | "outline"> = {
+  disponivel: "default",
+  em_implantacao: "secondary",
+  pendente: "outline",
+};
 
 export default function Ajuda() {
   const [termo, setTermo] = useState("");
-  const resultados = useMemo(() => buscarArtigos(termo), [termo]);
+  const [persona, setPersona] = useState<Persona | undefined>(undefined);
+  const resultados = useMemo(() => buscarArtigos(termo, persona), [termo, persona]);
+  const filtrando = Boolean(termo || persona);
 
   return (
     <div className="space-y-6">
@@ -33,16 +48,43 @@ export default function Ajuda() {
         />
       </div>
 
-      {termo ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">Persona:</span>
+        <Button
+          size="sm"
+          variant={persona === undefined ? "default" : "outline"}
+          onClick={() => setPersona(undefined)}
+        >
+          Todas
+        </Button>
+        {PERSONAS.map((p) => (
+          <Button
+            key={p.id}
+            size="sm"
+            variant={persona === p.id ? "default" : "outline"}
+            onClick={() => setPersona(p.id)}
+          >
+            {p.label}
+          </Button>
+        ))}
+      </div>
+
+      {filtrando ? (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">
             {resultados.length} resultado{resultados.length === 1 ? "" : "s"}
           </h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            {resultados.map((a) => (
-              <ArtigoCard key={`${a.modulo}/${a.slug}`} artigo={a} />
-            ))}
-          </div>
+          {resultados.length === 0 ? (
+            <Card className="p-4 text-sm text-muted-foreground">
+              Nenhum artigo encontrado para os filtros atuais.
+            </Card>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {resultados.map((a) => (
+                <ArtigoCard key={`${a.modulo}/${a.slug}`} artigo={a} />
+              ))}
+            </div>
+          )}
         </section>
       ) : (
         <div className="space-y-8">
@@ -74,12 +116,15 @@ export default function Ajuda() {
   );
 }
 
-function ArtigoCard({ artigo }: { artigo: (typeof ARTIGOS)[number] }) {
+function ArtigoCard({ artigo }: { artigo: ArtigoMeta }) {
+  const status = artigo.status ?? "disponivel";
+  const rotaPrincipal = artigo.rotasRelacionadas[0];
   return (
-    <Link to={`/app/ajuda/${artigo.modulo}/${artigo.slug}`}>
-      <Card className="h-full p-4 transition hover:border-primary hover:shadow-md">
-        <div className="mb-2 flex items-center gap-2">
+    <Card className="flex h-full flex-col p-4 transition hover:border-primary hover:shadow-md">
+      <Link to={`/app/ajuda/${artigo.modulo}/${artigo.slug}`} className="flex-1">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{artigo.moduloLabel}</Badge>
+          <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
           <span className="text-xs text-muted-foreground">Atualizado em {artigo.updatedAt}</span>
         </div>
         <h3 className="font-semibold">{artigo.titulo}</h3>
@@ -91,7 +136,16 @@ function ArtigoCard({ artigo }: { artigo: (typeof ARTIGOS)[number] }) {
             </Badge>
           ))}
         </div>
-      </Card>
-    </Link>
+      </Link>
+      {rotaPrincipal && (
+        <div className="mt-3 flex justify-end">
+          <Button asChild size="sm" variant="ghost">
+            <Link to={rotaPrincipal}>
+              Ir para a tela <ArrowRight className="ml-1 h-3 w-3" />
+            </Link>
+          </Button>
+        </div>
+      )}
+    </Card>
   );
 }
