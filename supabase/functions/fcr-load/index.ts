@@ -270,11 +270,66 @@ interface RawRow {
   historico_original: string | null;
   valor_celula_texto: string | null;
   valor_numerico: number | null;
+  valor_assinado_caixa: number | null;
+  fora_do_periodo: boolean;
+  id_origem_texto: string | null;
   tipo_linha: string;
   bloco_funcional: string;
   par_transferencia_id: string | null;
   raw_json: Record<string, unknown>;
   hash_idempotencia: string;
+}
+
+// ----- long_table helpers (PR-2.1) -----
+
+const LT_ALIASES: Record<string, string[]> = {
+  data: ["DATA", "DATA MOVIMENTO", "DATA CAIXA", "DATA OPERACAO", "DT", "DT MOVIMENTO"],
+  valor: ["VALOR", "VALOR MOVIMENTO", "VL", "VLR"],
+  classificacao: ["CLASSIFICACAO", "CLASSIFICACAO CAIXA", "CATEGORIA", "NATUREZA"],
+  empresa: ["EMPRESA", "FILIAL", "UNIDADE", "RAZAO SOCIAL"],
+  banco: ["BANCO", "INSTITUICAO", "INSTITUICAO FINANCEIRA"],
+  conta: ["CONTA", "CONTA CORRENTE", "CC", "NUMERO CONTA"],
+  historico: ["HISTORICO", "DESCRICAO", "OBSERVACAO", "MEMO"],
+  id_origem: ["ID", "ID ORIGEM", "IDORIGEM", "DOCUMENTO", "DOC", "REFERENCIA", "NUMERO DOC"],
+};
+
+function mapLongTableHeaders(headers: string[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (let c = 0; c < headers.length; c++) {
+    const n = normalize(headers[c] ?? "");
+    if (!n) continue;
+    for (const [key, aliases] of Object.entries(LT_ALIASES)) {
+      if (map[key] !== undefined) continue;
+      if (aliases.some((a) => n === a || n.startsWith(a + " ") || n.endsWith(" " + a))) {
+        map[key] = c;
+        break;
+      }
+    }
+  }
+  return map;
+}
+
+function isLongTable(map: Record<string, number>): boolean {
+  return map.valor !== undefined &&
+    map.data !== undefined &&
+    map.classificacao !== undefined;
+}
+
+function parseCellDate(cell: any): string | null {
+  if (!cell) return null;
+  if (cell.v instanceof Date) {
+    const d = cell.v as Date;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  const s = cell.w ?? (cell.v != null ? String(cell.v) : "");
+  return tryParseDateFromHeader(String(s));
+}
+
+function periodoFromBatch(batch: any): { inicio: string; fim: string } {
+  const p = batch?.totais_excel?.periodo;
+  if (p?.inicio && p?.fim) return { inicio: p.inicio, fim: p.fim };
+  const ano = Number(batch?.totais_excel?.ano ?? 2026);
+  return { inicio: `${ano}-01-01`, fim: `${ano}-12-31` };
 }
 
 function classifyBloco(label: string): string {
@@ -405,6 +460,140 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
         headers[c] = hc?.v != null ? String(hc.v).trim() : "";
       }
 
+      // PR-2.1: detector long_table vs matriz
+      const ltMap = mapLongTableHeaders(headers);
+      const longTable = isLongTable(ltMap);
+      const periodo = periodoFromBatch(batch);
+      const layoutMode = longTable ? "long_table" : "matrix";
+
+      if (longTable) {
+        // 1 linha do Excel = 1 raw. Célula principal = coluna Valor.
+        const cValor = ltMap.valor!;
+        const cData = ltMap.data!;
+        const cClass = ltMap.classificacao!;
+        const cEmpresa = ltMap.empresa;
+        const cBanco = ltMap.banco;
+        const cConta = ltMap.conta;
+        const cHist = ltMap.historico;
+        const cId = ltMap.id_origem;
+
+        for (let r = headerRow + 1; r <= range.e.r; r++) {
+          const rowHidden = Boolean(rowsMeta[r]?.hidden);
+          const colHiddenValor = Boolean(colsMeta[cValor]?.hidden);
+
+          // raw_json preserva TODAS as 18 colunas
+          const fullRow: Record<string, unknown> = {};
+          let rowHasAnyValue = false;
+          for (let c = range.s.c; c <= range.e.c; c++) {
+            const cell = ws[XLSX.utils.encode_cell({ r, c })];
+            const key = headers[c] || `col_${c}`;
+            if (cell && cell.v != null && String(cell.v).trim() !== "") {
+              rowHasAnyValue = true;
+            }
+            fullRow[key] = cell?.v ?? null;
+          }
+          if (!rowHasAnyValue) continue;
+
+          const valorCell = ws[XLSX.utils.encode_cell({ r, c: cValor })];
+          const classCell = ws[XLSX.utils.encode_cell({ r, c: cClass })];
+          const dataCell = ws[XLSX.utils.encode_cell({ r, c: cData })];
+
+          const classificacao = classCell?.v != null ? String(classCell.v) : "";
+          const tipo = classifyTipoLinha(classificacao);
+          const bloco = classifyBloco(classificacao);
+          if (!ALLOWED_BLOCOS.has(bloco)) continue;
+
+          const valor_texto = valorCell?.w ??
+            (valorCell?.v != null ? String(valorCell.v) : null);
+          const valor_num = parseBR(valorCell?.v);
+          const data_caixa = parseCellDate(dataCell);
+          const addr = XLSX.utils.encode_cell({ r, c: cValor });
+          const formula = valorCell?.f ?? "";
+
+          const banco_txt = cBanco !== undefined
+            ? (ws[XLSX.utils.encode_cell({ r, c: cBanco })]?.v != null
+              ? String(ws[XLSX.utils.encode_cell({ r, c: cBanco })].v)
+              : null)
+            : null;
+          const conta_txt = cConta !== undefined
+            ? (ws[XLSX.utils.encode_cell({ r, c: cConta })]?.v != null
+              ? String(ws[XLSX.utils.encode_cell({ r, c: cConta })].v)
+              : null)
+            : null;
+          const empresa_txt = cEmpresa !== undefined
+            ? (ws[XLSX.utils.encode_cell({ r, c: cEmpresa })]?.v != null
+              ? String(ws[XLSX.utils.encode_cell({ r, c: cEmpresa })].v)
+              : null)
+            : null;
+          const hist_txt = cHist !== undefined
+            ? (ws[XLSX.utils.encode_cell({ r, c: cHist })]?.v != null
+              ? String(ws[XLSX.utils.encode_cell({ r, c: cHist })].v)
+              : null)
+            : null;
+          const id_origem = cId !== undefined
+            ? (ws[XLSX.utils.encode_cell({ r, c: cId })]?.v != null
+              ? String(ws[XLSX.utils.encode_cell({ r, c: cId })].v).trim()
+              : null)
+            : null;
+
+          // regra de sinal por empresa+banco: pass-through nesta fase;
+          // refinamento (de_para_sinal) acontece em PR-3/promoção.
+          const valor_assinado = valor_num;
+
+          const fora = data_caixa
+            ? (data_caixa < periodo.inicio || data_caixa > periodo.fim)
+            : false;
+
+          const hashInput =
+            `${batch_id}|${file_sha256}|${sheetName}|${addr}|${valor_texto ?? ""}|${formula}|LT|${id_origem ?? ""}`;
+          const hash = await sha256(new TextEncoder().encode(hashInput));
+
+          raws.push({
+            batch_id,
+            empresa_id_origem_celula: empresa_txt,
+            empresa_id_resolvida: batch.escopo_carga === "empresa"
+              ? batch.empresa_id
+              : null,
+            status_resolucao_empresa: batch.escopo_carga === "empresa"
+              ? "resolvida"
+              : "pendente",
+            banco_origem_texto: banco_txt,
+            conta_origem_texto: conta_txt,
+            arquivo_origem: batch.arquivo_origem,
+            aba_origem: sheetName,
+            linha_origem: r + 1,
+            coluna_origem: cValor + 1,
+            endereco_celula: addr,
+            cabecalho_coluna: headers[cValor] || null,
+            data_caixa_derivada: data_caixa,
+            classificacao_excel_original: classificacao || null,
+            historico_original: hist_txt,
+            valor_celula_texto: valor_texto,
+            valor_numerico: valor_num,
+            valor_assinado_caixa: valor_assinado,
+            fora_do_periodo: fora,
+            id_origem_texto: id_origem,
+            tipo_linha: tipo,
+            bloco_funcional: bloco,
+            par_transferencia_id: null,
+            raw_json: {
+              layout_mode: layoutMode,
+              sheet_hidden: sheetHidden,
+              row_hidden: rowHidden,
+              col_hidden: colHiddenValor,
+              exclude_from_math: sheetHidden || rowHidden || colHiddenValor || fora,
+              formula: formula || null,
+              cell_type: valorCell?.t ?? null,
+              full_row: fullRow,
+              header_map: ltMap,
+            },
+            hash_idempotencia: hash,
+          });
+        }
+        continue;
+      }
+
+      // ----- layout matriz (compat) -----
       // detecta coluna provável de label/classificação (primeira coluna textual)
       let labelCol = range.s.c;
 
@@ -458,10 +647,14 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
             historico_original: null,
             valor_celula_texto: valor_texto,
             valor_numerico: valor_num,
+            valor_assinado_caixa: valor_num,
+            fora_do_periodo: false,
+            id_origem_texto: null,
             tipo_linha: tipo,
             bloco_funcional: bloco,
             par_transferencia_id: null,
             raw_json: {
+              layout_mode: layoutMode,
               sheet_hidden: sheetHidden,
               row_hidden: rowHidden,
               col_hidden: colHidden,
@@ -507,9 +700,26 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
       // raw_id ficaria null — só registramos no fluxo de bloqueio via raw_json
     }
 
+    // estatísticas long_table
+    const ltCount = raws.filter((r) => (r.raw_json as any).layout_mode === "long_table").length;
+    const foraPeriodo = raws.filter((r) => r.fora_do_periodo).length;
+    const idCounts = new Map<string, number>();
+    for (const r of raws) {
+      if (!r.id_origem_texto) continue;
+      idCounts.set(r.id_origem_texto, (idCounts.get(r.id_origem_texto) ?? 0) + 1);
+    }
+    const idDup = Array.from(idCounts.entries()).filter(([, n]) => n > 1).length;
+
     await admin.from("fcr_batch").update({
       totais_promovidos: {
-        parse: { total: raws.length, inserted_count, skipped_count: raws.length - inserted_count },
+        parse: {
+          total: raws.length,
+          inserted_count,
+          skipped_count: raws.length - inserted_count,
+          long_table_rows: ltCount,
+          fora_do_periodo: foraPeriodo,
+          id_origem_duplicados: idDup,
+        },
       },
     }).eq("id", batch_id);
 
@@ -518,6 +728,9 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
       total: raws.length,
       inserted_count,
       skipped_count: raws.length - inserted_count,
+      long_table_rows: ltCount,
+      fora_do_periodo: foraPeriodo,
+      id_origem_duplicados: idDup,
     });
   } catch (e) {
     await admin.from("fcr_batch").update({
