@@ -349,16 +349,21 @@ function periodoFromBatch(batch: any): { inicio: string; fim: string } {
 function classifyBloco(label: string): string {
   const n = normalize(label);
   if (!n) return "operacional";
+  if (/SALDO\s+ANTERIOR/.test(n)) return "saldo";
   if (/SALDO\s+INICIAL/.test(n)) return "saldo";
   if (/SALDO\s+FINAL/.test(n)) return "saldo";
   if (/SUBTOTAL|TOTAL/.test(n)) return "subtotal";
-  if (/TRANSFER/.test(n)) return "transferencia_interna";
+  if (/TRANSF/.test(n)) return "transferencia_interna";
   if (/APLIC|RESGATE|CDB|FUNDO/.test(n)) return "aplicacao_resgate";
-  if (/CHEQUE\s+ESPECIAL|CREDITO|EMPRESTIMO|FINANCIAMENTO/.test(n)) {
+  if (/CHEQUE\s+ESPECIAL/.test(n)) return "credito_cheque_especial";
+  if (/CREDITO|EMPRESTIMO|FINANCIAMENTO/.test(n)) {
     return "credito_cheque_especial";
   }
-  if (/SOCIO|ACIONISTA|DIVIDENDO|JCP/.test(n)) return "socios";
+  if (/PRO\s*LABORE|RETIRADA\s+DE\s+SOCIO|^SOCIOS?$|ACIONISTA|DIVIDENDO|JCP/.test(n)) {
+    return "socios";
+  }
   if (/INTERCOMP|MUTUO|MÚTUO/.test(n)) return "intercompany_mutuo";
+  if (/CONTA\s+VINCULADA/.test(n)) return "a_conciliar";
   if (/CONCILIAR|A\s+CLASSIFICAR|N\s*AO\s+IDENTIFICAD/.test(n)) {
     return "a_conciliar";
   }
@@ -371,6 +376,7 @@ function classifyBloco(label: string): string {
 
 function classifyTipoLinha(label: string): string {
   const n = normalize(label);
+  if (/SALDO\s+ANTERIOR/.test(n)) return "saldo_inicial";
   if (/SALDO\s+INICIAL/.test(n)) return "saldo_inicial";
   if (/SALDO\s+FINAL/.test(n)) return "saldo_final";
   if (/SUBTOTAL|TOTAL/.test(n)) return "subtotal";
