@@ -246,6 +246,8 @@ export default function FluxoCaixaDiario() {
   const exportCsv = () => {
     const header = ["Bloco", "Categoria", ...dias, "Total Período"];
     const rows: (string | number)[][] = [];
+    // Cabeçalho informando o modo da visão de mútuos/transferências.
+    rows.push([`Visão de mútuos/transferências: ${MODO_MUTUO_LABEL[modoMutuo]}`]);
     rows.push(["—", "Saldo Inicial", ...dias.map((d) => saldosIniciaisDia[d]), ""]);
     rows.push(["—", "Movimentação do Dia", ...dias.map((d) => movimentoDia(d)), saldoTotalPeriodo]);
     (Object.keys(grid) as BlocoKey[]).forEach((b) => {
@@ -254,6 +256,15 @@ export default function FluxoCaixaDiario() {
         rows.push([BLOCO_LABEL[b], nome, ...dias.map((d) => cat[d] ?? 0), total]);
       });
     });
+    if (modoMutuo === "separado" && gridMutuo.porCategoria.size > 0) {
+      rows.push(["MÚTUOS/INTERCOMPANY/TRANSFERÊNCIAS", `Entradas`, "", ...Array(dias.length - 1).fill(""), gridMutuo.entradas]);
+      rows.push(["MÚTUOS/INTERCOMPANY/TRANSFERÊNCIAS", `Saídas`, "", ...Array(dias.length - 1).fill(""), gridMutuo.saidas]);
+      rows.push(["MÚTUOS/INTERCOMPANY/TRANSFERÊNCIAS", `Líquido`, "", ...Array(dias.length - 1).fill(""), gridMutuo.liquido]);
+      gridMutuo.porCategoria.forEach((cat, nome) => {
+        const total = Object.values(cat).reduce((a, c) => a + c, 0);
+        rows.push(["MÚTUOS/INTERCOMPANY/TRANSFERÊNCIAS", nome, ...dias.map((d) => cat[d] ?? 0), total]);
+      });
+    }
     const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
