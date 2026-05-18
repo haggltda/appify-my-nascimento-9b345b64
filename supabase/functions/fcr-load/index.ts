@@ -350,6 +350,85 @@ async function handleUploadJson(req: Request, ctx: AuthCtx): Promise<Response> {
   return json(200, { batch_id, status: "criado", file_sha256 });
 }
 
+// Registra um batch a partir de um arquivo JÁ enviado pelo cliente (tus) para o bucket fcr-uploads.
+async function handleRegister(body: any, ctx: AuthCtx): Promise<Response> {
+  const storage_path = String(body?.storage_path ?? "");
+  const arquivo_origem = String(body?.arquivo_origem ?? storage_path.split("/").pop() ?? "upload.xlsx");
+  const empresa_id: string | null = body?.empresa_id ? String(body.empresa_id) : null;
+  const periodoInicio: string | null = body?.periodo_inicio ? String(body.periodo_inicio) : null;
+  const periodoFim: string | null = body?.periodo_fim ? String(body.periodo_fim) : null;
+  const escopo = empresa_id ? "empresa" : "consolidado";
+
+  if (!storage_path) return json(400, { error: "storage_path obrigatório" });
+  if (!arquivo_origem.toLowerCase().endsWith(".xlsx")) {
+    return json(400, { error: "apenas .xlsx" });
+  }
+  if (!canUpload(ctx.roles, escopo)) {
+    return json(403, { error: "role sem permissão" });
+  }
+  if (escopo === "empresa" && !ctx.roles.has("admin") && ctx.empresaId !== empresa_id) {
+    return json(403, { error: "empresa fora do escopo" });
+  }
+
+  const admin = adminClient();
+
+  // baixa para validar magic xlsx + sha256
+  const dl = await admin.storage.from("fcr-uploads").download(storage_path);
+  if (dl.error || !dl.data) {
+    return json(404, { error: "arquivo_nao_encontrado_no_storage", detail: dl.error?.message });
+  }
+  const bin = new Uint8Array(await dl.data.arrayBuffer());
+  if (bin.length > MAX_BYTES) {
+    await admin.storage.from("fcr-uploads").remove([storage_path]);
+    return json(413, { error: "arquivo > 25MB" });
+  }
+  if (!isXlsxMagic(bin)) {
+    await admin.storage.from("fcr-uploads").remove([storage_path]);
+    return json(400, { error: "não é xlsx válido" });
+  }
+  const file_sha256 = await sha256(bin);
+
+  // dedupe
+  const { data: dup } = await admin
+    .from("fcr_batch")
+    .select("id, status, escopo_carga, empresa_id")
+    .eq("totais_excel->>file_sha256", file_sha256)
+    .not("status", "in", "(revertido,erro)")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (dup && dup.escopo_carga === escopo && (dup.empresa_id ?? null) === empresa_id) {
+    return json(409, {
+      error: "arquivo_identico_ja_carregado",
+      existing_batch_id: dup.id,
+      existing_status: dup.status,
+    });
+  }
+
+  const batch_id = crypto.randomUUID();
+  const { error: insErr } = await admin.from("fcr_batch").insert({
+    id: batch_id,
+    empresa_id,
+    escopo_carga: escopo,
+    arquivo_origem,
+    storage_path,
+    modo: "dry_run",
+    status: "criado",
+    criado_por: ctx.userId,
+    totais_excel: {
+      file_sha256,
+      size: bin.length,
+      ...(periodoInicio && periodoFim
+        ? { periodo: { inicio: periodoInicio, fim: periodoFim } }
+        : {}),
+    },
+  });
+  if (insErr) {
+    return json(500, { error: "fcr_batch_insert_falhou", detail: insErr.message });
+  }
+  return json(200, { batch_id, status: "criado", file_sha256 });
+}
+
 interface RawRow {
   batch_id: string;
   empresa_id_origem_celula: string | null;
@@ -1412,6 +1491,30 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const path = url.pathname.replace(/^.*\/fcr-load/, "") || "/";
+
+    // Dispatch por action (frontend usa supabase.functions.invoke, que bate em "/")
+    if ((path === "/" || path === "") && req.method === "POST") {
+      const ct = req.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        const raw = await req.text();
+        let body: any = {};
+        try { body = raw ? JSON.parse(raw) : {}; } catch { body = {}; }
+        const action = String(body.action ?? "");
+        if (action === "register") {
+          return await handleRegister(body, ctx);
+        }
+        const reqWithBody = new Request(req.url, {
+          method: "POST",
+          headers: req.headers,
+          body: JSON.stringify(body),
+        });
+        if (action === "parse") return await handleParse(reqWithBody, ctx);
+        if (action === "reconcile") return await handleReconcile(reqWithBody, ctx);
+        if (action === "rollback") return await handleRollback(reqWithBody, ctx);
+        if (action === "status") return await handleStatus(reqWithBody, ctx);
+        return json(400, { error: `action inválida: ${action || "(vazia)"}` });
+      }
+    }
 
     if (path === "/upload" && req.method === "POST") {
       const ct = req.headers.get("content-type") || "";
