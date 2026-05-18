@@ -1,109 +1,144 @@
-# Plano: Permissões para Contas Bancárias (Fornecedor / Colaborador)
 
-## Diagnóstico
+# Plano de Melhoria — Tela Aguardando Minha Aprovação
 
-- Sistema de permissões já existe: tabela `role_permissions` (role × módulo × ação × menu_codigo opcional), consumida via `PermissoesContext.can(acao, modulo, menu)` e `<RoleGate>`.
-- Ações disponíveis: `visualizar | incluir | alterar | excluir | aprovar | exportar | executar_ia`.
-- Hoje **não existe** menu específico para contas bancárias de fornecedores/colaboradores — quem tem permissão em `suprimentos` ou `rh` (menu_codigo NULL = módulo inteiro) acaba podendo tudo.
-- Tabelas no banco (`fornecedor_conta_bancaria`, futura `colaborador_conta_bancaria`) hoje têm RLS aberta para qualquer authenticated. Isso precisa ser restringido por função SECURITY DEFINER que consulta `role_permissions`.
+## 1. Arquivo/tela localizada
 
-## Objetivo
+- **Rota**: `/app/aprovacoes/inbox` (link no Sidebar "Aguardando Aprovação")
+- **Arquivo React**: `src/pages/aprovacoes/Inbox.tsx`
+- **Componentes**: `PageHeader`, `Card`, `Tabs`, `Table`, `Dialog`, `Textarea`, `Button`, `Badge` (shadcn)
+- **Hooks/services**: `useQuery` + `supabase` client (sem service layer dedicado); `useMutation` chama RPC `programacao_decidir`
+- **Origem dos dados**: query única `financeiro_pagamento_aprovacao` filtrada por `aprovador_id = auth.uid()` e `decisao='pendente'`, com join leve em `malote_pagamento` (descricao, qtd_titulos). Compras/OBZ/Plano estão como `TODO`.
 
-Restringir criar/alterar/excluir contas bancárias de **fornecedores** e **colaboradores** a usuários com permissão dedicada, tanto no frontend (esconder botões) quanto no backend (RLS).
+## 2. Dados disponíveis hoje
 
-## 1. Novos menu_codigo em `role_permissions`
+| Campo desejado | Disponível? | Origem | Observação |
+|---|---|---|---|
+| Origem (módulo) | Sim | derivado no front | só "financeiro" hoje |
+| Tipo | Parcial | derivado (etapa) | "Programação etapa N" |
+| Item/Título | Sim | `malote_pagamento.descricao` | |
+| Valor | Sim | `financeiro_pagamento_aprovacao.valor_aprovado` | |
+| Data pgto aprovada | Sim | `data_pagamento_aprovada` | |
+| Empresa_id | Sim | tabela | precisa join para nome |
+| Qtd títulos | Sim | `malote_pagamento.qtd_titulos` | |
+| Etapa atual | Sim | `etapa` | |
+| Justificativa origem | Sim | `malote_pagamento.justificativa` | não selecionado hoje |
+| Prioridade/urgência/exceção | Sim | `malote_pagamento.prioridade/urgencia/excecao` | não selecionado |
+| Período (inicio/fim) | Sim | `malote_pagamento.periodo_inicio/fim` | não selecionado |
+| Criado por (solicitante) | Sim | `malote_pagamento.criado_por` / `enviado_aprovacao_por` | precisa join `profiles` |
+| Enviado em | Sim | `enviado_aprovacao_em` | |
+| Conta bancária pagadora | Sim | `malote_pagamento.conta_bancaria_id` | join |
+| Títulos do malote (NF, fornecedor, vencimento, CC, contrato) | Sim | `titulo_pagar` via `malote_titulo` (relação a confirmar) | requer 2ª query |
+| Próxima etapa / cascata | Parcial | `alcada_aprovacao` ordenada por `ordem` | precisa 1 query extra |
+| Histórico (timeline) | Parcial | `financeiro_pagamento_aprovacao` (todas linhas da programação, com `decidido_em`,`decisao`,`aprovador_id`) | requer 1 query extra |
+| Anexos | **Não** | sem tabela de anexos por programação no payload atual | mostrar vazio |
 
-Cadastrar 2 escopos novos (granulares) usados pelas rotinas:
+## 3. Dados faltantes
 
-| módulo | menu_codigo | descrição |
-|--------|-------------|-----------|
-| suprimentos | fornecedor.conta_bancaria | Contas bancárias do fornecedor |
-| rh | colaborador.conta_bancaria | Contas bancárias do colaborador |
+| Campo | Impacto | Como obter | Precisa backend? | PR futuro? |
+|---|---|---|---|---|
+| Anexos (NF PDF, XML, boleto, contrato) | Médio | Não há tabela `documento_anexo` ligada a programação/título. Existem só PDFs gerados sob demanda | Sim (nova tabela ou bucket + tabela `pagamento_anexo`) | Sim |
+| CNPJ do fornecedor por título | Baixo | `titulo_pagar -> fornecedor.cnpj` | Não (já existe), só ampliar query | Não |
+| Centro de custo nome | Baixo | `centro_custo.nome` join | Não | Não |
+| Contrato número | Baixo | `contrato.numero` join | Não | Não |
+| Compras / OBZ / Plano no inbox | Médio | tabelas `sup_aprov_instancia`, `obz_versao`, `plano_acao` | Frontend pode somar; depende de RLS já existente | PR separado |
+| Próxima etapa textual | Baixo | `alcada_aprovacao.etapa` ordem+1 | Não, query simples | Não |
 
-Para cada um, semear linhas em `role_permissions` para as ações: `visualizar`, `incluir`, `alterar`, `excluir`. Roles default:
+## 4. Proposta visual (referência: screenshot enviado)
 
-- `admin` — todas as ações (já é bypass implícito no `can`, mas semear por consistência)
-- `controladoria` — visualizar
-- `diretor_adm` — visualizar, incluir, alterar, excluir (fornecedor)
-- Demais roles — sem permissão (precisam ser vinculadas pelo admin)
+**Cards superiores (5 cards executivos):**
+- Pendentes Comigo (contagem + delta "X novos hoje")
+- Valor Total Pendente
+- Financeiro (qtd + valor)
+- Compras (qtd + valor — vazio agora)
+- Contratos/Outros (qtd + valor — vazio agora)
+- Ícones em pill com bg suave (`bg-{cor}-soft`), tipografia grande, hierarquia clara
 
-(O cadastro fica em `supabase--migration` via INSERT seed; o admin pode reajustar pela aba Permissões.)
+**Toolbar:**
+- Tabs (`Todos | Financeiro | Compras | Contratos/Outros`) com contadores
+- Busca textual (filtra fornecedor/título/nº doc no client)
+- Botões `Filtros` (popover: vencidos/a vencer, faixa de valor) e `Exportar` (CSV client-side)
 
-## 2. Função SECURITY DEFINER para checar permissão no banco
+**Tabela principal (densa, com mais colunas):**
+- Origem (chip colorido) | Tipo | Item/Título | Fornecedor (+CNPJ pequeno) | Nº Doc/NF | Valor | Emissão | Vencimento (+ "X dias" em destaque amarelo/vermelho) | Competência | Lançamento
+- Linha inteira clicável → abre drawer
+- Hover destaca linha; linha selecionada com `bg-accent/30` e borda esquerda
+- Coluna Ações compacta com ícones (kebab) — mantém Aprovar / Devolver / Rejeitar atuais
 
-Criar `public.has_permissao(_user_id uuid, _modulo text, _acao text, _menu text)` que retorna boolean:
+**Drawer lateral direito (Sheet, 480-560px):**
+- Header: chips de origem + status ("Pendente de aprovação"); título grande; subtítulo (PP-xxxx · NF yyyy)
+- Grid 2 colunas com Fornecedor, Valor, Emissão, Vencimento (+dias), Competência, Empresa, Centro de custo, Contrato
+- Bloco "Responsável pelo lançamento" (nome + módulo origem)
+- Seção **Linha do tempo**: lançado → enviado → etapa atual (highlight) → próxima etapa (cinza). Pontos verdes/azuis/cinza.
+- Seção **Documentos anexados**: lista com ícone PDF, nome, tamanho, botões Visualizar/Download. Se vazio: estado "Nenhum anexo localizado".
+- Footer fixo: `Ver detalhes` (navega à origem) | `Devolver` | `Rejeitar` | `Aprovar` (verde, destaque)
 
-- Admin (em `user_roles`) → true.
-- Caso contrário, JOIN `user_roles` × `role_permissions` matching `modulo=_modulo AND acao=_acao AND (menu_codigo IS NULL OR menu_codigo=_menu) AND modulo='*' OR modulo=_modulo`.
+**Layout:**
+- Espaçamento generoso, cards com `rounded-xl`, shadows sutis, identidade do ERP preservada
+- Responsivo: drawer vira full-screen sheet em <md; cards colapsam para 2 cols
 
-A função roda em SECURITY DEFINER + `SET search_path = public` para uso em RLS sem recursão.
+## 5. Escopo frontend-only possível agora
 
-## 3. RLS endurecida nas tabelas de contas
+1. Refazer KPIs (5 cards com ícone, valor, label, mini-delta)
+2. Adicionar tabs Compras / Contratos-Outros (zerados, prontos para receber dados)
+3. Ampliar query atual com joins: `malote_pagamento(descricao, qtd_titulos, justificativa, prioridade, urgencia, excecao, enviado_aprovacao_em, conta_bancaria:conta_bancaria_id(banco_nome, agencia, conta), empresa:empresa_id(nome_fantasia, cnpj), solicitante:enviado_aprovacao_por(nome))`
+4. 2ª query on-demand (ao abrir drawer): títulos do malote com fornecedor/CC/contrato; e histórico (`financeiro_pagamento_aprovacao` da mesma `programacao_id` ordenado por etapa)
+5. 3ª query on-demand: `alcada_aprovacao` da empresa por `ordem` para "próxima etapa"
+6. Adicionar busca/filtro client-side
+7. Drawer (`Sheet`) com timeline, grid de dados, seção anexos vazia
+8. Manter `Dialog` de confirmação e RPC `programacao_decidir` inalterados
 
-### `fornecedor_conta_bancaria` (já existe — substituir policies)
+## 6. Escopo que deve ficar para PR futuro
 
-- SELECT: `has_permissao(auth.uid(), 'suprimentos', 'visualizar', 'fornecedor.conta_bancaria')`
-- INSERT: `... 'incluir' ...` (em WITH CHECK)
-- UPDATE: `... 'alterar' ...`
-- DELETE: `... 'excluir' ...`
+- Tabela/bucket de **anexos** ligada a programação/título (backend novo)
+- Inclusão real de **Compras** (`sup_aprov_instancia`), **OBZ** (`obz_versao`), **Plano** (`plano_acao`) — cada uma com RPC de decisão própria
+- Notificações em tempo real (Realtime) do inbox
+- Export CSV oficial via Edge Function (se quiser server-side)
 
-### `colaborador_conta_bancaria` (a criar)
+## 7. Riscos
 
-Mesmo padrão com módulo `rh` e menu `colaborador.conta_bancaria`.
+| Risco | Severidade | Mitigação |
+|---|---|---|
+| Quebrar fluxo de aprovação atual | Alta | Não tocar em `programacao_decidir` nem no Dialog de confirmação |
+| Queries adicionais lentas | Média | Lazy-load detalhes só ao abrir drawer; `staleTime: 30s` |
+| RLS bloquear novos joins (profiles/conta_bancaria) | Média | Testar com Helena (admin) e usuário não-admin antes de finalizar |
+| Layout quebrar em telas pequenas | Baixa | Drawer responsivo + grid colapsável |
+| Mostrar dado errado de "anexos" | Baixa | Não inventar; mostrar estado vazio |
 
-## 4. Frontend — gates
+## 8. Plano de implementação
 
-- `src/pages/suprimentos/fornecedores/ContasBancariasTab.tsx`:
-  - Botão "Nova conta" envolvido em `<RoleGate acao="incluir" modulo="suprimentos" menu="fornecedor.conta_bancaria">`
-  - Botões Editar/Excluir condicionados a `can("alterar"/"excluir", ...)`.
-  - Aba só renderiza se `can("visualizar", ...)`.
-- Equivalente na futura aba do colaborador (módulo `rh`, menu `colaborador.conta_bancaria`).
+1. Refatorar KPIs para 5 cards executivos (estilo screenshot)
+2. Ampliar query principal com joins seguros (empresa, conta, solicitante)
+3. Ampliar tabela com novas colunas (fornecedor agregado, vencimento+dias, competência, lançamento)
+4. Criar componente `InboxDetailDrawer` (Sheet) com header, grid de dados, timeline, seção anexos
+5. Adicionar queries lazy (títulos do malote, histórico, alçada/próxima etapa)
+6. Adicionar busca textual + tabs com contadores reais
+7. Garantir que Aprovar/Devolver/Rejeitar continuam chamando `programacao_decidir` exatamente como hoje
+8. Testes manuais (Helena admin) e ajustes de responsividade
 
-## 5. Tela de administração
+## 9. Testes obrigatórios
 
-A tela `PermissoesTab.tsx` já lê dinamicamente da `role_permissions`, então os novos menus aparecem automaticamente após o seed. Verificar se a UI lista menus do tipo `xxx.yyy` corretamente (se não, ajustar rótulos).
+- Abrir `/app/aprovacoes/inbox` → cards renderizam, sem erro
+- Lista carrega pendentes do usuário
+- Clicar em linha → drawer abre com dados corretos
+- Drawer mostra "Nenhum anexo" sem quebrar
+- Timeline mostra etapa atual em destaque
+- Aprovar → RPC chamada, item some, toast verde
+- Devolver/Rejeitar → exige justificativa (≥5 chars)
+- Busca filtra título/fornecedor
+- Tabs Compras/Contratos exibem estado vazio amigável
+- Tela <768px: drawer ocupa tela inteira, tabela rola horizontal
+- Typecheck passa (`tsc --noEmit` via build automático)
 
-## 6. Auditoria
+## 10. Confirmações
 
-Toda alteração já passa pelo trigger `updated_at`. Opcional (fora deste plano): inserir registro em `audit_log` via trigger.
+- Será **frontend-only**: sim
+- Não altera banco: sim
+- Não altera RLS/policies: sim
+- Não altera Edge Functions: sim
+- Não altera RPC `programacao_decidir` nem regras de aprovação: sim
+- Não cria mock data: sim (estados vazios reais)
+- Reaproveita componentes shadcn já existentes (`Sheet`, `Card`, `Table`, `Dialog`): sim
 
-## Detalhes técnicos
+---
 
-```sql
--- Função
-CREATE OR REPLACE FUNCTION public.has_permissao(_user uuid, _modulo text, _acao text, _menu text)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT EXISTS (SELECT 1 FROM user_roles WHERE user_id=_user AND role='admin')
-      OR EXISTS (
-        SELECT 1
-          FROM user_roles ur
-          JOIN role_permissions rp ON rp.role = ur.role
-         WHERE ur.user_id = _user
-           AND rp.acao = _acao
-           AND (rp.modulo = '*' OR rp.modulo = _modulo)
-           AND (rp.menu_codigo IS NULL OR rp.menu_codigo = _menu)
-      );
-$$;
-```
-
-Replace policies:
-
-```sql
-DROP POLICY "auth select fornecedor_conta" ON fornecedor_conta_bancaria;
--- ... idem insert/update/delete
-CREATE POLICY "sel" ON fornecedor_conta_bancaria FOR SELECT TO authenticated
-  USING (has_permissao(auth.uid(),'suprimentos','visualizar','fornecedor.conta_bancaria'));
--- etc.
-```
-
-## Fora de escopo
-
-- Auditoria detalhada de leitura.
-- Permissão por empresa específica (apenas por role).
-- Reprocessar registros existentes.
-
-## Confirmações antes de executar
-
-1. **Roles default** que devem nascer com acesso a fornecedor.conta_bancaria — confirmar lista (sugeri: admin, diretor_adm, controladoria-só-leitura).
-2. **Roles default** para colaborador.conta_bancaria (sugeri: admin, diretor_adm; RH se existir como role separado — hoje não há, podemos criar role `rh`).
-3. Os usuários atuais sem essa permissão **perderão acesso** assim que a RLS for atualizada — confirmar OK.
+**Aguardando aprovação para implementar.** Posso começar pelo passo 1 (KPIs + query ampliada) e seguir incrementalmente, ou prefere que eu entregue tudo de uma vez?
