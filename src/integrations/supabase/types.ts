@@ -3822,13 +3822,19 @@ export type Database = {
           aprovado_em: string | null
           aprovado_por: string | null
           arquivo_origem: string
+          chunk_atual: number
+          chunks_total: number | null
           created_at: string
           criado_por: string
           empresa_id: string | null
           escopo_carga: string
           id: string
+          linhas_inseridas: number
+          linhas_lidas: number
           modo: string
           observacao: string | null
+          parse_finalizado_em: string | null
+          parse_iniciado_em: string | null
           revertido_em: string | null
           revertido_por: string | null
           saldos_finais_reconciliacao: Json | null
@@ -3836,19 +3842,26 @@ export type Database = {
           storage_path: string
           totais_excel: Json | null
           totais_promovidos: Json | null
+          ultimo_erro: string | null
           updated_at: string
         }
         Insert: {
           aprovado_em?: string | null
           aprovado_por?: string | null
           arquivo_origem: string
+          chunk_atual?: number
+          chunks_total?: number | null
           created_at?: string
           criado_por: string
           empresa_id?: string | null
           escopo_carga: string
           id?: string
+          linhas_inseridas?: number
+          linhas_lidas?: number
           modo: string
           observacao?: string | null
+          parse_finalizado_em?: string | null
+          parse_iniciado_em?: string | null
           revertido_em?: string | null
           revertido_por?: string | null
           saldos_finais_reconciliacao?: Json | null
@@ -3856,19 +3869,26 @@ export type Database = {
           storage_path: string
           totais_excel?: Json | null
           totais_promovidos?: Json | null
+          ultimo_erro?: string | null
           updated_at?: string
         }
         Update: {
           aprovado_em?: string | null
           aprovado_por?: string | null
           arquivo_origem?: string
+          chunk_atual?: number
+          chunks_total?: number | null
           created_at?: string
           criado_por?: string
           empresa_id?: string | null
           escopo_carga?: string
           id?: string
+          linhas_inseridas?: number
+          linhas_lidas?: number
           modo?: string
           observacao?: string | null
+          parse_finalizado_em?: string | null
+          parse_iniciado_em?: string | null
           revertido_em?: string | null
           revertido_por?: string | null
           saldos_finais_reconciliacao?: Json | null
@@ -3876,6 +3896,7 @@ export type Database = {
           storage_path?: string
           totais_excel?: Json | null
           totais_promovidos?: Json | null
+          ultimo_erro?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3899,6 +3920,47 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_bi_resumo_empresa"
             referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      fcr_parse_chunk_erro: {
+        Row: {
+          batch_id: string
+          chunk_idx: number
+          criado_em: string
+          erro_msg: string
+          id: string
+          linha_fim: number
+          linha_inicio: number
+          tentativa: number
+        }
+        Insert: {
+          batch_id: string
+          chunk_idx: number
+          criado_em?: string
+          erro_msg: string
+          id?: string
+          linha_fim: number
+          linha_inicio: number
+          tentativa: number
+        }
+        Update: {
+          batch_id?: string
+          chunk_idx?: number
+          criado_em?: string
+          erro_msg?: string
+          id?: string
+          linha_fim?: number
+          linha_inicio?: number
+          tentativa?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fcr_parse_chunk_erro_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "fcr_batch"
+            referencedColumns: ["id"]
           },
         ]
       }

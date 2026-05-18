@@ -45,6 +45,11 @@ type Batch = {
   observacao: string | null;
   created_at: string;
   updated_at: string;
+  linhas_lidas: number | null;
+  linhas_inseridas: number | null;
+  chunks_total: number | null;
+  chunk_atual: number | null;
+  ultimo_erro: string | null;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -95,7 +100,7 @@ export default function MigracaoFcr() {
     const { data, error } = await supabase
       .from("fcr_batch")
       .select(
-        "id, empresa_id, escopo_carga, arquivo_origem, storage_path, status, totais_excel, totais_promovidos, saldos_finais_reconciliacao, observacao, created_at, updated_at",
+        "id, empresa_id, escopo_carga, arquivo_origem, storage_path, status, totais_excel, totais_promovidos, saldos_finais_reconciliacao, observacao, created_at, updated_at, linhas_lidas, linhas_inseridas, chunks_total, chunk_atual, ultimo_erro",
       )
       .order("created_at", { ascending: false })
       .limit(50);
@@ -103,6 +108,14 @@ export default function MigracaoFcr() {
     setBatches((data ?? []) as Batch[]);
     setLoading(false);
   }
+
+  // Polling automático enquanto algum batch estiver "parseando"
+  useEffect(() => {
+    const hasRunning = batches.some((b) => b.status === "parseando");
+    if (!hasRunning) return;
+    const t = setInterval(() => loadBatches(), 2500);
+    return () => clearInterval(t);
+  }, [batches]);
 
   useEffect(() => {
     loadEmpresas();
@@ -193,7 +206,11 @@ export default function MigracaoFcr() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success(`${action === "parse" ? "Parse" : "Reconcile"} concluído.`);
+      if (action === "parse") {
+        toast.success("Parse iniciado em background. Acompanhe o progresso na tabela.");
+      } else {
+        toast.success("Reconcile concluído.");
+      }
       await loadBatches();
     } catch (e) {
       toast.error(
@@ -330,6 +347,27 @@ export default function MigracaoFcr() {
                       >
                         {b.status}
                       </Badge>
+                      {b.status === "parseando" && (
+                        <div className="mt-1 space-y-1">
+                          {b.chunks_total ? (
+                            <Progress
+                              value={Math.round(((b.chunk_atual ?? 0) / b.chunks_total) * 100)}
+                              className="h-1.5 w-32"
+                            />
+                          ) : null}
+                          <div className="text-[10px] text-muted-foreground font-mono">
+                            chunk {b.chunk_atual ?? 0}/{b.chunks_total ?? "?"} • {b.linhas_inseridas ?? 0} linhas
+                          </div>
+                        </div>
+                      )}
+                      {b.ultimo_erro && b.status === "erro" && (
+                        <div
+                          className="text-xs text-destructive mt-1 max-w-xs truncate"
+                          title={b.ultimo_erro}
+                        >
+                          {b.ultimo_erro}
+                        </div>
+                      )}
                       {b.observacao && (
                         <div
                           className="text-xs text-destructive mt-1 max-w-xs truncate"
