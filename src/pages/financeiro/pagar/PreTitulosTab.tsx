@@ -448,8 +448,8 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
             <Building2 className="h-4 w-4 text-primary" /> Dados do documento
           </div>
           <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-3">
-            <div className="md:col-span-3">
-              <Label>Empresa *</Label>
+            <div className="md:col-span-3 lg:col-span-4">
+              <Label className="text-xs">Empresa *</Label>
               <Select value={empresaId} onValueChange={setEmpresaId}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
@@ -459,8 +459,8 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-3">
-              <Label>Fornecedor</Label>
+            <div className="md:col-span-3 lg:col-span-4">
+              <Label className="text-xs">Fornecedor</Label>
               <Select value={fornecedorId} onValueChange={setFornecedorId}>
                 <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
                 <SelectContent>
@@ -470,43 +470,43 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-4">
-              <Label>Descrição *</Label>
-              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Rescisão João da Silva — Obra Centro" />
-            </div>
-            <div className="md:col-span-2">
-              <Label>Nº documento</Label>
+            <div className="md:col-span-2 lg:col-span-2">
+              <Label className="text-xs">Nº documento</Label>
               <Input value={numDoc} onChange={(e) => setNumDoc(e.target.value)} />
             </div>
-            <div className="md:col-span-2">
-              <Label>Valor total *</Label>
+            <div className="md:col-span-2 lg:col-span-2">
+              <Label className="text-xs">Valor total *</Label>
               <Input type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} className="font-semibold text-lg" />
             </div>
-            <div className="md:col-span-2">
-              <Label>Emissão *</Label>
+            <div className="md:col-span-4 lg:col-span-6">
+              <Label className="text-xs">Descrição *</Label>
+              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Rescisão João da Silva — Obra Centro" />
+            </div>
+            <div className="md:col-span-2 lg:col-span-2">
+              <Label className="text-xs">Emissão *</Label>
               <Input type="date" value={emissao} onChange={(e) => setEmissao(e.target.value)} />
             </div>
-            <div className="md:col-span-2">
-              <Label>Vencimento *</Label>
+            <div className="md:col-span-2 lg:col-span-2">
+              <Label className="text-xs">Vencimento *</Label>
               <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
             </div>
-            <div className="md:col-span-3">
-              <Label>Competência</Label>
+            <div className="md:col-span-2 lg:col-span-2">
+              <Label className="text-xs">Competência</Label>
               <Input type="date" value={competencia} onChange={(e) => setCompetencia(e.target.value)} />
             </div>
-            <div className="md:col-span-3">
-              <Label>Conta contábil (default)</Label>
+            <div className="md:col-span-3 lg:col-span-6">
+              <Label className="text-xs">Conta contábil (default)</Label>
               <Select value={contaContabilId} onValueChange={setContaContabilId}>
-                <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Opcional — usada quando a linha de rateio não tiver conta" /></SelectTrigger>
                 <SelectContent>
                   {contas.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-6">
-              <Label>Observações</Label>
+            <div className="md:col-span-6 lg:col-span-6">
+              <Label className="text-xs">Observações</Label>
               <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} />
             </div>
           </div>
