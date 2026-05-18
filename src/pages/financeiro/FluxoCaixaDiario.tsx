@@ -77,6 +77,7 @@ export default function FluxoCaixaDiario() {
   const [empresaNome, setEmpresaNome] = useState<string>("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [visao, setVisao] = useState<Visao>("realizado");
+  const [modoMutuo, setModoMutuo] = useState<ModoMutuo>("separado");
   const { can } = usePermissoes();
   const podeConsolidar = can("visualizar", "financeiro", "financeiro.fluxo_caixa_diario.consolidado_empresas");
   const isConsolidado = empresaId === ALL_EMPRESAS;
