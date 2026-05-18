@@ -170,6 +170,12 @@ async function handleUpload(req: Request, ctx: AuthCtx): Promise<Response> {
   const escopo = String(form.get("escopo") ?? "");
   const empresaRaw = form.get("empresa_id");
   const empresa_id = empresaRaw ? String(empresaRaw) : null;
+  const periodoInicio = form.get("periodo_inicio")
+    ? String(form.get("periodo_inicio"))
+    : null;
+  const periodoFim = form.get("periodo_fim")
+    ? String(form.get("periodo_fim"))
+    : null;
 
   if (!(file instanceof File)) return json(400, { error: "file faltando" });
   if (escopo !== "empresa" && escopo !== "consolidado") {
