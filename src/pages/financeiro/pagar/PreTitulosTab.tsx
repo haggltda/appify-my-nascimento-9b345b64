@@ -289,38 +289,46 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
       return data ?? [];
     },
   });
-  const { data: contasRaw = [] } = useQuery<any[]>({
-    queryKey: ["conta_contabil_analitica"],
+  const { data: contas = [] } = useQuery<any[]>({
+    queryKey: ["conta_contabil_dre", empresaId],
+    enabled: !!empresaId,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("conta_contabil")
-        .select("id, classificacao, descricao, natureza, grupo_dre, empresa_id, ativo, tipo")
+        .select("id, classificacao, descricao, natureza, grupo_dre, centro_custo_padrao, empresa_id, ativo, tipo")
         .eq("tipo", "analitica")
         .eq("ativo", true)
+        .eq("grupo_dre", "dre")
+        .eq("empresa_id", empresaId)
         .order("classificacao");
       if (error) throw error;
       return data ?? [];
     },
   });
-  const contas = useMemo(() => {
-    const filtered = empresaId
-      ? contasRaw.filter((c) => !c.empresa_id || c.empresa_id === empresaId)
-      : contasRaw;
-    // Despesa/custo primeiro
-    return [...filtered].sort((a, b) => {
-      const da = /despesa|custo|resultado/i.test(String(a.grupo_dre ?? a.natureza ?? "")) ? 0 : 1;
-      const db = /despesa|custo|resultado/i.test(String(b.grupo_dre ?? b.natureza ?? "")) ? 0 : 1;
-      if (da !== db) return da - db;
-      return String(a.classificacao).localeCompare(String(b.classificacao));
-    });
-  }, [contasRaw, empresaId]);
   const { data: ccs = [] } = useQuery<any[]>({
-    queryKey: ["centros_custo"],
+    queryKey: ["centros_custo_empresa", empresaId],
+    enabled: !!empresaId,
     queryFn: async () => {
-      const { data } = await (supabase as any).from("centros_custo").select("id, codigo, nome").order("codigo");
+      const { data } = await (supabase as any)
+        .from("centros_custo")
+        .select("id, codigo, nome, empresa_id")
+        .eq("empresa_id", empresaId)
+        .eq("ativo", true)
+        .order("codigo");
       return data ?? [];
     },
   });
+
+  // Mapa CC.codigo -> conta de resultado vinculada (centro_custo_padrao)
+  const ccCodigoToContaId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of contas) {
+      if (c.centro_custo_padrao && !m.has(c.centro_custo_padrao)) {
+        m.set(String(c.centro_custo_padrao), c.id);
+      }
+    }
+    return m;
+  }, [contas]);
 
   const totalRateio = rateios.reduce((s, r) => {
     if (r.modo === "percentual") return s + (Number(r.percentual) || 0) * valorNum / 100;
