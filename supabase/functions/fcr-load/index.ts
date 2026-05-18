@@ -576,80 +576,144 @@ function tryParseDateFromHeader(h: string): string | null {
   return null;
 }
 
-async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
-  const { batch_id } = await req.json().catch(() => ({}));
-  if (!batch_id || typeof batch_id !== "string") {
-    return json(400, { error: "batch_id obrigatório" });
-  }
-  const admin = adminClient();
-  const { data: batch } = await admin.from("fcr_batch").select("*").eq(
-    "id",
-    batch_id,
-  ).maybeSingle();
-  if (!batch) return json(404, { error: "batch não encontrado" });
-  if (
-    !canMutateBatch(
-      ctx.roles,
-      batch.escopo_carga,
-      batch.empresa_id,
-      ctx.empresaId,
-    )
-  ) {
-    return json(403, { error: "sem permissão para mutar este batch" });
-  }
-  if (!["criado", "parseando"].includes(batch.status)) {
-    return json(409, { error: `status inválido para parse: ${batch.status}` });
-  }
+// PR-2.2: parse em chunks de 5.000 com EdgeRuntime.waitUntil + retry 3× backoff.
+// O response retorna 202 em <2s; o trabalho roda em background e a UI faz polling em /status.
+const PARSE_CHUNK_SIZE = 5000;
+const PARSE_RETRY_BACKOFF_MS = [1000, 3000, 9000];
 
-  await admin.from("fcr_batch").update({ status: "parseando" }).eq(
-    "id",
-    batch_id,
-  );
+async function insertChunkWithRetry(
+  admin: SupabaseClient,
+  table: string,
+  rows: any[],
+  batch_id: string,
+  chunk_idx: number,
+  linha_inicio: number,
+  linha_fim: number,
+): Promise<{ inserted: number; ok: boolean; lastError: string | null }> {
+  let lastError: string | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const { data, error } = await admin.from(table).upsert(rows, {
+        onConflict: "hash_idempotencia",
+        ignoreDuplicates: true,
+      }).select("id");
+      if (error) throw new Error(error.message);
+      return { inserted: data?.length ?? 0, ok: true, lastError: null };
+    } catch (e) {
+      lastError = String(e instanceof Error ? e.message : e);
+      await admin.from("fcr_parse_chunk_erro").insert({
+        batch_id,
+        chunk_idx,
+        linha_inicio,
+        linha_fim,
+        tentativa: attempt,
+        erro_msg: lastError,
+      });
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, PARSE_RETRY_BACKOFF_MS[attempt - 1]));
+      }
+    }
+  }
+  return { inserted: 0, ok: false, lastError };
+}
+
+async function runParseBackground(batch_id: string): Promise<void> {
+  const admin = adminClient();
+  const startedAt = Date.now();
+  const { data: batch } = await admin.from("fcr_batch").select("*").eq("id", batch_id).maybeSingle();
+  if (!batch) return;
 
   try {
-    const dl = await admin.storage.from("fcr-uploads").download(
-      batch.storage_path,
-    );
-    if (dl.error || !dl.data) {
-      throw new Error("falha download storage: " + dl.error?.message);
-    }
+    const dl = await admin.storage.from("fcr-uploads").download(batch.storage_path);
+    if (dl.error || !dl.data) throw new Error("falha download storage: " + dl.error?.message);
     const buf = new Uint8Array(await dl.data.arrayBuffer());
     const wb = XLSX.read(buf, {
       type: "array",
       cellDates: true,
-      cellFormula: true,
-      cellNF: true,
-      sheetStubs: true,
+      cellFormula: false, // economia de memória — formulas não são necessárias
+      cellHTML: false,
+      cellNF: false,
+      sheetStubs: false,
     });
 
     const file_sha256 = (batch.totais_excel?.file_sha256 as string) || "";
-    const raws: RawRow[] = [];
+    const periodo = periodoFromBatch(batch);
+
+    // contadores agregados
+    let linhasLidas = 0;
+    let linhasInseridas = 0;
+    let chunkIdx = 0;
+    let totalChunksEstimado = 0;
+    let ltCount = 0;
+    let foraPeriodo = 0;
+    let layoutGlobal: "long_table" | "matrix" | null = null;
+    let chunkErros = 0;
+    let buffer: RawRow[] = [];
+    // pendências por raw → resolvidas DEPOIS via raw_id consultando hashes
+    const pendBuffer: Array<{
+      hash: string;
+      tipo_pendencia: string;
+      motivo: string;
+      destino_proposto: string;
+      classificacao_excel_original: string | null;
+      historico_original: string | null;
+      data_caixa: string | null;
+      valor_original: number | null;
+      empresa_id: string | null;
+    }> = [];
+
+    // estima total de linhas para chunks_total
+    for (const sn of wb.SheetNames) {
+      const ws = wb.Sheets[sn];
+      if (!ws || !ws["!ref"]) continue;
+      const range = XLSX.utils.decode_range(ws["!ref"]);
+      totalChunksEstimado += Math.ceil((range.e.r - range.s.r) / PARSE_CHUNK_SIZE);
+    }
+    await admin.from("fcr_batch").update({
+      chunks_total: Math.max(1, totalChunksEstimado),
+      parse_iniciado_em: new Date().toISOString(),
+    }).eq("id", batch_id);
+
+    const flushBuffer = async () => {
+      if (buffer.length === 0) return;
+      const linhaInicio = buffer[0].linha_origem;
+      const linhaFim = buffer[buffer.length - 1].linha_origem;
+      chunkIdx += 1;
+      const res = await insertChunkWithRetry(
+        admin, "fcr_raw_excel", buffer, batch_id, chunkIdx, linhaInicio, linhaFim,
+      );
+      if (res.ok) {
+        linhasInseridas += res.inserted;
+      } else {
+        chunkErros += 1;
+      }
+      await admin.from("fcr_batch").update({
+        chunk_atual: chunkIdx,
+        linhas_lidas: linhasLidas,
+        linhas_inseridas: linhasInseridas,
+        ultimo_erro: res.lastError,
+      }).eq("id", batch_id);
+      buffer = [];
+    };
 
     for (let si = 0; si < wb.SheetNames.length; si++) {
       const sheetName = wb.SheetNames[si];
       const ws = wb.Sheets[sheetName];
       if (!ws || !ws["!ref"]) continue;
-      const sheetHidden = Boolean(
-        (wb as any).Workbook?.Sheets?.[si]?.Hidden,
-      );
+      const sheetHidden = Boolean((wb as any).Workbook?.Sheets?.[si]?.Hidden);
       const range = XLSX.utils.decode_range(ws["!ref"]);
       const rowsMeta = (ws as any)["!rows"] || [];
       const colsMeta = (ws as any)["!cols"] || [];
 
-      // cabeçalho: primeira linha não-vazia da aba
+      // cabeçalho
       let headerRow = range.s.r;
       for (let r = range.s.r; r <= Math.min(range.s.r + 5, range.e.r); r++) {
         let nonEmpty = 0;
         for (let c = range.s.c; c <= range.e.c; c++) {
           const cell = ws[XLSX.utils.encode_cell({ r, c })];
-          if (cell && cell.v != null && String(cell.v).trim() !== "") {
-            nonEmpty++;
-          }
+          if (cell && cell.v != null && String(cell.v).trim() !== "") nonEmpty++;
         }
-        if (nonEmpty >= 2) {
-          headerRow = r;
-          break;
-        }
+        if (nonEmpty >= 2) { headerRow = r; break; }
       }
       const headers: string[] = [];
       for (let c = range.s.c; c <= range.e.c; c++) {
@@ -657,14 +721,12 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
         headers[c] = hc?.v != null ? String(hc.v).trim() : "";
       }
 
-      // PR-2.1: detector long_table vs matriz
       const ltMap = mapLongTableHeaders(headers);
       const longTable = isLongTable(ltMap);
-      const periodo = periodoFromBatch(batch);
       const layoutMode = longTable ? "long_table" : "matrix";
+      if (!layoutGlobal) layoutGlobal = layoutMode;
 
       if (longTable) {
-        // 1 linha do Excel = 1 raw. Célula principal = coluna Valor.
         const cValor = ltMap.valor!;
         const cData = ltMap.data!;
         const cClass = ltMap.classificacao!;
@@ -675,105 +737,67 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
         const cHist = ltMap.historico;
         const cId = ltMap.id_origem;
 
-        const ltPendencias: Array<{
-          tipo_pendencia: string;
-          motivo: string;
-          destino_proposto: string;
-          row_index: number;
-        }> = [];
-
         for (let r = headerRow + 1; r <= range.e.r; r++) {
           const rowHidden = Boolean(rowsMeta[r]?.hidden);
           const colHiddenValor = Boolean(colsMeta[cValor]?.hidden);
-
-          const fullRow: Record<string, unknown> = {};
-          let rowHasAnyValue = false;
-          for (let c = range.s.c; c <= range.e.c; c++) {
-            const cell = ws[XLSX.utils.encode_cell({ r, c })];
-            const key = headers[c] || `col_${c}`;
-            if (cell && cell.v != null && String(cell.v).trim() !== "") {
-              rowHasAnyValue = true;
-            }
-            fullRow[key] = cell?.v ?? null;
-          }
-          if (!rowHasAnyValue) continue;
 
           const valorCell = ws[XLSX.utils.encode_cell({ r, c: cValor })];
           const classCell = ws[XLSX.utils.encode_cell({ r, c: cClass })];
           const dataCell = ws[XLSX.utils.encode_cell({ r, c: cData })];
           const tipoCell = cTipo !== undefined
-            ? ws[XLSX.utils.encode_cell({ r, c: cTipo })]
-            : undefined;
+            ? ws[XLSX.utils.encode_cell({ r, c: cTipo })] : undefined;
 
           const classificacao = classCell?.v != null ? String(classCell.v) : "";
           const tipo = classifyTipoLinha(classificacao);
           const bloco = classifyBloco(classificacao);
           if (!ALLOWED_BLOCOS.has(bloco)) continue;
 
-          const valor_texto = valorCell?.w ??
-            (valorCell?.v != null ? String(valorCell.v) : null);
+          const valor_texto = valorCell?.w ?? (valorCell?.v != null ? String(valorCell.v) : null);
           const valor_num = parseBR(valorCell?.v);
           const data_caixa = parseCellDate(dataCell);
           const addr = XLSX.utils.encode_cell({ r, c: cValor });
-          const formula = valorCell?.f ?? "";
 
           const cellTxt = (col: number | undefined) =>
             col !== undefined && ws[XLSX.utils.encode_cell({ r, c: col })]?.v != null
-              ? String(ws[XLSX.utils.encode_cell({ r, c: col })].v)
-              : null;
+              ? String(ws[XLSX.utils.encode_cell({ r, c: col })].v) : null;
           const banco_txt = cellTxt(cBanco);
           const conta_txt = cellTxt(cConta);
           const empresa_txt = cellTxt(cEmpresa);
           const hist_txt = cellTxt(cHist);
           const id_origem = cId !== undefined && ws[XLSX.utils.encode_cell({ r, c: cId })]?.v != null
-            ? String(ws[XLSX.utils.encode_cell({ r, c: cId })].v).trim()
-            : null;
+            ? String(ws[XLSX.utils.encode_cell({ r, c: cId })].v).trim() : null;
           const tipo_mov_orig = tipoCell?.v != null ? String(tipoCell.v) : null;
           const tipo_mov_norm = normalizeTipoMovimento(tipo_mov_orig);
 
-          // REGRA OFICIAL DE SINAL (long_table)
-          // valor_numerico = bruto original do Excel (preservado)
-          // valor_assinado_caixa = derivado:
-          //   SALDO ANTERIOR  -> valor_numerico (não entra como movimento)
-          //   Tipo=ENTRADA    -> +ABS(valor_numerico)
-          //   Tipo=SAÍDA      -> -ABS(valor_numerico)
-          //   Tipo inválido p/ movimento -> null + pendência sinal_inconsistente
+          // regra de sinal
           let valor_assinado: number | null = null;
           let pend_sinal = false;
           if (tipo === "saldo_inicial") {
             valor_assinado = valor_num;
           } else if (tipo === "movimento" && valor_num !== null) {
-            if (tipo_mov_norm === "entrada") {
-              valor_assinado = Math.abs(valor_num);
-            } else if (tipo_mov_norm === "saida") {
-              valor_assinado = -Math.abs(valor_num);
-            } else {
-              valor_assinado = null;
-              pend_sinal = true;
-            }
+            if (tipo_mov_norm === "entrada") valor_assinado = Math.abs(valor_num);
+            else if (tipo_mov_norm === "saida") valor_assinado = -Math.abs(valor_num);
+            else { valor_assinado = null; pend_sinal = true; }
           } else {
             valor_assinado = valor_num;
           }
 
           const fora = data_caixa
-            ? (data_caixa < periodo.inicio || data_caixa > periodo.fim)
-            : false;
+            ? (data_caixa < periodo.inicio || data_caixa > periodo.fim) : false;
+          if (fora) foraPeriodo += 1;
 
           const hashInput =
-            `${batch_id}|${file_sha256}|${sheetName}|${addr}|${valor_texto ?? ""}|${formula}|LT|${id_origem ?? ""}`;
+            `${batch_id}|${file_sha256}|${sheetName}|${addr}|${valor_texto ?? ""}|LT|${id_origem ?? ""}`;
           const hash = await sha256(new TextEncoder().encode(hashInput));
 
           const requer_revisao = /CONTA\s+VINCULADA/.test(normalize(classificacao));
+          const excludeFromMath = sheetHidden || rowHidden || colHiddenValor;
 
-          raws.push({
+          buffer.push({
             batch_id,
             empresa_id_origem_celula: empresa_txt,
-            empresa_id_resolvida: batch.escopo_carga === "empresa"
-              ? batch.empresa_id
-              : null,
-            status_resolucao_empresa: batch.escopo_carga === "empresa"
-              ? "resolvida"
-              : "pendente",
+            empresa_id_resolvida: batch.escopo_carga === "empresa" ? batch.empresa_id : null,
+            status_resolucao_empresa: batch.escopo_carga === "empresa" ? "resolvida" : "pendente",
             banco_origem_texto: banco_txt,
             conta_origem_texto: conta_txt,
             arquivo_origem: batch.arquivo_origem,
@@ -798,285 +822,273 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
               sheet_hidden: sheetHidden,
               row_hidden: rowHidden,
               col_hidden: colHiddenValor,
-              exclude_from_math: sheetHidden || rowHidden || colHiddenValor,
-              formula: formula || null,
+              exclude_from_math: excludeFromMath,
               cell_type: valorCell?.t ?? null,
-              full_row: fullRow,
-              header_map: ltMap,
-              id_origem: id_origem,
               tipo_movimento_original: tipo_mov_orig,
               tipo_movimento_normalizado: tipo_mov_norm,
               requer_revisao,
             },
             hash_idempotencia: hash,
           });
+          linhasLidas += 1;
+          ltCount += 1;
 
           if (pend_sinal) {
-            ltPendencias.push({
-              tipo_pendencia: "sinal_inconsistente",
+            pendBuffer.push({
+              hash, tipo_pendencia: "sinal_inconsistente",
               motivo: `Tipo invalido/ausente p/ movimento: '${tipo_mov_orig ?? ""}'`,
               destino_proposto: "a_conciliar",
-              row_index: raws.length - 1,
+              classificacao_excel_original: classificacao || null,
+              historico_original: hist_txt, data_caixa,
+              valor_original: valor_num,
+              empresa_id: batch.escopo_carga === "empresa" ? batch.empresa_id : null,
             });
           }
           if (fora) {
-            ltPendencias.push({
-              tipo_pendencia: "fora_do_periodo",
+            pendBuffer.push({
+              hash, tipo_pendencia: "fora_do_periodo",
               motivo: `data ${data_caixa} fora de ${periodo.inicio}..${periodo.fim}`,
               destino_proposto: "ignorar",
-              row_index: raws.length - 1,
+              classificacao_excel_original: classificacao || null,
+              historico_original: hist_txt, data_caixa,
+              valor_original: valor_num,
+              empresa_id: batch.escopo_carga === "empresa" ? batch.empresa_id : null,
             });
           }
           if (requer_revisao) {
-            ltPendencias.push({
-              tipo_pendencia: "a_conciliar",
+            pendBuffer.push({
+              hash, tipo_pendencia: "a_conciliar",
               motivo: "CONTA VINCULADA — requer revisão",
               destino_proposto: "a_conciliar",
-              row_index: raws.length - 1,
+              classificacao_excel_original: classificacao || null,
+              historico_original: hist_txt, data_caixa,
+              valor_original: valor_num,
+              empresa_id: batch.escopo_carga === "empresa" ? batch.empresa_id : null,
             });
           }
+          if (excludeFromMath && tipo === "movimento" && valor_num !== null && Math.abs(valor_num) > 0) {
+            pendBuffer.push({
+              hash, tipo_pendencia: "linha_calculada_ambigua",
+              motivo: "cell_hidden_has_numeric_value",
+              destino_proposto: "a_conciliar",
+              classificacao_excel_original: classificacao || null,
+              historico_original: hist_txt, data_caixa,
+              valor_original: valor_num,
+              empresa_id: batch.escopo_carga === "empresa" ? batch.empresa_id : null,
+            });
+          }
+
+          if (buffer.length >= PARSE_CHUNK_SIZE) {
+            await flushBuffer();
+          }
         }
+      } else {
+        // layout matriz (compat). Tipicamente arquivo pequeno.
+        let labelCol = range.s.c;
+        for (let r = headerRow + 1; r <= range.e.r; r++) {
+          const rowHidden = Boolean(rowsMeta[r]?.hidden);
+          const labelCell = ws[XLSX.utils.encode_cell({ r, c: labelCol })];
+          const label = labelCell?.v != null ? String(labelCell.v) : "";
+          const tipo = classifyTipoLinha(label);
+          const bloco = classifyBloco(label);
+          if (!ALLOWED_BLOCOS.has(bloco)) continue;
 
-        (batch as any).__lt_pendencias =
-          ((batch as any).__lt_pendencias ?? []).concat(ltPendencias);
-        continue;
-      }
-
-      // ----- layout matriz (compat) -----
-      // detecta coluna provável de label/classificação (primeira coluna textual)
-      let labelCol = range.s.c;
-
-      for (let r = headerRow + 1; r <= range.e.r; r++) {
-        const rowHidden = Boolean(rowsMeta[r]?.hidden);
-        const labelCell =
-          ws[XLSX.utils.encode_cell({ r, c: labelCol })];
-        const label = labelCell?.v != null ? String(labelCell.v) : "";
-        const tipo = classifyTipoLinha(label);
-        const bloco = classifyBloco(label);
-        if (!ALLOWED_BLOCOS.has(bloco)) continue;
-
-        for (let c = range.s.c; c <= range.e.c; c++) {
-          const colHidden = Boolean(colsMeta[c]?.hidden);
-          const cell = ws[XLSX.utils.encode_cell({ r, c })];
-          if (!cell) continue;
-          const addr = XLSX.utils.encode_cell({ r, c });
-          const headerVal = headers[c] ?? "";
-          const valor_texto = cell.w ?? (cell.v != null ? String(cell.v) : null);
-          const valor_num = c === labelCol ? null : parseBR(cell.v);
-          // ignorar a célula do label
-          if (c === labelCol) continue;
-          if (valor_num === null && !cell.v) continue;
-
-          const data_caixa = tryParseDateFromHeader(headerVal);
-          const formula = cell.f ?? "";
-
-          const hashInput =
-            `${batch_id}|${file_sha256}|${sheetName}|${addr}|${valor_texto ?? ""}|${formula}`;
-          const hash = await sha256(new TextEncoder().encode(hashInput));
-
-          raws.push({
-            batch_id,
-            empresa_id_origem_celula: null,
-            empresa_id_resolvida: batch.escopo_carga === "empresa"
-              ? batch.empresa_id
-              : null,
-            status_resolucao_empresa: batch.escopo_carga === "empresa"
-              ? "resolvida"
-              : "pendente",
-            banco_origem_texto: null,
-            conta_origem_texto: null,
-            arquivo_origem: batch.arquivo_origem,
-            aba_origem: sheetName,
-            linha_origem: r + 1,
-            coluna_origem: c + 1,
-            endereco_celula: addr,
-            cabecalho_coluna: headerVal || null,
-            data_caixa_derivada: data_caixa,
-            classificacao_excel_original: label || null,
-            historico_original: null,
-            valor_celula_texto: valor_texto,
-            valor_numerico: valor_num,
-            valor_assinado_caixa: valor_num,
-            fora_do_periodo: false,
-            id_origem_texto: null,
-            tipo_linha: tipo,
-            bloco_funcional: bloco,
-            par_transferencia_id: null,
-            raw_json: {
-              layout_mode: layoutMode,
-              sheet_hidden: sheetHidden,
-              row_hidden: rowHidden,
-              col_hidden: colHidden,
-              exclude_from_math: sheetHidden || rowHidden || colHidden,
-              formula: formula || null,
-              cell_type: cell.t ?? null,
-            },
-            hash_idempotencia: hash,
-          });
+          for (let c = range.s.c; c <= range.e.c; c++) {
+            const colHidden = Boolean(colsMeta[c]?.hidden);
+            const cell = ws[XLSX.utils.encode_cell({ r, c })];
+            if (!cell) continue;
+            if (c === labelCol) continue;
+            const addr = XLSX.utils.encode_cell({ r, c });
+            const headerVal = headers[c] ?? "";
+            const valor_texto = cell.w ?? (cell.v != null ? String(cell.v) : null);
+            const valor_num = parseBR(cell.v);
+            if (valor_num === null && !cell.v) continue;
+            const data_caixa = tryParseDateFromHeader(headerVal);
+            const hashInput = `${batch_id}|${file_sha256}|${sheetName}|${addr}|${valor_texto ?? ""}`;
+            const hash = await sha256(new TextEncoder().encode(hashInput));
+            buffer.push({
+              batch_id,
+              empresa_id_origem_celula: null,
+              empresa_id_resolvida: batch.escopo_carga === "empresa" ? batch.empresa_id : null,
+              status_resolucao_empresa: batch.escopo_carga === "empresa" ? "resolvida" : "pendente",
+              banco_origem_texto: null,
+              conta_origem_texto: null,
+              arquivo_origem: batch.arquivo_origem,
+              aba_origem: sheetName,
+              linha_origem: r + 1,
+              coluna_origem: c + 1,
+              endereco_celula: addr,
+              cabecalho_coluna: headerVal || null,
+              data_caixa_derivada: data_caixa,
+              classificacao_excel_original: label || null,
+              historico_original: null,
+              valor_celula_texto: valor_texto,
+              valor_numerico: valor_num,
+              valor_assinado_caixa: valor_num,
+              fora_do_periodo: false,
+              id_origem_texto: null,
+              tipo_linha: tipo,
+              bloco_funcional: bloco,
+              par_transferencia_id: null,
+              raw_json: {
+                layout_mode: layoutMode, sheet_hidden: sheetHidden,
+                row_hidden: rowHidden, col_hidden: colHidden,
+                exclude_from_math: sheetHidden || rowHidden || colHidden,
+                cell_type: cell.t ?? null,
+              },
+              hash_idempotencia: hash,
+            });
+            linhasLidas += 1;
+            if (buffer.length >= PARSE_CHUNK_SIZE) await flushBuffer();
+          }
         }
       }
     }
+    // flush final
+    await flushBuffer();
 
-    let inserted_count = 0;
-    const CHUNK = 1000;
-    for (let i = 0; i < raws.length; i += CHUNK) {
-      const slice = raws.slice(i, i + CHUNK);
-      const { data, error } = await admin.from("fcr_raw_excel").upsert(slice, {
-        onConflict: "hash_idempotencia",
-        ignoreDuplicates: true,
-      }).select("id");
-      if (error) throw new Error("insert raw: " + error.message);
-      inserted_count += data?.length ?? 0;
-    }
-
-    // Recupera IDs persistidos para anexar pendências com raw_id NOT NULL
-    const hashToId = new Map<string, string>();
-    {
-      const PAGE = 1000;
-      let from = 0;
-      while (true) {
-        const { data, error } = await admin.from("fcr_raw_excel")
+    // ---------- pendências: resolver raw_id por hash em batches ----------
+    if (pendBuffer.length > 0) {
+      const HASH_LOOKUP = 500;
+      const hashToId = new Map<string, string>();
+      const allHashes = [...new Set(pendBuffer.map((p) => p.hash))];
+      for (let i = 0; i < allHashes.length; i += HASH_LOOKUP) {
+        const slice = allHashes.slice(i, i + HASH_LOOKUP);
+        const { data } = await admin.from("fcr_raw_excel")
           .select("id, hash_idempotencia")
           .eq("batch_id", batch_id)
-          .range(from, from + PAGE - 1);
-        if (error) throw new Error("fetch raw ids: " + error.message);
-        if (!data || data.length === 0) break;
-        for (const row of data) hashToId.set(row.hash_idempotencia, row.id);
-        if (data.length < PAGE) break;
-        from += PAGE;
+          .in("hash_idempotencia", slice);
+        for (const row of data ?? []) hashToId.set(row.hash_idempotencia, row.id);
+      }
+      const pendRows = pendBuffer
+        .map((p) => {
+          const raw_id = hashToId.get(p.hash);
+          if (!raw_id) return null;
+          return {
+            batch_id, raw_id,
+            empresa_id: p.empresa_id,
+            classificacao_excel_original: p.classificacao_excel_original,
+            historico_original: p.historico_original,
+            data_caixa: p.data_caixa,
+            valor_original: p.valor_original,
+            tipo_pendencia: p.tipo_pendencia,
+            destino_proposto: p.destino_proposto,
+            status: "pendente",
+            motivo: p.motivo,
+          };
+        })
+        .filter((r) => r !== null);
+      for (let i = 0; i < pendRows.length; i += 1000) {
+        const slice = pendRows.slice(i, i + 1000);
+        await admin.from("fcr_sugestoes_pendencias").insert(slice as any[]);
       }
     }
 
-    const pendencias: Array<Record<string, unknown>> = [];
-
-    // (a) linha oculta com valor numérico classificada como movimento
-    for (const r of raws) {
-      if (
-        r.tipo_linha === "movimento" &&
-        (r.raw_json as any).exclude_from_math &&
-        r.valor_numerico !== null && Math.abs(r.valor_numerico) > 0
-      ) {
-        const raw_id = hashToId.get(r.hash_idempotencia);
-        if (!raw_id) continue;
-        pendencias.push({
-          batch_id,
-          raw_id,
-          empresa_id: r.empresa_id_resolvida,
-          classificacao_excel_original: r.classificacao_excel_original,
-          historico_original: r.historico_original,
-          data_caixa: r.data_caixa_derivada,
-          valor_original: r.valor_numerico,
-          tipo_pendencia: "linha_calculada_ambigua",
-          destino_proposto: "a_conciliar",
-          status: "pendente",
-          motivo: "cell_hidden_has_numeric_value",
-        });
+    // ---------- id_origem duplicado: detectar em DB (não em memória) ----------
+    let idDup = 0;
+    try {
+      const { data: dups } = await admin
+        .from("fcr_raw_excel")
+        .select("id, id_origem_texto, empresa_id_resolvida, classificacao_excel_original, historico_original, data_caixa_derivada, valor_numerico")
+        .eq("batch_id", batch_id)
+        .not("id_origem_texto", "is", null);
+      const groups = new Map<string, any[]>();
+      for (const row of dups ?? []) {
+        const list = groups.get(row.id_origem_texto) ?? [];
+        list.push(row);
+        groups.set(row.id_origem_texto, list);
       }
-    }
-
-    // (b) pendências long_table acumuladas durante o parse
-    const ltPends: Array<{ tipo_pendencia: string; motivo: string; destino_proposto: string; row_index: number }> =
-      ((batch as any).__lt_pendencias ?? []) as any;
-    for (const p of ltPends) {
-      const r = raws[p.row_index];
-      if (!r) continue;
-      const raw_id = hashToId.get(r.hash_idempotencia);
-      if (!raw_id) continue;
-      pendencias.push({
-        batch_id,
-        raw_id,
-        empresa_id: r.empresa_id_resolvida,
-        classificacao_excel_original: r.classificacao_excel_original,
-        historico_original: r.historico_original,
-        data_caixa: r.data_caixa_derivada,
-        valor_original: r.valor_numerico,
-        tipo_pendencia: p.tipo_pendencia,
-        destino_proposto: p.destino_proposto,
-        status: "pendente",
-        motivo: p.motivo,
-      });
-    }
-
-    // (c) id_origem duplicado dentro do mesmo batch
-    {
-      const idGroups = new Map<string, number[]>();
-      for (let i = 0; i < raws.length; i++) {
-        const id = raws[i].id_origem_texto;
-        if (!id) continue;
-        const list = idGroups.get(id) ?? [];
-        list.push(i);
-        idGroups.set(id, list);
-      }
-      for (const [, idxs] of idGroups) {
-        if (idxs.length < 2) continue;
-        for (const i of idxs) {
-          const r = raws[i];
-          const raw_id = hashToId.get(r.hash_idempotencia);
-          if (!raw_id) continue;
-          pendencias.push({
-            batch_id,
-            raw_id,
-            empresa_id: r.empresa_id_resolvida,
-            classificacao_excel_original: r.classificacao_excel_original,
-            historico_original: r.historico_original,
-            data_caixa: r.data_caixa_derivada,
-            valor_original: r.valor_numerico,
+      const dupPends: any[] = [];
+      for (const [id_origem, items] of groups) {
+        if (items.length < 2) continue;
+        idDup += 1;
+        for (const it of items) {
+          dupPends.push({
+            batch_id, raw_id: it.id,
+            empresa_id: it.empresa_id_resolvida,
+            classificacao_excel_original: it.classificacao_excel_original,
+            historico_original: it.historico_original,
+            data_caixa: it.data_caixa_derivada,
+            valor_original: it.valor_numerico,
             tipo_pendencia: "id_origem_duplicado",
             destino_proposto: "a_conciliar",
             status: "pendente",
-            motivo: `id_origem '${r.id_origem_texto}' repetido ${idxs.length}x`,
+            motivo: `id_origem '${id_origem}' repetido ${items.length}x`,
           });
         }
       }
-    }
-
-    if (pendencias.length) {
-      for (let i = 0; i < pendencias.length; i += 1000) {
-        const slice = pendencias.slice(i, i + 1000);
-        const { error } = await admin.from("fcr_sugestoes_pendencias").insert(slice);
-        if (error) throw new Error("insert pendencias: " + error.message);
+      for (let i = 0; i < dupPends.length; i += 1000) {
+        await admin.from("fcr_sugestoes_pendencias").insert(dupPends.slice(i, i + 1000));
       }
+    } catch (e) {
+      console.error("id_origem dedup falhou", e);
     }
 
-    // estatísticas long_table
-    const ltCount = raws.filter((r) => (r.raw_json as any).layout_mode === "long_table").length;
-    const foraPeriodo = raws.filter((r) => r.fora_do_periodo).length;
-    const idCounts = new Map<string, number>();
-    for (const r of raws) {
-      if (!r.id_origem_texto) continue;
-      idCounts.set(r.id_origem_texto, (idCounts.get(r.id_origem_texto) ?? 0) + 1);
-    }
-    const idDup = Array.from(idCounts.entries()).filter(([, n]) => n > 1).length;
-
+    const finalStatus = chunkErros === 0 ? "parseando" : "erro_parse";
+    // Mantemos status='parseando' quando ok para permitir Reconcile (que exige parseando).
     await admin.from("fcr_batch").update({
+      status: finalStatus,
+      parse_finalizado_em: new Date().toISOString(),
       totais_promovidos: {
         parse: {
-          total: raws.length,
-          inserted_count,
-          skipped_count: raws.length - inserted_count,
+          total: linhasLidas,
+          inserted_count: linhasInseridas,
           long_table_rows: ltCount,
           fora_do_periodo: foraPeriodo,
           id_origem_duplicados: idDup,
+          layout: layoutGlobal,
+          chunks: chunkIdx,
+          chunk_erros: chunkErros,
+          duracao_ms: Date.now() - startedAt,
         },
       },
     }).eq("id", batch_id);
-
-    return json(200, {
-      batch_id,
-      total: raws.length,
-      inserted_count,
-      skipped_count: raws.length - inserted_count,
-      long_table_rows: ltCount,
-      fora_do_periodo: foraPeriodo,
-      id_origem_duplicados: idDup,
-    });
   } catch (e) {
     await admin.from("fcr_batch").update({
-      status: "erro",
-      totais_promovidos: { error: String(e), step: "parse" },
+      status: "erro_parse",
+      ultimo_erro: String(e instanceof Error ? e.message : e),
+      parse_finalizado_em: new Date().toISOString(),
     }).eq("id", batch_id);
-    return json(500, { error: "parse_falhou", detail: String(e) });
   }
+}
+
+async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
+  const { batch_id } = await req.json().catch(() => ({}));
+  if (!batch_id || typeof batch_id !== "string") {
+    return json(400, { error: "batch_id obrigatório" });
+  }
+  const admin = adminClient();
+  const { data: batch } = await admin.from("fcr_batch").select("*").eq("id", batch_id).maybeSingle();
+  if (!batch) return json(404, { error: "batch não encontrado" });
+  if (!canMutateBatch(ctx.roles, batch.escopo_carga, batch.empresa_id, ctx.empresaId)) {
+    return json(403, { error: "sem permissão para mutar este batch" });
+  }
+  if (!["criado", "parseando", "erro_parse"].includes(batch.status)) {
+    return json(409, { error: `status inválido para parse: ${batch.status}` });
+  }
+
+  // Reset contadores ao iniciar/retomar e marca parseando
+  await admin.from("fcr_batch").update({
+    status: "parseando",
+    chunk_atual: 0,
+    linhas_lidas: 0,
+    linhas_inseridas: 0,
+    chunks_total: null,
+    parse_iniciado_em: new Date().toISOString(),
+    parse_finalizado_em: null,
+    ultimo_erro: null,
+  }).eq("id", batch_id);
+  await admin.from("fcr_parse_chunk_erro").delete().eq("batch_id", batch_id);
+
+  // Dispara em background — não bloqueia o response
+  // @ts-ignore - EdgeRuntime é fornecido pelo Deno Deploy/Supabase
+  EdgeRuntime.waitUntil(runParseBackground(batch_id));
+
+  return json(202, {
+    batch_id,
+    status: "parseando",
+    message: "parse iniciado em background; consulte /status para progresso",
+  });
 }
 
 async function handleReconcile(
