@@ -3,6 +3,7 @@
 
 import programacaoPagamentos from "./financeiro/programacao-pagamentos.md?raw";
 import contasPagarListar from "./financeiro/contas-pagar-listar.md?raw";
+import novoPreTitulo from "./financeiro/novo-pre-titulo.md?raw";
 import aprovarPagamento from "./financeiro/aprovar-pagamento.md?raw";
 import conciliacaoBancaria from "./financeiro/conciliacao-bancaria.md?raw";
 import fluxoCaixaDiario from "./financeiro/fluxo-caixa-diario.md?raw";
