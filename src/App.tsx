@@ -100,6 +100,8 @@ import PlanoAcoesImportar from "./pages/plano-acoes/Importar";
 import PlanoAcoesAprovacoes from "./pages/plano-acoes/Aprovacoes";
 import PlanoAcoesConfiguracoes from "./pages/plano-acoes/Configuracoes";
 import CopilotoIA from "./pages/plano-acoes/CopilotoIA";
+import Ajuda from "./pages/ajuda/Ajuda";
+import AjudaTopico from "./pages/ajuda/AjudaTopico";
 
 const queryClient = new QueryClient();
 
@@ -215,6 +217,9 @@ const App = () => (
             <Route path="plano-acoes/configuracoes" element={<PlanoAcoesConfiguracoes />} />
             <Route path="plano-acoes/copiloto" element={<CopilotoIA />} />
             <Route path="plano-acoes/:id" element={<PlanoAcaoDetalhe />} />
+            {/* Ajuda / Base de Conhecimento */}
+            <Route path="ajuda" element={<Ajuda />} />
+            <Route path="ajuda/:modulo/:slug" element={<AjudaTopico />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

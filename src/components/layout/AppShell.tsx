@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { DemoBanner } from "./DemoBanner";
+import { HelpFab } from "@/components/ajuda/HelpFab";
 
 export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
@@ -51,6 +52,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      <HelpFab />
     </div>
   );
 }
