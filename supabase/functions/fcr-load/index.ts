@@ -700,9 +700,26 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
       // raw_id ficaria null — só registramos no fluxo de bloqueio via raw_json
     }
 
+    // estatísticas long_table
+    const ltCount = raws.filter((r) => (r.raw_json as any).layout_mode === "long_table").length;
+    const foraPeriodo = raws.filter((r) => r.fora_do_periodo).length;
+    const idCounts = new Map<string, number>();
+    for (const r of raws) {
+      if (!r.id_origem_texto) continue;
+      idCounts.set(r.id_origem_texto, (idCounts.get(r.id_origem_texto) ?? 0) + 1);
+    }
+    const idDup = Array.from(idCounts.entries()).filter(([, n]) => n > 1).length;
+
     await admin.from("fcr_batch").update({
       totais_promovidos: {
-        parse: { total: raws.length, inserted_count, skipped_count: raws.length - inserted_count },
+        parse: {
+          total: raws.length,
+          inserted_count,
+          skipped_count: raws.length - inserted_count,
+          long_table_rows: ltCount,
+          fora_do_periodo: foraPeriodo,
+          id_origem_duplicados: idDup,
+        },
       },
     }).eq("id", batch_id);
 
@@ -711,6 +728,9 @@ async function handleParse(req: Request, ctx: AuthCtx): Promise<Response> {
       total: raws.length,
       inserted_count,
       skipped_count: raws.length - inserted_count,
+      long_table_rows: ltCount,
+      fora_do_periodo: foraPeriodo,
+      id_origem_duplicados: idDup,
     });
   } catch (e) {
     await admin.from("fcr_batch").update({
