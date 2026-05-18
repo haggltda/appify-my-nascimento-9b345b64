@@ -371,6 +371,12 @@ export default function MigracaoZero() {
           </table>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="fcr">
+          <MigracaoFcr />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
