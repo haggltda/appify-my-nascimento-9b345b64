@@ -77,7 +77,7 @@ export default function AnalisePeriodoTab() {
     queryKey: ["titulo_pagar_analise", f],
     queryFn: async () => {
       let q = (supabase as any).from("titulo_pagar")
-        .select("*, fornecedor(razao_social, cnpj_cpf), centro_custo(id, nome), contrato(id, numero), conta_bancaria(banco_nome, banco_codigo)")
+        .select("*, fornecedor:fornecedor_id(razao_social, cnpj_cpf), centro_custo:centros_custo!titulo_pagar_centro_custo_fk(id, nome), contrato:contrato_id(id, numero), conta_bancaria:conta_bancaria_id(banco_nome, banco_codigo)")
         .gte(f.campoData, f.ini).lte(f.campoData, f.fim)
         .order("data_vencimento", { ascending: true }).limit(1000);
       if (f.status !== "todos") q = q.eq("status", f.status);
@@ -97,7 +97,7 @@ export default function AnalisePeriodoTab() {
     },
   });
 
-  // títulos em malote ativo (rascunho/enviado)
+  // títulos em malote ativo (rascunho/enviado/aprovado)
   const { data: progMap = {} } = useQuery<Record<string, string>>({
     queryKey: ["titulos_em_programacao_status"],
     queryFn: async () => {
