@@ -45,6 +45,11 @@ type Batch = {
   observacao: string | null;
   created_at: string;
   updated_at: string;
+  linhas_lidas: number | null;
+  linhas_inseridas: number | null;
+  chunks_total: number | null;
+  chunk_atual: number | null;
+  ultimo_erro: string | null;
 };
 
 const STATUS_COLORS: Record<string, string> = {
