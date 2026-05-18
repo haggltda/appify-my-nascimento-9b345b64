@@ -288,6 +288,7 @@ export default function FluxoCaixaDiario() {
       `Período: ${new Date(dataIni + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(dataFim + "T00:00:00").toLocaleDateString("pt-BR")}`,
       40, 66,
     );
+    pdf.text(`Visão de mútuos/transferências: ${MODO_MUTUO_LABEL[modoMutuo]}`, 40, 78);
     pdf.text(`Emitido em ${new Date().toLocaleString("pt-BR")}`, W - 40, 36, { align: "right" });
 
     const head = [["Categoria", ...dias.map((d) => {
