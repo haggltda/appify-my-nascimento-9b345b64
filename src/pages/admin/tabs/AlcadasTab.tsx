@@ -115,18 +115,34 @@ export function AlcadasTab() {
 function NovaAlcada({ empresaId, onSaved }: { empresaId: string; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [etapa, setEtapa] = useState("");
-  const [responsavel, setResponsavel] = useState("");
+  const [responsavelId, setResponsavelId] = useState("");
   const [vmin, setVmin] = useState("0");
   const [vmax, setVmax] = useState("");
   const [excecao, setExcecao] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const usuariosQ = useQuery({
+    enabled: open,
+    queryKey: ["profiles-aprovadores"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, display_name, email")
+        .eq("ativo", true)
+        .order("display_name");
+      return data ?? [];
+    },
+  });
+
   const salvar = async () => {
     if (!etapa.trim()) { toast({ title: "Etapa obrigatória", variant: "destructive" }); return; }
+    if (!responsavelId) { toast({ title: "Responsável obrigatório", description: "Selecione um usuário cadastrado.", variant: "destructive" }); return; }
     setSaving(true);
+    const u = (usuariosQ.data ?? []).find((x: any) => x.id === responsavelId);
     const { error } = await supabase.from("alcada_aprovacao").insert({
       empresa_id: empresaId, etapa: etapa.trim(),
-      responsavel_nome: responsavel || null,
+      responsavel_user_id: responsavelId,
+      responsavel_nome: u?.display_name ?? u?.email ?? null,
       valor_min: Number(vmin) || 0,
       valor_max: vmax ? Number(vmax) : null,
       excecao: excecao || null,
@@ -135,7 +151,7 @@ function NovaAlcada({ empresaId, onSaved }: { empresaId: string; onSaved: () => 
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Alçada criada" });
     setOpen(false);
-    setEtapa(""); setResponsavel(""); setVmin("0"); setVmax(""); setExcecao("");
+    setEtapa(""); setResponsavelId(""); setVmin("0"); setVmax(""); setExcecao("");
     onSaved();
   };
 
@@ -147,8 +163,21 @@ function NovaAlcada({ empresaId, onSaved }: { empresaId: string; onSaved: () => 
       <DialogContent>
         <DialogHeader><DialogTitle>Nova alçada de aprovação</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div><Label>Etapa *</Label><Input value={etapa} onChange={(e) => setEtapa(e.target.value)} placeholder="Ex.: Gerente, Diretoria" /></div>
-          <div><Label>Responsável (nome)</Label><Input value={responsavel} onChange={(e) => setResponsavel(e.target.value)} /></div>
+          <div><Label>Etapa *</Label><Input value={etapa} onChange={(e) => setEtapa(e.target.value)} placeholder="Ex.: Gerente, Diretoria, Presidência" /></div>
+          <div>
+            <Label>Responsável * <span className="text-muted-foreground">(usuário cadastrado)</span></Label>
+            <select
+              value={responsavelId}
+              onChange={(e) => setResponsavelId(e.target.value)}
+              className="mt-1 h-9 w-full rounded-md border border-border bg-card px-3 text-sm"
+            >
+              <option value="">— Selecione —</option>
+              {(usuariosQ.data ?? []).map((u: any) => (
+                <option key={u.id} value={u.id}>{u.display_name || u.email}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-muted-foreground">Esse usuário receberá a notificação para aprovar.</p>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Valor mínimo (R$)</Label><Input type="number" value={vmin} onChange={(e) => setVmin(e.target.value)} /></div>
             <div><Label>Valor máximo (R$)</Label><Input type="number" value={vmax} onChange={(e) => setVmax(e.target.value)} placeholder="vazio = sem teto" /></div>
