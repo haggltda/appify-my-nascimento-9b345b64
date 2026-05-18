@@ -1329,6 +1329,10 @@ Deno.serve(async (req) => {
     const path = url.pathname.replace(/^.*\/fcr-load/, "") || "/";
 
     if (path === "/upload" && req.method === "POST") {
+      const ct = req.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        return await handleUploadJson(req, ctx);
+      }
       return await handleUpload(req, ctx);
     }
     if (path === "/parse" && req.method === "POST") {
