@@ -268,7 +268,9 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
   const [competencia, setCompetencia] = useState(new Date().toISOString().slice(0, 10));
   const [contaContabilId, setContaContabilId] = useState("");
   const [observacoes, setObservacoes] = useState("");
-  const [rateios, setRateios] = useState<RateioItem[]>([]);
+  const [rateios, setRateios] = useState<RateioItem[]>([
+    { centro_custo_id: "", modo: "percentual", percentual: "100", valor: "", descricao: "" },
+  ]);
   const [anexos, setAnexos] = useState<AnexoItem[]>([]);
 
   const valorNum = Number(valor) || 0;
@@ -287,17 +289,31 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
       return data ?? [];
     },
   });
-  const { data: contas = [] } = useQuery<any[]>({
+  const { data: contasRaw = [] } = useQuery<any[]>({
     queryKey: ["conta_contabil_analitica"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("conta_contabil")
-        .select("id, codigo, nome, tipo")
+        .select("id, classificacao, descricao, natureza, grupo_dre, empresa_id, ativo, tipo")
         .eq("tipo", "analitica")
-        .order("codigo");
+        .eq("ativo", true)
+        .order("classificacao");
+      if (error) throw error;
       return data ?? [];
     },
   });
+  const contas = useMemo(() => {
+    const filtered = empresaId
+      ? contasRaw.filter((c) => !c.empresa_id || c.empresa_id === empresaId)
+      : contasRaw;
+    // Despesa/custo primeiro
+    return [...filtered].sort((a, b) => {
+      const da = /despesa|custo|resultado/i.test(String(a.grupo_dre ?? a.natureza ?? "")) ? 0 : 1;
+      const db = /despesa|custo|resultado/i.test(String(b.grupo_dre ?? b.natureza ?? "")) ? 0 : 1;
+      if (da !== db) return da - db;
+      return String(a.classificacao).localeCompare(String(b.classificacao));
+    });
+  }, [contasRaw, empresaId]);
   const { data: ccs = [] } = useQuery<any[]>({
     queryKey: ["centros_custo"],
     queryFn: async () => {
