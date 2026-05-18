@@ -62,9 +62,9 @@ export default function ProgramacaoPagamentos() {
       const { data: u } = await supabase.auth.getUser();
       if (u.user) {
         const { data: p } = await (supabase as any).from("profiles")
-          .select("empresa_id, nome_completo").eq("id", u.user.id).maybeSingle();
+          .select("empresa_id, display_name, email").eq("id", u.user.id).maybeSingle();
         if (p?.empresa_id) setEmpresaId(p.empresa_id);
-        if (p?.nome_completo) setResponsavelNome(p.nome_completo);
+        setResponsavelNome(p?.display_name || p?.email || "—");
       }
     })();
   }, []);
@@ -72,7 +72,7 @@ export default function ProgramacaoPagamentos() {
   const { data: empresas = [] } = useQuery<any[]>({
     queryKey: ["empresas_min"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("empresa").select("id, razao_social").order("razao_social");
+      const { data } = await (supabase as any).from("empresas").select("id, razao_social").order("razao_social");
       return data ?? [];
     },
   });
