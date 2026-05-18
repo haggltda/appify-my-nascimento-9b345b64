@@ -47,7 +47,7 @@ export default function PreTitulosTab() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("pre_titulo_pagar")
-        .select("*, fornecedor(razao_social), conta_contabil(codigo, nome), centros_custo(codigo, nome)")
+        .select("*, fornecedor(razao_social), conta_contabil(classificacao, descricao), centros_custo(codigo, nome)")
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
@@ -268,7 +268,9 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
   const [competencia, setCompetencia] = useState(new Date().toISOString().slice(0, 10));
   const [contaContabilId, setContaContabilId] = useState("");
   const [observacoes, setObservacoes] = useState("");
-  const [rateios, setRateios] = useState<RateioItem[]>([]);
+  const [rateios, setRateios] = useState<RateioItem[]>([
+    { centro_custo_id: "", modo: "percentual", percentual: "100", valor: "", descricao: "" },
+  ]);
   const [anexos, setAnexos] = useState<AnexoItem[]>([]);
 
   const valorNum = Number(valor) || 0;
@@ -287,17 +289,31 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
       return data ?? [];
     },
   });
-  const { data: contas = [] } = useQuery<any[]>({
+  const { data: contasRaw = [] } = useQuery<any[]>({
     queryKey: ["conta_contabil_analitica"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("conta_contabil")
-        .select("id, codigo, nome, tipo")
+        .select("id, classificacao, descricao, natureza, grupo_dre, empresa_id, ativo, tipo")
         .eq("tipo", "analitica")
-        .order("codigo");
+        .eq("ativo", true)
+        .order("classificacao");
+      if (error) throw error;
       return data ?? [];
     },
   });
+  const contas = useMemo(() => {
+    const filtered = empresaId
+      ? contasRaw.filter((c) => !c.empresa_id || c.empresa_id === empresaId)
+      : contasRaw;
+    // Despesa/custo primeiro
+    return [...filtered].sort((a, b) => {
+      const da = /despesa|custo|resultado/i.test(String(a.grupo_dre ?? a.natureza ?? "")) ? 0 : 1;
+      const db = /despesa|custo|resultado/i.test(String(b.grupo_dre ?? b.natureza ?? "")) ? 0 : 1;
+      if (da !== db) return da - db;
+      return String(a.classificacao).localeCompare(String(b.classificacao));
+    });
+  }, [contasRaw, empresaId]);
   const { data: ccs = [] } = useQuery<any[]>({
     queryKey: ["centros_custo"],
     queryFn: async () => {
@@ -414,26 +430,26 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-6 pt-6 pb-3 border-b sticky top-0 bg-background z-10">
+      <DialogContent className="max-w-[1400px] w-[97vw] max-h-[92vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-5 pb-3 border-b sticky top-0 bg-background z-10">
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" /> Novo lançamento de NF / pré-título
           </DialogTitle>
           <DialogDescription>
-            Preencha os dados, ratee por centro de custo e anexe o documento fiscal.
+            Preencha os dados, ratee por centro de custo (obrigatório, mesmo que seja apenas 1) e anexe o documento fiscal.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
 
         {/* Bloco 1: Documento */}
-        <section className="rounded-xl border bg-muted/30 p-4 space-y-3">
+        <section className="rounded-xl border bg-muted/30 p-3 space-y-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Building2 className="h-4 w-4 text-primary" /> Dados do documento
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-            <div className="md:col-span-3">
-              <Label>Empresa *</Label>
+          <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-3">
+            <div className="md:col-span-3 lg:col-span-4">
+              <Label className="text-xs">Empresa *</Label>
               <Select value={empresaId} onValueChange={setEmpresaId}>
                 <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
@@ -443,8 +459,8 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-3">
-              <Label>Fornecedor</Label>
+            <div className="md:col-span-3 lg:col-span-4">
+              <Label className="text-xs">Fornecedor</Label>
               <Select value={fornecedorId} onValueChange={setFornecedorId}>
                 <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
                 <SelectContent>
@@ -454,53 +470,53 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-4">
-              <Label>Descrição *</Label>
-              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Rescisão João da Silva — Obra Centro" />
-            </div>
-            <div className="md:col-span-2">
-              <Label>Nº documento</Label>
+            <div className="md:col-span-2 lg:col-span-2">
+              <Label className="text-xs">Nº documento</Label>
               <Input value={numDoc} onChange={(e) => setNumDoc(e.target.value)} />
             </div>
-            <div className="md:col-span-2">
-              <Label>Valor total *</Label>
+            <div className="md:col-span-2 lg:col-span-2">
+              <Label className="text-xs">Valor total *</Label>
               <Input type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} className="font-semibold text-lg" />
             </div>
-            <div className="md:col-span-2">
-              <Label>Emissão *</Label>
+            <div className="md:col-span-4 lg:col-span-6">
+              <Label className="text-xs">Descrição *</Label>
+              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Rescisão João da Silva — Obra Centro" />
+            </div>
+            <div className="md:col-span-2 lg:col-span-2">
+              <Label className="text-xs">Emissão *</Label>
               <Input type="date" value={emissao} onChange={(e) => setEmissao(e.target.value)} />
             </div>
-            <div className="md:col-span-2">
-              <Label>Vencimento *</Label>
+            <div className="md:col-span-2 lg:col-span-2">
+              <Label className="text-xs">Vencimento *</Label>
               <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
             </div>
-            <div className="md:col-span-3">
-              <Label>Competência</Label>
+            <div className="md:col-span-2 lg:col-span-2">
+              <Label className="text-xs">Competência</Label>
               <Input type="date" value={competencia} onChange={(e) => setCompetencia(e.target.value)} />
             </div>
-            <div className="md:col-span-3">
-              <Label>Conta contábil (default)</Label>
+            <div className="md:col-span-3 lg:col-span-6">
+              <Label className="text-xs">Conta contábil (default)</Label>
               <Select value={contaContabilId} onValueChange={setContaContabilId}>
-                <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Opcional — usada quando a linha de rateio não tiver conta" /></SelectTrigger>
                 <SelectContent>
                   {contas.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-6">
-              <Label>Observações</Label>
+            <div className="md:col-span-6 lg:col-span-6">
+              <Label className="text-xs">Observações</Label>
               <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} />
             </div>
           </div>
         </section>
 
         {/* Bloco 2: Rateio */}
-        <section className="rounded-xl border bg-card p-4 space-y-3">
+        <section className="rounded-xl border bg-card p-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold">
-              <FileSpreadsheet className="h-4 w-4 text-primary" /> Rateio por centro de custo
+              <FileSpreadsheet className="h-4 w-4 text-primary" /> Rateio por centro de custo <span className="text-xs text-muted-foreground font-normal">(obrigatório — mesmo que seja 1 só)</span>
             </div>
             <div className="flex gap-2">
               <Button type="button" size="sm" variant="outline" onClick={distribuirIgual} disabled={rateios.length === 0}>
@@ -514,7 +530,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
 
           {rateios.length === 0 ? (
             <div className="rounded-lg border border-dashed py-6 text-center text-sm text-muted-foreground">
-              Sem rateio — o lançamento usará a conta/CC default. Útil para rescisões com múltiplas obras.
+              Adicione pelo menos 1 centro de custo clicando em <strong>+ Linha</strong>.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -553,7 +569,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                             <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
                             <SelectContent>
                               {contas.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>
+                                <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -621,7 +637,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
         </section>
 
         {/* Bloco 3: Anexos */}
-        <section className="rounded-xl border bg-card p-4 space-y-3">
+        <section className="rounded-xl border bg-card p-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Paperclip className="h-4 w-4 text-primary" /> Anexos (NF, rescisão, boletos)
@@ -690,7 +706,7 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("pre_titulo_pagar")
-        .select("*, fornecedor(razao_social), conta_contabil(codigo, nome)")
+        .select("*, fornecedor(razao_social), conta_contabil(classificacao, descricao)")
         .eq("id", id)
         .maybeSingle();
       return data;
@@ -701,7 +717,7 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("pre_titulo_rateio")
-        .select("*, centros_custo(codigo, nome), conta_contabil(codigo, nome)")
+        .select("*, centros_custo(codigo, nome), conta_contabil(classificacao, descricao)")
         .eq("pre_titulo_id", id);
       return data ?? [];
     },
@@ -741,7 +757,7 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
             <Info label="Emissão" value={fmtDate(pretit.data_emissao)} />
             <Info label="Status" value={pretit.status} />
             <Info label="Fornecedor" value={pretit.fornecedor?.razao_social ?? "—"} />
-            <Info label="Conta" value={pretit.conta_contabil ? `${pretit.conta_contabil.codigo}` : "—"} />
+            <Info label="Conta" value={pretit.conta_contabil ? `${pretit.conta_contabil.classificacao} — ${pretit.conta_contabil.descricao}` : "—"} />
           </div>
         )}
 
@@ -768,7 +784,7 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
                 {rateios.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>{r.centros_custo?.codigo}</TableCell>
-                    <TableCell>{r.conta_contabil?.codigo ?? "—"}</TableCell>
+                    <TableCell>{r.conta_contabil ? `${r.conta_contabil.classificacao} — ${r.conta_contabil.descricao}` : "—"}</TableCell>
                     <TableCell>{r.descricao ?? "—"}</TableCell>
                     <TableCell className="text-right">{r.percentual ? `${r.percentual}%` : "—"}</TableCell>
                     <TableCell className="text-right font-medium">{fmtMoney(r.valor)}</TableCell>

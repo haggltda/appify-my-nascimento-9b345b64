@@ -50,14 +50,16 @@ O modal tem **3 blocos**: Documento, Rateio, Anexos. Preencha de cima para baixo
 | **Conta contábil (default)** | Opcional | Conta que será usada quando o rateio não especificar uma. | Acelera lançamentos repetitivos. |
 | **Observações** | Opcional | Notas livres para o financeiro. | Aparece no detalhe do título. |
 
-### Bloco 2 — Rateio por centro de custo
+### Bloco 2 — Rateio por centro de custo (obrigatório)
 
-Define **para quem vai a despesa**. Pode ser 1 linha (rateio simples) ou N linhas (rateio múltiplo).
+> **Importante:** o **centro de custo é escolhido SEMPRE aqui**, mesmo que seja um único CC. O campo "Conta contábil (default)" do bloco 1 é apenas a conta padrão; o **destino do gasto** (para qual obra/setor) é definido nas linhas de rateio. Para facilitar, o sistema já abre o modal com **1 linha de rateio em 100%** — basta escolher o CC.
 
-1. Clique em **+ Linha** (canto superior direito do bloco) para adicionar.
+Pode ser 1 linha (rateio simples) ou N linhas (rateio múltiplo).
+
+1. Use a linha já criada ou clique em **+ Linha** para adicionar mais.
 2. Em cada linha preencha:
    - **Centro de custo**: obrigatório.
-   - **Conta / verba**: opcional — se vazio usa a conta default do bloco 1.
+   - **Conta / verba**: opcional — se vazio usa a **Conta contábil (default)** do bloco 1.
    - **Descrição**: complementa (ex.: "Obra Centro – Bloco A").
    - **Modo**: escolha **%** (percentual sobre o valor total) ou **R$** (valor absoluto).
    - **% ou Valor**: digite conforme o modo.
