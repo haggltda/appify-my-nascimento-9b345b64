@@ -71,6 +71,7 @@ import ConciliacaoFluxoCaixa from "./pages/financeiro/ConciliacaoFluxoCaixa";
 import OBZVersoes from "./pages/controladoria/OBZVersoes";
 import DREGerencial from "./pages/controladoria/DREGerencial";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
+import ContasBancariasEmpresa from "./pages/financeiro/ContasBancariasEmpresa";
 import IntegracaoBancaria from "./pages/financeiro/IntegracaoBancaria";
 import IntegracaoBancariaBuilder from "./pages/financeiro/IntegracaoBancariaBuilder";
 import ProgramacaoPagamentos from "./pages/financeiro/ProgramacaoPagamentos";
@@ -183,6 +184,7 @@ const App = () => (
             <Route path="financeiro/fluxo-caixa-diario" element={<FluxoCaixaDiario />} />
             <Route path="financeiro/capital-giro" element={<CapitalGiro />} />
             <Route path="financeiro/conciliacao-fluxo-caixa" element={<ConciliacaoFluxoCaixa />} />
+            <Route path="financeiro/contas-bancarias" element={<ContasBancariasEmpresa />} />
             <Route path="financeiro/movimentos" element={<MovimentosBancarios />} />
             <Route path="financeiro/integracao-bancaria" element={<IntegracaoBancaria />} />
             <Route path="financeiro/integracao-bancaria/builder/:contaId" element={<IntegracaoBancariaBuilder />} />
