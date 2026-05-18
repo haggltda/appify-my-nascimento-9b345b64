@@ -26,7 +26,7 @@ export function PerfisTab() {
     queryFn: async () => {
       const { data, error } = await supabase.from("perfil_metadata").select("*").order("role");
       if (error) throw error;
-      return (data ?? []) as Meta[];
+      return ((data ?? []) as Meta[]).filter((m) => m.role !== "visitante");
     },
   });
   const usersByRoleQ = useQuery({

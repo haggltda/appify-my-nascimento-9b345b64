@@ -26,7 +26,7 @@ export function PermissoesTab() {
     queryFn: async () => {
       const { data, error } = await supabase.from("perfil_metadata").select("role").order("role");
       if (error) throw error;
-      return (data ?? []).map((r: any) => r.role as Role);
+      return (data ?? []).map((r: any) => r.role as Role).filter((r) => r !== "visitante");
     },
   });
 
