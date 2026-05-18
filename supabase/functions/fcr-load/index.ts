@@ -170,6 +170,12 @@ async function handleUpload(req: Request, ctx: AuthCtx): Promise<Response> {
   const escopo = String(form.get("escopo") ?? "");
   const empresaRaw = form.get("empresa_id");
   const empresa_id = empresaRaw ? String(empresaRaw) : null;
+  const periodoInicio = form.get("periodo_inicio")
+    ? String(form.get("periodo_inicio"))
+    : null;
+  const periodoFim = form.get("periodo_fim")
+    ? String(form.get("periodo_fim"))
+    : null;
 
   if (!(file instanceof File)) return json(400, { error: "file faltando" });
   if (escopo !== "empresa" && escopo !== "consolidado") {
@@ -246,6 +252,9 @@ async function handleUpload(req: Request, ctx: AuthCtx): Promise<Response> {
       file_sha256,
       size: file.size,
       mime: file.type || null,
+      ...(periodoInicio && periodoFim
+        ? { periodo: { inicio: periodoInicio, fim: periodoFim } }
+        : {}),
     },
   });
   if (insErr) {
@@ -253,6 +262,92 @@ async function handleUpload(req: Request, ctx: AuthCtx): Promise<Response> {
     return json(500, { error: "fcr_batch_insert_falhou", detail: insErr.message });
   }
 
+  return json(200, { batch_id, status: "criado", file_sha256 });
+}
+
+async function handleUploadJson(req: Request, ctx: AuthCtx): Promise<Response> {
+  const body = await req.json().catch(() => null) as any;
+  if (!body) return json(400, { error: "json esperado" });
+  const escopo = String(body.escopo ?? "");
+  const empresa_id = body.empresa_id ? String(body.empresa_id) : null;
+  const filename = String(body.filename ?? "upload.xlsx");
+  const fileB64 = String(body.file_base64 ?? "");
+  const periodoInicio = body.periodo_inicio ? String(body.periodo_inicio) : null;
+  const periodoFim = body.periodo_fim ? String(body.periodo_fim) : null;
+
+  if (!fileB64) return json(400, { error: "file_base64 obrigatório" });
+  if (escopo !== "empresa" && escopo !== "consolidado") {
+    return json(400, { error: "escopo deve ser empresa|consolidado" });
+  }
+  if (escopo === "empresa" && !empresa_id) {
+    return json(400, { error: "empresa_id obrigatório" });
+  }
+  if (!canUpload(ctx.roles, escopo)) {
+    return json(403, { error: "role sem permissão" });
+  }
+  if (escopo === "empresa" && !ctx.roles.has("admin") && ctx.empresaId !== empresa_id) {
+    return json(403, { error: "empresa fora do escopo" });
+  }
+
+  const bin = Uint8Array.from(atob(fileB64), (c) => c.charCodeAt(0));
+  if (bin.length > MAX_BYTES) return json(413, { error: "arquivo > 25MB" });
+  if (!filename.toLowerCase().endsWith(".xlsx")) {
+    return json(400, { error: "apenas .xlsx" });
+  }
+  if (!isXlsxMagic(bin)) return json(400, { error: "não é xlsx válido" });
+
+  const file_sha256 = await sha256(bin);
+  const admin = adminClient();
+
+  const { data: dup } = await admin
+    .from("fcr_batch")
+    .select("id, status, escopo_carga, empresa_id")
+    .eq("totais_excel->>file_sha256", file_sha256)
+    .not("status", "in", "(revertido,erro)")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (dup && dup.escopo_carga === escopo && (dup.empresa_id ?? null) === empresa_id) {
+    return json(409, {
+      error: "arquivo_identico_ja_carregado",
+      existing_batch_id: dup.id,
+      existing_status: dup.status,
+    });
+  }
+
+  const batch_id = crypto.randomUUID();
+  const folder = escopo === "empresa" ? empresa_id! : "consolidado";
+  const storage_path = `${folder}/${batch_id}/${filename}`;
+
+  const up = await admin.storage.from("fcr-uploads").upload(storage_path, bin, {
+    upsert: false,
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  if (up.error) {
+    return json(500, { error: "storage_upload_falhou", detail: up.error.message });
+  }
+
+  const { error: insErr } = await admin.from("fcr_batch").insert({
+    id: batch_id,
+    empresa_id,
+    escopo_carga: escopo,
+    arquivo_origem: filename,
+    storage_path,
+    modo: "dry_run",
+    status: "criado",
+    criado_por: ctx.userId,
+    totais_excel: {
+      file_sha256,
+      size: bin.length,
+      ...(periodoInicio && periodoFim
+        ? { periodo: { inicio: periodoInicio, fim: periodoFim } }
+        : {}),
+    },
+  });
+  if (insErr) {
+    await admin.storage.from("fcr-uploads").remove([storage_path]);
+    return json(500, { error: "fcr_batch_insert_falhou", detail: insErr.message });
+  }
   return json(200, { batch_id, status: "criado", file_sha256 });
 }
 
@@ -1320,6 +1415,10 @@ Deno.serve(async (req) => {
     const path = url.pathname.replace(/^.*\/fcr-load/, "") || "/";
 
     if (path === "/upload" && req.method === "POST") {
+      const ct = req.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        return await handleUploadJson(req, ctx);
+      }
       return await handleUpload(req, ctx);
     }
     if (path === "/parse" && req.method === "POST") {
