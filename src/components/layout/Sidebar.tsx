@@ -331,6 +331,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const location = useLocation();
   const { roles } = usePermissoes();
   const { perms, isAdmin } = usePlanoAcaoPermissao();
+  const { temAlcada, pendentes } = useTemAlcada();
   const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
   const podeCopiloto = roles.includes("admin") || roles.includes("presidencia");
   const visibleModules = [
