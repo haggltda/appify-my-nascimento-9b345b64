@@ -47,7 +47,7 @@ export default function PreTitulosTab() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("pre_titulo_pagar")
-        .select("*, fornecedor(razao_social), conta_contabil(codigo, nome), centros_custo(codigo, nome)")
+        .select("*, fornecedor(razao_social), conta_contabil(classificacao, descricao), centros_custo(codigo, nome)")
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;

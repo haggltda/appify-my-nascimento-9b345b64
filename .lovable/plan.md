@@ -1,52 +1,108 @@
-## Diagnóstico
+# PR-FIN-UX-2 — Correção de conta contábil + ampliação horizontal do modal Novo Pré-título
 
-O enum `app_role` já contém `'usuario'` (migração anterior). Porém as telas de Administração (Perfis, Permissões por perfil, Alçadas, contadores) **não listam** o novo perfil porque todas leem da tabela `public.perfil_metadata` — e essa tabela **não tem** registro para `'usuario'`.
+Escopo pequeno, frontend-only. **Nenhuma** alteração em banco, RLS ou Edge Functions.
 
-Estado atual no banco:
-- `perfil_metadata`: 16 perfis cadastrados, incluindo `visitante` (cinza, "Acesso somente leitura"). **Sem linha para `usuario`.**
-- `role_permissions`: `usuario` tem apenas 1 permissão; `visitante` também tem 1 (a cópia anterior copiou pouca coisa porque visitante já tinha pouco).
-- `user_roles`: 2 usuários em `usuario`, 2 ainda em `visitante`.
+---
 
-Impacto hoje:
-1. Aba **Perfis de acesso** → não mostra card de "Usuário".
-2. Aba **Permissões por perfil** → seletor não oferece `usuario`, impossibilitando configurar acessos.
-3. Aba **Alçadas** → idem (deriva de `perfil_metadata`).
-4. Aba **Usuários** → o select de role já oferece "usuario" (corrigido), mas o badge de contagem por perfil em outras telas ignora `usuario`.
-5. `visitante` continua visível e selecionável, gerando confusão (dois perfis equivalentes).
+## 1. Diagnóstico
 
-## Objetivo
+### 1.1 Por que a conta contábil não aparece (bug real)
+A query do modal pede colunas que **não existem** na tabela `conta_contabil`:
 
-Tornar `usuario` um perfil de primeira classe (visível, editável, configurável em permissões e alçadas) e aposentar `visitante` da UI sem quebrar quem ainda está nele.
+```ts
+.from("conta_contabil")
+.select("id, codigo, nome, tipo")   // ❌ não existe codigo nem nome
+.eq("tipo", "analitica")
+.order("codigo");                    // ❌ falha
+```
 
-## Mudanças
+Schema real da tabela:
+- `classificacao` (ex.: `3.1.01.001`) — equivalente ao "código"
+- `descricao` — equivalente ao "nome"
+- `natureza`, `grupo_dre`, `ativo`, `empresa_id`
 
-### 1. Banco (migração — dados, via INSERT/UPDATE em `perfil_metadata`)
-- **Inserir** linha em `perfil_metadata` para `role = 'usuario'`:
-  - descrição: "Usuário padrão do sistema (acesso liberado por permissão)"
-  - cor: `#3b6fa0` (azul neutro) — ajustável depois pelo admin
-  - ícone: `User`
-- **Copiar permissões base** de `visitante` → `usuario` em `role_permissions` (idempotente, `ON CONFLICT DO NOTHING`) — garante que `usuario` parta de uma base mínima de visualização.
-- **Migrar usuários** restantes de `visitante` → `usuario` em `user_roles` (idempotente).
-- **Marcar `visitante` como depreciado** em `perfil_metadata`: alterar descrição para "(Depreciado — use 'Usuário')" e cor cinza claro. Não remover do enum (mudança destrutiva).
+Resultado: a query devolve erro/array vazio e o `<Select>` fica sem itens. Por isso "não aparecem contas para amarrar".
 
-### 2. Frontend — esconder `visitante` da UI
-Filtrar `visitante` nas listagens das abas que iteram `perfil_metadata`:
-- `src/pages/admin/tabs/PerfisTab.tsx` — não renderiza card de visitante.
-- `src/pages/admin/tabs/PermissoesTab.tsx` — remove do seletor.
-- `src/pages/admin/tabs/AlcadasTab.tsx` — remove do seletor (se aplicável).
+O mesmo problema afeta:
+- O select **Conta contábil (default)** no bloco 1.
+- O select **Conta / verba** em cada linha de rateio.
+- A listagem principal de pré-títulos (`select("...conta_contabil(codigo, nome)...")`).
 
-`visitante` continua existindo no enum e no banco (compatibilidade), mas some das telas. Quem ainda estiver com o role antigo já terá sido migrado pelo passo 1.
+### 1.2 Resposta à dúvida funcional
+> "O centro de custo se escolhe na parte do rateio? Mesmo sendo um único CC?"
 
-### 3. Sem mudanças
-- `PermissoesContext.tsx`, `Login.tsx`, `UsuariosReal.tsx` já tratam `usuario` (entregue antes).
-- Edge functions e RLS não precisam mudar (usam o enum, que já tem `usuario`).
+**Sim, sempre na seção Rateio**, mesmo quando é só um CC. O bloco 1 só guarda a **conta contábil default** (regra contábil), e o bloco 2 (Rateio) é onde se decide **para qual centro de custo** vai a despesa. Se houver só 1 CC, basta 1 linha de rateio com 100%.
 
-## Ordem de execução
-1. Migração SQL (precisa de sua aprovação).
-2. Edits de frontend para esconder `visitante`.
-3. Verificar nas 3 abas que `Usuário` aparece e é configurável.
+Para não confundir o usuário, vamos:
+- Renomear o cabeçalho do bloco 2 para **"Rateio por centro de custo (obrigatório)"**.
+- Quando o usuário abrir o modal, **criar automaticamente 1 linha de rateio vazia em 100%** (caso comum). Ele só preenche o CC.
+- Trocar o texto do estado vazio: deixar claro "Adicione pelo menos 1 centro de custo".
+- Atualizar o artigo de ajuda `novo-pre-titulo.md` reforçando esse fluxo.
 
-## Riscos
-- Baixo. A migração é idempotente; o enum permanece intacto; `visitante` continua funcional caso algum código externo referencie.
+### 1.3 Layout muito vertical / estreito
+O modal já está em `max-w-6xl w-[95vw]`, mas no print o conteúdo está renderizando em ~1 coluna porque o grid usa breakpoint `md:` (768px) e o painel do chat/devtools rouba largura. Vamos:
+- Subir para `max-w-[1400px] w-[97vw]`.
+- Reorganizar o bloco "Dados do documento" usando grid `lg:grid-cols-12` com colunas mais compactas (Empresa 4 / Fornecedor 4 / Nº doc 2 / Valor 2 — Descrição 8 / Emissão 2 / Vencimento 2 — etc).
+- Diminuir paddings internos das `<section>` de `p-4` para `p-3`.
+- Usar `Label` em fonte menor (`text-xs`) para ganhar altura útil.
+- Tabela de rateio: usar `overflow-x-auto` (já tem) + colunas com `min-w` para evitar quebra feia.
 
-Aprova para eu executar?
+---
+
+## 2. Mudanças (apenas 2 arquivos)
+
+### 2.1 `src/pages/financeiro/pagar/PreTitulosTab.tsx`
+**Correção de dados:**
+- Trocar a query `contas` para:
+  ```ts
+  .from("conta_contabil")
+  .select("id, classificacao, descricao, natureza, grupo_dre, empresa_id")
+  .eq("tipo", "analitica")
+  .eq("ativo", true)
+  .order("classificacao")
+  ```
+- Filtrar opcionalmente por `empresa_id === empresaId` no client (assim só mostra contas da empresa selecionada; se vazio, mostra todas).
+- Filtrar para **contas de resultado** (despesa) por default, usando `grupo_dre` (mostrar primeiro os grupos de despesa/custo, depois "ver todas"). Versão mínima: só ordenar pelas de despesa primeiro.
+- Renderizar `{c.classificacao} — {c.descricao}` nos `<SelectItem>` (3 ocorrências: default, rateio, e DetalheDialog/listagem).
+- Ajustar `.select(..., conta_contabil(codigo, nome) ...)` → `conta_contabil(classificacao, descricao)` em **2 lugares** (lista principal + DetalheDialog) e usar esses campos no render.
+
+**UX / rateio:**
+- Inicializar `rateios` com 1 linha vazia (em vez de `[]`).
+- Texto do bloco 2 atualizado.
+- Bloqueio: se `rateios.length === 0 || qualquer linha sem CC` → desabilitar Salvar com tooltip.
+
+**Layout horizontal:**
+- `DialogContent`: `max-w-[1400px] w-[97vw] max-h-[92vh]`.
+- Bloco 1: grid `lg:grid-cols-12` com a distribuição descrita acima.
+- Labels `text-xs font-medium`.
+- Reduzir `space-y-4` → `space-y-3` e `p-4` → `p-3` nas seções.
+
+### 2.2 `src/content/ajuda/financeiro/novo-pre-titulo.md`
+- Adicionar nota no bloco 2: "Mesmo que haja apenas 1 centro de custo, ele **deve** ser informado aqui — o sistema já cria 1 linha vazia para você."
+- Esclarecer diferença entre "Conta contábil default" (bloco 1) e "Conta/verba" da linha de rateio.
+
+---
+
+## 3. Fora de escopo (não fazer agora)
+- Multi-seleção / busca tipo combobox nas contas (volume é grande, mas resolver depois se necessário).
+- Filtro por empresa server-side (RLS já cuida).
+- Migração de banco.
+- Alterar fluxo de aprovação / promoção.
+
+---
+
+## 4. Risco e validação
+- **Risco baixo** — só ajusta nomes de coluna e layout.
+- Pós-implementação: abrir modal, conferir que a lista de contas aparece com `3.x.xx.xxx — Descrição`, criar 1 pré-título de teste com 1 linha de rateio, conferir listagem.
+
+---
+
+## 5. Créditos estimados
+| Etapa | Créditos |
+|---|---|
+| Correção das 3 queries + render | ~baixo |
+| Reorganização do grid (1 bloco) | ~baixo |
+| Atualizar artigo de ajuda | ~baixo |
+| **Total estimado** | **1 PR pequeno (~1 chamada de implementação)** |
+
+Sem varredura ampla, sem abrir outros módulos, sem mexer em banco. Aguardando aprovação para executar.
