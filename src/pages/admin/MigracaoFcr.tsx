@@ -347,6 +347,27 @@ export default function MigracaoFcr() {
                       >
                         {b.status}
                       </Badge>
+                      {b.status === "parseando" && (
+                        <div className="mt-1 space-y-1">
+                          {b.chunks_total ? (
+                            <Progress
+                              value={Math.round(((b.chunk_atual ?? 0) / b.chunks_total) * 100)}
+                              className="h-1.5 w-32"
+                            />
+                          ) : null}
+                          <div className="text-[10px] text-muted-foreground font-mono">
+                            chunk {b.chunk_atual ?? 0}/{b.chunks_total ?? "?"} • {b.linhas_inseridas ?? 0} linhas
+                          </div>
+                        </div>
+                      )}
+                      {b.ultimo_erro && b.status === "erro" && (
+                        <div
+                          className="text-xs text-destructive mt-1 max-w-xs truncate"
+                          title={b.ultimo_erro}
+                        >
+                          {b.ultimo_erro}
+                        </div>
+                      )}
                       {b.observacao && (
                         <div
                           className="text-xs text-destructive mt-1 max-w-xs truncate"
