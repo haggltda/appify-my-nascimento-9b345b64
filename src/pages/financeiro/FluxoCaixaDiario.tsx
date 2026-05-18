@@ -159,6 +159,9 @@ export default function FluxoCaixaDiario() {
       SAIDAS_NAO_OP: new Map(),
     };
     (dadosQ.data ?? []).forEach((r) => {
+      // Em modo "separado" ou "ocultar", mútuos/intercompany/transferências
+      // não compõem o grid principal. A base oficial permanece intacta.
+      if (modoMutuo !== "tudo_junto" && isMutuo(r.categoria)) return;
       const b = reclassify(r.bloco, r.categoria);
       const m = blocos[b];
       if (!m) return;
@@ -166,6 +169,23 @@ export default function FluxoCaixaDiario() {
       m.get(r.categoria)![r.dia] = (m.get(r.categoria)![r.dia] ?? 0) + Number(r.valor);
     });
     return blocos;
+  }, [dadosQ.data, modoMutuo]);
+
+  // Agregado próprio de mútuos/intercompany/transferências.
+  // Sempre calculado a partir da base ORIGINAL retornada pela RPC (não do grid filtrado).
+  const gridMutuo = useMemo(() => {
+    const porCategoria = new Map<string, Record<string, number>>();
+    let entradas = 0;
+    let saidas = 0;
+    (dadosQ.data ?? []).forEach((r) => {
+      if (!isMutuo(r.categoria)) return;
+      const v = Number(r.valor) || 0;
+      if (!porCategoria.has(r.categoria)) porCategoria.set(r.categoria, {});
+      porCategoria.get(r.categoria)![r.dia] = (porCategoria.get(r.categoria)![r.dia] ?? 0) + v;
+      if (v >= 0) entradas += v;
+      else saidas += v;
+    });
+    return { porCategoria, entradas, saidas, liquido: entradas + saidas };
   }, [dadosQ.data]);
 
   const totaisBloco = (b: BlocoKey) => {
