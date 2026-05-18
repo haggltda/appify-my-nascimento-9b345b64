@@ -1,71 +1,64 @@
-## Diagnóstico
+## Contexto importante (decisão necessária)
 
-Cenário: Notas de despesas das áreas (honorários, FGTS, rescisões), fora do fluxo de requisição/PC. O modal **Novo lançamento de NF / pré-título** já está aberto.
+A tabela `conta_bancaria` que mencionei na resposta anterior é, na verdade, **das contas da empresa** (com `empresa_id NOT NULL`, integração CNAB, convênio, certificado, webhook, etc.). Ela não foi projetada para guardar contas de **terceiros (fornecedores)** — colocar contas de fornecedor ali misturaria conceitos e quebraria a integração bancária (toda conta passaria a exigir CNAB layout, ambiente, status, etc.).
 
-### Problemas identificados em `src/pages/financeiro/pagar/PreTitulosTab.tsx`
+Por isso, recomendo criar uma **nova tabela dedicada** `fornecedor_conta_bancaria`, vinculada ao fornecedor. É o padrão usado em ERPs (TOTVS, Sankhya, SAP) e mantém `conta_bancaria` limpa para as contas próprias.
 
-1. **Centro de custo não filtra por empresa**
-   - Query (linha 320): `from("centros_custo").select("id, codigo, nome").order("codigo")` — traz **todos os CC de todas as empresas**.
-   - Banco confirma duplicidade: `ADM.001 — ADMINISTRATIVO GERAL` existe em 6 empresas (mesmo `codigo`, `empresa_id` diferente). Daí a tela mostrar a lista repetida (print 1).
-   - Resultado: usuário não consegue distinguir qual CC pertence à empresa selecionada.
+> Se ainda assim você preferir usar a tabela `conta_bancaria` para guardar contas de fornecedor, me avise antes de eu executar — terei que tornar vários campos opcionais e adicionar `fornecedor_id`, o que enfraquece as regras atuais de integração bancária.
 
-2. **Conta contábil não filtra "contas de resultado"**
-   - Query (linha 293-297) traz **todas** as `analitica`, incluindo Ativo/Passivo/Caixa/Bancos (print 2 mostra "01 — ATIVO", "CAIXA", "BANCOS"…).
-   - O correto para despesa é **conta de resultado** = `grupo_dre = 'dre'` (banco confirma: 1.014 analíticas, 2 grupos: `dre` e `balanco/balanco_gerencial`).
-   - Hoje só filtra por `empresa_id` (e ainda aceita contas sem empresa).
+---
 
-3. **Sem auto-preenchimento por CC**
-   - Usuário precisa escolher CC **e** conta contábil manualmente em cada linha de rateio.
-   - O banco já tem o vínculo: `conta_contabil.centro_custo_padrao` (texto com código do CC) — preenchido em 432 das 1.014 analíticas.
-   - Não há nenhuma lógica que, ao escolher CC no rateio, sugira a conta de resultado vinculada.
+## Plano (assumindo nova tabela dedicada)
 
-4. **Conta contábil default (bloco 1) está deslocada do propósito**
-   - O label diz "usada quando a linha de rateio não tiver conta". Para despesas de área, a conta deveria vir do CC, não default da empresa. Mantém-se opcional, mas com filtro correto.
+### 1. Banco de dados — migration
+Criar `public.fornecedor_conta_bancaria`:
+- `fornecedor_id` (FK → fornecedor, ON DELETE CASCADE)
+- `empresa_id`
+- `banco_codigo`, `banco_nome`
+- `agencia`, `agencia_digito`
+- `conta`, `conta_digito`
+- `tipo` (corrente / poupança / pagamento)
+- `titular_nome`, `titular_documento` (CNPJ/CPF — pode diferir do fornecedor)
+- `pix_tipo` (cpf/cnpj/email/telefone/aleatoria), `pix_chave`
+- `principal` (boolean — uma marcada como principal por fornecedor via trigger)
+- `ativa` (boolean default true)
+- `observacoes`, `created_at`, `updated_at`
 
-## Solução proposta (apenas frontend, sem backend/migrations)
+RLS: habilitar e replicar as policies da tabela `fornecedor` (mesma regra de empresa).
+Trigger `update_updated_at_column`.
+Índice em `(fornecedor_id, ativa)`.
 
-### A) Filtrar CC por empresa selecionada
-- Mudar query para receber `empresaId` e filtrar:
-  ```ts
-  .from("centros_custo").select("id, codigo, nome, empresa_id")
-  .eq("empresa_id", empresaId).eq("ativo", true).order("codigo")
-  ```
-- `enabled: !!empresaId`. Limpar rateios/CC ao trocar empresa.
+### 2. Frontend — tela de Fornecedor
+A tela atual (`src/pages/suprimentos/Fornecedores.tsx`) usa o componente genérico `EntityCrudPage`, que **não suporta sub-coleções**. Substituir por um CRUD próprio com Dialog de edição em abas:
 
-### B) Filtrar conta contábil para "contas de resultado" da empresa
-- Mudar query:
-  ```ts
-  .from("conta_contabil")
-  .select("id, classificacao, descricao, natureza, grupo_dre, centro_custo_padrao, empresa_id, ativo, tipo")
-  .eq("tipo", "analitica").eq("ativo", true).eq("grupo_dre", "dre")
-  .eq("empresa_id", empresaId)
-  .order("classificacao")
-  ```
-- `enabled: !!empresaId`. Aplicar tanto no bloco 1 (default) quanto no select da linha de rateio.
+- **Aba "Dados Gerais"** — campos atuais (tipo, CNPJ/CPF, razão social, contato, etc.)
+- **Aba "Contas Bancárias"** *(nova)* — lista das contas do fornecedor com:
+  - Botão **+ Nova conta** → abre sub-dialog com formulário (validação Zod)
+  - Ações por linha: **Editar**, **Definir como principal**, **Inativar/Excluir**
+  - Tabela com banco, agência, conta, tipo, PIX, principal, status
 
-### C) Auto-sugerir conta contábil pelo CC escolhido no rateio
-- Construir mapa `ccCodigoToConta` a partir de `conta_contabil` (where `centro_custo_padrao` = `cc.codigo`).
-- Em `updateRateio`, ao mudar `centro_custo_id`, se `conta_contabil_id` ainda estiver vazio:
-  - Buscar CC selecionado → pegar `codigo` → procurar conta com `centro_custo_padrao === cc.codigo` → preencher.
-- Comportamento não destrutivo: nunca sobrescreve uma conta já escolhida pelo usuário.
+A aba só fica habilitada após o fornecedor ser salvo pela primeira vez (precisa de `fornecedor_id`).
 
-### D) Pequenos ajustes de UX
-- Selects de CC e conta ficam desabilitados (placeholder "Selecione a empresa primeiro") enquanto `empresaId` vazio.
-- Ao trocar de empresa, resetar `contaContabilId` default e `rateios[].centro_custo_id` / `conta_contabil_id`.
-- Atualizar texto da ajuda em `src/content/ajuda/financeiro/novo-pre-titulo.md` explicando o vínculo automático CC → conta de resultado.
+### 3. Onde as contas serão consumidas
+Manter o que já existe. Os locais que hoje leem `conta_bancaria` (Programação de Pagamentos, Builder CNAB) **continuam usando `conta_bancaria` para a conta pagadora da empresa** — sem mudança. A nova `fornecedor_conta_bancaria` será usada futuramente para definir a conta de destino do pagamento (fora deste escopo, só preparando a base).
 
-## Arquivos a alterar
-- `src/pages/financeiro/pagar/PreTitulosTab.tsx` — 3 queries, `useMemo` de filtros, handler `updateRateio`, reset ao trocar empresa, estados disabled dos selects.
-- `src/content/ajuda/financeiro/novo-pre-titulo.md` — nota sobre auto-sugestão.
+### 4. Validações (Zod + server)
+- Agência/conta: somente dígitos
+- PIX: validar formato conforme `pix_tipo`
+- Apenas uma conta `principal=true` por fornecedor (trigger ao inserir/atualizar)
+- Limites de tamanho em todos os textos
 
-## Fora de escopo
-- Migration/coluna nova (usa `centro_custo_padrao` que já existe).
-- Mudança em RPCs (`pre_titulo_*`).
-- Cadastro de regra CC→conta via UI (continua editável no Plano de Contas).
+### Arquivos a alterar/criar
+- `supabase/migrations/<timestamp>_fornecedor_conta_bancaria.sql` *(novo)*
+- `src/pages/suprimentos/Fornecedores.tsx` *(reescrever — sai do EntityCrudPage)*
+- `src/pages/suprimentos/fornecedores/FornecedorDialog.tsx` *(novo — abas Dados/Contas)*
+- `src/pages/suprimentos/fornecedores/ContasBancariasTab.tsx` *(novo)*
+- `src/pages/suprimentos/fornecedores/ContaBancariaDialog.tsx` *(novo)*
 
-## Riscos
-- CCs sem `centro_custo_padrao` mapeado: auto-sugestão silenciosamente não preenche — usuário escolhe manual (sem erro).
-- Empresas sem contas DRE cadastradas: lista vazia com mensagem "Nenhuma conta de resultado para esta empresa".
+### Fora do escopo
+- Vincular a conta do fornecedor a títulos a pagar / programações (próxima entrega)
+- Importação em massa de contas
 
-## Créditos estimados
-1 PR pequeno (~80 linhas alteradas em 1 arquivo + 1 .md). Risco baixo, só presentation/data-fetching no cliente.
+---
+
+**Confirma?** Posso seguir com a tabela dedicada (recomendado), ou prefere forçar tudo dentro de `conta_bancaria`?
