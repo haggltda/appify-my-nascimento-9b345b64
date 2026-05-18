@@ -91,6 +91,10 @@ function parseBR(value: unknown): number | null {
   return neg ? -Math.abs(n) : n;
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 function clientWithAuth(authHeader: string): SupabaseClient {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
