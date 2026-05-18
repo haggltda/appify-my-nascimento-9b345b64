@@ -208,6 +208,7 @@ const financeiroModule: ModuleDef = {
   groups: [{
     label: "Operação Financeira", defaultOpen: true,
     items: [
+      { label: "Contas Bancárias", to: "/app/financeiro/contas-bancarias", icon: Wallet },
       { label: "Contas a Pagar", to: "/app/financeiro/contas-pagar", icon: TrendingUp },
       { label: "Programação de Pagamentos", to: "/app/financeiro/programacao-pagamentos", icon: Wallet },
       { label: "Validação Pós-Pagamento", to: "/app/financeiro/validacao-pos-pagamento", icon: Receipt },
