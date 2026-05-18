@@ -414,8 +414,8 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b sticky top-0 bg-background z-10">
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" /> Novo lançamento de NF / pré-título
           </DialogTitle>
@@ -423,6 +423,8 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
             Preencha os dados, ratee por centro de custo e anexe o documento fiscal.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
 
         {/* Bloco 1: Documento */}
         <section className="rounded-xl border bg-muted/30 p-4 space-y-3">
