@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Upload, Play, RefreshCw, PlayCircle, CheckCircle2, AlertTriangle, Clock, FolderUp } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import MigracaoFcr from "./MigracaoFcr";
 
 type Status = {
   id: string;
@@ -221,9 +223,17 @@ export default function MigracaoZero() {
     <div className="space-y-6">
       <PageHeader
         title="Migração DO ZERO"
-        subtitle="Carga linha-a-linha dos 32 arquivos CSV do pacote oficial. Não destrói nada existente — popula tabelas mz_*."
+        subtitle="Carga linha-a-linha dos arquivos do pacote oficial e do Excel de Fluxo de Caixa Realizado. Não destrói nada existente."
         module="Administração"
       />
+
+      <Tabs defaultValue="csv" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="csv">Pacote CSV (mz_*)</TabsTrigger>
+          <TabsTrigger value="fcr">Fluxo de Caixa Realizado (Excel)</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="csv" className="space-y-6">
 
       <Card>
         <CardHeader>
@@ -361,6 +371,12 @@ export default function MigracaoZero() {
           </table>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="fcr">
+          <MigracaoFcr />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
