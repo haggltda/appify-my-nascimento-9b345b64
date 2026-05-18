@@ -211,6 +211,13 @@ function EditarUsuarioDialog({
   const [selectedRoles, setSelectedRoles] = useState<Role[]>(currentRoles);
   const [saving, setSaving] = useState(false);
 
+  // Re-sincroniza com currentRoles quando o cache de roles atualiza após abrir o dialog.
+  // Evita arrancar com state desatualizado e apagar roles que foram concedidas por fora (ex.: SQL).
+  useEffect(() => {
+    setSelectedRoles(currentRoles);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRoles.join("|")]);
+
   const toggleRole = (r: Role) => {
     setSelectedRoles((prev) => prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]);
   };
@@ -228,13 +235,29 @@ function EditarUsuarioDialog({
         .eq("id", profile.id);
       if (pErr) throw pErr;
 
-      // 2) roles - apaga atuais e reinsere selecionadas
-      const { error: dErr } = await supabase.from("user_roles").delete().eq("user_id", profile.id);
-      if (dErr) throw dErr;
-      if (selectedRoles.length > 0) {
+      // 2) roles — diff em vez de delete-all/insert-all
+      // Garante que apenas as mudanças explícitas do admin sejam aplicadas.
+      // Save sem alterar checkbox = nenhuma escrita em user_roles (não regride).
+      if (selectedRoles.length === 0) {
+        toast({ title: "Selecione ao menos um perfil", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      const toAdd = selectedRoles.filter((r) => !currentRoles.includes(r));
+      const toRemove = currentRoles.filter((r) => !selectedRoles.includes(r));
+
+      if (toRemove.length > 0) {
+        const { error: dErr } = await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", profile.id)
+          .in("role", toRemove);
+        if (dErr) throw dErr;
+      }
+      if (toAdd.length > 0) {
         const { error: iErr } = await supabase
           .from("user_roles")
-          .insert(selectedRoles.map((r) => ({ user_id: profile.id, role: r })));
+          .insert(toAdd.map((r) => ({ user_id: profile.id, role: r })));
         if (iErr) throw iErr;
       }
 
