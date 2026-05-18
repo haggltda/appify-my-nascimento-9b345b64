@@ -8133,6 +8133,7 @@ export type Database = {
           direto_indireto_aplicado: string | null
           empresa: string | null
           evento: string | null
+          excluir_do_fluxo: boolean
           fixo_variavel_aplicado: string | null
           fluxo: string | null
           forma_pagamento: string | null
@@ -8145,6 +8146,7 @@ export type Database = {
           linha_csv: number
           linha_origem: string | null
           migration_batch_id: string
+          motivo_exclusao_fluxo: string | null
           mz_id: number
           pendencia: string | null
           periodo_caixa: string | null
@@ -8174,6 +8176,7 @@ export type Database = {
           direto_indireto_aplicado?: string | null
           empresa?: string | null
           evento?: string | null
+          excluir_do_fluxo?: boolean
           fixo_variavel_aplicado?: string | null
           fluxo?: string | null
           forma_pagamento?: string | null
@@ -8186,6 +8189,7 @@ export type Database = {
           linha_csv: number
           linha_origem?: string | null
           migration_batch_id: string
+          motivo_exclusao_fluxo?: string | null
           mz_id?: number
           pendencia?: string | null
           periodo_caixa?: string | null
@@ -8215,6 +8219,7 @@ export type Database = {
           direto_indireto_aplicado?: string | null
           empresa?: string | null
           evento?: string | null
+          excluir_do_fluxo?: boolean
           fixo_variavel_aplicado?: string | null
           fluxo?: string | null
           forma_pagamento?: string | null
@@ -8227,6 +8232,7 @@ export type Database = {
           linha_csv?: number
           linha_origem?: string | null
           migration_batch_id?: string
+          motivo_exclusao_fluxo?: string | null
           mz_id?: number
           pendencia?: string | null
           periodo_caixa?: string | null
