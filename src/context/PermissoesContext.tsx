@@ -13,6 +13,7 @@ export type Role =
   | "diretor_adm"
   | "diretor_op"
   | "presidencia"
+  | "usuario"
   | "visitante";
 
 export type Acao =
@@ -89,10 +90,10 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
       const { data: permsData } = await supabase
         .from("role_permissions")
         .select("modulo, acao, role, menu_codigo")
-        .in("role", userRoles.length ? userRoles : ["visitante"]);
+        .in("role", userRoles.length ? userRoles : ["usuario"]);
 
       if (!cancelled) {
-        setRoles(userRoles.length ? userRoles : ["visitante"]);
+        setRoles(userRoles.length ? userRoles : ["usuario"]);
         setEmpresaId(profile?.empresa_id ?? null);
         setPermissoes(
           (permsData ?? []).map((p: any) => ({ modulo: p.modulo, acao: p.acao as Acao, menu: p.menu_codigo ?? null })),
@@ -106,7 +107,7 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
   }, [user, isDemo, demoRole]);
 
   const value = useMemo<PermissoesCtx>(() => ({
-    role: roles[0] ?? "visitante",
+    role: roles[0] ?? "usuario",
     roles,
     empresaId,
     loading,
@@ -121,7 +122,7 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
       // Modo demo sem login: usa demoRole local
       if (!user && isDemo) {
         if (demoRole === "admin") return true;
-        if (demoRole === "visitante") return acao === "visualizar";
+        if (demoRole === "usuario" || demoRole === "visitante") return acao === "visualizar";
         return acao === "visualizar" || acao === "exportar";
       }
 
