@@ -16546,6 +16546,7 @@ export type Database = {
         | "financeiro"
         | "fiscal"
         | "presidencia"
+        | "usuario"
       aprov_decisao: "pendente" | "aprovado" | "rejeitado" | "devolvido"
       apuracao_status: "aberta" | "calculada" | "fechada" | "pago" | "atrasado"
       banco_layout_tipo:
@@ -17078,6 +17079,7 @@ export const Constants = {
         "financeiro",
         "fiscal",
         "presidencia",
+        "usuario",
       ],
       aprov_decisao: ["pendente", "aprovado", "rejeitado", "devolvido"],
       apuracao_status: ["aberta", "calculada", "fechada", "pago", "atrasado"],
