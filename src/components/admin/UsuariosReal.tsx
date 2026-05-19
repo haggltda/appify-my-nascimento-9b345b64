@@ -463,6 +463,7 @@ function NovoUsuarioDialog({
   const [empresaId, setEmpresaId] = useState<string>("_none");
   const [selectedRoles, setSelectedRoles] = useState<Role[]>([]);
   const [saving, setSaving] = useState(false);
+  const perfis = usePerfisDisponiveis();
 
   // Credenciais geradas após criação (mostrado em modal flutuante)
   const [credenciaisCriadas, setCredenciaisCriadas] = useState<{
