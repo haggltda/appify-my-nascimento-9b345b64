@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { DemoBanner } from "./DemoBanner";
 import { HelpFab } from "@/components/ajuda/HelpFab";
+import { RouteGuard } from "@/components/auth/RouteGuard";
 
 export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
@@ -49,7 +50,9 @@ export function AppShell() {
           onOpenMobile={() => setMobileOpen(true)}
         />
         <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8 animate-fade-in min-w-0">
-          <Outlet />
+          <RouteGuard>
+            <Outlet />
+          </RouteGuard>
         </main>
       </div>
       <HelpFab />
