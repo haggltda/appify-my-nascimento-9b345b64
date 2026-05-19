@@ -14,7 +14,13 @@ export type Role =
   | "diretor_op"
   | "presidencia"
   | "usuario"
-  | "visitante";
+  | "visitante"
+  | "comprador"
+  | "almoxarife"
+  | "gestor_cc"
+  | "fiscal_recebedor"
+  | "financeiro"
+  | "fiscal";
 
 export type Acao =
   | "visualizar"
