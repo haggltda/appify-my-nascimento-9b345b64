@@ -73,6 +73,7 @@ export default function Administracao() {
           {tab === "perfis" && <PerfisTab />}
           {tab === "modulos" && <ModulosMenusTab />}
           {tab === "permissoes" && <PermissoesTab />}
+          {tab === "acessos" && <AcessosPermissoes />}
           {tab === "alcadas" && <AlcadasTab />}
           {tab === "parametros" && <ParametrosTab />}
           {tab === "sessoes" && <SessoesTab />}
