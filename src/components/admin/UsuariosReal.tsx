@@ -13,7 +13,27 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound, Copy, AlertTriangle, Upload, Trash2 } from "lucide-react";
 
-const ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","usuario"];
+const FALLBACK_ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","presidencia","usuario","visitante","comprador","almoxarife","gestor_cc","fiscal_recebedor","financeiro","fiscal"];
+
+function usePerfisDisponiveis() {
+  const q = useQuery({
+    queryKey: ["perfil_metadata_dropdown"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("perfil_metadata")
+        .select("role, descricao")
+        .order("role");
+      if (error) throw error;
+      return (data ?? []) as { role: Role; descricao: string | null }[];
+    },
+  });
+  const perfis = (q.data && q.data.length > 0)
+    ? q.data
+    : FALLBACK_ROLES.map((r) => ({ role: r, descricao: null }));
+  return perfis;
+}
+
+const ROLES: Role[] = FALLBACK_ROLES;
 const LINK_ACESSO = `${window.location.origin}/login`;
 
 interface ProfileRow {
