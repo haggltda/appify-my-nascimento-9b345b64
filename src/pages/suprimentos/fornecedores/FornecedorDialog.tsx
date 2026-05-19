@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEmpresaId } from "@/hooks/useEmpresaId";
 import { toast } from "sonner";
 import { ContasBancariasTab } from "./ContasBancariasTab";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 interface Props {
   open: boolean;
@@ -22,14 +23,19 @@ interface Props {
 const empty = {
   tipo: "pj", cnpj_cpf: "", razao_social: "", nome_fantasia: "",
   contato: "", email: "", telefone: "", endereco: "", observacoes: "", ativo: true,
+  is_global: false,
 };
+
 
 export function FornecedorDialog({ open, onOpenChange, fornecedor, onSaved }: Props) {
   const { data: empresaId } = useEmpresaId();
+  const { roles } = usePermissoes();
+  const canSetGlobal = roles.some(r => ["admin", "controladoria", "diretor_adm"].includes(r));
   const [form, setForm] = useState<any>(empty);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [tab, setTab] = useState("dados");
   const [saving, setSaving] = useState(false);
+
 
   useEffect(() => {
     if (open) {
@@ -50,6 +56,8 @@ export function FornecedorDialog({ open, onOpenChange, fornecedor, onSaved }: Pr
     setSaving(true);
     const payload: any = { ...form };
     if (!savedId && empresaId) payload.empresa_id = empresaId;
+    if (payload.is_global && !canSetGlobal) delete payload.is_global;
+
     const { data, error } = savedId
       ? await supabase.from("fornecedor").update(payload).eq("id", savedId).select().single()
       : await supabase.from("fornecedor").insert(payload).select().single();
@@ -99,7 +107,17 @@ export function FornecedorDialog({ open, onOpenChange, fornecedor, onSaved }: Pr
                 <Label className="cursor-pointer">Ativo</Label>
                 <Switch checked={!!form.ativo} onCheckedChange={(v) => set("ativo", v)} />
               </div>
+              {canSetGlobal && (
+                <div className="col-span-2 flex items-center justify-between rounded-md border border-dashed p-3 bg-muted/30">
+                  <div>
+                    <Label className="cursor-pointer">Fornecedor Global (grupo)</Label>
+                    <p className="text-xs text-muted-foreground">Visível a todas as empresas do grupo. CNPJ deve ser único no grupo.</p>
+                  </div>
+                  <Switch checked={!!form.is_global} onCheckedChange={(v) => set("is_global", v)} />
+                </div>
+              )}
             </div>
+
           </TabsContent>
 
           <TabsContent value="contas">

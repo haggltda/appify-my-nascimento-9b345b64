@@ -4755,6 +4755,7 @@ export type Database = {
           empresa_id: string
           endereco: string | null
           id: string
+          is_global: boolean
           nome_fantasia: string | null
           observacoes: string | null
           razao_social: string
@@ -4771,6 +4772,7 @@ export type Database = {
           empresa_id: string
           endereco?: string | null
           id?: string
+          is_global?: boolean
           nome_fantasia?: string | null
           observacoes?: string | null
           razao_social: string
@@ -4787,6 +4789,7 @@ export type Database = {
           empresa_id?: string
           endereco?: string | null
           id?: string
+          is_global?: boolean
           nome_fantasia?: string | null
           observacoes?: string | null
           razao_social?: string
