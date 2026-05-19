@@ -55,8 +55,8 @@ function useRoles() {
   return useQuery({
     queryKey: ["perfil-metadata"],
     queryFn: async () => {
-      const { data } = await supabase.from("perfil_metadata").select("perfil, label").order("ordem");
-      return (data ?? []) as { perfil: string; label: string }[];
+      const { data } = await supabase.from("perfil_metadata").select("role, descricao").order("role");
+      return (data ?? []).map((r: any) => ({ perfil: r.role as string, label: (r.descricao || r.role) as string }));
     },
   });
 }
