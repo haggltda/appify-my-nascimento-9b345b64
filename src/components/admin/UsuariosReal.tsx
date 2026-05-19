@@ -229,11 +229,33 @@ function EditarUsuarioDialog({
   const [displayName, setDisplayName] = useState(profile.display_name ?? "");
   const [empresaId, setEmpresaId] = useState<string>(profile.empresa_id ?? "_none");
   const [selectedRoles, setSelectedRoles] = useState<Role[]>(currentRoles);
+  const [acessaTodas, setAcessaTodas] = useState<boolean>(false);
+  const [empresasAtua, setEmpresasAtua] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const perfis = usePerfisDisponiveis();
 
+  // Carrega flag acessa_todas_empresas e vínculos user_empresa quando o dialog abre.
+  useEffect(() => {
+    if (!open) return;
+    let cancel = false;
+    (async () => {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("acessa_todas_empresas")
+        .eq("id", profile.id)
+        .maybeSingle();
+      const { data: vinc } = await supabase
+        .from("user_empresa")
+        .select("empresa_id")
+        .eq("user_id", profile.id);
+      if (cancel) return;
+      setAcessaTodas(!!(prof as any)?.acessa_todas_empresas);
+      setEmpresasAtua(new Set((vinc ?? []).map((v: any) => v.empresa_id)));
+    })();
+    return () => { cancel = true; };
+  }, [open, profile.id]);
+
   // Re-sincroniza com currentRoles quando o cache de roles atualiza após abrir o dialog.
-  // Evita arrancar com state desatualizado e apagar roles que foram concedidas por fora (ex.: SQL).
   useEffect(() => {
     setSelectedRoles(currentRoles);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -243,22 +265,29 @@ function EditarUsuarioDialog({
     setSelectedRoles((prev) => prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]);
   };
 
+  const toggleEmpresaAtua = (id: string) => {
+    setEmpresasAtua((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const salvar = async () => {
     setSaving(true);
     try {
-      // 1) profile
+      // 1) profile (inclui flag acessa_todas_empresas)
       const { error: pErr } = await supabase
         .from("profiles")
         .update({
           display_name: displayName || null,
           empresa_id: empresaId === "_none" ? null : empresaId,
-        })
+          acessa_todas_empresas: acessaTodas,
+        } as any)
         .eq("id", profile.id);
       if (pErr) throw pErr;
 
-      // 2) roles — diff em vez de delete-all/insert-all
-      // Garante que apenas as mudanças explícitas do admin sejam aplicadas.
-      // Save sem alterar checkbox = nenhuma escrita em user_roles (não regride).
+      // 2) roles — diff
       if (selectedRoles.length === 0) {
         toast({ title: "Selecione ao menos um perfil", variant: "destructive" });
         setSaving(false);
@@ -269,10 +298,8 @@ function EditarUsuarioDialog({
 
       if (toRemove.length > 0) {
         const { error: dErr } = await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", profile.id)
-          .in("role", toRemove);
+          .from("user_roles").delete()
+          .eq("user_id", profile.id).in("role", toRemove);
         if (dErr) throw dErr;
       }
       if (toAdd.length > 0) {
@@ -280,6 +307,25 @@ function EditarUsuarioDialog({
           .from("user_roles")
           .insert(toAdd.map((r) => ({ user_id: profile.id, role: r })));
         if (iErr) throw iErr;
+      }
+
+      // 3) user_empresa — só quando acessa_todas = false (caso contrário a flag basta)
+      if (!acessaTodas) {
+        const { data: atuais } = await supabase
+          .from("user_empresa").select("empresa_id").eq("user_id", profile.id);
+        const set = new Set((atuais ?? []).map((v: any) => v.empresa_id));
+        const adicionar = [...empresasAtua].filter((id) => !set.has(id));
+        const remover = [...set].filter((id) => !empresasAtua.has(id));
+        if (adicionar.length > 0) {
+          const { error } = await supabase.from("user_empresa")
+            .insert(adicionar.map((eid) => ({ user_id: profile.id, empresa_id: eid, created_by: profile.id })));
+          if (error) throw error;
+        }
+        if (remover.length > 0) {
+          const { error } = await supabase.from("user_empresa")
+            .delete().eq("user_id", profile.id).in("empresa_id", remover);
+          if (error) throw error;
+        }
       }
 
       toast({ title: "Usuário atualizado" });
@@ -297,7 +343,7 @@ function EditarUsuarioDialog({
       <DialogTrigger asChild>
         <Button size="sm" variant="ghost" className="h-7 gap-1.5"><Pencil className="h-3.5 w-3.5" />Editar</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar usuário</DialogTitle>
           <DialogDescription>{profile.email}</DialogDescription>
@@ -310,7 +356,7 @@ function EditarUsuarioDialog({
             <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ex.: Messias Souza" />
           </div>
           <div>
-            <Label>Empresa vinculada</Label>
+            <Label>Empresa padrão (de cadastro)</Label>
             <Select value={empresaId} onValueChange={setEmpresaId}>
               <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
               <SelectContent>
@@ -321,6 +367,40 @@ function EditarUsuarioDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Acesso multi-empresa */}
+          <div className="rounded-lg border border-primary/40 bg-primary-soft/30 p-3 space-y-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <Checkbox className="mt-0.5" checked={acessaTodas} onCheckedChange={(v) => setAcessaTodas(!!v)} />
+              <span className="flex flex-col">
+                <span className="text-sm font-semibold flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5" /> Acessa todas as empresas do grupo
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Recomendado para equipe administrativa (presidência, controladoria, financeiro, fiscal). Permite trocar livremente entre as empresas no seletor da topbar.
+                </span>
+              </span>
+            </label>
+
+            {!acessaTodas && (
+              <div className="pt-2 border-t border-border/60">
+                <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Empresas em que atua</Label>
+                <p className="text-[11px] text-muted-foreground mb-2">
+                  Marque cada empresa que este usuário pode operar. Ele só verá e poderá lançar dados nas marcadas.
+                </p>
+                <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto">
+                  {empresas.map((e) => (
+                    <label key={e.id} className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
+                      <Checkbox checked={empresasAtua.has(e.id)} onCheckedChange={() => toggleEmpresaAtua(e.id)} />
+                      <span className="font-medium">{e.codigo}</span>
+                      <span className="text-muted-foreground truncate">— {e.razao_social}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div>
             <Label>Perfis (roles)</Label>
             <p className="text-[11px] text-muted-foreground mb-2">Marque um ou mais perfis. Acessos finos por tela serão configurados em Configurações › Acessos & Permissões.</p>
@@ -348,6 +428,7 @@ function EditarUsuarioDialog({
       </DialogContent>
     </Dialog>
   );
+
 }
 
 function ResetSenhaSection({ userId, email }: { userId: string; email: string }) {
