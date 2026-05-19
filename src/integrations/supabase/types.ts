@@ -12044,6 +12044,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string | null
+          empresa_atual_id: string | null
           empresa_id: string | null
           id: string
           must_change_password: boolean
@@ -12055,6 +12056,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          empresa_atual_id?: string | null
           empresa_id?: string | null
           id: string
           must_change_password?: boolean
@@ -12066,12 +12068,34 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          empresa_atual_id?: string | null
           empresa_id?: string | null
           id?: string
           must_change_password?: boolean
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_empresa_atual_id_fkey"
+            columns: ["empresa_atual_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_empresa_atual_id_fkey"
+            columns: ["empresa_atual_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "profiles_empresa_atual_id_fkey"
+            columns: ["empresa_atual_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
           {
             foreignKeyName: "profiles_empresa_fk"
             columns: ["empresa_id"]
@@ -15854,6 +15878,55 @@ export type Database = {
           },
         ]
       }
+      user_empresa: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          empresa_id: string
+          id: string
+          is_default: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          empresa_id: string
+          id?: string
+          is_default?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string
+          id?: string
+          is_default?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_empresa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_empresa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "v_ia_contexto_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "user_empresa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "vw_bi_resumo_empresa"
+            referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -16693,6 +16766,7 @@ export type Database = {
       }
       titulo_receber_marcar_vencidos: { Args: never; Returns: number }
       unaccent_safe: { Args: { t: string }; Returns: string }
+      user_can_see_empresa: { Args: { _empresa_id: string }; Returns: boolean }
       validacao_enviar_conciliacao: {
         Args: { p_titulo_pagar_id: string }
         Returns: undefined
