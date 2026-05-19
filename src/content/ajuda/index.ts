@@ -12,6 +12,7 @@ import cotacao from "./suprimentos/cotacao.md?raw";
 import pedidoCompra from "./suprimentos/pedido-compra.md?raw";
 import aprovarPedido from "./suprimentos/aprovar-pedido.md?raw";
 import cadastroUsuario from "./admin/cadastro-usuario.md?raw";
+import gestaoUsuarioSistema from "./admin/gestao-usuario-sistema.md?raw";
 import cadastroColaborador from "./rh/cadastro-colaborador.md?raw";
 import minhasPendencias from "./geral/minhas-pendencias.md?raw";
 
@@ -209,6 +210,19 @@ export const ARTIGOS: ArtigoMeta[] = [
     updatedAt: "2026-05-18",
     conteudo: cadastroUsuario,
     personas: ["admin"],
+    status: "disponivel",
+  },
+  {
+    slug: "gestao-usuario-sistema",
+    modulo: "admin",
+    moduloLabel: "Administração",
+    titulo: "Gestão de Usuário Sistema",
+    resumo: "Dicionário oficial de permissões: para cada necessidade, qual papel e ação liberar em qual tela.",
+    tags: ["permissões", "papéis", "roles", "acessos", "perfis", "alçadas", "dicionário"],
+    rotasRelacionadas: ["/app/administracao", "/app/admin/permissoes"],
+    updatedAt: "2026-05-19",
+    conteudo: gestaoUsuarioSistema,
+    personas: ["admin", "controladoria", "presidencia"],
     status: "disponivel",
   },
   {
