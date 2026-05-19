@@ -56,6 +56,8 @@ export function FornecedorDialog({ open, onOpenChange, fornecedor, onSaved }: Pr
     setSaving(true);
     const payload: any = { ...form };
     if (!savedId && empresaId) payload.empresa_id = empresaId;
+    if (payload.is_global && !canSetGlobal) delete payload.is_global;
+
     const { data, error } = savedId
       ? await supabase.from("fornecedor").update(payload).eq("id", savedId).select().single()
       : await supabase.from("fornecedor").insert(payload).select().single();
