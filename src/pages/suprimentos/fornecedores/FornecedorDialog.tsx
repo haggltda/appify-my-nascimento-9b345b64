@@ -29,10 +29,13 @@ const empty = {
 
 export function FornecedorDialog({ open, onOpenChange, fornecedor, onSaved }: Props) {
   const { data: empresaId } = useEmpresaId();
+  const { roles } = usePermissoes();
+  const canSetGlobal = roles.some(r => ["admin", "controladoria", "diretor_adm"].includes(r));
   const [form, setForm] = useState<any>(empty);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [tab, setTab] = useState("dados");
   const [saving, setSaving] = useState(false);
+
 
   useEffect(() => {
     if (open) {
