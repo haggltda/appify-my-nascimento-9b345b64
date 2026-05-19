@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEmpresaId } from "@/hooks/useEmpresaId";
 import { toast } from "sonner";
 import { ContasBancariasTab } from "./ContasBancariasTab";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 interface Props {
   open: boolean;
@@ -22,7 +23,9 @@ interface Props {
 const empty = {
   tipo: "pj", cnpj_cpf: "", razao_social: "", nome_fantasia: "",
   contato: "", email: "", telefone: "", endereco: "", observacoes: "", ativo: true,
+  is_global: false,
 };
+
 
 export function FornecedorDialog({ open, onOpenChange, fornecedor, onSaved }: Props) {
   const { data: empresaId } = useEmpresaId();
