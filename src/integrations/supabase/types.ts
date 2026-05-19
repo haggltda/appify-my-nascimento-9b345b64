@@ -12078,6 +12078,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          acessa_todas_empresas: boolean
           ativo: boolean
           avatar_url: string | null
           created_at: string
@@ -12090,6 +12091,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          acessa_todas_empresas?: boolean
           ativo?: boolean
           avatar_url?: string | null
           created_at?: string
@@ -12102,6 +12104,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          acessa_todas_empresas?: boolean
           ativo?: boolean
           avatar_url?: string | null
           created_at?: string
@@ -16890,6 +16893,10 @@ export type Database = {
       titulo_receber_marcar_vencidos: { Args: never; Returns: number }
       unaccent_safe: { Args: { t: string }; Returns: string }
       user_can_see_empresa: { Args: { _empresa_id: string }; Returns: boolean }
+      user_pode_atuar_empresa: {
+        Args: { _empresa: string; _user: string }
+        Returns: boolean
+      }
       validacao_enviar_conciliacao: {
         Args: { p_titulo_pagar_id: string }
         Returns: undefined
