@@ -288,10 +288,22 @@ const integracaoModule: ModuleDef = {
       { label: "Lotes de Integração", to: "/app/integracao", icon: DatabaseZap },
       { label: "Aliases (De/Para)", to: "/app/integracao/aliases", icon: ListChecks },
       { label: "Migração DO ZERO", to: "/app/admin/migracao-zero", icon: DatabaseZap },
+    ],
+  }],
+};
+
+// Configurações (admin, controladoria, presidência)
+const configuracoesModule: ModuleDef = {
+  id: "configuracoes", label: "Configurações", description: "Acessos, permissões e parâmetros",
+  icon: Settings, basePath: "/app/admin", status: "active",
+  groups: [{
+    label: "Segurança", defaultOpen: true,
+    items: [
       { label: "Acessos & Permissões", to: "/app/admin/permissoes", icon: Shield },
     ],
   }],
 };
+
 
 function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
   const items: NavItem[] = [
@@ -338,11 +350,15 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
   const podeCopiloto = roles.includes("admin") || roles.includes("presidencia");
 
+  const podeConfiguracoes = roles.includes("admin") || roles.includes("controladoria") || roles.includes("presidencia");
+
   const allModules = [
     ...erpModules,
     ...(podeVerPlanoAcoes ? [buildPlanoAcoesModule(podeCopiloto)] : []),
     ...(roles.includes("admin") ? [integracaoModule] : []),
+    ...(podeConfiguracoes ? [configuracoesModule] : []),
   ];
+
 
   // Filter modules/groups/items based on screen access (admins see everything)
   const visibleModules = useMemo(() => {

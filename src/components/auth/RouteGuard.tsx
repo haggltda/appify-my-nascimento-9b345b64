@@ -2,25 +2,30 @@ import { ReactNode, useEffect, useRef } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
+import { usePermissoes } from "@/context/PermissoesContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
 /**
- * Wraps the authenticated app outlet. If the current pathname maps to an
- * app_menu code that the user cannot view, render the access-denied screen
- * and log the attempt to access_audit_log. Admins always pass.
- *
- * Routes that don't map to any app_menu code are allowed by default
- * (legacy / cross-cutting screens) — those should be added to app_menu
- * to be governed.
+ * Rotas privilegiadas que sempre são liberadas para admin, controladoria e
+ * presidência, mesmo que ainda não estejam mapeadas em screen_permission_*.
  */
+const PRIVILEGED_ROUTES = ["/app/admin/permissoes"];
+const PRIVILEGED_ROLES = ["admin", "controladoria", "presidencia"];
+
 export function RouteGuard({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { data, isLoading } = useAccessibleMenus("visualizar");
+  const { roles } = usePermissoes();
   const loggedRef = useRef<string>("");
 
   const menuCode = data ? matchMenuCode(pathname, data.routes) : null;
-  const allowed = !data || data.isAdmin || !menuCode || data.codes.has(menuCode);
+  const isPrivilegedRoute = PRIVILEGED_ROUTES.some((r) => pathname.startsWith(r));
+  const hasPrivilegedRole = roles.some((r) => PRIVILEGED_ROLES.includes(r));
+  const privilegedBypass = isPrivilegedRoute && hasPrivilegedRole;
+  const allowed =
+    !data || data.isAdmin || !menuCode || data.codes.has(menuCode) || privilegedBypass;
+
 
   useEffect(() => {
     if (isLoading || allowed) return;
