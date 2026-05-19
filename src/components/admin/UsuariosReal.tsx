@@ -603,11 +603,15 @@ function NovoUsuarioDialog({
             </div>
             <div>
               <Label>Perfis (roles)</Label>
+              <p className="text-[11px] text-muted-foreground mb-2">Marque um ou mais perfis. Acessos finos por tela serão configurados em Configurações › Acessos & Permissões.</p>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {ROLES.map((r) => (
-                  <label key={r} className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
-                    <Checkbox checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
-                    <span className="font-medium">{r}</span>
+                {perfis.map(({ role: r, descricao }) => (
+                  <label key={r} title={descricao ?? ""} className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
+                    <Checkbox className="mt-0.5" checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
+                    <span className="flex flex-col">
+                      <span className="font-medium">{r}</span>
+                      {descricao && <span className="text-[10px] text-muted-foreground leading-tight">{descricao}</span>}
+                    </span>
                   </label>
                 ))}
               </div>
