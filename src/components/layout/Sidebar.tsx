@@ -41,10 +41,11 @@ import {
 import { usePermissoes } from "@/context/PermissoesContext";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
+import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
 import { Inbox } from "lucide-react";
 import { Target } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 interface NavItem { label: string; to: string; icon: any; badge?: string }
 interface NavGroup { label: string; items: NavItem[]; defaultOpen?: boolean }
@@ -333,17 +334,38 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const { roles } = usePermissoes();
   const { perms, isAdmin } = usePlanoAcaoPermissao();
   const { temAlcada, pendentes } = useTemAlcada();
+  const { data: access } = useAccessibleMenus("visualizar");
   const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
   const podeCopiloto = roles.includes("admin") || roles.includes("presidencia");
-  const visibleModules = [
+
+  const allModules = [
     ...erpModules,
     ...(podeVerPlanoAcoes ? [buildPlanoAcoesModule(podeCopiloto)] : []),
     ...(roles.includes("admin") ? [integracaoModule] : []),
   ];
-  // Determina qual módulo está ativo pela rota
+
+  // Filter modules/groups/items based on screen access (admins see everything)
+  const visibleModules = useMemo(() => {
+    if (!access || access.isAdmin) return allModules;
+    const canSee = (to: string) => {
+      const code = matchMenuCode(to, access.routes);
+      if (!code) return true; // legacy / not catalogued routes remain visible
+      return access.codes.has(code);
+    };
+    return allModules
+      .map((mod) => {
+        if (!mod.groups) return mod;
+        const groups = mod.groups
+          .map((g) => ({ ...g, items: g.items.filter((i) => canSee(i.to)) }))
+          .filter((g) => g.items.length > 0);
+        return { ...mod, groups };
+      })
+      .filter((mod) => !mod.groups || mod.groups.length > 0);
+  }, [allModules, access]);
+
   const activeModuleId = visibleModules.find(
     (m) => m.status === "active" && (location.pathname === m.basePath || location.pathname.startsWith(m.basePath))
-  )?.id ?? "licitacoes";
+  )?.id ?? visibleModules[0]?.id ?? "licitacoes";
   const [expandedModule, setExpandedModule] = useState<string | null>(activeModuleId);
 
   // No mobile a sidebar nunca aparece colapsada (sempre full); colapso é só desktop.

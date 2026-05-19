@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_audit_log: {
+        Row: {
+          acao: string
+          allowed: boolean
+          created_at: string
+          empresa_id: string | null
+          id: string
+          menu_codigo: string | null
+          motivo: string | null
+          rota: string | null
+          user_id: string
+        }
+        Insert: {
+          acao?: string
+          allowed: boolean
+          created_at?: string
+          empresa_id?: string | null
+          id?: string
+          menu_codigo?: string | null
+          motivo?: string | null
+          rota?: string | null
+          user_id: string
+        }
+        Update: {
+          acao?: string
+          allowed?: boolean
+          created_at?: string
+          empresa_id?: string | null
+          id?: string
+          menu_codigo?: string | null
+          motivo?: string | null
+          rota?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       alcada_aprovacao: {
         Row: {
           ativo: boolean
@@ -16663,6 +16699,12 @@ export type Database = {
         Returns: Json
       }
       layout_submeter_aprovacao: { Args: { _versao_id: string }; Returns: Json }
+      list_accessible_menus: {
+        Args: { _acao?: string; _empresa?: string; _user: string }
+        Returns: {
+          menu_codigo: string
+        }[]
+      }
       malote_adicionar_titulo: {
         Args: { _malote_id: string; _titulo_id: string }
         Returns: undefined
