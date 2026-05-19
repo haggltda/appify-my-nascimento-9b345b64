@@ -105,7 +105,17 @@ export function FornecedorDialog({ open, onOpenChange, fornecedor, onSaved }: Pr
                 <Label className="cursor-pointer">Ativo</Label>
                 <Switch checked={!!form.ativo} onCheckedChange={(v) => set("ativo", v)} />
               </div>
+              {canSetGlobal && (
+                <div className="col-span-2 flex items-center justify-between rounded-md border border-dashed p-3 bg-muted/30">
+                  <div>
+                    <Label className="cursor-pointer">Fornecedor Global (grupo)</Label>
+                    <p className="text-xs text-muted-foreground">Visível a todas as empresas do grupo. CNPJ deve ser único no grupo.</p>
+                  </div>
+                  <Switch checked={!!form.is_global} onCheckedChange={(v) => set("is_global", v)} />
+                </div>
+              )}
             </div>
+
           </TabsContent>
 
           <TabsContent value="contas">
