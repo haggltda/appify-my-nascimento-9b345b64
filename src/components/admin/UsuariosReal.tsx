@@ -230,6 +230,7 @@ function EditarUsuarioDialog({
   const [empresaId, setEmpresaId] = useState<string>(profile.empresa_id ?? "_none");
   const [selectedRoles, setSelectedRoles] = useState<Role[]>(currentRoles);
   const [saving, setSaving] = useState(false);
+  const perfis = usePerfisDisponiveis();
 
   // Re-sincroniza com currentRoles quando o cache de roles atualiza após abrir o dialog.
   // Evita arrancar com state desatualizado e apagar roles que foram concedidas por fora (ex.: SQL).
