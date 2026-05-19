@@ -78,7 +78,10 @@ export default function Fornecedores() {
               <TableBody>
                 {rows.map((r: any) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.razao_social}</TableCell>
+                    <TableCell className="font-medium">
+                      {r.razao_social}
+                      {r.is_global && <span className="ml-2 inline-block rounded bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">Global</span>}
+                    </TableCell>
                     <TableCell>{r.cnpj_cpf}</TableCell>
                     <TableCell>{r.tipo === "pj" ? "PJ" : "PF"}</TableCell>
                     <TableCell>{r.contato ?? "—"}</TableCell>
