@@ -288,10 +288,22 @@ const integracaoModule: ModuleDef = {
       { label: "Lotes de Integração", to: "/app/integracao", icon: DatabaseZap },
       { label: "Aliases (De/Para)", to: "/app/integracao/aliases", icon: ListChecks },
       { label: "Migração DO ZERO", to: "/app/admin/migracao-zero", icon: DatabaseZap },
+    ],
+  }],
+};
+
+// Configurações (admin, controladoria, presidência)
+const configuracoesModule: ModuleDef = {
+  id: "configuracoes", label: "Configurações", description: "Acessos, permissões e parâmetros",
+  icon: Settings, basePath: "/app/admin", status: "active",
+  groups: [{
+    label: "Segurança", defaultOpen: true,
+    items: [
       { label: "Acessos & Permissões", to: "/app/admin/permissoes", icon: Shield },
     ],
   }],
 };
+
 
 function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
   const items: NavItem[] = [
