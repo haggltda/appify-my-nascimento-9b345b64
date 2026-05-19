@@ -287,6 +287,7 @@ const integracaoModule: ModuleDef = {
       { label: "Lotes de Integração", to: "/app/integracao", icon: DatabaseZap },
       { label: "Aliases (De/Para)", to: "/app/integracao/aliases", icon: ListChecks },
       { label: "Migração DO ZERO", to: "/app/admin/migracao-zero", icon: DatabaseZap },
+      { label: "Acessos & Permissões", to: "/app/admin/permissoes", icon: Shield },
     ],
   }],
 };

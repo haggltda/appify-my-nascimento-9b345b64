@@ -93,6 +93,7 @@ import IntegracaoBatches from "./pages/integracao/Batches";
 import BatchDetalhe from "./pages/integracao/BatchDetalhe";
 import IntegracaoAliases from "./pages/integracao/Aliases";
 import MigracaoZero from "./pages/admin/MigracaoZero";
+import AcessosPermissoes from "./pages/admin/AcessosPermissoes";
 import PlanoAcoesLista from "./pages/plano-acoes/Lista";
 import PlanoAcoesDashboard from "./pages/plano-acoes/Dashboard";
 import PlanoAcoesKanban from "./pages/plano-acoes/Kanban";
@@ -212,6 +213,7 @@ const App = () => (
             <Route path="integracao/aliases" element={<IntegracaoAliases />} />
             <Route path="integracao/:id" element={<BatchDetalhe />} />
             <Route path="admin/migracao-zero" element={<MigracaoZero />} />
+            <Route path="admin/permissoes" element={<AcessosPermissoes />} />
             {/* Plano de Ações */}
             <Route path="plano-acoes" element={<PlanoAcoesLista />} />
             <Route path="plano-acoes/dashboard" element={<PlanoAcoesDashboard />} />

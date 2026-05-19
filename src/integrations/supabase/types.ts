@@ -13574,6 +13574,75 @@ export type Database = {
           },
         ]
       }
+      screen_permission_profile: {
+        Row: {
+          acao: Database["public"]["Enums"]["app_acao"]
+          allow: boolean
+          created_at: string
+          id: string
+          menu_codigo: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          acao: Database["public"]["Enums"]["app_acao"]
+          allow?: boolean
+          created_at?: string
+          id?: string
+          menu_codigo: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          acao?: Database["public"]["Enums"]["app_acao"]
+          allow?: boolean
+          created_at?: string
+          id?: string
+          menu_codigo?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      screen_permission_user: {
+        Row: {
+          acao: Database["public"]["Enums"]["app_acao"]
+          allow: boolean
+          created_at: string
+          created_by: string | null
+          empresa_id: string | null
+          id: string
+          menu_codigo: string
+          motivo: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acao: Database["public"]["Enums"]["app_acao"]
+          allow: boolean
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string | null
+          id?: string
+          menu_codigo: string
+          motivo?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acao?: Database["public"]["Enums"]["app_acao"]
+          allow?: boolean
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string | null
+          id?: string
+          menu_codigo?: string
+          motivo?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       servico_municipal: {
         Row: {
           aliq_iss: number
@@ -16552,6 +16621,15 @@ export type Database = {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
+        }
+        Returns: boolean
+      }
+      has_screen_access: {
+        Args: {
+          _acao: Database["public"]["Enums"]["app_acao"]
+          _empresa?: string
+          _menu: string
+          _user: string
         }
         Returns: boolean
       }
