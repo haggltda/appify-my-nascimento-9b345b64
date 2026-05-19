@@ -13,7 +13,27 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound, Copy, AlertTriangle, Upload, Trash2 } from "lucide-react";
 
-const ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","usuario"];
+const FALLBACK_ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","presidencia","usuario","visitante","comprador","almoxarife","gestor_cc","fiscal_recebedor","financeiro","fiscal"];
+
+function usePerfisDisponiveis() {
+  const q = useQuery({
+    queryKey: ["perfil_metadata_dropdown"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("perfil_metadata")
+        .select("role, descricao")
+        .order("role");
+      if (error) throw error;
+      return (data ?? []) as { role: Role; descricao: string | null }[];
+    },
+  });
+  const perfis = (q.data && q.data.length > 0)
+    ? q.data
+    : FALLBACK_ROLES.map((r) => ({ role: r, descricao: null }));
+  return perfis;
+}
+
+const ROLES: Role[] = FALLBACK_ROLES;
 const LINK_ACESSO = `${window.location.origin}/login`;
 
 interface ProfileRow {
@@ -210,6 +230,7 @@ function EditarUsuarioDialog({
   const [empresaId, setEmpresaId] = useState<string>(profile.empresa_id ?? "_none");
   const [selectedRoles, setSelectedRoles] = useState<Role[]>(currentRoles);
   const [saving, setSaving] = useState(false);
+  const perfis = usePerfisDisponiveis();
 
   // Re-sincroniza com currentRoles quando o cache de roles atualiza após abrir o dialog.
   // Evita arrancar com state desatualizado e apagar roles que foram concedidas por fora (ex.: SQL).
@@ -302,11 +323,15 @@ function EditarUsuarioDialog({
           </div>
           <div>
             <Label>Perfis (roles)</Label>
+            <p className="text-[11px] text-muted-foreground mb-2">Marque um ou mais perfis. Acessos finos por tela serão configurados em Configurações › Acessos & Permissões.</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              {ROLES.map((r) => (
-                <label key={r} className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
-                  <Checkbox checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
-                  <span className="font-medium">{r}</span>
+              {perfis.map(({ role: r, descricao }) => (
+                <label key={r} title={descricao ?? ""} className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
+                  <Checkbox className="mt-0.5" checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
+                  <span className="flex flex-col">
+                    <span className="font-medium">{r}</span>
+                    {descricao && <span className="text-[10px] text-muted-foreground leading-tight">{descricao}</span>}
+                  </span>
                 </label>
               ))}
             </div>
@@ -438,6 +463,7 @@ function NovoUsuarioDialog({
   const [empresaId, setEmpresaId] = useState<string>("_none");
   const [selectedRoles, setSelectedRoles] = useState<Role[]>([]);
   const [saving, setSaving] = useState(false);
+  const perfis = usePerfisDisponiveis();
 
   // Credenciais geradas após criação (mostrado em modal flutuante)
   const [credenciaisCriadas, setCredenciaisCriadas] = useState<{
@@ -577,11 +603,15 @@ function NovoUsuarioDialog({
             </div>
             <div>
               <Label>Perfis (roles)</Label>
+              <p className="text-[11px] text-muted-foreground mb-2">Marque um ou mais perfis. Acessos finos por tela serão configurados em Configurações › Acessos & Permissões.</p>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {ROLES.map((r) => (
-                  <label key={r} className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
-                    <Checkbox checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
-                    <span className="font-medium">{r}</span>
+                {perfis.map(({ role: r, descricao }) => (
+                  <label key={r} title={descricao ?? ""} className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
+                    <Checkbox className="mt-0.5" checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
+                    <span className="flex flex-col">
+                      <span className="font-medium">{r}</span>
+                      {descricao && <span className="text-[10px] text-muted-foreground leading-tight">{descricao}</span>}
+                    </span>
                   </label>
                 ))}
               </div>
