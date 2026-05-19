@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
-  Users, ShieldCheck, Key, GitBranch, Settings, Activity, AlertOctagon, Lock, Palette,
+  Users, ShieldCheck, Key, GitBranch, Settings, Activity, AlertOctagon, Lock, Palette, Shield,
   ChevronRight,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { UsuariosReal } from "@/components/admin/UsuariosReal";
 import { PerfisTab } from "@/pages/admin/tabs/PerfisTab";
