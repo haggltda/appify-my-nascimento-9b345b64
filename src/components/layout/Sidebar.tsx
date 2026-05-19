@@ -350,11 +350,15 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
   const podeCopiloto = roles.includes("admin") || roles.includes("presidencia");
 
+  const podeConfiguracoes = roles.includes("admin") || roles.includes("controladoria") || roles.includes("presidencia");
+
   const allModules = [
     ...erpModules,
     ...(podeVerPlanoAcoes ? [buildPlanoAcoesModule(podeCopiloto)] : []),
     ...(roles.includes("admin") ? [integracaoModule] : []),
+    ...(podeConfiguracoes ? [configuracoesModule] : []),
   ];
+
 
   // Filter modules/groups/items based on screen access (admins see everything)
   const visibleModules = useMemo(() => {
