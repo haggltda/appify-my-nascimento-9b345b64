@@ -17,9 +17,10 @@ import { LogsTab } from "@/pages/admin/tabs/LogsTab";
 import { OcorrenciasTab } from "@/pages/admin/tabs/OcorrenciasTab";
 import { AuditoriaTab } from "@/pages/admin/tabs/AuditoriaTab";
 import { IdentidadeTab } from "@/pages/admin/tabs/IdentidadeTab";
+import AcessosPermissoes from "@/pages/admin/AcessosPermissoes";
 
 type Tab =
-  | "usuarios" | "perfis" | "modulos" | "permissoes" | "alcadas" | "parametros"
+  | "usuarios" | "perfis" | "modulos" | "permissoes" | "acessos" | "alcadas" | "parametros"
   | "sessoes" | "logs" | "ocorrencias" | "auditoria" | "identidade";
 
 const tabs: { id: Tab; label: string; icon: any }[] = [
@@ -27,6 +28,7 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "perfis", label: "Perfis de acesso", icon: ShieldCheck },
   { id: "modulos", label: "Módulos & Menus", icon: GitBranch },
   { id: "permissoes", label: "Permissões por perfil", icon: Key },
+  { id: "acessos", label: "Acessos & Permissões", icon: Shield },
   { id: "alcadas", label: "Alçadas de aprovação", icon: GitBranch },
   { id: "parametros", label: "Parâmetros gerais", icon: Settings },
   { id: "sessoes", label: "Sessões ativas", icon: Activity },
@@ -35,6 +37,7 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "auditoria", label: "Auditoria sensível", icon: ShieldCheck },
   { id: "identidade", label: "Identidade visual", icon: Palette },
 ];
+
 
 export default function Administracao() {
   const [tab, setTab] = useState<Tab>("usuarios");
