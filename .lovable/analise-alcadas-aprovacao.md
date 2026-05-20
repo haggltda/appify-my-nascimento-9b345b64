@@ -226,3 +226,31 @@ Aguardo sua decisão para abrir o planejamento da Etapa 2.
 ## Próximo passo
 
 Apresentar o **plano técnico Etapa 2** (migration + UI wizard + dispatcher) para aprovação antes de codar.
+
+---
+
+## Decisões finais (rodada 2) — pronto para Etapa 2
+
+1. **Delegação**: incluir já na Etapa 2 (campo `delegado_para_user_id` + `delegado_ate` em `sup_aprov_etapa` / override por instância).
+2. **SLA / escalonamento**: tabela padrão (Normal / Urgente / Crítico) com degraus 50% / 100% / +24h / +48h / +72h. Canais Etapa 2 = **sininho + e-mail + push PWA**. WhatsApp/SMS fica para depois.
+   - "Gestor da área" = `centros_custo.gestor_user_id`.
+   - "Diretor" = nova coluna `empresas.diretor_user_id` (a criar na migration).
+   - "Presidência" = usuário(s) com role `presidencia` (ou aprovador presidência cadastrado).
+   - Cron de 15 min varre `sup_aprov_instancia` pendentes, calcula horas paradas, dispara alertas via tabela `sup_aprov_alerta_log` (idempotente por degrau).
+   - Tela **Administração → Alçadas de aprovação → Réguas de escalonamento** para parametrizar; **Meu perfil → Notificações** para canais por usuário.
+3. **Legado `alcada_aprovacao`**: **Opção A — migrar automaticamente**.
+   - Para cada registro da Helena (6 empresas), criar no novo motor:
+     - alvo = `programacao_pagamento`
+     - etapa única bloqueante, responsável = Helena
+     - **valor_min = 0** (tudo cai para ela aprovar — decisão do usuário)
+     - valor_max = mantém do registro original (ou nulo se sem teto)
+   - Tabela antiga vira read-only (mantida só para auditoria histórica).
+
+## Backlog pós-Etapa 2 (anotado para não esquecer)
+
+- **Aprovação em lote** na Inbox: checkbox "Selecionar tudo" + ação "Aprovar selecionados" com justificativa única. Útil quando aprovador tem dezenas de itens pendentes (caso Helena).
+- Regra opcional: lote só permitido para itens da mesma alçada/mesmo alvo/mesma faixa, para evitar aprovação acidental de algo crítico junto com rotina.
+
+## Próximo passo imediato
+
+Abrir o **plano técnico da Etapa 2** (migration `sup_aprov_*` v2 + dispatcher + UI wizard + cron SLA + migração automática da Helena) para sua aprovação antes de codar.
