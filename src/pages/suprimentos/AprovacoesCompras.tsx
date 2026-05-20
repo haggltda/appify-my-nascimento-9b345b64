@@ -204,6 +204,14 @@ export default function AprovacoesCompras() {
         subtitle="Configure fluxos paralelos e gerencie aprovações de RC e PC."
       />
 
+      <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs dark:bg-amber-950/30">
+        <span className="font-semibold text-amber-900 dark:text-amber-200">⚠ Tela em depreciação.</span>
+        <span className="text-amber-800/80 dark:text-amber-300/80">
+          A configuração oficial de alçadas migrou para <strong>Administração → Alçadas</strong> (novo motor unificado <code>sup_aprov</code>). Esta tela é mantida apenas para consulta histórica das instâncias antigas.
+        </span>
+      </div>
+
+
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="instancias"><Users className="h-4 w-4 mr-2" />Instâncias</TabsTrigger>
