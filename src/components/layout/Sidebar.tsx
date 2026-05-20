@@ -44,6 +44,7 @@ import { useTemAlcada } from "@/hooks/useTemAlcada";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
 import { Inbox } from "lucide-react";
 import { Target } from "lucide-react";
+import { GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 
