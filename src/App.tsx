@@ -82,6 +82,7 @@ import PlanoContas from "./pages/contabil/PlanoContas";
 import AprovacaoContas from "./pages/contabil/AprovacaoContas";
 import Balancete from "./pages/contabil/Balancete";
 import Razao from "./pages/contabil/Razao";
+import RazaoDetalhado from "./pages/contabil/RazaoDetalhado";
 import DREGerencialReal from "./pages/contabil/DREGerencialReal";
 import ConciliacaoEventos from "./pages/contabil/ConciliacaoEventos";
 import Folha from "./pages/rh/Folha";
@@ -202,6 +203,7 @@ const App = () => (
             <Route path="contabil/aprovacao-contas" element={<AprovacaoContas />} />
             <Route path="contabil/balancete" element={<Balancete />} />
             <Route path="contabil/razao" element={<Razao />} />
+            <Route path="contabil/razao-detalhado" element={<RazaoDetalhado />} />
             <Route path="contabil/dre-gerencial-real" element={<DREGerencialReal />} />
             <Route path="contabil/conciliacao-eventos" element={<ConciliacaoEventos />} />
             {/* RH */}
