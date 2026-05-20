@@ -22,8 +22,15 @@
 
 2. **G1 Fluxo de Pedido de Compra:** depende da definição de **faixas de valor** (alçadas R$). Pendente input do usuário.
 
-3. **Edição de empresa do contrato/CC pelo admin:**
-   - `contrato.empresa_id` e `centros_custo.empresa_id`: alteráveis via SQL, mas as telas atuais (`/app/contratos/...` e `/app/controladoria/centros-custo`) precisam ser auditadas para confirmar se expõem o campo "empresa" como editável para perfil admin. **Diagnóstico apenas — qualquer mudança de UI exige aprovação.**
+3. **Edição de empresa do contrato/CC pelo admin (DIAGNÓSTICO CONCLUÍDO — aguarda decisão):**
+   - Hoje: só via SQL. UI de CC só permite definir empresa **na criação**. `contrato.empresa_id` é derivado de `centro_custo_id → centros_custo.empresa_id`.
+   - Risco: alterar empresa de CC com movimento (NF, título, lançamento, medição) gera divergência em DRE por contrato, fluxo de caixa diário, custos, orçamento/OBZ, faturamento e fluxos de aprovação por empresa.
+   - Recomendação em 3 cenários:
+     - (a) Contrato pré-ganho (licitação) → edição livre via UI.
+     - (b) Contrato ganho sem movimento → UI com confirmação + log de auditoria.
+     - (c) Contrato com movimento → campo read-only; correção só por estorno + reemissão.
+   - Implementação proposta (requer aprovação separada): função `pode_alterar_empresa_cc(cc_id)`, trigger `BEFORE UPDATE` em `centros_custo` bloqueando troca quando há movimento, tabela `centros_custo_empresa_log`, campo editável condicional na tela de detalhe do CC, permissão `admin.cc.alterar_empresa`.
+   - **Nada alterado nesta etapa.**
 
 ## 📋 Demais pendências do prompt original (já listadas)
 - Revisão das políticas RLS marcadas como "always true" (warnings do linter — pré-existentes).
