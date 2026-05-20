@@ -244,6 +244,7 @@ export default function RazaoDetalhado() {
       if (c) parts.push(`Conta: ${c.classificacao} ${c.descricao}`);
     }
     if (classifPrefix) parts.push(`Grupo: ${classifPrefix}*`);
+    if (classifDe || classifAte) parts.push(`Faixa: ${classifDe || "início"} → ${classifAte || "fim"}`);
     if (natureza !== "__all__") parts.push(`Natureza: ${natureza}`);
     if (grupo !== "__all__") parts.push(`Grupo DRE: ${grupo}`);
     if (ccId !== "__all__") {
