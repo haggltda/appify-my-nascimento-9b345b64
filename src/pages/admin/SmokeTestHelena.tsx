@@ -113,7 +113,8 @@ export default function SmokeTestHelena() {
     <div className="space-y-4 p-6">
       <PageHeader
         title="Smoke Test — Helena"
-        description={`Roteiro guiado das 6 empresas × ${PASSOS.length} passos = ${totalEsperado} validações. ${totalGeral}/${totalEsperado} concluídos.`}
+        subtitle={`Roteiro guiado das 6 empresas × ${PASSOS.length} passos = ${totalEsperado} validações. ${totalGeral}/${totalEsperado} concluídos.`}
+        module="Administração"
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
