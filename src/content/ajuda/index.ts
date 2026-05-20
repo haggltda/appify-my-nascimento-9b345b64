@@ -14,6 +14,7 @@ import aprovarPedido from "./suprimentos/aprovar-pedido.md?raw";
 import cadastroUsuario from "./admin/cadastro-usuario.md?raw";
 import gestaoUsuarioSistema from "./admin/gestao-usuario-sistema.md?raw";
 import cadastroAlcadas from "./admin/cadastro-alcadas.md?raw";
+import trocarEmpresaCc from "./admin/trocar-empresa-cc.md?raw";
 import cadastroColaborador from "./rh/cadastro-colaborador.md?raw";
 import minhasPendencias from "./geral/minhas-pendencias.md?raw";
 
@@ -236,6 +237,19 @@ export const ARTIGOS: ArtigoMeta[] = [
     rotasRelacionadas: ["/app/administracao"],
     updatedAt: "2026-05-20",
     conteudo: cadastroAlcadas,
+    personas: ["admin", "controladoria", "presidencia"],
+    status: "disponivel",
+  },
+  {
+    slug: "trocar-empresa-cc",
+    modulo: "admin",
+    moduloLabel: "Administração",
+    titulo: "Trocar a empresa de um Centro de Custo ou Contrato",
+    resumo: "Quando e como mover um CC/contrato entre empresas do grupo, cenários A/B/C, bloqueios e auditoria.",
+    tags: ["centro de custo", "cc", "empresa", "contrato", "troca", "migração", "auditoria"],
+    rotasRelacionadas: ["/app/administracao", "/app/centros-custo", "/app/suprimentos/contratos"],
+    updatedAt: "2026-05-20",
+    conteudo: trocarEmpresaCc,
     personas: ["admin", "controladoria", "presidencia"],
     status: "disponivel",
   },
