@@ -782,10 +782,21 @@ export default function RazaoDetalhado() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
-            <div className="text-xs text-muted-foreground">
-              {linhasQ.isLoading
-                ? "Carregando…"
-                : `${total.toLocaleString("pt-BR")} lançamentos · Página ${page} de ${totalPages}`}
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={incluirSaldoAnterior}
+                  onChange={(e) => setIncluirSaldoAnterior(e.target.checked)}
+                />
+                Incluir Saldo Anterior
+              </label>
+              <div className="text-xs text-muted-foreground">
+                {linhasQ.isLoading
+                  ? "Carregando…"
+                  : `${total.toLocaleString("pt-BR")} lançamentos · Página ${page} de ${totalPages}`}
+              </div>
             </div>
             <div className="flex gap-2">
               <Button
