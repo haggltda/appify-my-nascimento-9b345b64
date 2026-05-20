@@ -24,6 +24,7 @@ import Resultado from "./pages/Resultado";
 import ProntasContrato from "./pages/ProntasContrato";
 import Historico from "./pages/Historico";
 import Administracao from "./pages/Administracao";
+import MeuPerfil from "./pages/MeuPerfil";
 import Composicao from "./pages/Composicao";
 import CustosBDI from "./pages/CustosBDI";
 import ParecerSST from "./pages/pareceres/ParecerSST";
