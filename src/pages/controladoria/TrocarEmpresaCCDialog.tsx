@@ -93,6 +93,15 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
           </div>
         ) : (
           <>
+            {temPermissao === false && (
+              <div className="mb-4 flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                <Ban className="h-4 w-4 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Sem permissão especial</p>
+                  <p className="text-xs">Você precisa da permissão <code>alterar_empresa_cc</code>. Solicite a um administrador em <strong>Administração → Alçadas → Saúde</strong>.</p>
+                </div>
+              </div>
+            )}
             {cenario === "livre" && (
               <div className="mb-4 flex items-start gap-2 rounded-md bg-success-soft p-3 text-sm text-success">
                 <ShieldCheck className="h-4 w-4 mt-0.5" />
