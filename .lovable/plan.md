@@ -92,9 +92,17 @@ Script SQL idempotente dentro da migration:
 Toggles: sininho, e-mail, push PWA.
 
 ### 3.4 Integração nos 3 processos piloto
-- **Requisição de compra** (`Requisicoes.tsx`): ao salvar, chama `sup_aprov_abrir_instancia`. Tela detalhe mostra timeline da instância.
+- **Requisição de compra** (`Requisicoes.tsx`): ao salvar, **NÃO abre instância de aprovação de compra**. O fluxo é:
+  1. Sistema verifica saldo no almoxarifado para os itens. Se cobre tudo → gera movimento de saída e **encerra**. Fim.
+  2. Se não cobre → status "aguardando cotação", segue para **Cotações** (`Cotacoes.tsx`).
+- **Pedido de compra** (`PedidosCompra.tsx`): ao ser **gerado a partir de uma cotação aprovada**, chama `sup_aprov_abrir_instancia(alvo='pedido_compra', valor=total, cc=...)`. Aqui entram:
+  - Etapa automática `orcamento_cc` (auto-aprova se flag `auto_aprovar_se_orcamento_cc` da empresa estiver ativa **e** houver saldo no CC dentro do período vigente do orçamento).
+  - Etapas humanas por faixa de valor (alçada).
+  - Tela detalhe do pedido mostra `<TimelineAprovacao>`.
 - **Licitação**: idem em pontos definidos das etapas (SST/Controladoria como consultivos já existentes viram etapas do fluxo).
 - **Programação de pagamento**: substituir gating atual pela instância nova.
+
+> **Flag de empresa**: nova coluna `empresas.auto_aprovar_orcamento_cc` (boolean, default true). A regra `orcamento_cc` na etapa só dispara auto-aprovação se a flag estiver ativa **e** a data atual estiver dentro da vigência do orçamento do CC.
 
 ### 3.5 Componentes compartilhados
 - `<TimelineAprovacao instanciaId>` — usado em Requisição, Licitação e Pagamento.
