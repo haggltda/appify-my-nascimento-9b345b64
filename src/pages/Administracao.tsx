@@ -69,7 +69,7 @@ export default function Administracao() {
           {tabs.map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => changeTab(t.id)}
               className={cn(
                 "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
                 tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary",
