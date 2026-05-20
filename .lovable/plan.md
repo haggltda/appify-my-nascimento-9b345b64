@@ -28,7 +28,7 @@ Legenda de status:
 | `empresas.auto_aprovar_orcamento_cc` | ✅ | coluna existe |
 | `empresas.diretor_user_id` | ✅ | coluna existe |
 | RLS por `empresa_id` em todas as `sup_aprov_*` | ✅ | confirmado no inventário |
-| Migração Helena → 6 empresas (1 fluxo `programacao_pagamento` por empresa, etapa Presidência) | 🟡 | **Apenas 1 empresa tem fluxo cadastrado** (`empresas_com_fluxo = 1`, `n_fluxos = 1`, `n_etapas = 1`). Script de migração rodou parcialmente OU só a Helena/HAGG foi inserida. ⚠️ **Verificar e replicar para as outras 5.** |
+| Migração Helena → 6 empresas (1 fluxo `programacao_pagamento` por empresa, etapa Presidência) | ✅ | Replicado nas 6 empresas (AGPS, CANAA, HAGG, LF, NH, SN) com Helena como responsável + `diretor_user_id` setado. |
 | Trigger `after insert sup_aprov_voto` que fecha instância | 🟡 | função existe; confirmar trigger está ativa |
 
 ### I.2 Frontend — Etapa 2
