@@ -1,53 +1,60 @@
-## Onda 4 — Matriz granular Pessoa/Perfil × Tela × Ação
 
-### Objetivo
-Permitir configurar permissões em 3 níveis com precedência: **Override por pessoa** > **Perfil (role)** > **Default do menu**. Ações controladas: `view`, `create`, `update`, `delete`, `approve`, `export`.
+# Etapa 0 — Inventário técnico base (read-only)
 
-### Banco (migration)
+**Teto acordado:** 3 créditos. **Modo:** somente leitura — sem migrations, sem RLS, sem código, sem edge functions.
 
-**Enum existente reutilizado:** `app_action` (já usado em `role_permissions.acao`).
+## Objetivo
+Produzir um único documento `.lovable/inventario-etapa0.md` consolidando o estado real de Supabase + App + repositório, para servir de base aos 21 fluxos do V3.
 
-**Tabela `screen_permission_profile`** (perfil × tela × ação)
-- `role app_role`, `menu_codigo text` (FK lógica → `app_menu.codigo`), `acao app_action`, `allow boolean default true`
-- UNIQUE (role, menu_codigo, acao)
-- Substitui/complementa `role_permissions` (mantemos a antiga; nova é mais específica por tela).
+## Escopo coberto (ordem de execução)
 
-**Tabela `screen_permission_user`** (override por pessoa)
-- `user_id uuid`, `menu_codigo text`, `acao app_action`, `allow boolean`, `empresa_id uuid null` (opcional: escopo por empresa), `created_by uuid`, `motivo text`
-- UNIQUE (user_id, menu_codigo, acao, empresa_id)
+1. **Supabase — schema `public`**
+   - Tabelas: nome, nº de linhas, RLS on/off, owner.
+   - Policies por tabela (resumo: quantas, para quais ações).
+   - Functions / RPCs (nome, security definer sim/não).
+   - Triggers ativos.
+   - Enums e seus valores.
+   - Views.
+   - Buckets de storage + policies.
+2. **App Lovable (leitura de arquivos já em contexto, sem reabrir tudo)**
+   - Mapa de rotas em `src/App.tsx`.
+   - Inventário de páginas por módulo (admin, financeiro, contábil, contratos, suprimentos, rh, controladoria, integração, pareceres, plano-acoes).
+   - Gates de autenticação/empresa/role em uso (`ProtectedRoute`, `RouteGuard`, `RoleGate`, `ScreenGate`, `EmpresaAtivaContext`, `PermissoesContext`).
+3. **Repositório / migrations**
+   - Lista de migrations em `supabase/migrations/` (apenas nomes + data).
+   - Edge functions presentes em `supabase/functions/`.
+4. **Reaproveitamento**
+   - Releitura cruzada com `.lovable/auditoria-v2.md` e `.lovable/plan.md` para marcar o que já está documentado vs. o que é novo.
 
-**Função `has_screen_access(_user uuid, _menu text, _acao app_action, _empresa uuid default null) returns boolean`**
-- SECURITY DEFINER, search_path=public
-- Lógica: 1) admin → true; 2) override user (mais específico com empresa, senão sem empresa) → retorna `allow`; 3) qualquer role do user em `screen_permission_profile` com allow=true → true; 4) fallback `role_permissions` legado; 5) false.
+## Entregável único
+Arquivo `.lovable/inventario-etapa0.md` com seções:
+- Resumo executivo (5–10 linhas).
+- Tabela de volumetria atualizada.
+- Tabela de RLS por tabela (com flag de risco).
+- Lista de RPCs/funções reaproveitáveis.
+- Gaps vs. os 21 fluxos do V3 (matriz fluxo × pronto/parcial/ausente).
+- Bloqueadores conhecidos (ex.: `contrato` ainda vazio, origem de receita).
 
-**RLS:** ambas tabelas — SELECT para authenticated; INSERT/UPDATE/DELETE apenas admin/diretor_adm via `has_role`.
+## Como o teto de 3 créditos é respeitado
+- Tudo é leitura (`supabase--read_query`, `code--view`, `code--list_dir`) + 1 escrita final do markdown.
+- Consultas batched em paralelo sempre que independentes.
+- Se eu perceber, no meio do trabalho, que vou estourar o teto, **eu paro imediatamente**, salvo o que já levantei como `inventario-etapa0-parcial.md` e te informo:
+  - O que foi coberto.
+  - O que ficou pendente.
+  - Sugestão de teto adicional para concluir (sem cravar número exato — apenas "pequeno/médio/grande" relativo ao que já gastou).
 
-**Seed inicial:** popular `screen_permission_profile` com `view` para todos os menus existentes baseado em `role_permissions` atual (não destrutivo).
+## Compromisso de fechamento
+Ao final da etapa, eu te respondo explicitamente com **uma das duas frases**:
+- ✅ "Entreguei tudo o que estava no escopo da Etapa 0 dentro do teto."
+- ⚠️ "Não entreguei tudo. Faltou: [lista]. Motivo: [teto atingido / bloqueio técnico X]."
 
-### Frontend
+Sem ambiguidade, sem "praticamente tudo", sem "quase completo".
 
-**Nova tela `/app/admin/permissoes`** (`AcessosPermissoes.tsx`)
-- 2 abas:
-  - **Por Perfil**: tabela `role × menu × acao` com toggle. Filtros por role e módulo.
-  - **Por Pessoa**: seleciona usuário → matriz menu × acao com override. Mostra "herdado do perfil" vs "override".
-- Reutiliza `app_menu` para listar telas agrupadas por módulo.
+## O que NÃO está nesta etapa (para evitar escopo escondido)
+- Nenhuma migration.
+- Nenhuma mudança de RLS.
+- Nenhuma alteração de UI ou edge function.
+- Nenhum dos 21 fluxos do V3 é executado aqui — apenas mapeados.
+- Sem implementação do ajuste Helena/Maiara.
 
-**Hook `useScreenAccess(menuCodigo, acao)`**
-- Chama RPC `has_screen_access`, cache via react-query 5min.
-- `<ScreenGate menu="..." acao="view">` wrapper.
-
-**Sidebar/Rotas:** ainda NÃO bloqueia (Onda 6). Apenas a tela de admin é adicionada ao menu (visível para admin/diretor_adm).
-
-### Matriz de impacto
-- DDL aditivo, 0 risco em dados existentes.
-- Runtime atual não muda (gates só na Onda 6).
-- Tela nova oculta para roles sem permissão.
-
-### Entregáveis
-1. Migration (DDL + função + seed)
-2. `src/pages/admin/AcessosPermissoes.tsx`
-3. `src/hooks/useScreenAccess.ts` + `src/components/auth/ScreenGate.tsx`
-4. Item no Sidebar (Administração → Acessos & Permissões)
-5. Rota em `App.tsx`
-
-Aprova para implementar?
+Aprova para eu executar?
