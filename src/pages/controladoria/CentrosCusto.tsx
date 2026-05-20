@@ -332,6 +332,17 @@ function CCSection({
           </tbody>
         </table>
       </div>
+      {trocaCC && (
+        <TrocarEmpresaCCDialog
+          open={!!trocaCC}
+          onClose={() => setTrocaCC(null)}
+          ccId={trocaCC.id}
+          ccCodigo={trocaCC.codigo}
+          empresaAtualId={trocaCC.empresa_id}
+          empresas={empresas}
+          onSuccess={onReload}
+        />
+      )}
     </section>
   );
 }
