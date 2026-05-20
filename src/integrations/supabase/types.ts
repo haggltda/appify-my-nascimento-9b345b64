@@ -17135,6 +17135,62 @@ export type Database = {
           saldo: number
         }[]
       }
+      razao_saldo_anterior: {
+        Args: {
+          _cc_id?: string
+          _classif_ate?: string
+          _classif_de?: string
+          _classificacao_prefix?: string
+          _conta_id?: string
+          _contrato_id?: string
+          _data_ini: string
+          _empresa_id: string
+          _grupo_dre?: string
+          _natureza?: string
+          _origem?: string
+        }
+        Returns: {
+          saldo: number
+          total_credito: number
+          total_debito: number
+        }[]
+      }
+      razao_unificado_listar: {
+        Args: {
+          _busca?: string
+          _cc_id?: string
+          _classif_ate?: string
+          _classif_de?: string
+          _classificacao_prefix?: string
+          _conta_id?: string
+          _contrato_id?: string
+          _data_fim: string
+          _data_ini: string
+          _empresa_id: string
+          _grupo_dre?: string
+          _limit?: number
+          _natureza?: string
+          _offset?: number
+          _origem?: string
+        }
+        Returns: {
+          cc_codigo: string
+          cc_nome: string
+          conta_classif: string
+          conta_desc: string
+          conta_grupo: string
+          conta_natureza: string
+          contrato_num: string
+          credito: number
+          data_lcto: string
+          debito: number
+          documento: string
+          historico: string
+          lcto_numero: string
+          origem: string
+          total_count: number
+        }[]
+      }
       recebimento_confirmar: {
         Args: { _recebimento_id: string }
         Returns: Json

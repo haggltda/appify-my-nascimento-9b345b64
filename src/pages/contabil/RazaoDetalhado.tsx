@@ -83,14 +83,36 @@ export default function RazaoDetalhado() {
   );
   const [contaId, setContaId] = useState<string>("__all__");
   const [classifPrefix, setClassifPrefix] = useState("");
+  const [classifDe, setClassifDe] = useState("");
+  const [classifAte, setClassifAte] = useState("");
   const [natureza, setNatureza] = useState<string>("__all__");
   const [grupo, setGrupo] = useState<string>("__all__");
   const [ccId, setCcId] = useState<string>("__all__");
   const [contratoId, setContratoId] = useState<string>("__all__");
   const [origem, setOrigem] = useState<string>("__all__");
   const [busca, setBusca] = useState("");
+  const [incluirSaldoAnterior, setIncluirSaldoAnterior] = useState(false);
   const [page, setPage] = useState(1);
   const [exportLoading, setExportLoading] = useState(false);
+
+  function aplicarPreset(preset: string) {
+    const t = new Date();
+    const y = t.getFullYear();
+    const m = t.getMonth();
+    let di: Date, df: Date;
+    switch (preset) {
+      case "mes": di = new Date(y, m, 1); df = new Date(y, m + 1, 0); break;
+      case "mes_ant": di = new Date(y, m - 1, 1); df = new Date(y, m, 0); break;
+      case "trim": di = new Date(y, m - 2, 1); df = new Date(y, m + 1, 0); break;
+      case "ano": di = new Date(y, 0, 1); df = new Date(y, 11, 31); break;
+      case "ano_ant": di = new Date(y - 1, 0, 1); df = new Date(y - 1, 11, 31); break;
+      case "acumulado": di = new Date(y, 0, 1); df = t; break;
+      default: return;
+    }
+    setDataIni(di.toISOString().slice(0, 10));
+    setDataFim(df.toISOString().slice(0, 10));
+    setPage(1);
+  }
 
   // Combos
   const contasQ = useQuery({
@@ -158,20 +180,10 @@ export default function RazaoDetalhado() {
       _contrato_id: contratoId === "__all__" ? null : contratoId,
       _origem: origem === "__all__" ? null : origem,
       _busca: busca.trim() || null,
+      _classif_de: classifDe.trim() || null,
+      _classif_ate: classifAte.trim() || null,
     }),
-    [
-      empresaId,
-      dataIni,
-      dataFim,
-      contaId,
-      classifPrefix,
-      natureza,
-      grupo,
-      ccId,
-      contratoId,
-      origem,
-      busca,
-    ],
+    [empresaId, dataIni, dataFim, contaId, classifPrefix, natureza, grupo, ccId, contratoId, origem, busca, classifDe, classifAte],
   );
 
   const linhasQ = useQuery({
@@ -180,14 +192,23 @@ export default function RazaoDetalhado() {
     queryFn: async () => {
       const { data, error } = await (supabase.rpc as any)(
         "razao_unificado_listar",
-        {
-          ...baseFilters,
-          _limit: PAGE_SIZE,
-          _offset: (page - 1) * PAGE_SIZE,
-        },
+        { ...baseFilters, _limit: PAGE_SIZE, _offset: (page - 1) * PAGE_SIZE },
       );
       if (error) throw error;
       return (data ?? []) as Linha[];
+    },
+  });
+
+  const saldoAntQ = useQuery({
+    queryKey: ["razao-saldo-ant", baseFilters],
+    enabled: !!empresaId && incluirSaldoAnterior,
+    queryFn: async () => {
+      const { _data_fim, _busca, ...rest } = baseFilters as any;
+      const { data, error } = await (supabase.rpc as any)("razao_saldo_anterior", rest);
+      if (error) throw error;
+      return (data?.[0] ?? { total_debito: 0, total_credito: 0, saldo: 0 }) as {
+        total_debito: number | string; total_credito: number | string; saldo: number | string;
+      };
     },
   });
 
@@ -223,6 +244,7 @@ export default function RazaoDetalhado() {
       if (c) parts.push(`Conta: ${c.classificacao} ${c.descricao}`);
     }
     if (classifPrefix) parts.push(`Grupo: ${classifPrefix}*`);
+    if (classifDe || classifAte) parts.push(`Faixa: ${classifDe || "início"} → ${classifAte || "fim"}`);
     if (natureza !== "__all__") parts.push(`Natureza: ${natureza}`);
     if (grupo !== "__all__") parts.push(`Grupo DRE: ${grupo}`);
     if (ccId !== "__all__") {
@@ -496,6 +518,8 @@ export default function RazaoDetalhado() {
   function limparFiltros() {
     setContaId("__all__");
     setClassifPrefix("");
+    setClassifDe("");
+    setClassifAte("");
     setNatureza("__all__");
     setGrupo("__all__");
     setCcId("__all__");
@@ -541,6 +565,27 @@ export default function RazaoDetalhado() {
       <div className="space-y-4">
         {/* Filtros */}
         <div className="card-elevated p-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2 pb-1">
+            <span className="text-xs text-muted-foreground mr-1">Período rápido:</span>
+            {[
+              { id: "mes", label: "Mês atual" },
+              { id: "mes_ant", label: "Mês anterior" },
+              { id: "trim", label: "Trimestre" },
+              { id: "ano", label: "Exercício" },
+              { id: "ano_ant", label: "Exercício anterior" },
+              { id: "acumulado", label: "Acumulado" },
+            ].map((p) => (
+              <Button
+                key={p.id}
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => aplicarPreset(p.id)}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
           <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
             <div>
               <Label className="text-xs">Início</Label>
@@ -628,6 +673,22 @@ export default function RazaoDetalhado() {
                   setClassifPrefix(e.target.value);
                   setPage(1);
                 }}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Conta inicial (classificação)</Label>
+              <Input
+                placeholder="Ex: 1.0.0.00"
+                value={classifDe}
+                onChange={(e) => { setClassifDe(e.target.value); setPage(1); }}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Conta final (classificação)</Label>
+              <Input
+                placeholder="Ex: 5.1.1.01"
+                value={classifAte}
+                onChange={(e) => { setClassifAte(e.target.value); setPage(1); }}
               />
             </div>
             <div>
@@ -721,10 +782,21 @@ export default function RazaoDetalhado() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
-            <div className="text-xs text-muted-foreground">
-              {linhasQ.isLoading
-                ? "Carregando…"
-                : `${total.toLocaleString("pt-BR")} lançamentos · Página ${page} de ${totalPages}`}
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-primary"
+                  checked={incluirSaldoAnterior}
+                  onChange={(e) => setIncluirSaldoAnterior(e.target.checked)}
+                />
+                Incluir Saldo Anterior
+              </label>
+              <div className="text-xs text-muted-foreground">
+                {linhasQ.isLoading
+                  ? "Carregando…"
+                  : `${total.toLocaleString("pt-BR")} lançamentos · Página ${page} de ${totalPages}`}
+              </div>
             </div>
             <div className="flex gap-2">
               <Button
@@ -771,6 +843,19 @@ export default function RazaoDetalhado() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {incluirSaldoAnterior && page === 1 && saldoAntQ.data && (
+                  <TableRow className="bg-muted/40 font-medium text-xs">
+                    <TableCell colSpan={9} className="uppercase tracking-wider text-muted-foreground">
+                      Saldo Anterior (até {fmtDate(dataIni)})
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtBRL(Number(saldoAntQ.data.total_debito) || 0)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtBRL(Number(saldoAntQ.data.total_credito) || 0)}
+                    </TableCell>
+                  </TableRow>
+                )}
                 {linhasQ.isLoading && (
                   <TableRow>
                     <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
