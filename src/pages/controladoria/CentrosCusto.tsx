@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Building2, Plus, PowerOff, Loader2, FileBadge } from "lucide-react";
+import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +22,7 @@ type CentroCusto = {
   codigo_legado: boolean;
   entidade_origem_tabela: string | null;
   vincular_orcamento: boolean | null;
+  gestor_user_id: string | null;
 };
 
 type Empresa = { id: string; codigo: string; razao_social: string };
