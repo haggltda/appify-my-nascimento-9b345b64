@@ -1,6 +1,11 @@
 # Etapa 2 — Motor unificado de Alçadas de Aprovação
 
-Objetivo: substituir os 3 mecanismos atuais (`alcada_aprovacao`, `financeiro_pagamento_aprovacao`, `aprov_etapa`) por um motor único `sup_aprov_*` que cobre Requisição de compra, Licitação e Programação de pagamento — com 3 tipos de parecer (bloqueante / consultivo / ciência), regra automática de orçamento de CC, delegação, SLA com escalonamento, e migração automática dos registros legados.
+Objetivo: substituir os 3 mecanismos atuais (`alcada_aprovacao`, `financeiro_pagamento_aprovacao`, `aprov_etapa`) por um motor único `sup_aprov_*` que cobre Requisição de compra, **Pedido de compra (pós-cotação)**, Licitação e Programação de pagamento — com 3 tipos de parecer (bloqueante / consultivo / ciência), regra automática de orçamento de CC, delegação, SLA com escalonamento, e migração automática dos registros legados.
+
+> **Fluxo Suprimentos completo considerado:**
+> Requisição → (a) **se há saldo no almoxarifado**: retira material e **encerra sem aprovação de compra**; (b) **se não há**: vai para **cotação** → após cotação recebida, gera **Pedido de compra** → **o Pedido entra em aprovação** (é aqui que a alçada de valor + regra de orçamento de CC atuam, não na requisição em si).
+>
+> A regra automática de orçamento de CC é controlada por **flag por empresa/processo** (`auto_aprovar_se_orcamento_cc`) e respeita a **vigência do orçamento** (período em curso). Se a flag estiver ativa e houver saldo no CC dentro do período: etapa marcada `auto_aprovado` e o fluxo avança. Caso contrário: vai para o aprovador humano.
 
 ---
 
