@@ -12,7 +12,7 @@ Objetivo: substituir os 3 mecanismos atuais (`alcada_aprovacao`, `financeiro_pag
 ## 1. Mudanças de banco (migration)
 
 ### 1.1 Novos enums
-- `sup_aprov_alvo`: `requisicao_compra`, `licitacao_etapa`, `programacao_pagamento`
+- `sup_aprov_alvo`: `requisicao_compra`, `pedido_compra`, `licitacao_etapa`, `programacao_pagamento`
 - `sup_aprov_tipo_parecer`: `bloqueante`, `consultivo`, `ciencia`
 - `sup_aprov_status`: `pendente`, `aprovado`, `reprovado`, `auto_aprovado`, `cancelado`
 - `sup_aprov_criticidade`: `normal`, `urgente`, `critico`
