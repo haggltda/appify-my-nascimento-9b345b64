@@ -210,7 +210,7 @@ export default function CentrosCusto() {
 }
 
 function CCSection({
-  titulo, icone, lista, empresas, onToggle, onSetVincular,
+  titulo, icone, lista, empresas, onToggle, onSetVincular, onReload,
 }: {
   titulo: string;
   icone: React.ReactNode;
@@ -218,7 +218,9 @@ function CCSection({
   empresas: Empresa[];
   onToggle: (cc: CentroCusto) => void;
   onSetVincular: (cc: CentroCusto, value: boolean | null) => void;
+  onReload: () => void;
 }) {
+  const [trocaCC, setTrocaCC] = useState<CentroCusto | null>(null);
   const empresaCodigo = (id: string) => empresas.find((e) => e.id === id)?.codigo ?? "—";
   return (
     <section className="mb-6">
