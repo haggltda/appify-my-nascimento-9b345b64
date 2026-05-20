@@ -394,6 +394,7 @@ function NovaRCDialog({
             <span className="text-muted-foreground">Total estimado: </span>
             <strong>{valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong>
           </div>
+          <OrcamentoBadge empresaId={empresaId} centroCustoId={centroCustoId} valor={valorTotal} />
         </div>
 
         <DialogFooter>
