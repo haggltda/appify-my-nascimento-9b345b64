@@ -1,80 +1,109 @@
-# Plano de Execução — Prompt Mestre ERP Grupo Nascimento
 
-**Modo:** PLAN MODE obrigatório. Nada será implementado sem autorização explícita.
-**Prompt Mandatório:** `Engenharia_Final_de_Prompt_-_Star_Lovable.txt` (33 seções, 2.409 linhas).
+# Plano refinado — respostas às 4 perguntas + escopo do Bloco 1
 
----
+## Respostas às suas perguntas
 
-## ✅ Anexos recebidos e validados (somente-leitura)
+**P1 — Acesso somente-leitura ao banco para B1/B2:** confirmado. Vou usar apenas `supabase--read_query` em `pg_policies`, `information_schema`, `pg_class`, `storage.buckets`, `pg_proc`, mais `supabase--linter`. Zero `INSERT/UPDATE/DELETE/ALTER`. Nenhuma migration nesta fase.
 
-| Anexo | Status | Estrutura confirmada |
-|---|---|---|
-| Imagem `Tela_de_Pedido_-_Referência_de_Faturamento` | ✅ Recebida | Layout horizontal, cards executivos topo, abas (Dados gerais / Itens / Documentação / Tributos / Observações), drawer lateral "Resumo do pedido", checklist documental. Servirá **apenas como padrão visual/UX**. Dados da imagem são fictícios — **proibido copiar como reais**. |
-| `VERANÓPOLIS 01.2021.xlsm` | ✅ Parseada | 33 abas: `Lista NFs Jan 24` (A1:AI41, 35 cols) + 31 abas individuais de NF (A1:S88) + `Base de dados` (A1:M93). |
-| `Bento Gonçalves 002.2021.xlsm` | ✅ Parseada | 7 abas: `Lista NFs` (A1:AI42, 35 cols) + `NF Item 1..5` (A1:S88) + `Base de dados` (A1:M93). |
+**P2 — Sequenciamento B1 → B3 → B4 → B5… (B2 ao final). Existe risco?**
+- **Risco baixo, mas existe.** Mover compliance/RLS para o fim significa que durante B5–B22 (modelagem, telas, fluxo de Pedido de Faturamento, anexos, IA, dashboards) eu estarei **planejando** sobre uma base cujo modelo de acesso ainda não foi auditado. Como tudo é PLAN MODE (não escrevo nada), o risco se materializa só na hora de implementar.
+- **Mitigação proposta:** em B1 eu já entrego um *flag de alerta de compliance* por bloco — se identificar qualquer tabela com RLS frágil que será tocada por aquele bloco, registro o aviso. Quando chegar a hora de implementar cada bloco, validamos o ponto antes do código.
+- **Conclusão:** seguir B1 → B3 → B4 → B5 … → B22 → **B2 ao final** é seguro **desde que** nenhum bloco posterior chegue a gravar dados sem antes passar pela revisão B2. Vou marcar isso explicitamente no plano de cada bloco.
 
-**Divergências vs. Prompt Mestre (a registrar no diagnóstico):**
-- Veranópolis tem **33 abas individuais** (o prompt listou ~31 nominais). Diferenças de espaço/acentuação em nomes (`'NF 7 Limpeza Educação '`, `'NF  1 Limpeza Saúde'`, `'NF 1  Turismo'`). Tratar como ruído de naming, não como divergência funcional.
-- Aba `Base de dados` vai até **M93** (não C49 como descrito no prompt). Há mais colunas/linhas — confirmar com controladoria se há campos adicionais relevantes.
-- Aba `'NF  1 Limpeza Saúde'` tem 1 coluna a mais (max_col=20 vs. 19). Possível campo extra — auditar.
+**P3 — Repriorização:** aceito. Nova ordem: **B1, B3, B4, B5, B6, B7, B8, B9, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B20, B21, B22, B23, B2 (compliance/RLS final)**.
 
----
+**P4 — Parsing das planilhas (B5) já em B1 como anexo?**
+- **Recomendação técnica: SIM, fazer agora, junto com B1.** Motivos:
+  1. As planilhas (Veranópolis e Bento Gonçalves) são a **fonte mandatória** da modelagem do Pedido de Faturamento (§6–§9 do Prompt Mestre). Sem o mapa célula→campo, B1 entrega uma fotografia incompleta da realidade.
+  2. Adiantar o parse permite que o inventário B1 já cruze "campos exigidos pela planilha" × "campos existentes no ERP" — gera o gap real, não estimado.
+  3. Custo é baixo (parsing puro Python, já validado nos turnos anteriores).
+- **Risco de não fazer agora:** B5 vira novamente um bloco "descoberta", e B3/B4 perdem a chance de já alinhar campos não-promovidos contra a planilha.
+- **Decisão sugerida:** anexar parse célula a célula ao entregável de B1.
 
-## Plano sequencial por blocos (B1 → B23)
-
-Cada bloco entrega: **diagnóstico → evidências → riscos → recomendações → perguntas**. Implementação só após "OK" explícito.
-
-| # | Bloco | Tipo |
-|---|-------|------|
-| **B1** | Diagnóstico e inventário técnico | Read-only |
-| B2 | Compliance e acesso de lançamentos (seção 12) | Read-only |
-| B3 | DRE projetada zerada (seção 14) | Read-only |
-| B4 | Campos não promovidos (seção 15) | Read-only |
-| B5 | Pedido de Faturamento — mapa planilha→ERP (seções 6–9) | Read-only |
-| B6 | Pedido de Faturamento — tela horizontal (seção 10) | Plano |
-| B7 | Pedido de Faturamento — consulta (seção 11) | Plano |
-| B8 | Documentos exigidos por contrato (9.4–9.5) | Plano |
-| B9 | NF saída / contas a receber | Diag.+Plano |
-| B10 | OS / Empenho / Documento autorizador (seção 17) | Diag.+Plano |
-| B11 | Mobilização / kickoff / checklist (17–18) | Plano |
-| B12 | Triagem IA (19) | Diag.+Plano |
-| B13 | Administração da IA (20) | Plano |
-| B14 | Orçamento / DRE / FCR por contrato (16) | Diag.+Plano |
-| B15 | Consulta RC/Pedidos (21) | Plano |
-| B16 | Despesas parceladas (22) | Plano |
-| B17 | Materiais/serviços (23) | Diag.+Plano |
-| B18 | Centro de custos (24) | Diag.+Plano |
-| B19 | Menu Helena (26) | Diag.+Plano |
-| B20 | Workflow de Aprovações (27) | Diag.+Plano |
-| B21 | Storage / anexos (28) | Diag.+Plano |
-| B22 | Dashboards | Plano |
-| B23 | Testes Given/When/Then (31) | Plano |
+**Observação sobre repositório de documentos (anexos no aprovador financeiro):**
+Anotado como **requisito crítico**. O bucket `anexos` (privado) já existe. Em B1 entrego diagnóstico do bucket + RLS + tabela `anexos` (4 policies já ativas). Em B8/B20/B21 esse fluxo vira plano formal (upload no aprovador → checklist documental → consulta posterior). Sem isso, aprovação financeira fica bloqueada — vou marcar como dependência dura.
 
 ---
 
-## Bloco 1 — Diagnóstico e Inventário Técnico (próxima ação proposta)
+## Escopo do Bloco 1 — Diagnóstico e Inventário Técnico
 
-**100% somente-leitura.** Entrega:
+**100% read-only.** Entregável: documento `.lovable/B1-diagnostico.md`.
 
-1. **Inventário de frentes** (telas, rotas, hooks, tabelas/views/RPCs) cobrindo: Editais, Triagem IA, Licitações, Contratos, Mobilização, Orçamento, DRE/FCR, Requisições/Pedidos, Estoque, NF Entrada, Pré-Títulos, Programação de Pagamento, Pós-Pagamento, Conciliação, Pedido de Faturamento, NF Saída, Contas a Receber, Dashboards, Usuários/Permissões.
-2. **Evidências** via `code--view`, `rg`, `supabase--read_query` em `pg_policies` / `information_schema`, `supabase--linter`. Zero escrita.
-3. **Classificação por item** usando exatamente a terminologia do Prompt Mestre (§3): existe / parcial / não identificado / visual sem governança / gravação sem validação / técnico-desalinhado.
-4. **Matrizes obrigatórias §29** (inventário técnico + ponta a ponta inicial).
-5. **Riscos críticos** (compliance multiempresa, RLS por usuário, anexos expostos).
-6. **Perguntas de validação humana.**
+### Snapshot inicial já coletado (amostra)
+- **234 tabelas** em `public`, todas com `rls_enabled=true`. Contagem de policies por tabela já levantada (varia de 1 a 8).
+- **>120 funções `SECURITY DEFINER`** (faturamento, contabilização, conciliação, cotação, malotes, layout, integração, etc.) — todas precisam ser auditadas no B2 final.
+- **10 buckets de storage:** `anexos`, `avatars`, `colaboradores-fotos`, `copiloto-audios`, `fcr-uploads`, `identidade-visual`, `integration-uploads`, `migracao-zero`, `nfe-xml`, `pre-titulos-fiscal`. Públicos: `avatars`, `colaboradores-fotos`. Demais privados.
 
-**Ferramentas read-only que usarei:** `code--view`, `code--list_dir`, `code--exec` (rg, parse xlsx), `supabase--read_query`, `supabase--linter`.
-**NÃO usarei:** `supabase--migration`, `code--write` em arquivos do projeto (apenas `.lovable/plan.md`), `code--line_replace`, deploy de edge functions.
+### Entregáveis B1 (formato fixo, sem implementação)
+
+1. **Inventário de frentes funcionais (§29 matriz 1)** — para cada uma das 19 frentes (Editais, Triagem IA, Licitações, Contratos, Mobilização, Orçamento, DRE/FCR, Requisições, Pedidos, Estoque, NF Entrada, Pré-Títulos, Programação Pagto, Pós-Pagto, Conciliação, Pedido de Faturamento, NF Saída, Contas a Receber, Dashboards, Permissões), listar: rota frontend, página `.tsx`, hooks principais, tabelas/views/RPCs envolvidas, edge functions, estado (`existe` / `parcial` / `não identificado` / `visual sem governança` / `gravação sem validação` / `técnico-desalinhado` — terminologia §3).
+
+2. **Matriz ponta-a-ponta inicial (§29 matriz 2)** — fluxo Edital → Contrato → Mobilização → Orçamento → RC → Pedido → NF Entrada → Pré-Título → Pagamento → Conciliação → DRE; e Contrato → Cronograma → Pedido de Faturamento → NF Saída → CR → Cobrança → Baixa. Marca onde há "buraco".
+
+3. **Parse célula a célula das planilhas anexas** (Veranópolis 33 abas + Bento 7 abas) gerando dicionário de campos da Lista de NFs (35 colunas A:AI), NFs individuais (S88) e Base de dados (M93). Cada campo recebe: tipo inferido, exemplo, candidato de mapeamento no ERP, gap.
+
+4. **Cruzamento Planilha × ERP** — para cada campo da planilha, qual coluna do ERP cobre (em `pedido_compra`, `nota_fiscal`, `contrato`, `cronograma_faturamento`, `titulo_receber`, etc.) e o que falta.
+
+5. **Flags de risco por bloco futuro** — para B3, B4, B5, B6, B8, B9, B10, B12, B14, B20, B21, marcar tabelas com policies suspeitas (qtd_policies=1 em tabelas transacionais, ex.: `cotacao_fornecedor`, `cobranca_boleto`, `folha_evento`) para revisão obrigatória no B2 final.
+
+6. **Inventário de funções `SECURITY DEFINER`** (lista completa) — só lista e classifica por domínio, não audita lógica (fica para B2).
+
+7. **Inventário de storage** — buckets, visibilidade, políticas associadas, tamanho aproximado.
+
+8. **Lista de divergências planilha vs. Prompt Mestre** já detectadas (33 abas vs ~31, `Base de dados` M93 vs C49, coluna extra em `'NF 1 Limpeza Saúde'`).
+
+9. **Riscos críticos antecipados** (sem ação) e **perguntas humanas** para destravar B3.
+
+### Ferramentas utilizadas (somente leitura)
+- `supabase--read_query` (pg_policies, information_schema, pg_class, pg_proc, storage.buckets)
+- `supabase--linter`
+- `code--view`, `code--list_dir`, `rg`
+- `code--exec` com `python/openpyxl` para parsing das planilhas (escreve só em `/tmp/` e `.lovable/`)
+
+### O que **NÃO** será feito em B1
+- Nenhuma migration, nenhuma alteração de RLS/policy/trigger/função.
+- Nenhuma edição em `src/`.
+- Nenhuma decisão de modelagem (fica para B5+).
+- Nenhuma criação de bucket ou ajuste de storage.
+- Nenhuma auditoria de lógica de função SECURITY DEFINER (B2 final).
+
+### Tempo/custo estimado
+1 execução de B1 entrega o `.lovable/B1-diagnostico.md` completo (estimo 800–1500 linhas) + anexo de parsing das planilhas em JSON dentro de `.lovable/`.
 
 ---
 
-## Perguntas antes de iniciar B1
+## Nova sequência consolidada
 
-1. **Confirma** acesso somente-leitura ao banco (consultas em `pg_policies`, `information_schema`, contagens sem PII) para B1 e B2?
-2. **Confirma** o sequenciamento B1 → B2 → B3 → B4 antes de qualquer bloco de modelagem/tela (B5+)?
-3. Há **repriorização**? (Ex.: B2 compliance ou B3 DRE zerada antes de B1?)
-4. Para o parsing célula a célula das planilhas (necessário em B5), posso fazer já em B1 como anexo do inventário, ou prefere isolá-lo em B5?
+```
+B1  Diagnóstico + parsing planilhas (anexo)   ← próximo
+B3  DRE projetada zerada
+B4  Campos não promovidos
+B5  Pedido Faturamento — modelagem
+B6  Pedido Faturamento — tela horizontal
+B7  Pedido Faturamento — consulta
+B8  Documentos exigidos por contrato (anexos no aprovador ✱)
+B9  NF saída / CR
+B10 OS / Empenho / Documento autorizador
+B11 Mobilização / kickoff
+B12 Triagem IA
+B13 Administração IA
+B14 Orçamento / DRE / FCR por contrato
+B15 Consulta RC / Pedidos
+B16 Despesas parceladas
+B17 Materiais / serviços
+B18 Centro de custos
+B19 Menu Helena
+B20 Workflow de Aprovações (inclui upload de docs ✱)
+B21 Storage / anexos (consolida ✱)
+B22 Dashboards
+B23 Testes Given/When/Then
+B2  Compliance / RLS / SECURITY DEFINER  ← último
+```
+
+✱ pontos onde o requisito "anexar documentos na aprovação financeira" é validado.
 
 ---
 
-**Posso iniciar o Bloco 1 — diagnóstico e inventário técnico, sem implementar alterações?**
+## Confirmação necessária antes de executar B1
+
+Posso executar o Bloco 1 conforme descrito acima (read-only + parsing das planilhas como anexo)?
