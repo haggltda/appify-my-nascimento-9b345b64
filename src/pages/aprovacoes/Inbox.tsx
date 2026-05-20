@@ -17,6 +17,7 @@ import {
   Users, DollarSign, FolderOpen, Clock, FileIcon, Eye,
 } from "lucide-react";
 import { toast } from "sonner";
+import { TimelineAprovacao } from "@/components/aprovacoes/TimelineAprovacao";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
 const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
