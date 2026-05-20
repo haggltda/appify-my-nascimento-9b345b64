@@ -194,3 +194,83 @@ Pendência semântica deliberadamente **adiada para Etapa 1** (não cabia em rea
 - Revisão lógica das 38 policies de storage.
 
 Estado pronto para decidir o próximo recorte: **Etapa 1 (fundamentos)** ou **Fluxo 13+14 (Helena/Financeiro/Conciliação)**.
+
+---
+
+## 12. Revisão semântica de RLS e Storage (Etapa 0 — fechamento total)
+
+**Universo:** 580 policies (`public` + `storage`) classificadas por padrão lógico de `USING/WITH CHECK`.
+
+### 12.1 Distribuição por padrão
+
+| Padrão | Qtd | O que faz |
+|---|---:|---|
+| **EMPRESA_SCOPED** (`get_user_empresa`) | 319 | restringe à empresa única retornada pela função antiga |
+| **USER_SCOPED** (`auth.uid()`) | 217 | restringe ao dono/criador do registro |
+| **ROLE_ONLY** (`has_role`) | embutido em ~maioria | bypass admin/controladoria etc. |
+| **OPEN_TRUE** | **36** | qualquer usuário autenticado lê/escreve |
+| **EMPRESA_MULTI** (`user_pode_atuar_empresa`) | **0** | função nova **não está em uso em nenhuma policy** |
+| OUTRO | 8 | regras específicas (joins) |
+
+### 12.2 🔴 Achado crítico nº 1 — Incompatibilidade multiempresa
+
+**137 tabelas** filtram por `empresa_id = get_user_empresa(auth.uid())`. Essa função retorna **uma única empresa** (a `empresa_atual_id` do `profiles`). A migração de 2026-05-19 introduziu `acessa_todas_empresas` e `user_pode_atuar_empresa(_user, _empresa)`, mas **nenhuma policy foi reescrita para usar a nova função**.
+
+**Consequência prática para Helena/Maiara/Financeiro:**
+- Mesmo com `acessa_todas_empresas = true`, ao trocar empresa no Topbar a UI vê os dados (porque o `EmpresaAtivaContext` já lê tudo), mas qualquer **escrita** continua sujeita ao filtro antigo. Em vários módulos, leitura também é negada se o `empresa_atual_id` ainda não foi atualizado no instante da query.
+- **Bloqueador estrutural do fluxo 13** (Helena aprovar pagamentos de qualquer empresa) e de qualquer fluxo cross-empresa.
+
+**Correção necessária (Etapa 1):** substituir `(empresa_id = get_user_empresa(auth.uid()))` por `user_pode_atuar_empresa(auth.uid(), empresa_id)` nas 137 tabelas. Migração mecânica, mas de alto volume — precisa script gerador.
+
+### 12.3 🔴 Achado crítico nº 2 — Dados sensíveis com `qual = true`
+
+Tabelas com policy aberta para qualquer authenticated, contendo dado financeiro/bancário sensível:
+
+| Tabela | Policy(s) | Severidade |
+|---|---|---|
+| **`fornecedor_conta_bancaria`** | `auth read/insert/update/delete` (4× qual=true) | 🔴 Alta — chave Pix, agência/conta de fornecedores |
+| `saldos_iniciais_caixa` | `auth read saldos iniciais` (SELECT true) | 🟠 Média — saldos por conta |
+| `pre_titulo_rateio` | `auth read/write` (SELECT+ALL true) | 🟠 Média — valores e rateios |
+| `pre_titulo_anexo` | `auth read/write` (SELECT+ALL true) | 🟠 Média — anexos fiscais |
+
+Note: `fornecedor_conta_bancaria` tem **8 policies** (4 antigas abertas + 4 mais restritivas adicionadas depois). Como RLS é OR entre policies do mesmo `cmd`, **as 4 abertas anulam as restritivas**. Precisa dropar as antigas.
+
+### 12.4 🟡 Aberturas aceitáveis (catálogo público interno)
+
+36 policies `qual=true` SELECT, das quais ~30 são catálogos de leitura sem dado sensível e podem ficar como estão:
+- `empresas`, `app_menu`, `app_modulo`, `area`, `setor`, `comite` — metadados de organização.
+- `cfop`, `plano_contas_master`, `ia_provedores`, `perfil_metadata`, `centros_custo_sequencia` — referência.
+- `role_permissions`, `screen_permission_profile` — necessárias para o front montar gates.
+- `integration_layouts`, `integration_layout_columns`, `integration_layout_fingerprints`, `integration_validation_rules` — layouts de carga.
+- 10× `stg_*_read` — staging de leitura para promoção.
+
+### 12.5 Storage — 38 policies em 10 buckets
+
+**Padrão aplicado e correto na maioria:**
+- `storage_path_empresa(name) = get_user_empresa(auth.uid())` para isolar por empresa (anexos, nfe-xml, pre-titulos-fiscal, fcr-uploads, integration-uploads, migracao-zero, identidade-visual, copiloto-audios).
+- `has_role(auth.uid(),'admin')` bypass.
+- Buckets públicos (`avatars`, `colaboradores-fotos`) com SELECT `bucket_id=…` — esperado.
+
+**Mesmo problema do §12.2 aparece aqui:** o helper `storage_path_empresa` é comparado com `get_user_empresa` (single-empresa). Quando uma policy de pagamentos/anexos for ativada para o grupo, será preciso trocar para `user_pode_atuar_empresa`.
+
+**Sem aberturas inseguras detectadas no storage.** Apenas `avatars` e `colaboradores-fotos` são públicos por design (URLs assinadas/diretas para foto de perfil).
+
+### 12.6 Resumo de ações para a Etapa 1
+
+| Prioridade | Ação | Escopo |
+|---|---|---|
+| 🔴 P0 | Dropar 4 policies abertas em `fornecedor_conta_bancaria` | 1 tabela |
+| 🔴 P0 | Restringir `saldos_iniciais_caixa`, `pre_titulo_rateio`, `pre_titulo_anexo` por empresa | 3 tabelas |
+| 🔴 P1 | Reescrever 137 tabelas: `get_user_empresa` → `user_pode_atuar_empresa` | script gerador |
+| 🟡 P1 | Reescrever policies de storage que dependem de `get_user_empresa` | 8 buckets privados |
+| 🟢 P2 | Popular `screen_permission_profile` para roles operacionais (Onda 4) | 11 roles ausentes |
+
+---
+
+## 13. Encerramento definitivo da Etapa 0
+
+✅ **Etapa 0 100% concluída.** Nada ficou pendente.
+
+Total entregue: inventário estrutural (§1–§7), bloqueadores (§8), fechamento dos contadores e storage (§11), e **revisão semântica completa de RLS e storage (§12)** com 2 achados críticos.
+
+**Próximo passo natural:** Etapa 1 começa pelo §12.6 (P0 + P1), que **destrava ao mesmo tempo** o caso Helena/Maiara/Financeiro (fluxo 13) e fecha a brecha de dados bancários sensíveis.
