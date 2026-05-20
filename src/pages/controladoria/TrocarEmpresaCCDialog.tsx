@@ -26,6 +26,7 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
   const [diag, setDiag] = useState<Diagnostico | null>(null);
   const [loadingDiag, setLoadingDiag] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [temPermissao, setTemPermissao] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -33,12 +34,15 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
     setMotivo("");
     setLoadingDiag(true);
     (async () => {
-      const [cenR, diagR] = await Promise.all([
+      const { data: u } = await supabase.auth.getUser();
+      const [cenR, diagR, permR] = await Promise.all([
         supabase.rpc("pode_alterar_empresa_cc", { _cc_id: ccId }),
         supabase.rpc("diagnostico_alterar_empresa_cc", { _cc_id: ccId }),
+        u.user ? supabase.rpc("tem_permissao_especial", { _user_id: u.user.id, _permissao: "alterar_empresa_cc" }) : Promise.resolve({ data: false, error: null }),
       ]);
       if (!cenR.error) setCenario(cenR.data as Cenario);
       if (!diagR.error) setDiag(diagR.data as Diagnostico);
+      setTemPermissao(!permR.error ? !!permR.data : false);
       setLoadingDiag(false);
     })();
   }, [open, ccId, empresaAtualId]);
