@@ -100,9 +100,11 @@ Script SQL idempotente dentro da migration:
 Toggles: sininho, e-mail, push PWA.
 
 ### 3.4 Integração nos 3 processos piloto
-- **Requisição de compra** (`Requisicoes.tsx`): ao salvar, **NÃO abre instância de aprovação de compra**. O fluxo é:
-  1. Sistema verifica saldo no almoxarifado para os itens. Se cobre tudo → gera movimento de saída e **encerra**. Fim.
-  2. Se não cobre → status "aguardando cotação", segue para **Cotações** (`Cotacoes.tsx`).
+- **Requisição de compra** (`Requisicoes.tsx`): ao salvar, **sempre abre instância** `sup_aprov_abrir_instancia(alvo='requisicao_compra', cc=..., valor=valor_estimado)`. Backend decide as etapas dinamicamente:
+  - Sempre cria etapa **"Aprovação de retirada"** (bloqueante, responsável = gestor do CC).
+  - Se `valor_estimado > saldo_orcamento_cc_vigente`: cria também etapa **"Aprovação por ultrapassar orçamento"** (bloqueante, mesmo responsável) — exige **justificativa separada**.
+  - Tela detalhe mostra `<TimelineAprovacao>` com as duas etapas quando aplicável.
+  - Movimento de saída do almoxarifado / encaminhamento para Cotação só ocorre **após todas as etapas bloqueantes aprovadas**.
 - **Pedido de compra** (`PedidosCompra.tsx`): ao ser **gerado a partir de uma cotação aprovada**, chama `sup_aprov_abrir_instancia(alvo='pedido_compra', valor=total, cc=...)`. Aqui entram:
   - Etapa automática `orcamento_cc` (auto-aprova se flag `auto_aprovar_se_orcamento_cc` da empresa estiver ativa **e** houver saldo no CC dentro do período vigente do orçamento).
   - Etapas humanas por faixa de valor (alçada).
