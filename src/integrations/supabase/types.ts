@@ -17081,6 +17081,13 @@ export type Database = {
         Returns: string
       }
       sup_aprov_avancar: { Args: { _instancia_id: string }; Returns: undefined }
+      sup_aprov_fluxo_padrao: {
+        Args: {
+          _alvo: Database["public"]["Enums"]["sup_aprov_alvo"]
+          _empresa_id: string
+        }
+        Returns: string
+      }
       sup_aprov_pendentes_do_usuario: {
         Args: { _uid?: string }
         Returns: {
