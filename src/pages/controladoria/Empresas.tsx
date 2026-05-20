@@ -175,6 +175,22 @@ export default function Empresas() {
                 />
                 Ativa
               </label>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={editing.vincular_orcamento_padrao}
+                    onChange={(e) => setEditing({ ...editing, vincular_orcamento_padrao: e.target.checked })}
+                  />
+                  <span>
+                    <strong className="block">Vincular orçamento por padrão</strong>
+                    <span className="text-xs text-muted-foreground">
+                      Quando ativo, requisições que estouram o orçamento do CC exigem 2ª aprovação ("ultrapassar orçamento"). CCs podem sobrescrever.
+                    </span>
+                  </span>
+                </label>
+              </div>
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <button
