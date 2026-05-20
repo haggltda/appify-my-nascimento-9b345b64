@@ -41,7 +41,20 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
 
 
 export default function Administracao() {
-  const [tab, setTab] = useState<Tab>("usuarios");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initial = (searchParams.get("tab") as Tab) || "usuarios";
+  const [tab, setTab] = useState<Tab>(initial);
+
+  useEffect(() => {
+    const q = searchParams.get("tab") as Tab | null;
+    if (q && q !== tab) setTab(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const changeTab = (t: Tab) => {
+    setTab(t);
+    setSearchParams({ tab: t }, { replace: true });
+  };
 
   return (
     <div className="space-y-6">
