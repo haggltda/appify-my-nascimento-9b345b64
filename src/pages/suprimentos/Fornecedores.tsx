@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { FornecedorDialog } from "./fornecedores/FornecedorDialog";
 
@@ -14,6 +14,7 @@ export default function Fornecedores() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [viewOnly, setViewOnly] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["fornecedor", "list"],
