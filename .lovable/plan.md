@@ -3,9 +3,17 @@
 Objetivo: substituir os 3 mecanismos atuais (`alcada_aprovacao`, `financeiro_pagamento_aprovacao`, `aprov_etapa`) por um motor único `sup_aprov_*` que cobre Requisição de compra, **Pedido de compra (pós-cotação)**, Licitação e Programação de pagamento — com 3 tipos de parecer (bloqueante / consultivo / ciência), regra automática de orçamento de CC, delegação, SLA com escalonamento, e migração automática dos registros legados.
 
 > **Fluxo Suprimentos completo considerado:**
-> Requisição → (a) **se há saldo no almoxarifado**: retira material e **encerra sem aprovação de compra**; (b) **se não há**: vai para **cotação** → após cotação recebida, gera **Pedido de compra** → **o Pedido entra em aprovação** (é aqui que a alçada de valor + regra de orçamento de CC atuam, não na requisição em si).
 >
-> A regra automática de orçamento de CC é controlada por **flag por empresa/processo** (`auto_aprovar_se_orcamento_cc`) e respeita a **vigência do orçamento** (período em curso). Se a flag estiver ativa e houver saldo no CC dentro do período: etapa marcada `auto_aprovado` e o fluxo avança. Caso contrário: vai para o aprovador humano.
+> **1. Requisição** — toda requisição, depois de criada, **sempre passa por aprovação antes de qualquer retirada/movimentação**, mesmo se há saldo no almoxarifado e mesmo se há orçamento. Duas situações:
+>
+> - **(a) Com orçamento no CC (dentro da vigência):** abre `instancia` com alvo `requisicao_compra` contendo **uma única etapa bloqueante** = "Aprovação de retirada" (responsável: gestor da área/CC). Aprovador justifica e aprova/reprova.
+> - **(b) Sem orçamento (estouro):** o usuário ainda salva normalmente. A instância abre com **duas etapas bloqueantes para o mesmo aprovador**: (1) "Aprovação de retirada" e (2) "Registro de aprovação por ultrapassar orçamento". O gestor precisa **votar e justificar cada uma separadamente** (duas justificativas independentes na trilha de auditoria). Só após ambas aprovadas a requisição segue.
+>
+> **2. Pós-aprovação da requisição:**
+> - Se há saldo no almoxarifado → gera movimento de saída e encerra.
+> - Se não há → status "aguardando cotação" → segue para **Cotações** → após cotação aprovada, gera **Pedido de compra** → o **Pedido** abre nova instância (`alvo=pedido_compra`) com alçada por valor + regra `orcamento_cc`.
+>
+> **3. Regra automática `orcamento_cc`** (apenas no Pedido de compra, **não** na Requisição): controlada por flag `empresas.auto_aprovar_orcamento_cc` + vigência do orçamento. Se flag ativa **e** saldo no CC dentro do período → etapa `auto_aprovado`. Caso contrário → aprovador humano.
 
 ---
 
