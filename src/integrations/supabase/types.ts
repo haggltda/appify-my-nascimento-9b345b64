@@ -1251,6 +1251,7 @@ export type Database = {
           entidade_origem_tabela: string | null
           exige_contrato: boolean
           fixo_variavel: string | null
+          gestor_user_id: string | null
           id: string
           impacta_dre: boolean
           nome: string
@@ -1273,6 +1274,7 @@ export type Database = {
           entidade_origem_tabela?: string | null
           exige_contrato?: boolean
           fixo_variavel?: string | null
+          gestor_user_id?: string | null
           id?: string
           impacta_dre?: boolean
           nome: string
@@ -1295,6 +1297,7 @@ export type Database = {
           entidade_origem_tabela?: string | null
           exige_contrato?: boolean
           fixo_variavel?: string | null
+          gestor_user_id?: string | null
           id?: string
           impacta_dre?: boolean
           nome?: string
@@ -1325,6 +1328,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_bi_resumo_empresa"
             referencedColumns: ["empresa_id"]
+          },
+          {
+            foreignKeyName: "centros_custo_gestor_user_id_fkey"
+            columns: ["gestor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3435,6 +3445,7 @@ export type Database = {
           cnpj: string
           codigo: string
           created_at: string
+          diretor_user_id: string | null
           id: string
           nome_fantasia: string | null
           razao_social: string
@@ -3446,6 +3457,7 @@ export type Database = {
           cnpj: string
           codigo: string
           created_at?: string
+          diretor_user_id?: string | null
           id?: string
           nome_fantasia?: string | null
           razao_social: string
@@ -3457,13 +3469,22 @@ export type Database = {
           cnpj?: string
           codigo?: string
           created_at?: string
+          diretor_user_id?: string | null
           id?: string
           nome_fantasia?: string | null
           razao_social?: string
           regime?: Database["public"]["Enums"]["regime_tributario"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "empresas_diretor_user_id_fkey"
+            columns: ["diretor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       estoque_lote: {
         Row: {
@@ -15299,72 +15320,130 @@ export type Database = {
         }
         Relationships: []
       }
-      sup_aprov_aprovador: {
+      sup_aprov_alerta_log: {
         Row: {
-          created_at: string
+          degrau_id: string
+          destinatarios_efetivos: Json | null
+          enviado_em: string
           etapa_id: string
           id: string
-          role: Database["public"]["Enums"]["app_role"] | null
-          user_id: string | null
+          instancia_id: string
         }
         Insert: {
-          created_at?: string
+          degrau_id: string
+          destinatarios_efetivos?: Json | null
+          enviado_em?: string
           etapa_id: string
           id?: string
-          role?: Database["public"]["Enums"]["app_role"] | null
-          user_id?: string | null
+          instancia_id: string
         }
         Update: {
-          created_at?: string
+          degrau_id?: string
+          destinatarios_efetivos?: Json | null
+          enviado_em?: string
           etapa_id?: string
           id?: string
-          role?: Database["public"]["Enums"]["app_role"] | null
-          user_id?: string | null
+          instancia_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "sup_aprov_aprovador_etapa_id_fkey"
+            foreignKeyName: "sup_aprov_alerta_log_degrau_id_fkey"
+            columns: ["degrau_id"]
+            isOneToOne: false
+            referencedRelation: "sup_aprov_regua_degrau"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sup_aprov_alerta_log_etapa_id_fkey"
             columns: ["etapa_id"]
             isOneToOne: false
             referencedRelation: "sup_aprov_etapa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sup_aprov_alerta_log_instancia_id_fkey"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "sup_aprov_instancia"
             referencedColumns: ["id"]
           },
         ]
       }
       sup_aprov_etapa: {
         Row: {
+          ativo: boolean
           created_at: string
+          criticidade: Database["public"]["Enums"]["sup_aprov_criticidade"]
+          delegado_ate: string | null
+          delegado_para_user_id: string | null
           fluxo_id: string
           id: string
-          modo: Database["public"]["Enums"]["sup_aprov_modo"]
           nome: string
           ordem: number
-          quorum_minimo: number | null
+          prazo_horas: number
+          regra_auto: Json | null
+          responsavel_user_id: string
+          tipo_parecer: Database["public"]["Enums"]["sup_aprov_tipo_parecer"]
+          updated_at: string
+          valor_max: number | null
+          valor_min: number
         }
         Insert: {
+          ativo?: boolean
           created_at?: string
+          criticidade?: Database["public"]["Enums"]["sup_aprov_criticidade"]
+          delegado_ate?: string | null
+          delegado_para_user_id?: string | null
           fluxo_id: string
           id?: string
-          modo?: Database["public"]["Enums"]["sup_aprov_modo"]
           nome: string
           ordem: number
-          quorum_minimo?: number | null
+          prazo_horas?: number
+          regra_auto?: Json | null
+          responsavel_user_id: string
+          tipo_parecer?: Database["public"]["Enums"]["sup_aprov_tipo_parecer"]
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number
         }
         Update: {
+          ativo?: boolean
           created_at?: string
+          criticidade?: Database["public"]["Enums"]["sup_aprov_criticidade"]
+          delegado_ate?: string | null
+          delegado_para_user_id?: string | null
           fluxo_id?: string
           id?: string
-          modo?: Database["public"]["Enums"]["sup_aprov_modo"]
           nome?: string
           ordem?: number
-          quorum_minimo?: number | null
+          prazo_horas?: number
+          regra_auto?: Json | null
+          responsavel_user_id?: string
+          tipo_parecer?: Database["public"]["Enums"]["sup_aprov_tipo_parecer"]
+          updated_at?: string
+          valor_max?: number | null
+          valor_min?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "sup_aprov_etapa_delegado_para_user_id_fkey"
+            columns: ["delegado_para_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sup_aprov_etapa_fluxo_id_fkey"
             columns: ["fluxo_id"]
             isOneToOne: false
             referencedRelation: "sup_aprov_fluxo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sup_aprov_etapa_responsavel_user_id_fkey"
+            columns: ["responsavel_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -15374,37 +15453,34 @@ export type Database = {
           alvo: Database["public"]["Enums"]["sup_aprov_alvo"]
           ativo: boolean
           created_at: string
-          created_by: string | null
           empresa_id: string
           id: string
           nome: string
+          observacao: string | null
+          regua_escalonamento_id: string | null
           updated_at: string
-          valor_max: number | null
-          valor_min: number
         }
         Insert: {
           alvo: Database["public"]["Enums"]["sup_aprov_alvo"]
           ativo?: boolean
           created_at?: string
-          created_by?: string | null
           empresa_id: string
           id?: string
           nome: string
+          observacao?: string | null
+          regua_escalonamento_id?: string | null
           updated_at?: string
-          valor_max?: number | null
-          valor_min?: number
         }
         Update: {
           alvo?: Database["public"]["Enums"]["sup_aprov_alvo"]
           ativo?: boolean
           created_at?: string
-          created_by?: string | null
           empresa_id?: string
           id?: string
           nome?: string
+          observacao?: string | null
+          regua_escalonamento_id?: string | null
           updated_at?: string
-          valor_max?: number | null
-          valor_min?: number
         }
         Relationships: [
           {
@@ -15428,52 +15504,75 @@ export type Database = {
             referencedRelation: "vw_bi_resumo_empresa"
             referencedColumns: ["empresa_id"]
           },
+          {
+            foreignKeyName: "sup_aprov_fluxo_regua_escalonamento_id_fkey"
+            columns: ["regua_escalonamento_id"]
+            isOneToOne: false
+            referencedRelation: "sup_aprov_regua_escalonamento"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sup_aprov_instancia: {
         Row: {
+          aberta_em: string
           alvo: Database["public"]["Enums"]["sup_aprov_alvo"]
+          centro_custo_id: string | null
+          created_at: string
           empresa_id: string
           etapa_atual_id: string | null
-          finalizado_em: string | null
+          fechada_em: string | null
           fluxo_id: string
           id: string
-          iniciado_em: string
-          iniciado_por: string | null
-          observacoes: string | null
-          pc_id: string | null
-          rc_id: string | null
+          referencia_codigo: string | null
+          referencia_id: string
+          solicitante_user_id: string | null
           status: Database["public"]["Enums"]["sup_aprov_status"]
+          updated_at: string
+          valor: number
         }
         Insert: {
+          aberta_em?: string
           alvo: Database["public"]["Enums"]["sup_aprov_alvo"]
+          centro_custo_id?: string | null
+          created_at?: string
           empresa_id: string
           etapa_atual_id?: string | null
-          finalizado_em?: string | null
+          fechada_em?: string | null
           fluxo_id: string
           id?: string
-          iniciado_em?: string
-          iniciado_por?: string | null
-          observacoes?: string | null
-          pc_id?: string | null
-          rc_id?: string | null
+          referencia_codigo?: string | null
+          referencia_id: string
+          solicitante_user_id?: string | null
           status?: Database["public"]["Enums"]["sup_aprov_status"]
+          updated_at?: string
+          valor?: number
         }
         Update: {
+          aberta_em?: string
           alvo?: Database["public"]["Enums"]["sup_aprov_alvo"]
+          centro_custo_id?: string | null
+          created_at?: string
           empresa_id?: string
           etapa_atual_id?: string | null
-          finalizado_em?: string | null
+          fechada_em?: string | null
           fluxo_id?: string
           id?: string
-          iniciado_em?: string
-          iniciado_por?: string | null
-          observacoes?: string | null
-          pc_id?: string | null
-          rc_id?: string | null
+          referencia_codigo?: string | null
+          referencia_id?: string
+          solicitante_user_id?: string | null
           status?: Database["public"]["Enums"]["sup_aprov_status"]
+          updated_at?: string
+          valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "sup_aprov_instancia_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sup_aprov_instancia_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -15510,48 +15609,144 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "sup_aprov_instancia_pc_id_fkey"
-            columns: ["pc_id"]
+            foreignKeyName: "sup_aprov_instancia_solicitante_user_id_fkey"
+            columns: ["solicitante_user_id"]
             isOneToOne: false
-            referencedRelation: "pedido_compra"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sup_aprov_instancia_rc_id_fkey"
-            columns: ["rc_id"]
-            isOneToOne: false
-            referencedRelation: "requisicao_compra"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
+      sup_aprov_notif_pref: {
+        Row: {
+          email_ativo: boolean
+          push_ativo: boolean
+          sininho_ativo: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          email_ativo?: boolean
+          push_ativo?: boolean
+          sininho_ativo?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          email_ativo?: boolean
+          push_ativo?: boolean
+          sininho_ativo?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sup_aprov_notif_pref_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sup_aprov_regua_degrau: {
+        Row: {
+          canais: Json
+          created_at: string
+          destinatarios: Json
+          horas_extra: number | null
+          id: string
+          ordem: number
+          pct_prazo: number | null
+          reatribui: boolean
+          regua_id: string
+        }
+        Insert: {
+          canais?: Json
+          created_at?: string
+          destinatarios?: Json
+          horas_extra?: number | null
+          id?: string
+          ordem: number
+          pct_prazo?: number | null
+          reatribui?: boolean
+          regua_id: string
+        }
+        Update: {
+          canais?: Json
+          created_at?: string
+          destinatarios?: Json
+          horas_extra?: number | null
+          id?: string
+          ordem?: number
+          pct_prazo?: number | null
+          reatribui?: boolean
+          regua_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sup_aprov_regua_degrau_regua_id_fkey"
+            columns: ["regua_id"]
+            isOneToOne: false
+            referencedRelation: "sup_aprov_regua_escalonamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sup_aprov_regua_escalonamento: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sup_aprov_voto: {
         Row: {
-          comentario: string | null
           etapa_id: string
           id: string
           instancia_id: string
-          user_id: string
+          justificativa: string | null
+          parecer: Database["public"]["Enums"]["sup_aprov_parecer"]
+          usuario_id: string
           votado_em: string
-          voto: Database["public"]["Enums"]["sup_aprov_voto_tipo"]
         }
         Insert: {
-          comentario?: string | null
           etapa_id: string
           id?: string
           instancia_id: string
-          user_id: string
+          justificativa?: string | null
+          parecer: Database["public"]["Enums"]["sup_aprov_parecer"]
+          usuario_id: string
           votado_em?: string
-          voto: Database["public"]["Enums"]["sup_aprov_voto_tipo"]
         }
         Update: {
-          comentario?: string | null
           etapa_id?: string
           id?: string
           instancia_id?: string
-          user_id?: string
+          justificativa?: string | null
+          parecer?: Database["public"]["Enums"]["sup_aprov_parecer"]
+          usuario_id?: string
           votado_em?: string
-          voto?: Database["public"]["Enums"]["sup_aprov_voto_tipo"]
         }
         Relationships: [
           {
@@ -15566,6 +15761,13 @@ export type Database = {
             columns: ["instancia_id"]
             isOneToOne: false
             referencedRelation: "sup_aprov_instancia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sup_aprov_voto_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -16854,6 +17056,52 @@ export type Database = {
         Returns: Json
       }
       storage_path_empresa: { Args: { _name: string }; Returns: string }
+      sup_aprov_abrir_instancia: {
+        Args: {
+          _cc_id: string
+          _fluxo_id: string
+          _ref_codigo: string
+          _ref_id: string
+          _solicitante: string
+          _valor: number
+        }
+        Returns: string
+      }
+      sup_aprov_avancar: { Args: { _instancia_id: string }; Returns: undefined }
+      sup_aprov_pendentes_do_usuario: {
+        Args: { _uid?: string }
+        Returns: {
+          aberta_em: string
+          alvo: Database["public"]["Enums"]["sup_aprov_alvo"]
+          criticidade: Database["public"]["Enums"]["sup_aprov_criticidade"]
+          empresa_id: string
+          etapa_id: string
+          etapa_nome: string
+          horas_paradas: number
+          instancia_id: string
+          prazo_horas: number
+          referencia_codigo: string
+          tipo_parecer: Database["public"]["Enums"]["sup_aprov_tipo_parecer"]
+          valor: number
+        }[]
+      }
+      sup_aprov_registrar_voto: {
+        Args: {
+          _etapa_id: string
+          _instancia_id: string
+          _justificativa: string
+          _parecer: Database["public"]["Enums"]["sup_aprov_parecer"]
+        }
+        Returns: undefined
+      }
+      sup_aprov_responsavel_efetivo: {
+        Args: { _etapa_id: string }
+        Returns: string
+      }
+      sup_aprov_tem_orcamento_cc: {
+        Args: { _cc_id: string; _periodo?: string; _valor: number }
+        Returns: boolean
+      }
       titulo_agendar: {
         Args: {
           _conta_bancaria_id: string
@@ -17292,10 +17540,19 @@ export type Database = {
         | "processado"
         | "erro"
         | "parcial"
-      sup_aprov_alvo: "rc" | "pc"
-      sup_aprov_modo: "todos" | "qualquer" | "quorum"
-      sup_aprov_status: "aberta" | "aprovada" | "rejeitada" | "cancelada"
-      sup_aprov_voto_tipo: "aprovado" | "rejeitado"
+      sup_aprov_alvo:
+        | "requisicao_compra"
+        | "licitacao_etapa"
+        | "programacao_pagamento"
+      sup_aprov_criticidade: "normal" | "urgente" | "critico"
+      sup_aprov_parecer: "aprovado" | "reprovado" | "ciencia"
+      sup_aprov_status:
+        | "pendente"
+        | "aprovado"
+        | "reprovado"
+        | "auto_aprovado"
+        | "cancelado"
+      sup_aprov_tipo_parecer: "bloqueante" | "consultivo" | "ciencia"
       template_tipo: "email" | "whatsapp" | "sms" | "interno"
       titulo_receber_meio:
         | "boleto"
@@ -17872,10 +18129,21 @@ export const Constants = {
         "erro",
         "parcial",
       ],
-      sup_aprov_alvo: ["rc", "pc"],
-      sup_aprov_modo: ["todos", "qualquer", "quorum"],
-      sup_aprov_status: ["aberta", "aprovada", "rejeitada", "cancelada"],
-      sup_aprov_voto_tipo: ["aprovado", "rejeitado"],
+      sup_aprov_alvo: [
+        "requisicao_compra",
+        "licitacao_etapa",
+        "programacao_pagamento",
+      ],
+      sup_aprov_criticidade: ["normal", "urgente", "critico"],
+      sup_aprov_parecer: ["aprovado", "reprovado", "ciencia"],
+      sup_aprov_status: [
+        "pendente",
+        "aprovado",
+        "reprovado",
+        "auto_aprovado",
+        "cancelado",
+      ],
+      sup_aprov_tipo_parecer: ["bloqueante", "consultivo", "ciencia"],
       template_tipo: ["email", "whatsapp", "sms", "interno"],
       titulo_receber_meio: [
         "boleto",
