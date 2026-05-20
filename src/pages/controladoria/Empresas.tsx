@@ -28,12 +28,12 @@ export default function Empresas() {
     setLoading(true);
     const { data, error } = await supabase
       .from("empresas")
-      .select("id, codigo, razao_social, nome_fantasia, cnpj, regime, ativa")
+      .select("id, codigo, razao_social, nome_fantasia, cnpj, regime, ativa, vincular_orcamento_padrao")
       .order("codigo");
     if (error) {
       toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
     } else {
-      setEmpresas(data ?? []);
+      setEmpresas((data ?? []) as Empresa[]);
     }
     setLoading(false);
   };
@@ -50,6 +50,7 @@ export default function Empresas() {
         cnpj: editing.cnpj,
         regime: editing.regime,
         ativa: editing.ativa,
+        vincular_orcamento_padrao: editing.vincular_orcamento_padrao,
       })
       .eq("id", editing.id);
     if (error) {
