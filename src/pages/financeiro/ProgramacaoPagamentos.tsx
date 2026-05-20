@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Save, Send, CheckCircle2, XCircle, RotateCcw, AlertTriangle, ArrowLeft, Trash2, FileInput, Plus, Calculator, MessageSquare, ArrowUpCircle, PackageCheck, Ban, FileText, Building2, Calendar, DollarSign, Banknote, AlertCircle, TrendingDown, Hash } from "lucide-react";
+import { TimelineAprovacao } from "@/components/aprovacoes/TimelineAprovacao";
 import { toast } from "sonner";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
@@ -236,10 +237,31 @@ export default function ProgramacaoPagamentos() {
   const submeter = useMutation({
     mutationFn: async () => {
       if (!programacaoId) throw new Error("Salve antes de enviar");
+      // Motor legado (mantém gating atual de status)
       const { error } = await (supabase as any).rpc("programacao_submeter_aprovacao", { p_programacao_id: programacaoId });
       if (error) throw error;
+
+      // Motor novo: abre instância em sup_aprov_* (alvo = programacao_pagamento)
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        const { data: fluxoId } = await (supabase as any).rpc("sup_aprov_fluxo_padrao", {
+          _empresa_id: empresaId, _alvo: "programacao_pagamento",
+        });
+        if (fluxoId) {
+          await (supabase as any).rpc("sup_aprov_abrir_instancia", {
+            _fluxo_id: fluxoId,
+            _referencia_id: programacaoId,
+            _referencia_codigo: codigoProg,
+            _valor: totaisItens.total,
+            _centro_custo_id: null,
+            _solicitante: u.user?.id ?? null,
+          });
+        }
+      } catch (err: any) {
+        console.warn("[sup_aprov] falha ao abrir instância nova:", err?.message);
+      }
     },
-    onSuccess: () => { toast.success("Enviado para aprovação"); refetchProg(); refetchAprov(); },
+    onSuccess: () => { toast.success("Enviado para aprovação"); refetchProg(); refetchAprov(); qc.invalidateQueries({ queryKey: ["timeline-aprovacao"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -610,6 +632,12 @@ export default function ProgramacaoPagamentos() {
               <div className="space-y-2 border-t pt-4">
                 <Label>Justificativa (obrigatória para reprovar/devolver)</Label>
                 <Textarea value={decisaoJustif} onChange={(e) => setDecisaoJustif(e.target.value)} />
+              </div>
+            )}
+            {programacaoId && (
+              <div className="border-t pt-4">
+                <div className="mb-2 text-sm font-semibold">Trilha unificada (motor de alçadas)</div>
+                <TimelineAprovacao alvo="programacao_pagamento" referenciaId={programacaoId} />
               </div>
             )}
           </CardContent></Card>

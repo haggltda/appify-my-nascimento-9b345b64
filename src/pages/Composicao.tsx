@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { licitacoes as licitacoesBase } from "@/data/licitacoes";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { LicitacaoAprovacaoBox } from "@/components/aprovacoes/LicitacaoAprovacaoBox";
 import {
   PieChart,
   Briefcase,
@@ -645,6 +646,14 @@ export default function Composicao() {
               </div>
             </div>
           </div>
+
+          {licitacaoIdParam && (
+            <LicitacaoAprovacaoBox
+              licitacaoId={licitacaoIdParam}
+              licitacaoCodigo={licitacao}
+              valorEstimado={totais.total * 12}
+            />
+          )}
 
           <div className="card-elevated p-4">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Próximos passos</p>
