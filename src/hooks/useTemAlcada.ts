@@ -9,8 +9,9 @@ export function useTemAlcada() {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return { tem: false, pendentes: 0 };
       const [{ count: alcCount }, { count: pendCount }] = await Promise.all([
+        // Novo motor: usuário é responsável por alguma etapa-template OU instância em andamento
         (supabase as any)
-          .from("alcada_aprovacao")
+          .from("sup_aprov_etapa")
           .select("id", { count: "exact", head: true })
           .eq("responsavel_user_id", u.user.id)
           .eq("ativo", true),
