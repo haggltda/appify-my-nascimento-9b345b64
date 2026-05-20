@@ -193,3 +193,26 @@ Lixeira no final de cada linha da tabela. Cuidado: a exclusão é **definitiva**
 - "Como aprovo um pedido de compra?" (Suprimentos)
 - "Como aprovo um pagamento?" (Financeiro)
 - "Gestão de Usuário Sistema" (Administração) — dicionário de papéis e permissões.
+
+---
+
+## 10. Flag "Vincular orçamento?" — herança em 3 níveis
+
+A flag controla se uma **Requisição que estoura o orçamento do CC** exige uma **2ª etapa bloqueante** ("Aprovação por ultrapassar orçamento") além da aprovação de retirada normal.
+
+A resolução é em cascata, do mais específico para o mais geral:
+
+1. **Etapa (mais específico)** — `sup_aprov_etapa.regra_auto.vincular_orcamento` (`true` / `false`). Aplica-se a fluxos com etapas-template (não-Requisição).
+2. **Centro de Custo** — `centros_custo.vincular_orcamento` (`true` / `false` / `null`). `null` = herda da empresa.
+3. **Empresa (padrão)** — `empresas.vincular_orcamento_padrao` (`true` / `false`). Default `true`.
+
+**Onde configurar:**
+- **Empresa:** Administração → Alçadas → painel "Vincular orçamento (padrão da empresa)", OU Controladoria → Empresas → edição da empresa.
+- **CC:** Controladoria → Centros de Custo → coluna "Vincular orçamento" (Herda / Sim / Não).
+- **Etapa:** edição direta do JSON `regra_auto` na etapa-template (UI dedicada em backlog).
+
+**Efeito prático:**
+- `true` resolvido → comportamento atual (2 etapas quando estoura).
+- `false` resolvido → apenas a etapa de retirada, sem bloqueio adicional pelo orçamento.
+
+> Default seguro: empresas e CCs existentes herdam `true` automaticamente após a migration — nenhum fluxo muda sem decisão explícita.

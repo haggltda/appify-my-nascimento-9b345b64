@@ -14,7 +14,47 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Trash2, FileText, Send, CheckCircle2, XCircle, Clock, Eye } from "lucide-react";
+import { Plus, Trash2, FileText, Send, CheckCircle2, XCircle, Clock, Eye, AlertTriangle } from "lucide-react";
+
+function OrcamentoBadge({ empresaId, centroCustoId, valor }: { empresaId: string | null; centroCustoId: string; valor: number }) {
+  const enabled = !!(empresaId && centroCustoId && valor > 0);
+  const q = useQuery({
+    queryKey: ["rc_orc_check", empresaId, centroCustoId, valor],
+    enabled,
+    queryFn: async () => {
+      const [vinc, temOrc] = await Promise.all([
+        (supabase as any).rpc("sup_aprov_vincula_orcamento", { _empresa_id: empresaId, _centro_custo_id: centroCustoId }),
+        (supabase as any).rpc("sup_aprov_tem_orcamento_cc", { _centro_custo_id: centroCustoId, _valor: valor, _periodo: null }),
+      ]);
+      return {
+        vincula: vinc.data === true,
+        temOrcamento: temOrc.data === true,
+      };
+    },
+  });
+  if (!enabled || !q.data) return null;
+  const { vincula, temOrcamento } = q.data;
+  if (temOrcamento) {
+    return (
+      <div className="mt-2 flex items-center justify-end gap-2 text-xs text-emerald-700 dark:text-emerald-400">
+        <CheckCircle2 className="h-3.5 w-3.5" /> Há saldo no orçamento do CC para este valor.
+      </div>
+    );
+  }
+  if (vincula) {
+    return (
+      <div className="mt-2 flex items-start justify-end gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+        <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+        <span><strong>Sem saldo no CC.</strong> Esta requisição abrirá <strong>2 etapas bloqueantes</strong> (retirada + ultrapassar orçamento), cada uma exigindo justificativa.</span>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2 flex items-center justify-end gap-2 text-xs text-muted-foreground">
+      <AlertTriangle className="h-3.5 w-3.5" /> Sem saldo no CC. "Vincular orçamento" desativado — segue só com a aprovação de retirada.
+    </div>
+  );
+}
 
 type RC = any;
 type RCItem = any;
@@ -394,6 +434,7 @@ function NovaRCDialog({
             <span className="text-muted-foreground">Total estimado: </span>
             <strong>{valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong>
           </div>
+          <OrcamentoBadge empresaId={empresaId} centroCustoId={centroCustoId} valor={valorTotal} />
         </div>
 
         <DialogFooter>

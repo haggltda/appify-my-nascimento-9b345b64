@@ -15,6 +15,7 @@ type Empresa = {
   cnpj: string;
   regime: Regime;
   ativa: boolean;
+  vincular_orcamento_padrao: boolean;
 };
 
 export default function Empresas() {
@@ -27,12 +28,12 @@ export default function Empresas() {
     setLoading(true);
     const { data, error } = await supabase
       .from("empresas")
-      .select("id, codigo, razao_social, nome_fantasia, cnpj, regime, ativa")
+      .select("id, codigo, razao_social, nome_fantasia, cnpj, regime, ativa, vincular_orcamento_padrao")
       .order("codigo");
     if (error) {
       toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
     } else {
-      setEmpresas(data ?? []);
+      setEmpresas((data ?? []) as Empresa[]);
     }
     setLoading(false);
   };
@@ -49,6 +50,7 @@ export default function Empresas() {
         cnpj: editing.cnpj,
         regime: editing.regime,
         ativa: editing.ativa,
+        vincular_orcamento_padrao: editing.vincular_orcamento_padrao,
       })
       .eq("id", editing.id);
     if (error) {
@@ -173,6 +175,22 @@ export default function Empresas() {
                 />
                 Ativa
               </label>
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={editing.vincular_orcamento_padrao}
+                    onChange={(e) => setEditing({ ...editing, vincular_orcamento_padrao: e.target.checked })}
+                  />
+                  <span>
+                    <strong className="block">Vincular orçamento por padrão</strong>
+                    <span className="text-xs text-muted-foreground">
+                      Quando ativo, requisições que estouram o orçamento do CC exigem 2ª aprovação ("ultrapassar orçamento"). CCs podem sobrescrever.
+                    </span>
+                  </span>
+                </label>
+              </div>
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <button
