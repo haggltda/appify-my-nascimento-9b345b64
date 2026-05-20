@@ -52,6 +52,16 @@ interface ItemAprov {
   empresa_id: string;
   link: string;
   raw: any;
+  // sup_aprov (novo motor)
+  sup_aprov?: {
+    instancia_id: string;
+    etapa_id: string;
+    etapa_nome: string;
+    tipo_parecer: "bloqueante" | "consultivo" | "ciencia";
+    criticidade: string;
+    horas_paradas: number;
+    prazo_horas: number | null;
+  };
 }
 
 const ORIGEM_META: Record<Origem, { label: string; icon: any; chip: string }> = {
@@ -117,31 +127,97 @@ export default function InboxAprovacoes() {
     },
   });
 
+  // Query: novo motor unificado (sup_aprov)
+  const supAprovQ = useQuery({
+    queryKey: ["inbox-sup-aprov"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("sup_aprov_pendentes_do_usuario", {});
+      if (error) throw error;
+      const rows = (data ?? []) as any[];
+      // Buscar empresas e CCs em batch para enriquecer
+      const empIds = Array.from(new Set(rows.map((r) => r.empresa_id).filter(Boolean)));
+      const empresas: Record<string, any> = {};
+      if (empIds.length) {
+        const { data: emps } = await supabase.from("empresas").select("id, nome_fantasia, razao_social, cnpj").in("id", empIds);
+        (emps ?? []).forEach((e: any) => (empresas[e.id] = e));
+      }
+      return rows.map((r): ItemAprov => {
+        const alvoLabel: Record<string, string> = {
+          requisicao_compra: "Requisição de compra",
+          pedido_compra: "Pedido de compra",
+          licitacao_etapa: "Licitação",
+          programacao_pagamento: "Programação de pagamento",
+        };
+        const link =
+          r.alvo === "requisicao_compra" ? `/app/suprimentos/requisicoes` :
+          r.alvo === "pedido_compra" ? `/app/suprimentos/pedidos-compra` :
+          r.alvo === "programacao_pagamento" ? `/app/financeiro/programacao-pagamentos` :
+          `/app/aprovacoes`;
+        const emp = empresas[r.empresa_id];
+        return {
+          id: `sup-${r.instancia_id}-${r.etapa_id}`,
+          origem: r.alvo === "programacao_pagamento" ? "financeiro" : "compras",
+          tipo: `${alvoLabel[r.alvo] ?? r.alvo} — ${r.etapa_nome}`,
+          ref_id: r.instancia_id,
+          titulo: r.referencia_codigo ?? r.etapa_nome,
+          numero_doc: r.referencia_codigo ?? null,
+          fornecedor_nome: null,
+          fornecedor_doc: null,
+          valor: Number(r.valor ?? 0),
+          emissao: r.aberta_em,
+          vencimento: null,
+          competencia: null,
+          lancamento: r.aberta_em,
+          empresa_nome: emp?.nome_fantasia || emp?.razao_social || null,
+          empresa_cnpj: emp?.cnpj || null,
+          centro_custo: null,
+          contrato_numero: null,
+          etapa: 1,
+          responsavel: null,
+          empresa_id: r.empresa_id,
+          link,
+          raw: r,
+          sup_aprov: {
+            instancia_id: r.instancia_id,
+            etapa_id: r.etapa_id,
+            etapa_nome: r.etapa_nome,
+            tipo_parecer: r.tipo_parecer,
+            criticidade: r.criticidade,
+            horas_paradas: Number(r.horas_paradas ?? 0),
+            prazo_horas: r.prazo_horas ?? null,
+          },
+        };
+      });
+    },
+  });
+
   const itens = useMemo(() => {
-    const all: ItemAprov[] = [...(financeiroQ.data ?? [])];
+    const all: ItemAprov[] = [...(financeiroQ.data ?? []), ...(supAprovQ.data ?? [])];
     const filtered = filtro === "todos" ? all : all.filter((x) => x.origem === filtro);
     if (!busca.trim()) return filtered;
     const q = busca.toLowerCase();
     return filtered.filter((i) =>
       [i.titulo, i.fornecedor_nome, i.numero_doc, i.empresa_nome].some((v) => v?.toLowerCase().includes(q))
     );
-  }, [financeiroQ.data, filtro, busca]);
+  }, [financeiroQ.data, supAprovQ.data, filtro, busca]);
 
   const counts = useMemo(() => {
-    const all = [...(financeiroQ.data ?? [])];
+    const all = [...(financeiroQ.data ?? []), ...(supAprovQ.data ?? [])];
     const fin = all.filter((x) => x.origem === "financeiro");
+    const com = all.filter((x) => x.origem === "compras");
+    const con = all.filter((x) => x.origem === "contratos");
     return {
       todos: all.length,
       total_valor: all.reduce((s, i) => s + i.valor, 0),
       financeiro: { qtd: fin.length, valor: fin.reduce((s, i) => s + i.valor, 0) },
-      compras:    { qtd: 0, valor: 0 },
-      contratos:  { qtd: 0, valor: 0 },
+      compras:    { qtd: com.length, valor: com.reduce((s, i) => s + i.valor, 0) },
+      contratos:  { qtd: con.length, valor: con.reduce((s, i) => s + i.valor, 0) },
       novos_hoje: all.filter((i) => {
         const d = new Date(i.lancamento || 0);
         return d.toDateString() === new Date().toDateString();
       }).length,
     };
-  }, [financeiroQ.data]);
+  }, [financeiroQ.data, supAprovQ.data]);
 
   const decidir = useMutation({
     mutationFn: async () => {
@@ -149,7 +225,20 @@ export default function InboxAprovacoes() {
       if ((decisao.tipo === "rejeitado" || decisao.tipo === "devolvido") && justif.trim().length < 5) {
         throw new Error("Justificativa obrigatória (mínimo 5 caracteres)");
       }
-      if (decisao.item.origem === "financeiro") {
+      if (decisao.item.sup_aprov) {
+        // Novo motor
+        if (decisao.tipo === "devolvido") {
+          throw new Error("Devolução ainda não suportada no novo motor — use Reprovar com justificativa.");
+        }
+        const parecer = decisao.tipo === "aprovado" ? "aprovado" : "reprovado";
+        const { error } = await (supabase as any).rpc("sup_aprov_registrar_voto", {
+          _instancia_id: decisao.item.sup_aprov.instancia_id,
+          _etapa_id: decisao.item.sup_aprov.etapa_id,
+          _parecer: parecer,
+          _justificativa: justif || null,
+        });
+        if (error) throw error;
+      } else if (decisao.item.origem === "financeiro") {
         const { error } = await (supabase as any).rpc("programacao_decidir", {
           p_programacao_id: decisao.item.ref_id,
           p_decisao: decisao.tipo,
@@ -162,6 +251,7 @@ export default function InboxAprovacoes() {
       toast.success("Decisão registrada");
       setDecisao(null); setJustif(""); setSelecionado(null);
       qc.invalidateQueries({ queryKey: ["inbox-financeiro-v2"] });
+      qc.invalidateQueries({ queryKey: ["inbox-sup-aprov"] });
       qc.invalidateQueries({ queryKey: ["tem-alcada"] });
     },
     onError: (e: any) => toast.error(e.message),

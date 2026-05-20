@@ -15381,6 +15381,7 @@ export type Database = {
           delegado_para_user_id: string | null
           fluxo_id: string
           id: string
+          instancia_id: string | null
           nome: string
           ordem: number
           prazo_horas: number
@@ -15399,6 +15400,7 @@ export type Database = {
           delegado_para_user_id?: string | null
           fluxo_id: string
           id?: string
+          instancia_id?: string | null
           nome: string
           ordem: number
           prazo_horas?: number
@@ -15417,6 +15419,7 @@ export type Database = {
           delegado_para_user_id?: string | null
           fluxo_id?: string
           id?: string
+          instancia_id?: string | null
           nome?: string
           ordem?: number
           prazo_horas?: number
@@ -15440,6 +15443,13 @@ export type Database = {
             columns: ["fluxo_id"]
             isOneToOne: false
             referencedRelation: "sup_aprov_fluxo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sup_aprov_etapa_instancia_id_fkey"
+            columns: ["instancia_id"]
+            isOneToOne: false
+            referencedRelation: "sup_aprov_instancia"
             referencedColumns: ["id"]
           },
           {
