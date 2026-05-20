@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Save, Send, CheckCircle2, XCircle, RotateCcw, AlertTriangle, ArrowLeft, Trash2, FileInput, Plus, Calculator, MessageSquare, ArrowUpCircle, PackageCheck, Ban, FileText, Building2, Calendar, DollarSign, Banknote, AlertCircle, TrendingDown, Hash } from "lucide-react";
+import { TimelineAprovacao } from "@/components/aprovacoes/TimelineAprovacao";
 import { toast } from "sonner";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
