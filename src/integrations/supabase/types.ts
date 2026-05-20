@@ -8400,6 +8400,9 @@ export type Database = {
           mz_id: number
           pendencia: string | null
           periodo_caixa: string | null
+          promovido_em: string | null
+          promovido_por: string | null
+          realizado_lancamento_id: string | null
           status_fluxo: string | null
           tipo_custo_despesa_aplicado: string | null
           tipo_movimento: string | null
@@ -8443,6 +8446,9 @@ export type Database = {
           mz_id?: number
           pendencia?: string | null
           periodo_caixa?: string | null
+          promovido_em?: string | null
+          promovido_por?: string | null
+          realizado_lancamento_id?: string | null
           status_fluxo?: string | null
           tipo_custo_despesa_aplicado?: string | null
           tipo_movimento?: string | null
@@ -8486,6 +8492,9 @@ export type Database = {
           mz_id?: number
           pendencia?: string | null
           periodo_caixa?: string | null
+          promovido_em?: string | null
+          promovido_por?: string | null
+          realizado_lancamento_id?: string | null
           status_fluxo?: string | null
           tipo_custo_despesa_aplicado?: string | null
           tipo_movimento?: string | null
@@ -16853,6 +16862,22 @@ export type Database = {
           _valor: number
         }
         Returns: Json
+      }
+      fcr_promover_lancamento: {
+        Args: {
+          _centro_custo_id: string
+          _contraparte?: string
+          _data_competencia: string
+          _data_lancamento: string
+          _descricao: string
+          _documento?: string
+          _dre_linha_id: string
+          _empresa_id: string
+          _mz_id: number
+          _observacoes?: string
+          _valor: number
+        }
+        Returns: string
       }
       fluxo_caixa_diario: {
         Args: { _data_fim: string; _data_ini: string; _empresa_id: string }
