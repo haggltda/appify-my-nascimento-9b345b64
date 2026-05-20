@@ -10,8 +10,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { Plus, Trash2, AlertTriangle, Workflow, Users } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Workflow, Users, ShieldCheck } from "lucide-react";
 import { GestoresCCPanel } from "./GestoresCCPanel";
+import { SaudeAlcadasPanel } from "./SaudeAlcadasPanel";
 
 const fmt = (v: number | null) =>
   v === null ? "sem teto" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -72,6 +73,7 @@ export function AlcadasTab() {
           <TabsTrigger value="fluxos"><Workflow className="h-3.5 w-3.5 mr-1.5" />Fluxos</TabsTrigger>
           <TabsTrigger value="gestores-cc"><Users className="h-3.5 w-3.5 mr-1.5" />Gestores de CC</TabsTrigger>
           <TabsTrigger value="reguas">Réguas de escalonamento</TabsTrigger>
+          <TabsTrigger value="saude"><ShieldCheck className="h-3.5 w-3.5 mr-1.5" />Saúde</TabsTrigger>
           <TabsTrigger value="legado"><AlertTriangle className="h-3.5 w-3.5 mr-1.5" />Legado</TabsTrigger>
         </TabsList>
 
@@ -85,6 +87,10 @@ export function AlcadasTab() {
 
         <TabsContent value="reguas" className="mt-4">
           <ReguasPanel isAdmin={isAdmin} />
+        </TabsContent>
+
+        <TabsContent value="saude" className="mt-4">
+          <SaudeAlcadasPanel />
         </TabsContent>
 
         <TabsContent value="legado" className="mt-4">

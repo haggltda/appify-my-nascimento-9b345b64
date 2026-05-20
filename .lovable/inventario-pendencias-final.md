@@ -31,14 +31,25 @@
    - UI: botão "Trocar empresa" por linha em `/app/controladoria/centros-custo` → `TrocarEmpresaCCDialog` mostra cenário (a/b/c), diagnóstico de vínculos e exige motivo.
    - Cobertura de 14 rotinas verificadas: titulo_pagar, titulo_receber, pre_titulo_pagar, nf_entrada, pedido_compra, requisicao_compra, lancamento_partida, realizado_lancamentos, estoque_movimento, folha_evento, obz_valores, orcamento_contrato_linha, plano_acao, sup_aprov_instancia.
 
-## 📋 Demais pendências do prompt original (já listadas)
-- Revisão das políticas RLS marcadas como "always true" (warnings do linter — pré-existentes).
-- Search_path em funções (warnings do linter — pré-existentes).
-- Limpeza de views `SECURITY DEFINER` legadas (errors do linter — pré-existentes, não introduzidos por esta migração).
-- Validação de notificações (somente sininho — pendente teste E2E).
+## ✅ Concluído em 2026-05-20 (leva 2)
+- **Item 2 (Sininho para sup_aprov):** `sup_aprov_avancar` agora insere em `notificacoes` (tipo `sup_aprov_pendente`) sempre que uma etapa pendente é atribuída a um responsável. E-mail / WhatsApp ficam para rodada futura.
+- **Item 3 (Componentes compartilhados):** criados `src/components/aprovacoes/SlaChip.tsx` e `TipoParecerBadge.tsx`. `TimelineAprovacao` e `Inbox` passam a usá-los — fim da duplicação.
+- **Item 5 (Banner de depreciação):** adicionado na tela `Suprimentos → Aprovações de Compras` (motor legado). Aba "Legado" em Administração → Alçadas já tinha banner.
+- **Item 6 (Saúde de Alçadas):** nova aba `/app/administracao` → Alçadas → **Saúde**, restrita a admin/presidência/controladoria. KPIs: CCs sem gestor, fluxos sem etapa, instâncias > 48h paradas. Inclui painel de gestão da permissão especial `alterar_empresa_cc`.
+- **Item 7 (Alçada para trocar empresa de CC):** criada tabela `permissoes_especiais` (RLS admin only) + função `tem_permissao_especial`. RPC `admin_alterar_empresa_cc` exige a permissão. `TrocarEmpresaCCDialog` mostra aviso e bloqueia o botão quando não há permissão.
+- **Item 1 (Smoke test):** roteiro guiado em `.lovable/smoke-test-aprovacoes.md` — pendente apenas a execução manual pela Helena.
+
+## 🟡 Próximas rodadas (pausadas com OK do usuário)
+- **Item 4:** Onda 2 de RLS multiempresa (~80 tabelas estoque/RH/fiscal). Requer plano por bloco.
+- **Item 8:** Promoção `mz_*` → tabelas oficiais do FCR (afeta DRE Gerencial e Fluxo de Caixa). Requer plano dedicado.
+
+## 📋 Demais pendências (já listadas, sem alteração)
+- Revisão das policies "always true" (warnings pré-existentes do linter).
+- Search_path em funções (warnings pré-existentes).
+- Limpeza de views `SECURITY DEFINER` legadas (errors pré-existentes).
 - Validação final da DRE por contrato / Fluxo de caixa diário após reatribuição de gestores.
 
 ## 🔒 Integridade preservada
-- Nenhum schema/trigger/RLS/política alterado.
-- Nenhuma tela, botão, alçada ou acesso modificado.
-- Tabela `mz_50_fato_orcamento_contratos_competencia` apenas **lida** como referência (nunca escrita).
+- Schemas existentes intactos (apenas **adição** de tabela `permissoes_especiais` e atualização das funções `sup_aprov_avancar` e `admin_alterar_empresa_cc`).
+- Nenhuma tela, botão, alçada ou acesso existente removido.
+- Tabela `mz_50_fato_orcamento_contratos_competencia` segue **somente leitura** como referência.

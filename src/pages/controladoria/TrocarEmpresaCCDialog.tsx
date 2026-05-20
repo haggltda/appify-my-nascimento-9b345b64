@@ -26,6 +26,7 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
   const [diag, setDiag] = useState<Diagnostico | null>(null);
   const [loadingDiag, setLoadingDiag] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [temPermissao, setTemPermissao] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -33,12 +34,15 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
     setMotivo("");
     setLoadingDiag(true);
     (async () => {
-      const [cenR, diagR] = await Promise.all([
+      const { data: u } = await supabase.auth.getUser();
+      const [cenR, diagR, permR] = await Promise.all([
         supabase.rpc("pode_alterar_empresa_cc", { _cc_id: ccId }),
         supabase.rpc("diagnostico_alterar_empresa_cc", { _cc_id: ccId }),
+        u.user ? supabase.rpc("tem_permissao_especial", { _user_id: u.user.id, _permissao: "alterar_empresa_cc" }) : Promise.resolve({ data: false, error: null }),
       ]);
       if (!cenR.error) setCenario(cenR.data as Cenario);
       if (!diagR.error) setDiag(diagR.data as Diagnostico);
+      setTemPermissao(!permR.error ? !!permR.data : false);
       setLoadingDiag(false);
     })();
   }, [open, ccId, empresaAtualId]);
@@ -89,6 +93,15 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
           </div>
         ) : (
           <>
+            {temPermissao === false && (
+              <div className="mb-4 flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                <Ban className="h-4 w-4 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Sem permissão especial</p>
+                  <p className="text-xs">Você precisa da permissão <code>alterar_empresa_cc</code>. Solicite a um administrador em <strong>Administração → Alçadas → Saúde</strong>.</p>
+                </div>
+              </div>
+            )}
             {cenario === "livre" && (
               <div className="mb-4 flex items-start gap-2 rounded-md bg-success-soft p-3 text-sm text-success">
                 <ShieldCheck className="h-4 w-4 mt-0.5" />
@@ -159,7 +172,7 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
               </button>
               <button
                 onClick={handleSalvar}
-                disabled={cenario === "bloqueado" || saving}
+                disabled={cenario === "bloqueado" || saving || !temPermissao}
                 className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {saving && <Loader2 className="h-3 w-3 animate-spin" />}

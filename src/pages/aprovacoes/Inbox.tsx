@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { TimelineAprovacao } from "@/components/aprovacoes/TimelineAprovacao";
+import { SlaChip } from "@/components/aprovacoes/SlaChip";
+import { TipoParecerBadge } from "@/components/aprovacoes/TipoParecerBadge";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
@@ -359,7 +361,15 @@ export default function InboxAprovacoes() {
                             <Icon className="h-3 w-3" />{meta.label}
                           </span>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{it.tipo}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          <div>{it.tipo}</div>
+                          {it.sup_aprov && (
+                            <div className="mt-0.5 flex items-center gap-1">
+                              <TipoParecerBadge tipo={it.sup_aprov.tipo_parecer} className="text-[9px]" />
+                              <SlaChip horasParadas={it.sup_aprov.horas_paradas} prazoHoras={it.sup_aprov.prazo_horas} />
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium max-w-[220px] truncate">{it.titulo}</TableCell>
                         <TableCell className="text-sm">
                           <div>{it.fornecedor_nome ?? "—"}</div>

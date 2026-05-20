@@ -4,12 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, X, Clock, Bot, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-const TIPO_TONE: Record<string, string> = {
-  bloqueante: "bg-destructive/15 text-destructive border-destructive/30",
-  consultivo: "bg-blue-500/15 text-blue-700 border-blue-300",
-  ciencia: "bg-muted text-muted-foreground border-border",
-};
+import { TipoParecerBadge } from "./TipoParecerBadge";
 
 const STATUS_ICON: Record<string, JSX.Element> = {
   aprovado:      <Check className="h-3.5 w-3.5 text-emerald-600" />,
@@ -91,7 +86,6 @@ export function TimelineAprovacao({ alvo, referenciaId }: Props) {
         {etapas.map((e: any) => {
           const votosEtapa = votos.filter((v: any) => v.etapa_id === e.id);
           const resp = profiles[e.responsavel_user_id];
-          const tone = TIPO_TONE[e.tipo_parecer] ?? TIPO_TONE.consultivo;
           return (
             <li key={e.id} className="relative">
               <span className="absolute -left-[1.42rem] top-1 flex h-4 w-4 items-center justify-center rounded-full bg-background border-2 border-border">
@@ -107,7 +101,7 @@ export function TimelineAprovacao({ alvo, referenciaId }: Props) {
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <Badge variant="outline" className={tone}>{e.tipo_parecer}</Badge>
+                    <TipoParecerBadge tipo={e.tipo_parecer} />
                     <Badge variant="outline" className="capitalize">{e.status}</Badge>
                   </div>
                 </div>
