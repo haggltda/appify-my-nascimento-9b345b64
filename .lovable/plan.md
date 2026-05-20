@@ -118,9 +118,10 @@ Toggles: sininho, e-mail, push PWA.
 3. Edge function `sup-aprov-sla-tick` + cron a cada 15 min.
 4. Tela Administração reescrita (fluxos + réguas + legado).
 5. Inbox unificada.
-6. Integração no 1º processo (Requisição) + componentes compartilhados.
+6. Integração no fluxo Suprimentos: **Requisição → cotação → Pedido de compra (aqui abre a instância)** + componentes compartilhados (`<TimelineAprovacao>`, `<SlaChip>`, `<TipoParecerBadge>`).
 7. Integração em Licitação e Programação de pagamento.
 8. Tela Meu perfil → Notificações.
+9. Smoke test guiado: requisição sem estoque → cotação → pedido → instância abre → (auto se CC tem saldo e flag on, senão) Helena aprova → segue.
 9. Smoke test guiado: criar requisição → instância abre → Helena recebe → aprova → segue.
 
 ---
