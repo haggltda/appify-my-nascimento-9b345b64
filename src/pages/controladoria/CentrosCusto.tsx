@@ -260,7 +260,7 @@ function CCSection({
                   <td className="px-4 py-2 font-mono text-xs">
                     <div className="flex items-center gap-2">
                       <span>{empresaCodigo(c.empresa_id)}</span>
-                      <RoleGate acao="alterar" modulo="centros_custo" perfilRequerido="admin">
+                      <RoleGate acao="alterar" modulo="centros_custo">
                         <button
                           data-write
                           onClick={() => setTrocaCC(c)}
