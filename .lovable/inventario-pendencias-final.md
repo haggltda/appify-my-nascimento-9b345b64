@@ -22,15 +22,14 @@
 
 2. **G1 Fluxo de Pedido de Compra:** depende da definição de **faixas de valor** (alçadas R$). Pendente input do usuário.
 
-3. **Edição de empresa do contrato/CC pelo admin (DIAGNÓSTICO CONCLUÍDO — aguarda decisão):**
-   - Hoje: só via SQL. UI de CC só permite definir empresa **na criação**. `contrato.empresa_id` é derivado de `centro_custo_id → centros_custo.empresa_id`.
-   - Risco: alterar empresa de CC com movimento (NF, título, lançamento, medição) gera divergência em DRE por contrato, fluxo de caixa diário, custos, orçamento/OBZ, faturamento e fluxos de aprovação por empresa.
-   - Recomendação em 3 cenários:
-     - (a) Contrato pré-ganho (licitação) → edição livre via UI.
-     - (b) Contrato ganho sem movimento → UI com confirmação + log de auditoria.
-     - (c) Contrato com movimento → campo read-only; correção só por estorno + reemissão.
-   - Implementação proposta (requer aprovação separada): função `pode_alterar_empresa_cc(cc_id)`, trigger `BEFORE UPDATE` em `centros_custo` bloqueando troca quando há movimento, tabela `centros_custo_empresa_log`, campo editável condicional na tela de detalhe do CC, permissão `admin.cc.alterar_empresa`.
-   - **Nada alterado nesta etapa.**
+3. ~~Edição de empresa do contrato/CC pelo admin~~ ✅ **IMPLEMENTADO (2026-05-20)**
+   - Função `pode_alterar_empresa_cc(cc_id)` → `livre` / `confirmacao` / `bloqueado`.
+   - Função `diagnostico_alterar_empresa_cc(cc_id)` → JSON com contagens por tabela.
+   - RPC `admin_alterar_empresa_cc(cc_id, nova_empresa_id, motivo)` — admin only, motivo ≥5 chars.
+   - Trigger `trg_centros_custo_troca_empresa` BEFORE UPDATE OF empresa_id: bloqueia se houver movimento, exige admin, registra log e propaga para `contrato.empresa_id`.
+   - Tabela `centros_custo_empresa_log` (RLS admin only).
+   - UI: botão "Trocar empresa" por linha em `/app/controladoria/centros-custo` → `TrocarEmpresaCCDialog` mostra cenário (a/b/c), diagnóstico de vínculos e exige motivo.
+   - Cobertura de 14 rotinas verificadas: titulo_pagar, titulo_receber, pre_titulo_pagar, nf_entrada, pedido_compra, requisicao_compra, lancamento_partida, realizado_lancamentos, estoque_movimento, folha_evento, obz_valores, orcamento_contrato_linha, plano_acao, sup_aprov_instancia.
 
 ## 📋 Demais pendências do prompt original (já listadas)
 - Revisão das políticas RLS marcadas como "always true" (warnings do linter — pré-existentes).

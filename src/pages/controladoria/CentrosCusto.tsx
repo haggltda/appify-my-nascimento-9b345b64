@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog } from "lucide-react";
+import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog, Building } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { TrocarEmpresaCCDialog } from "./TrocarEmpresaCCDialog";
 
 type CCTipo = "adm" | "operacional";
 
@@ -200,8 +201,8 @@ export default function CentrosCusto() {
             </section>
           </RoleGate>
 
-          <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} />
-          <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} />
+          <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} onReload={fetchAll} />
+          <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} onReload={fetchAll} />
         </>
       )}
     </div>
@@ -209,7 +210,7 @@ export default function CentrosCusto() {
 }
 
 function CCSection({
-  titulo, icone, lista, empresas, onToggle, onSetVincular,
+  titulo, icone, lista, empresas, onToggle, onSetVincular, onReload,
 }: {
   titulo: string;
   icone: React.ReactNode;
@@ -217,7 +218,9 @@ function CCSection({
   empresas: Empresa[];
   onToggle: (cc: CentroCusto) => void;
   onSetVincular: (cc: CentroCusto, value: boolean | null) => void;
+  onReload: () => void;
 }) {
+  const [trocaCC, setTrocaCC] = useState<CentroCusto | null>(null);
   const empresaCodigo = (id: string) => empresas.find((e) => e.id === id)?.codigo ?? "—";
   return (
     <section className="mb-6">
@@ -254,7 +257,21 @@ function CCSection({
                     {c.codigo_legado && <span className="ml-2 chip bg-muted text-[10px] text-muted-foreground">legado</span>}
                   </td>
                   <td className="px-4 py-2">{c.nome}</td>
-                  <td className="px-4 py-2 font-mono text-xs">{empresaCodigo(c.empresa_id)}</td>
+                  <td className="px-4 py-2 font-mono text-xs">
+                    <div className="flex items-center gap-2">
+                      <span>{empresaCodigo(c.empresa_id)}</span>
+                      <RoleGate acao="alterar" modulo="centros_custo">
+                        <button
+                          data-write
+                          onClick={() => setTrocaCC(c)}
+                          title="Trocar empresa do CC (admin)"
+                          className="inline-flex items-center rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary"
+                        >
+                          <Building className="h-3 w-3" />
+                        </button>
+                      </RoleGate>
+                    </div>
+                  </td>
                   <td className="px-4 py-2">
                     <span className={`chip text-[10px] ${
                       c.origem_cadastro === "manual" ? "bg-muted text-muted-foreground" :
@@ -315,6 +332,17 @@ function CCSection({
           </tbody>
         </table>
       </div>
+      {trocaCC && (
+        <TrocarEmpresaCCDialog
+          open={!!trocaCC}
+          onClose={() => setTrocaCC(null)}
+          ccId={trocaCC.id}
+          ccCodigo={trocaCC.codigo}
+          empresaAtualId={trocaCC.empresa_id}
+          empresas={empresas}
+          onSuccess={onReload}
+        />
+      )}
     </section>
   );
 }
