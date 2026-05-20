@@ -16634,6 +16634,10 @@ export type Database = {
         Args: { p_conta_bancaria_id: string }
         Returns: string
       }
+      admin_alterar_empresa_cc: {
+        Args: { _cc_id: string; _motivo: string; _nova_empresa_id: string }
+        Returns: Json
+      }
       admin_exec_dml: { Args: { p_sql: string }; Returns: undefined }
       admin_list_active_sessions: {
         Args: never
