@@ -487,19 +487,28 @@ function DetailDrawer({ item, onClose, onDecidir, onVerDetalhes }: {
     },
   });
 
-  // Próxima etapa (alçada por ordem)
+  // Próxima etapa (novo motor sup_aprov_etapa, fallback ordem)
   const alcadaQ = useQuery({
     queryKey: ["inbox-detail-alc", item?.empresa_id, item?.etapa],
     enabled: !!item,
     queryFn: async () => {
+      // Busca etapas-template do fluxo padrão da empresa (responsavel_user_id IS NULL no template)
+      const { data: fluxos } = await (supabase as any)
+        .from("sup_aprov_fluxo")
+        .select("id")
+        .eq("ativo", true)
+        .limit(1);
+      const fluxoId = fluxos?.[0]?.id;
+      if (!fluxoId) return [];
       const { data, error } = await (supabase as any)
-        .from("alcada_aprovacao")
-        .select("etapa, ordem, responsavel_nome")
-        .eq("empresa_id", item!.empresa_id)
+        .from("sup_aprov_etapa")
+        .select("ordem, nome")
+        .eq("fluxo_id", fluxoId)
+        .is("instancia_id", null)
         .eq("ativo", true)
         .order("ordem", { ascending: true });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((e: any) => ({ etapa: e.nome, ordem: e.ordem, responsavel_nome: null }));
     },
   });
 
