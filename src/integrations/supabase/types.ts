@@ -1260,6 +1260,7 @@ export type Database = {
           status_cadastro: string
           tipo: Database["public"]["Enums"]["cc_tipo"]
           updated_at: string
+          vincular_orcamento: boolean | null
         }
         Insert: {
           ativo?: boolean
@@ -1283,6 +1284,7 @@ export type Database = {
           status_cadastro?: string
           tipo?: Database["public"]["Enums"]["cc_tipo"]
           updated_at?: string
+          vincular_orcamento?: boolean | null
         }
         Update: {
           ativo?: boolean
@@ -1306,6 +1308,7 @@ export type Database = {
           status_cadastro?: string
           tipo?: Database["public"]["Enums"]["cc_tipo"]
           updated_at?: string
+          vincular_orcamento?: boolean | null
         }
         Relationships: [
           {
@@ -3452,6 +3455,7 @@ export type Database = {
           razao_social: string
           regime: Database["public"]["Enums"]["regime_tributario"]
           updated_at: string
+          vincular_orcamento_padrao: boolean
         }
         Insert: {
           ativa?: boolean
@@ -3465,6 +3469,7 @@ export type Database = {
           razao_social: string
           regime: Database["public"]["Enums"]["regime_tributario"]
           updated_at?: string
+          vincular_orcamento_padrao?: boolean
         }
         Update: {
           ativa?: boolean
@@ -3478,6 +3483,7 @@ export type Database = {
           razao_social?: string
           regime?: Database["public"]["Enums"]["regime_tributario"]
           updated_at?: string
+          vincular_orcamento_padrao?: boolean
         }
         Relationships: [
           {
@@ -17120,6 +17126,10 @@ export type Database = {
       }
       sup_aprov_tem_orcamento_cc: {
         Args: { _cc_id: string; _periodo?: string; _valor: number }
+        Returns: boolean
+      }
+      sup_aprov_vincula_orcamento: {
+        Args: { _centro_custo_id: string; _empresa_id: string }
         Returns: boolean
       }
       titulo_agendar: {
