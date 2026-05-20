@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
     const { data: instancias, error: e1 } = await supabase
       .from("sup_aprov_instancia")
       .select("id, empresa_id, fluxo_id, etapa_atual_id, aberta_em, referencia_codigo, solicitante_user_id")
-      .eq("status", "em_andamento")
+      .eq("status", "pendente")
       .not("etapa_atual_id", "is", null);
     if (e1) throw e1;
 
