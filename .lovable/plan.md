@@ -3,9 +3,17 @@
 Objetivo: substituir os 3 mecanismos atuais (`alcada_aprovacao`, `financeiro_pagamento_aprovacao`, `aprov_etapa`) por um motor único `sup_aprov_*` que cobre Requisição de compra, **Pedido de compra (pós-cotação)**, Licitação e Programação de pagamento — com 3 tipos de parecer (bloqueante / consultivo / ciência), regra automática de orçamento de CC, delegação, SLA com escalonamento, e migração automática dos registros legados.
 
 > **Fluxo Suprimentos completo considerado:**
-> Requisição → (a) **se há saldo no almoxarifado**: retira material e **encerra sem aprovação de compra**; (b) **se não há**: vai para **cotação** → após cotação recebida, gera **Pedido de compra** → **o Pedido entra em aprovação** (é aqui que a alçada de valor + regra de orçamento de CC atuam, não na requisição em si).
 >
-> A regra automática de orçamento de CC é controlada por **flag por empresa/processo** (`auto_aprovar_se_orcamento_cc`) e respeita a **vigência do orçamento** (período em curso). Se a flag estiver ativa e houver saldo no CC dentro do período: etapa marcada `auto_aprovado` e o fluxo avança. Caso contrário: vai para o aprovador humano.
+> **1. Requisição** — toda requisição, depois de criada, **sempre passa por aprovação antes de qualquer retirada/movimentação**, mesmo se há saldo no almoxarifado e mesmo se há orçamento. Duas situações:
+>
+> - **(a) Com orçamento no CC (dentro da vigência):** abre `instancia` com alvo `requisicao_compra` contendo **uma única etapa bloqueante** = "Aprovação de retirada" (responsável: gestor da área/CC). Aprovador justifica e aprova/reprova.
+> - **(b) Sem orçamento (estouro):** o usuário ainda salva normalmente. A instância abre com **duas etapas bloqueantes para o mesmo aprovador**: (1) "Aprovação de retirada" e (2) "Registro de aprovação por ultrapassar orçamento". O gestor precisa **votar e justificar cada uma separadamente** (duas justificativas independentes na trilha de auditoria). Só após ambas aprovadas a requisição segue.
+>
+> **2. Pós-aprovação da requisição:**
+> - Se há saldo no almoxarifado → gera movimento de saída e encerra.
+> - Se não há → status "aguardando cotação" → segue para **Cotações** → após cotação aprovada, gera **Pedido de compra** → o **Pedido** abre nova instância (`alvo=pedido_compra`) com alçada por valor + regra `orcamento_cc`.
+>
+> **3. Regra automática `orcamento_cc`** (apenas no Pedido de compra, **não** na Requisição): controlada por flag `empresas.auto_aprovar_orcamento_cc` + vigência do orçamento. Se flag ativa **e** saldo no CC dentro do período → etapa `auto_aprovado`. Caso contrário → aprovador humano.
 
 ---
 
@@ -92,9 +100,11 @@ Script SQL idempotente dentro da migration:
 Toggles: sininho, e-mail, push PWA.
 
 ### 3.4 Integração nos 3 processos piloto
-- **Requisição de compra** (`Requisicoes.tsx`): ao salvar, **NÃO abre instância de aprovação de compra**. O fluxo é:
-  1. Sistema verifica saldo no almoxarifado para os itens. Se cobre tudo → gera movimento de saída e **encerra**. Fim.
-  2. Se não cobre → status "aguardando cotação", segue para **Cotações** (`Cotacoes.tsx`).
+- **Requisição de compra** (`Requisicoes.tsx`): ao salvar, **sempre abre instância** `sup_aprov_abrir_instancia(alvo='requisicao_compra', cc=..., valor=valor_estimado)`. Backend decide as etapas dinamicamente:
+  - Sempre cria etapa **"Aprovação de retirada"** (bloqueante, responsável = gestor do CC).
+  - Se `valor_estimado > saldo_orcamento_cc_vigente`: cria também etapa **"Aprovação por ultrapassar orçamento"** (bloqueante, mesmo responsável) — exige **justificativa separada**.
+  - Tela detalhe mostra `<TimelineAprovacao>` com as duas etapas quando aplicável.
+  - Movimento de saída do almoxarifado / encaminhamento para Cotação só ocorre **após todas as etapas bloqueantes aprovadas**.
 - **Pedido de compra** (`PedidosCompra.tsx`): ao ser **gerado a partir de uma cotação aprovada**, chama `sup_aprov_abrir_instancia(alvo='pedido_compra', valor=total, cc=...)`. Aqui entram:
   - Etapa automática `orcamento_cc` (auto-aprova se flag `auto_aprovar_se_orcamento_cc` da empresa estiver ativa **e** houver saldo no CC dentro do período vigente do orçamento).
   - Etapas humanas por faixa de valor (alçada).
