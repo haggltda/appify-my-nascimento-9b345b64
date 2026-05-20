@@ -20,6 +20,7 @@ type CentroCusto = {
   origem_cadastro: CCOrigem;
   codigo_legado: boolean;
   entidade_origem_tabela: string | null;
+  vincular_orcamento: boolean | null;
 };
 
 type Empresa = { id: string; codigo: string; razao_social: string };
