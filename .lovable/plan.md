@@ -1,13 +1,18 @@
 # Etapa 2 — Motor unificado de Alçadas de Aprovação
 
-Objetivo: substituir os 3 mecanismos atuais (`alcada_aprovacao`, `financeiro_pagamento_aprovacao`, `aprov_etapa`) por um motor único `sup_aprov_*` que cobre Requisição de compra, Licitação e Programação de pagamento — com 3 tipos de parecer (bloqueante / consultivo / ciência), regra automática de orçamento de CC, delegação, SLA com escalonamento, e migração automática dos registros legados.
+Objetivo: substituir os 3 mecanismos atuais (`alcada_aprovacao`, `financeiro_pagamento_aprovacao`, `aprov_etapa`) por um motor único `sup_aprov_*` que cobre Requisição de compra, **Pedido de compra (pós-cotação)**, Licitação e Programação de pagamento — com 3 tipos de parecer (bloqueante / consultivo / ciência), regra automática de orçamento de CC, delegação, SLA com escalonamento, e migração automática dos registros legados.
+
+> **Fluxo Suprimentos completo considerado:**
+> Requisição → (a) **se há saldo no almoxarifado**: retira material e **encerra sem aprovação de compra**; (b) **se não há**: vai para **cotação** → após cotação recebida, gera **Pedido de compra** → **o Pedido entra em aprovação** (é aqui que a alçada de valor + regra de orçamento de CC atuam, não na requisição em si).
+>
+> A regra automática de orçamento de CC é controlada por **flag por empresa/processo** (`auto_aprovar_se_orcamento_cc`) e respeita a **vigência do orçamento** (período em curso). Se a flag estiver ativa e houver saldo no CC dentro do período: etapa marcada `auto_aprovado` e o fluxo avança. Caso contrário: vai para o aprovador humano.
 
 ---
 
 ## 1. Mudanças de banco (migration)
 
 ### 1.1 Novos enums
-- `sup_aprov_alvo`: `requisicao_compra`, `licitacao_etapa`, `programacao_pagamento`
+- `sup_aprov_alvo`: `requisicao_compra`, `pedido_compra`, `licitacao_etapa`, `programacao_pagamento`
 - `sup_aprov_tipo_parecer`: `bloqueante`, `consultivo`, `ciencia`
 - `sup_aprov_status`: `pendente`, `aprovado`, `reprovado`, `auto_aprovado`, `cancelado`
 - `sup_aprov_criticidade`: `normal`, `urgente`, `critico`
@@ -87,9 +92,17 @@ Script SQL idempotente dentro da migration:
 Toggles: sininho, e-mail, push PWA.
 
 ### 3.4 Integração nos 3 processos piloto
-- **Requisição de compra** (`Requisicoes.tsx`): ao salvar, chama `sup_aprov_abrir_instancia`. Tela detalhe mostra timeline da instância.
+- **Requisição de compra** (`Requisicoes.tsx`): ao salvar, **NÃO abre instância de aprovação de compra**. O fluxo é:
+  1. Sistema verifica saldo no almoxarifado para os itens. Se cobre tudo → gera movimento de saída e **encerra**. Fim.
+  2. Se não cobre → status "aguardando cotação", segue para **Cotações** (`Cotacoes.tsx`).
+- **Pedido de compra** (`PedidosCompra.tsx`): ao ser **gerado a partir de uma cotação aprovada**, chama `sup_aprov_abrir_instancia(alvo='pedido_compra', valor=total, cc=...)`. Aqui entram:
+  - Etapa automática `orcamento_cc` (auto-aprova se flag `auto_aprovar_se_orcamento_cc` da empresa estiver ativa **e** houver saldo no CC dentro do período vigente do orçamento).
+  - Etapas humanas por faixa de valor (alçada).
+  - Tela detalhe do pedido mostra `<TimelineAprovacao>`.
 - **Licitação**: idem em pontos definidos das etapas (SST/Controladoria como consultivos já existentes viram etapas do fluxo).
 - **Programação de pagamento**: substituir gating atual pela instância nova.
+
+> **Flag de empresa**: nova coluna `empresas.auto_aprovar_orcamento_cc` (boolean, default true). A regra `orcamento_cc` na etapa só dispara auto-aprovação se a flag estiver ativa **e** a data atual estiver dentro da vigência do orçamento do CC.
 
 ### 3.5 Componentes compartilhados
 - `<TimelineAprovacao instanciaId>` — usado em Requisição, Licitação e Pagamento.
@@ -105,10 +118,11 @@ Toggles: sininho, e-mail, push PWA.
 3. Edge function `sup-aprov-sla-tick` + cron a cada 15 min.
 4. Tela Administração reescrita (fluxos + réguas + legado).
 5. Inbox unificada.
-6. Integração no 1º processo (Requisição) + componentes compartilhados.
+6. Integração no fluxo Suprimentos: **Requisição → cotação → Pedido de compra (aqui abre a instância)** + componentes compartilhados (`<TimelineAprovacao>`, `<SlaChip>`, `<TipoParecerBadge>`).
 7. Integração em Licitação e Programação de pagamento.
 8. Tela Meu perfil → Notificações.
-9. Smoke test guiado: criar requisição → instância abre → Helena recebe → aprova → segue.
+9. Smoke test guiado: requisição sem estoque → cotação → pedido → instância abre → (auto se CC tem saldo e flag on, senão) Helena aprova → segue.
+
 
 ---
 
