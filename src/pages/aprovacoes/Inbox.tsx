@@ -197,13 +197,14 @@ export default function InboxAprovacoes() {
 
   const itens = useMemo(() => {
     const all: ItemAprov[] = [...(financeiroQ.data ?? []), ...(supAprovQ.data ?? [])];
-    const filtered = filtro === "todos" ? all : all.filter((x) => x.origem === filtro);
+    const byEmp = filtrarEmpresa && empresa?.id ? all.filter((x) => x.empresa_id === empresa.id) : all;
+    const filtered = filtro === "todos" ? byEmp : byEmp.filter((x) => x.origem === filtro);
     if (!busca.trim()) return filtered;
     const q = busca.toLowerCase();
     return filtered.filter((i) =>
       [i.titulo, i.fornecedor_nome, i.numero_doc, i.empresa_nome].some((v) => v?.toLowerCase().includes(q))
     );
-  }, [financeiroQ.data, supAprovQ.data, filtro, busca]);
+  }, [financeiroQ.data, supAprovQ.data, filtro, busca, filtrarEmpresa, empresa?.id]);
 
   const counts = useMemo(() => {
     const all = [...(financeiroQ.data ?? []), ...(supAprovQ.data ?? [])];
