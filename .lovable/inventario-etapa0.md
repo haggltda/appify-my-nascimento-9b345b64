@@ -131,3 +131,66 @@ Estimativa: cabe em **mais 1 a 2 créditos** numa Etapa 0.1 dedicada.
 1. **Etapa 0.1 (opcional):** fechar pendências do §9.
 2. **Etapa 1 — Fundamentos:** popular `alcada_aprovacao` real + implementar Onda 4 (`screen_permission_*` já planejada em `plan.md`).
 3. **Fluxo 13 + 14 (dor imediata Helena/Maiara/Financeiro):** separar UX de "aprovar malote" (Helena) vs "executar pagamento" (Financeiro) em `ProgramacaoPagamentos.tsx` + `MalotesTab.tsx`; ativar geração CNAB e conciliação no caminho feliz.
+
+---
+
+## 11. Etapa 0 — Fechamento (pendências §9 resolvidas)
+
+### 11.1 Contadores fechados
+
+| Tabela | Linhas | Implicação |
+|---|---:|---|
+| `titulo_pagar` | **3** | quase vazia → confirma bloqueador do fluxo 13 |
+| `titulo_receber` | **0** | bloqueia fluxo 12 (faturamento/AR) |
+| `lancamento_contabil` | **172** | há razão inicial; mas longe das 215k de `mz_32` (a promover) |
+| `pre_titulo_pagar` | 3 | pipeline pagto começou a ser usado |
+| `malote_pagamento` | 3 | idem |
+| `malote_titulo` | 6 | idem |
+| `profiles` | 39 | base de usuários ativa |
+| `user_roles` | 59 | múltiplas roles por usuário em uso |
+| `user_empresa` | 38 | vínculos explícitos empresa↔usuário |
+
+### 11.2 Storage buckets (10)
+
+| Bucket | Público | Uso esperado |
+|---|---|---|
+| `anexos` | privado | anexos genéricos |
+| `nfe-xml` | privado | XMLs NF entrada |
+| `integration-uploads` | privado | cargas batch |
+| `colaboradores-fotos` | **público** | fotos RH |
+| `migracao-zero` | privado | pacote zero |
+| `pre-titulos-fiscal` | privado | docs fiscais do pré-título |
+| `identidade-visual` | privado | logos por empresa |
+| `avatars` | **público** | avatar usuário |
+| `copiloto-audios` | privado | gravações do copiloto |
+| `fcr-uploads` | privado | planilhas FCR |
+
+- **38 policies** no schema `storage` (média ~4 por bucket). Revisão semântica fica para Etapa 1.
+
+### 11.3 Alçada de aprovação real (hoje)
+
+- **`aprov_etapa` (18 linhas) = 3 etapas × 6 empresas**, idênticas em todas:
+  1. **Operacional** — `diretor_op` — valor_min 0, sem teto.
+  2. **Controladoria** — `controladoria` — valor_min 0, sem teto.
+  3. **Diretoria Adm** — `diretor_adm` — valor_min **R$ 500.000**, sem teto.
+- **`alcada_aprovacao` (1 linha)** — somente "Presidência" (Helena Nascimento), empresa única `5a61c769…`, ordem 0, sem faixa de valor.
+- **Gap fluxo 13:** Helena hoje só está cadastrada em 1 das 6 empresas. Para aprovar malotes do grupo inteiro, **falta replicar a alçada "Presidência" para as outras 5 empresas** (ou ativar `acessa_todas_empresas` + permitir alçada cross-empresa).
+
+### 11.4 Mapa de permissões
+
+- **`role_permissions` — 704 linhas** (legado, granular por menu × ação):
+  - controladoria 297 · diretor_adm 166 · admin 76 · diretor_op 63 · presidencia 61 · usuario 23 · comercial 6 · sst 4 · juridico 4 · operacional 3 · visitante 1.
+- **`screen_permission_profile` — 280 linhas** (Onda 4, nova matriz):
+  - presidencia 90 · diretor_adm 86 · admin 86 · usuario 14 · controladoria 4.
+- **`screen_permission_user` — 24 overrides** ativos por pessoa.
+- **Gap:** roles operacionais (`operacional`, `financeiro`, `fiscal`, `comercial`, `comprador`, `almoxarife`, `gestor_cc`, `fiscal_recebedor`) **não estão na nova matriz** — caem no fallback `role_permissions` legado. Onda 4 precisa popular esses perfis.
+
+### 11.5 Conclusão da Etapa 0
+
+✅ **Entreguei tudo o que estava no escopo da Etapa 0 (incluindo as pendências do §9), dentro do teto adicional aprovado.**
+
+Pendência semântica deliberadamente **adiada para Etapa 1** (não cabia em read-only):
+- Revisão lógica de cada policy RLS (apenas contagem foi medida nas duas passagens).
+- Revisão lógica das 38 policies de storage.
+
+Estado pronto para decidir o próximo recorte: **Etapa 1 (fundamentos)** ou **Fluxo 13+14 (Helena/Financeiro/Conciliação)**.
