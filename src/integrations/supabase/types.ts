@@ -7780,6 +7780,8 @@ export type Database = {
           data_emissao: string | null
           data_liquidacao: string | null
           data_vencimento: string | null
+          destino_id: string | null
+          destino_tabela: string | null
           documento: string | null
           empresa: string | null
           evento_baixa: string | null
@@ -7795,6 +7797,8 @@ export type Database = {
           mz_id: number
           origem_titulo: string | null
           pendencia: string | null
+          promovido_em: string | null
+          promovido_por: string | null
           saldo_titulo: string | null
           status_titulo: string | null
           tipo_titulo: string | null
@@ -7816,6 +7820,8 @@ export type Database = {
           data_emissao?: string | null
           data_liquidacao?: string | null
           data_vencimento?: string | null
+          destino_id?: string | null
+          destino_tabela?: string | null
           documento?: string | null
           empresa?: string | null
           evento_baixa?: string | null
@@ -7831,6 +7837,8 @@ export type Database = {
           mz_id?: number
           origem_titulo?: string | null
           pendencia?: string | null
+          promovido_em?: string | null
+          promovido_por?: string | null
           saldo_titulo?: string | null
           status_titulo?: string | null
           tipo_titulo?: string | null
@@ -7852,6 +7860,8 @@ export type Database = {
           data_emissao?: string | null
           data_liquidacao?: string | null
           data_vencimento?: string | null
+          destino_id?: string | null
+          destino_tabela?: string | null
           documento?: string | null
           empresa?: string | null
           evento_baixa?: string | null
@@ -7867,6 +7877,8 @@ export type Database = {
           mz_id?: number
           origem_titulo?: string | null
           pendencia?: string | null
+          promovido_em?: string | null
+          promovido_por?: string | null
           saldo_titulo?: string | null
           status_titulo?: string | null
           tipo_titulo?: string | null
@@ -8060,6 +8072,7 @@ export type Database = {
           created_at: string
           data_caixa: string | null
           data_competencia: string | null
+          destino_id: string | null
           direto_indireto: string | null
           documento_origem: string | null
           empresa: string | null
@@ -8082,6 +8095,8 @@ export type Database = {
           pendencia: string | null
           periodo_caixa: string | null
           periodo_competencia: string | null
+          promovido_em: string | null
+          promovido_por: string | null
           status_partida: string | null
           status_validacao: string | null
           tipo_custo_despesa: string | null
@@ -8101,6 +8116,7 @@ export type Database = {
           created_at?: string
           data_caixa?: string | null
           data_competencia?: string | null
+          destino_id?: string | null
           direto_indireto?: string | null
           documento_origem?: string | null
           empresa?: string | null
@@ -8123,6 +8139,8 @@ export type Database = {
           pendencia?: string | null
           periodo_caixa?: string | null
           periodo_competencia?: string | null
+          promovido_em?: string | null
+          promovido_por?: string | null
           status_partida?: string | null
           status_validacao?: string | null
           tipo_custo_despesa?: string | null
@@ -8142,6 +8160,7 @@ export type Database = {
           created_at?: string
           data_caixa?: string | null
           data_competencia?: string | null
+          destino_id?: string | null
           direto_indireto?: string | null
           documento_origem?: string | null
           empresa?: string | null
@@ -8164,6 +8183,8 @@ export type Database = {
           pendencia?: string | null
           periodo_caixa?: string | null
           periodo_competencia?: string | null
+          promovido_em?: string | null
+          promovido_por?: string | null
           status_partida?: string | null
           status_validacao?: string | null
           tipo_custo_despesa?: string | null
@@ -8636,6 +8657,7 @@ export type Database = {
           contrato: string | null
           created_at: string
           criterio_classificacao: string | null
+          destino_id: string | null
           direto_indireto: string | null
           empresa: string | null
           evento_sugerido: string | null
@@ -8654,6 +8676,8 @@ export type Database = {
           orcado_executado_original: string | null
           pendencia: string | null
           posto: string | null
+          promovido_em: string | null
+          promovido_por: string | null
           quantidade: string | null
           servico: string | null
           sindicato: string | null
@@ -8675,6 +8699,7 @@ export type Database = {
           contrato?: string | null
           created_at?: string
           criterio_classificacao?: string | null
+          destino_id?: string | null
           direto_indireto?: string | null
           empresa?: string | null
           evento_sugerido?: string | null
@@ -8693,6 +8718,8 @@ export type Database = {
           orcado_executado_original?: string | null
           pendencia?: string | null
           posto?: string | null
+          promovido_em?: string | null
+          promovido_por?: string | null
           quantidade?: string | null
           servico?: string | null
           sindicato?: string | null
@@ -8714,6 +8741,7 @@ export type Database = {
           contrato?: string | null
           created_at?: string
           criterio_classificacao?: string | null
+          destino_id?: string | null
           direto_indireto?: string | null
           empresa?: string | null
           evento_sugerido?: string | null
@@ -8732,6 +8760,8 @@ export type Database = {
           orcado_executado_original?: string | null
           pendencia?: string | null
           posto?: string | null
+          promovido_em?: string | null
+          promovido_por?: string | null
           quantidade?: string | null
           servico?: string | null
           sindicato?: string | null
@@ -17016,6 +17046,10 @@ export type Database = {
         Returns: Json
       }
       layout_submeter_aprovacao: { Args: { _versao_id: string }; Returns: Json }
+      lc_promover_partida_contabil: {
+        Args: { _mz_id: number; _payload: Json }
+        Returns: string
+      }
       list_accessible_menus: {
         Args: { _acao?: string; _empresa?: string; _user: string }
         Returns: {
@@ -17101,6 +17135,10 @@ export type Database = {
         Returns: string
       }
       obz_versao_submeter: { Args: { _id: string }; Returns: undefined }
+      oc_promover_orcamento_linha: {
+        Args: { _mz_id: number; _payload: Json }
+        Returns: string
+      }
       plano_acao_can_access: {
         Args: { p_empresa_id: string; p_permission: string; p_user_id: string }
         Returns: boolean
@@ -17323,6 +17361,14 @@ export type Database = {
         Returns: Json
       }
       titulo_receber_marcar_vencidos: { Args: never; Returns: number }
+      tp_promover_titulo_pagar: {
+        Args: { _mz_id: number; _payload: Json }
+        Returns: string
+      }
+      tr_promover_titulo_receber: {
+        Args: { _mz_id: number; _payload: Json }
+        Returns: string
+      }
       unaccent_safe: { Args: { t: string }; Returns: string }
       user_can_see_empresa: { Args: { _empresa_id: string }; Returns: boolean }
       user_pode_atuar_empresa: {
