@@ -73,6 +73,7 @@ export function AlcadasTab() {
           <TabsTrigger value="fluxos"><Workflow className="h-3.5 w-3.5 mr-1.5" />Fluxos</TabsTrigger>
           <TabsTrigger value="gestores-cc"><Users className="h-3.5 w-3.5 mr-1.5" />Gestores de CC</TabsTrigger>
           <TabsTrigger value="reguas">Réguas de escalonamento</TabsTrigger>
+          <TabsTrigger value="saude"><ShieldCheck className="h-3.5 w-3.5 mr-1.5" />Saúde</TabsTrigger>
           <TabsTrigger value="legado"><AlertTriangle className="h-3.5 w-3.5 mr-1.5" />Legado</TabsTrigger>
         </TabsList>
 
@@ -86,6 +87,10 @@ export function AlcadasTab() {
 
         <TabsContent value="reguas" className="mt-4">
           <ReguasPanel isAdmin={isAdmin} />
+        </TabsContent>
+
+        <TabsContent value="saude" className="mt-4">
+          <SaudeAlcadasPanel />
         </TabsContent>
 
         <TabsContent value="legado" className="mt-4">
