@@ -10,7 +10,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { Plus, Trash2, AlertTriangle, Workflow } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Workflow, Users } from "lucide-react";
+import { GestoresCCPanel } from "./GestoresCCPanel";
 
 const fmt = (v: number | null) =>
   v === null ? "sem teto" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
