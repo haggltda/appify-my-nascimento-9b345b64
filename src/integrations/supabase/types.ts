@@ -17429,6 +17429,7 @@ export type Database = {
       pcs_tipo: "criar" | "alterar" | "inativar"
       pedido_compra_status:
         | "rascunho"
+        | "aguardando_aprovacao"
         | "aprovado"
         | "enviado"
         | "recebido_parcial"
@@ -18004,6 +18005,7 @@ export const Constants = {
       pcs_tipo: ["criar", "alterar", "inativar"],
       pedido_compra_status: [
         "rascunho",
+        "aguardando_aprovacao",
         "aprovado",
         "enviado",
         "recebido_parcial",

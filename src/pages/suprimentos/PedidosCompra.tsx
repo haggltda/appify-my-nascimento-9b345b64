@@ -20,6 +20,7 @@ export default function PedidosCompra() {
         { key: "valor_total", label: "Valor Total", type: "number", default: 0 },
         { key: "status", label: "Status", type: "select", default: "rascunho", options: [
           { value: "rascunho", label: "Rascunho" },
+          { value: "aguardando_aprovacao", label: "Aguardando aprovação" },
           { value: "aprovado", label: "Aprovado" },
           { value: "enviado", label: "Enviado" },
           { value: "recebido_parcial", label: "Recebido Parcial" },
