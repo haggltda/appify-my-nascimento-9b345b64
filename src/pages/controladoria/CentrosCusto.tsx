@@ -75,7 +75,11 @@ export default function CentrosCusto() {
       toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "CC criado", description: draft.codigo });
+    toast({
+      title: "CC criado — atribua um gestor",
+      description: `${draft.codigo} foi criado sem gestor. Enquanto não houver gestor, requisições para este CC serão bloqueadas. Defina em Administração → Alçadas → Gestores de CC.`,
+      duration: 8000,
+    });
     setDraft({ empresa_id: empresas[0]?.id ?? "", codigo: "", nome: "", tipo: "adm", responsavel: "" });
     fetchAll();
   };
