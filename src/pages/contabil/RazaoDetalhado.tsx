@@ -83,14 +83,36 @@ export default function RazaoDetalhado() {
   );
   const [contaId, setContaId] = useState<string>("__all__");
   const [classifPrefix, setClassifPrefix] = useState("");
+  const [classifDe, setClassifDe] = useState("");
+  const [classifAte, setClassifAte] = useState("");
   const [natureza, setNatureza] = useState<string>("__all__");
   const [grupo, setGrupo] = useState<string>("__all__");
   const [ccId, setCcId] = useState<string>("__all__");
   const [contratoId, setContratoId] = useState<string>("__all__");
   const [origem, setOrigem] = useState<string>("__all__");
   const [busca, setBusca] = useState("");
+  const [incluirSaldoAnterior, setIncluirSaldoAnterior] = useState(false);
   const [page, setPage] = useState(1);
   const [exportLoading, setExportLoading] = useState(false);
+
+  function aplicarPreset(preset: string) {
+    const t = new Date();
+    const y = t.getFullYear();
+    const m = t.getMonth();
+    let di: Date, df: Date;
+    switch (preset) {
+      case "mes": di = new Date(y, m, 1); df = new Date(y, m + 1, 0); break;
+      case "mes_ant": di = new Date(y, m - 1, 1); df = new Date(y, m, 0); break;
+      case "trim": di = new Date(y, m - 2, 1); df = new Date(y, m + 1, 0); break;
+      case "ano": di = new Date(y, 0, 1); df = new Date(y, 11, 31); break;
+      case "ano_ant": di = new Date(y - 1, 0, 1); df = new Date(y - 1, 11, 31); break;
+      case "acumulado": di = new Date(y, 0, 1); df = t; break;
+      default: return;
+    }
+    setDataIni(di.toISOString().slice(0, 10));
+    setDataFim(df.toISOString().slice(0, 10));
+    setPage(1);
+  }
 
   // Combos
   const contasQ = useQuery({
