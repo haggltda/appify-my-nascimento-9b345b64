@@ -180,20 +180,10 @@ export default function RazaoDetalhado() {
       _contrato_id: contratoId === "__all__" ? null : contratoId,
       _origem: origem === "__all__" ? null : origem,
       _busca: busca.trim() || null,
+      _classif_de: classifDe.trim() || null,
+      _classif_ate: classifAte.trim() || null,
     }),
-    [
-      empresaId,
-      dataIni,
-      dataFim,
-      contaId,
-      classifPrefix,
-      natureza,
-      grupo,
-      ccId,
-      contratoId,
-      origem,
-      busca,
-    ],
+    [empresaId, dataIni, dataFim, contaId, classifPrefix, natureza, grupo, ccId, contratoId, origem, busca, classifDe, classifAte],
   );
 
   const linhasQ = useQuery({
@@ -202,14 +192,23 @@ export default function RazaoDetalhado() {
     queryFn: async () => {
       const { data, error } = await (supabase.rpc as any)(
         "razao_unificado_listar",
-        {
-          ...baseFilters,
-          _limit: PAGE_SIZE,
-          _offset: (page - 1) * PAGE_SIZE,
-        },
+        { ...baseFilters, _limit: PAGE_SIZE, _offset: (page - 1) * PAGE_SIZE },
       );
       if (error) throw error;
       return (data ?? []) as Linha[];
+    },
+  });
+
+  const saldoAntQ = useQuery({
+    queryKey: ["razao-saldo-ant", baseFilters],
+    enabled: !!empresaId && incluirSaldoAnterior,
+    queryFn: async () => {
+      const { _data_fim, _busca, ...rest } = baseFilters as any;
+      const { data, error } = await (supabase.rpc as any)("razao_saldo_anterior", rest);
+      if (error) throw error;
+      return (data?.[0] ?? { total_debito: 0, total_credito: 0, saldo: 0 }) as {
+        total_debito: number | string; total_credito: number | string; saldo: number | string;
+      };
     },
   });
 
