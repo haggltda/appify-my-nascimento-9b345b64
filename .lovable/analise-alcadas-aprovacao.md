@@ -204,3 +204,25 @@ Não precisa fazer tudo junto. Sugestão:
 4. Top-3 alvos prioritários além de requisição (para eu dimensionar)?
 
 Aguardo sua decisão para abrir o planejamento da Etapa 2.
+
+---
+
+## Decisões do usuário (respostas)
+
+1. **Aprovador**: por **colaborador específico** (usuário cadastrado). Papel/cargo fica para futuro.
+2. **Tipos de parecer**: **Bloqueante**, **Consultivo**, **Ciência** (3 níveis).
+3. **Regras automáticas**: apenas **Orçamento do centro de custo** (sem saldo → escala).
+4. **Piloto Etapa 2**: **Requisição de compra + Licitação + Programação de pagamento** em paralelo.
+
+## Implicações para o modelo de dados (Etapa 2)
+
+- `sup_aprov_etapa` ganha coluna `tipo_parecer` enum (`bloqueante`, `consultivo`, `ciencia`).
+- Engine de fechamento de instância considera só etapas bloqueantes para decidir aprovado/reprovado; consultivas/ciência geram registro mas **não travam**.
+- `sup_aprov_etapa` mantém `responsavel_user_id` (FK profiles). Não cria coluna `role` agora.
+- Nova função `tem_orcamento_cc(centro_custo_id, valor, periodo)` → trigger pré-aprovação: se OK e regra ativa, fecha automaticamente; senão, despacha para próxima etapa.
+- `alvo` enum cobre: `requisicao_compra`, `licitacao_etapa`, `programacao_pagamento`.
+- Para licitação: etapas SST + Controladoria como **consultivas**, Diretor Operacional como **bloqueante única**, Presidência como **bloqueante acima de X** (configurável).
+
+## Próximo passo
+
+Apresentar o **plano técnico Etapa 2** (migration + UI wizard + dispatcher) para aprovação antes de codar.
