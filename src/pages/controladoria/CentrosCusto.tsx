@@ -181,13 +181,14 @@ export default function CentrosCusto() {
 }
 
 function CCSection({
-  titulo, icone, lista, empresas, onToggle,
+  titulo, icone, lista, empresas, onToggle, onSetVincular,
 }: {
   titulo: string;
   icone: React.ReactNode;
   lista: CentroCusto[];
   empresas: Empresa[];
   onToggle: (cc: CentroCusto) => void;
+  onSetVincular: (cc: CentroCusto, value: boolean | null) => void;
 }) {
   const empresaCodigo = (id: string) => empresas.find((e) => e.id === id)?.codigo ?? "—";
   return (
@@ -205,6 +206,7 @@ function CCSection({
               <th className="px-4 py-2 text-left">Empresa</th>
               <th className="px-4 py-2 text-left">Origem</th>
               <th className="px-4 py-2 text-left">Responsável</th>
+              <th className="px-4 py-2 text-left">Vincular orçamento</th>
               <th className="px-4 py-2 text-left">Status</th>
               <th className="px-4 py-2 text-right">Ações</th>
             </tr>
@@ -212,7 +214,7 @@ function CCSection({
           <tbody>
             {lista.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-xs text-muted-foreground">
+                <td colSpan={8} className="px-4 py-6 text-center text-xs text-muted-foreground">
                   Nenhum centro de custo cadastrado.
                 </td>
               </tr>
@@ -235,6 +237,24 @@ function CCSection({
                     </span>
                   </td>
                   <td className="px-4 py-2 text-xs">{c.responsavel ?? "—"}</td>
+                  <td className="px-4 py-2">
+                    <RoleGate acao="alterar" modulo="centros_custo">
+                      <select
+                        data-write
+                        value={c.vincular_orcamento === null ? "herda" : c.vincular_orcamento ? "sim" : "nao"}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          onSetVincular(c, v === "herda" ? null : v === "sim");
+                        }}
+                        className="h-7 rounded-md border border-border bg-card px-2 text-[11px]"
+                        title="Herda = usa o padrão da empresa. Sim/Não = sobrescreve."
+                      >
+                        <option value="herda">Herda da empresa</option>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
+                      </select>
+                    </RoleGate>
+                  </td>
                   <td className="px-4 py-2">
                     <span className={c.ativo ? "chip bg-success-soft text-success" : "chip bg-muted text-muted-foreground"}>
                       {c.ativo ? "ativo" : "inativo"}
