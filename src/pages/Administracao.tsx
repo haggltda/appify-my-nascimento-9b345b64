@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   Users, ShieldCheck, Key, GitBranch, Settings, Activity, AlertOctagon, Lock, Palette, Shield,
@@ -40,7 +41,20 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
 
 
 export default function Administracao() {
-  const [tab, setTab] = useState<Tab>("usuarios");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initial = (searchParams.get("tab") as Tab) || "usuarios";
+  const [tab, setTab] = useState<Tab>(initial);
+
+  useEffect(() => {
+    const q = searchParams.get("tab") as Tab | null;
+    if (q && q !== tab) setTab(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const changeTab = (t: Tab) => {
+    setTab(t);
+    setSearchParams({ tab: t }, { replace: true });
+  };
 
   return (
     <div className="space-y-6">
@@ -55,7 +69,7 @@ export default function Administracao() {
           {tabs.map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => changeTab(t.id)}
               className={cn(
                 "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
                 tab === t.id ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-secondary",
