@@ -28,7 +28,7 @@ async function stableUuidFromString(input: string): Promise<string> {
 }
 
 export function LicitacaoAprovacaoBox({ licitacaoId, licitacaoCodigo, valorEstimado }: Props) {
-  const { empresaAtiva } = useEmpresaAtiva();
+  const { empresa: empresaAtiva } = useEmpresaAtiva();
   const qc = useQueryClient();
   const [refUuid, setRefUuid] = useState<string | null>(null);
 
