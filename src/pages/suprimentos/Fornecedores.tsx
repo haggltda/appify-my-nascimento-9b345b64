@@ -47,7 +47,7 @@ export default function Fornecedores() {
         title="Fornecedores"
         subtitle="Cadastro de fornecedores PJ/PF da empresa, incluindo contas bancárias para pagamento."
         actions={
-          <Button onClick={() => { setEditing(null); setOpen(true); }}>
+          <Button onClick={() => { setEditing(null); setViewOnly(false); setOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Novo
           </Button>
         }
