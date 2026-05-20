@@ -52,6 +52,16 @@ interface ItemAprov {
   empresa_id: string;
   link: string;
   raw: any;
+  // sup_aprov (novo motor)
+  sup_aprov?: {
+    instancia_id: string;
+    etapa_id: string;
+    etapa_nome: string;
+    tipo_parecer: "bloqueante" | "consultivo" | "ciencia";
+    criticidade: string;
+    horas_paradas: number;
+    prazo_horas: number | null;
+  };
 }
 
 const ORIGEM_META: Record<Origem, { label: string; icon: any; chip: string }> = {
