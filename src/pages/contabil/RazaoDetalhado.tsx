@@ -565,6 +565,27 @@ export default function RazaoDetalhado() {
       <div className="space-y-4">
         {/* Filtros */}
         <div className="card-elevated p-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2 pb-1">
+            <span className="text-xs text-muted-foreground mr-1">Período rápido:</span>
+            {[
+              { id: "mes", label: "Mês atual" },
+              { id: "mes_ant", label: "Mês anterior" },
+              { id: "trim", label: "Trimestre" },
+              { id: "ano", label: "Exercício" },
+              { id: "ano_ant", label: "Exercício anterior" },
+              { id: "acumulado", label: "Acumulado" },
+            ].map((p) => (
+              <Button
+                key={p.id}
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => aplicarPreset(p.id)}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
           <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
             <div>
               <Label className="text-xs">Início</Label>
