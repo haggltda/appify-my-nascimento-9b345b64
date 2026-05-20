@@ -172,7 +172,7 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
               </button>
               <button
                 onClick={handleSalvar}
-                disabled={cenario === "bloqueado" || saving}
+                disabled={cenario === "bloqueado" || saving || !temPermissao}
                 className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {saving && <Loader2 className="h-3 w-3 animate-spin" />}
