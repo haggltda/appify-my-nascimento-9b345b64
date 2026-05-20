@@ -542,35 +542,35 @@ function DetailDrawer({ item, onClose, onDecidir, onVerDetalhes }: {
           {/* Timeline */}
           <section>
             <h3 className="mb-3 text-sm font-bold">Linha do tempo</h3>
-            <ol className="relative space-y-4 border-l-2 border-border pl-5">
-              <TimelineStep
-                state="done"
-                title="Lançado"
-                meta={fmtDateTime(item.lancamento)}
+            {item.sup_aprov ? (
+              <TimelineAprovacao
+                alvo={(item.raw?.alvo ?? "pedido_compra") as any}
+                referenciaId={item.raw?.referencia_id ?? item.ref_id}
               />
-              {(histQ.data ?? []).filter((h: any) => h.decisao !== "pendente").map((h: any) => (
-                <TimelineStep
-                  key={h.id}
-                  state="done"
-                  title={`Etapa ${h.etapa} — ${h.decisao}`}
-                  meta={fmtDateTime(h.decidido_em)}
-                  sub={h.justificativa}
-                />
-              ))}
-              <TimelineStep
-                state="current"
-                title={`Etapa atual: Aguardando sua aprovação`}
-                meta={`Etapa ${item.etapa}`}
-              />
-              {proxima && (
-                <TimelineStep
-                  state="pending"
-                  title={`Próxima etapa: ${proxima.responsavel_nome ?? "—"}`}
-                  meta="Aguardando aprovação"
-                />
-              )}
-            </ol>
+            ) : (
+              <ol className="relative space-y-4 border-l-2 border-border pl-5">
+                <TimelineStep state="done" title="Lançado" meta={fmtDateTime(item.lancamento)} />
+                {(histQ.data ?? []).filter((h: any) => h.decisao !== "pendente").map((h: any) => (
+                  <TimelineStep
+                    key={h.id}
+                    state="done"
+                    title={`Etapa ${h.etapa} — ${h.decisao}`}
+                    meta={fmtDateTime(h.decidido_em)}
+                    sub={h.justificativa}
+                  />
+                ))}
+                <TimelineStep state="current" title={`Etapa atual: Aguardando sua aprovação`} meta={`Etapa ${item.etapa}`} />
+                {proxima && (
+                  <TimelineStep
+                    state="pending"
+                    title={`Próxima etapa: ${proxima.responsavel_nome ?? "—"}`}
+                    meta="Aguardando aprovação"
+                  />
+                )}
+              </ol>
+            )}
           </section>
+
 
           {/* Documentos */}
           <section>
