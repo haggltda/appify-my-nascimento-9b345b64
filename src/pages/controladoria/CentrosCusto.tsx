@@ -257,7 +257,21 @@ function CCSection({
                     {c.codigo_legado && <span className="ml-2 chip bg-muted text-[10px] text-muted-foreground">legado</span>}
                   </td>
                   <td className="px-4 py-2">{c.nome}</td>
-                  <td className="px-4 py-2 font-mono text-xs">{empresaCodigo(c.empresa_id)}</td>
+                  <td className="px-4 py-2 font-mono text-xs">
+                    <div className="flex items-center gap-2">
+                      <span>{empresaCodigo(c.empresa_id)}</span>
+                      <RoleGate acao="alterar" modulo="centros_custo" perfilRequerido="admin">
+                        <button
+                          data-write
+                          onClick={() => setTrocaCC(c)}
+                          title="Trocar empresa do CC (admin)"
+                          className="inline-flex items-center rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary"
+                        >
+                          <Building className="h-3 w-3" />
+                        </button>
+                      </RoleGate>
+                    </div>
+                  </td>
                   <td className="px-4 py-2">
                     <span className={`chip text-[10px] ${
                       c.origem_cadastro === "manual" ? "bg-muted text-muted-foreground" :
