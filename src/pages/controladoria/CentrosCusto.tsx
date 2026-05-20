@@ -172,8 +172,8 @@ export default function CentrosCusto() {
             </section>
           </RoleGate>
 
-          <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} onToggle={toggle} />
-          <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} onToggle={toggle} />
+          <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} />
+          <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} />
         </>
       )}
     </div>
