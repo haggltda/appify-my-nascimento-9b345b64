@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Building2, Plus, PowerOff, Loader2, FileBadge } from "lucide-react";
+import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +22,7 @@ type CentroCusto = {
   codigo_legado: boolean;
   entidade_origem_tabela: string | null;
   vincular_orcamento: boolean | null;
+  gestor_user_id: string | null;
 };
 
 type Empresa = { id: string; codigo: string; razao_social: string };
@@ -73,7 +75,11 @@ export default function CentrosCusto() {
       toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "CC criado", description: draft.codigo });
+    toast({
+      title: "CC criado — atribua um gestor",
+      description: `${draft.codigo} foi criado sem gestor. Enquanto não houver gestor, requisições para este CC serão bloqueadas. Defina em Administração → Alçadas → Gestores de CC.`,
+      duration: 8000,
+    });
     setDraft({ empresa_id: empresas[0]?.id ?? "", codigo: "", nome: "", tipo: "adm", responsavel: "" });
     fetchAll();
   };
@@ -106,6 +112,8 @@ export default function CentrosCusto() {
   const adm = lista.filter((c) => c.tipo === "adm");
   const op = lista.filter((c) => c.tipo === "operacional");
 
+  const semGestor = lista.filter((c) => c.ativo && !c.gestor_user_id);
+
   return (
     <div>
       <PageHeader
@@ -114,6 +122,26 @@ export default function CentrosCusto() {
         title="Centros de Custo"
         subtitle="Cadastro de CCs administrativos e operacionais por empresa. CRUD restrito à Controladoria."
       />
+
+      {!loading && semGestor.length > 0 && (
+        <div className="card-elevated mb-4 flex items-start gap-3 border-l-4 border-warning bg-warning-soft/30 p-3 text-sm">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">
+              {semGestor.length} centro{semGestor.length > 1 ? "s" : ""} de custo ativo{semGestor.length > 1 ? "s" : ""} sem gestor atribuído
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Requisições para CCs sem gestor são bloqueadas pelo motor de aprovação. Defina o gestor responsável para liberar o fluxo.
+            </p>
+          </div>
+          <Link
+            to="/app/administracao?tab=alcadas&sub=gestores-cc"
+            className="btn-relief inline-flex h-8 items-center gap-1.5 rounded-md bg-warning px-3 text-xs font-semibold text-warning-foreground"
+          >
+            <UserCog className="h-3.5 w-3.5" /> Atribuir gestores
+          </Link>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -236,7 +264,14 @@ function CCSection({
                       {c.origem_cadastro}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-xs">{c.responsavel ?? "—"}</td>
+                  <td className="px-4 py-2 text-xs">
+                    {c.responsavel ?? "—"}
+                    {c.ativo && !c.gestor_user_id && (
+                      <span className="ml-2 chip bg-warning-soft text-[10px] text-warning" title="Sem gestor atribuído — requisições serão bloqueadas">
+                        sem gestor
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-2">
                     <RoleGate acao="alterar" modulo="centros_custo">
                       <select
