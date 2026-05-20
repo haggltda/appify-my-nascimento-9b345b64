@@ -75,8 +75,10 @@ const ORIGEM_META: Record<Origem, { label: string; icon: any; chip: string }> = 
 export default function InboxAprovacoes() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { empresa } = useEmpresaAtiva();
   const [filtro, setFiltro] = useState<"todos" | Origem>("todos");
   const [busca, setBusca] = useState("");
+  const [filtrarEmpresa, setFiltrarEmpresa] = useState(true);
   const [selecionado, setSelecionado] = useState<ItemAprov | null>(null);
   const [decisao, setDecisao] = useState<{ item: ItemAprov; tipo: "aprovado" | "rejeitado" | "devolvido" } | null>(null);
   const [justif, setJustif] = useState("");
