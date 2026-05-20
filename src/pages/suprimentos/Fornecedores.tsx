@@ -88,10 +88,13 @@ export default function Fornecedores() {
                     <TableCell>{r.contato ?? "—"}</TableCell>
                     <TableCell>{r.ativo ? "✓ Ativo" : "Inativo"}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="icon" variant="ghost" onClick={() => { setEditing(r); setOpen(true); }}>
+                      <Button size="icon" variant="ghost" title="Visualizar" onClick={() => { setEditing(r); setViewOnly(true); setOpen(true); }}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" title="Editar" onClick={() => { setEditing(r); setViewOnly(false); setOpen(true); }}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { if (confirm("Remover este fornecedor?")) remove.mutate(r.id); }}>
+                      <Button size="icon" variant="ghost" title="Remover" onClick={() => { if (confirm("Remover este fornecedor?")) remove.mutate(r.id); }}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </TableCell>
@@ -107,6 +110,7 @@ export default function Fornecedores() {
         open={open}
         onOpenChange={setOpen}
         fornecedor={editing}
+        readOnly={viewOnly}
         onSaved={() => qc.invalidateQueries({ queryKey: ["fornecedor"] })}
       />
     </div>
