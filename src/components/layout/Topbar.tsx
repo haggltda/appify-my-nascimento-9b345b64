@@ -338,7 +338,8 @@ export function Topbar({ onToggleSidebar, onOpenMobile }: { onToggleSidebar: () 
                   </div>
                 </div>
                 <ul className="text-sm">
-                  <MenuItem onClick={() => { setOpenProfile(false); navigate("/app/administracao"); }} icon={<UserIcon className="h-3.5 w-3.5" />}>Meu perfil / Usuários</MenuItem>
+                  <MenuItem onClick={() => { setOpenProfile(false); navigate("/app/meu-perfil"); }} icon={<UserIcon className="h-3.5 w-3.5" />}>Meu perfil</MenuItem>
+                  <MenuItem onClick={() => { setOpenProfile(false); navigate("/app/administracao"); }} icon={<ShieldCheck className="h-3.5 w-3.5" />}>Administração / Usuários</MenuItem>
                 </ul>
                 <div className="border-t border-border bg-muted/20 px-3 py-2">
                   <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
