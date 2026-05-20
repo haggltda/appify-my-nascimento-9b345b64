@@ -3442,6 +3442,7 @@ export type Database = {
       empresas: {
         Row: {
           ativa: boolean
+          auto_aprovar_orcamento_cc: boolean
           cnpj: string
           codigo: string
           created_at: string
@@ -3454,6 +3455,7 @@ export type Database = {
         }
         Insert: {
           ativa?: boolean
+          auto_aprovar_orcamento_cc?: boolean
           cnpj: string
           codigo: string
           created_at?: string
@@ -3466,6 +3468,7 @@ export type Database = {
         }
         Update: {
           ativa?: boolean
+          auto_aprovar_orcamento_cc?: boolean
           cnpj?: string
           codigo?: string
           created_at?: string
@@ -17058,10 +17061,10 @@ export type Database = {
       storage_path_empresa: { Args: { _name: string }; Returns: string }
       sup_aprov_abrir_instancia: {
         Args: {
-          _cc_id: string
+          _centro_custo_id: string
           _fluxo_id: string
-          _ref_codigo: string
-          _ref_id: string
+          _referencia_codigo: string
+          _referencia_id: string
           _solicitante: string
           _valor: number
         }
@@ -17544,6 +17547,7 @@ export type Database = {
         | "requisicao_compra"
         | "licitacao_etapa"
         | "programacao_pagamento"
+        | "pedido_compra"
       sup_aprov_criticidade: "normal" | "urgente" | "critico"
       sup_aprov_parecer: "aprovado" | "reprovado" | "ciencia"
       sup_aprov_status:
@@ -18133,6 +18137,7 @@ export const Constants = {
         "requisicao_compra",
         "licitacao_etapa",
         "programacao_pagamento",
+        "pedido_compra",
       ],
       sup_aprov_criticidade: ["normal", "urgente", "critico"],
       sup_aprov_parecer: ["aprovado", "reprovado", "ciencia"],
