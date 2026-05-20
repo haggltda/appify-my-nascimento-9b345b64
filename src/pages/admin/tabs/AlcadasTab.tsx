@@ -116,6 +116,13 @@ function FluxosPanel({ empresaId, isAdmin, empresa }: { empresaId: string; isAdm
     toast({ title: val ? "Auto-aprovação por orçamento ATIVA" : "Auto-aprovação por orçamento DESATIVADA" });
   };
 
+  const toggleVincOrc = async (val: boolean) => {
+    const { error } = await supabase.from("empresas").update({ vincular_orcamento_padrao: val } as any).eq("id", empresaId);
+    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
+    qc.invalidateQueries({ queryKey: ["empresas-all"] });
+    toast({ title: val ? "Vincular orçamento ATIVO (padrão da empresa)" : "Vincular orçamento DESATIVADO (padrão da empresa)" });
+  };
+
   return (
     <div className="space-y-4">
       {/* Flag de auto-aprovação */}
@@ -130,6 +137,23 @@ function FluxosPanel({ empresaId, isAdmin, empresa }: { empresaId: string; isAdm
             </div>
             <Button size="sm" variant={empresa.auto_aprovar_orcamento_cc ? "default" : "outline"} onClick={() => toggleAutoOrc(!empresa.auto_aprovar_orcamento_cc)} disabled={!isAdmin}>
               {empresa.auto_aprovar_orcamento_cc ? "Ativa" : "Inativa"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Flag de vincular orçamento (3 níveis: Empresa → CC → Etapa) */}
+      {empresa && (
+        <div className="rounded-lg border border-border bg-muted/20 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Vincular orçamento (padrão da empresa)</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Quando ativo, requisições que <strong>estouram o orçamento do CC</strong> exigem uma 2ª etapa de aprovação ("ultrapassar orçamento"). Pode ser sobrescrito por CC (Controladoria → Centros de Custo) ou por etapa (campo <code className="text-[10px]">regra_auto.vincular_orcamento</code>).
+              </p>
+            </div>
+            <Button size="sm" variant={empresa.vincular_orcamento_padrao ? "default" : "outline"} onClick={() => toggleVincOrc(!empresa.vincular_orcamento_padrao)} disabled={!isAdmin}>
+              {empresa.vincular_orcamento_padrao ? "Ativo" : "Inativo"}
             </Button>
           </div>
         </div>
