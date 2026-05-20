@@ -4847,53 +4847,89 @@ export type Database = {
       fornecedor: {
         Row: {
           ativo: boolean
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          cnae_principal: string | null
           cnpj_cpf: string
+          complemento: string | null
           contato: string | null
           created_at: string
           email: string | null
           empresa_id: string
           endereco: string | null
           id: string
+          inscricao_estadual: string | null
           is_global: boolean
+          logradouro: string | null
           nome_fantasia: string | null
+          numero: string | null
           observacoes: string | null
+          pix_chave: string | null
+          pix_tipo: string | null
           razao_social: string
+          socios: Json
           telefone: string | null
           tipo: Database["public"]["Enums"]["fornecedor_tipo"]
+          uf: string | null
           updated_at: string
         }
         Insert: {
           ativo?: boolean
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnae_principal?: string | null
           cnpj_cpf: string
+          complemento?: string | null
           contato?: string | null
           created_at?: string
           email?: string | null
           empresa_id: string
           endereco?: string | null
           id?: string
+          inscricao_estadual?: string | null
           is_global?: boolean
+          logradouro?: string | null
           nome_fantasia?: string | null
+          numero?: string | null
           observacoes?: string | null
+          pix_chave?: string | null
+          pix_tipo?: string | null
           razao_social: string
+          socios?: Json
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["fornecedor_tipo"]
+          uf?: string | null
           updated_at?: string
         }
         Update: {
           ativo?: boolean
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnae_principal?: string | null
           cnpj_cpf?: string
+          complemento?: string | null
           contato?: string | null
           created_at?: string
           email?: string | null
           empresa_id?: string
           endereco?: string | null
           id?: string
+          inscricao_estadual?: string | null
           is_global?: boolean
+          logradouro?: string | null
           nome_fantasia?: string | null
+          numero?: string | null
           observacoes?: string | null
+          pix_chave?: string | null
+          pix_tipo?: string | null
           razao_social?: string
+          socios?: Json
           telefone?: string | null
           tipo?: Database["public"]["Enums"]["fornecedor_tipo"]
+          uf?: string | null
           updated_at?: string
         }
         Relationships: []
