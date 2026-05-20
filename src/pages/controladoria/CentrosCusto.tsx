@@ -90,6 +90,19 @@ export default function CentrosCusto() {
     fetchAll();
   };
 
+  const setVincular = async (cc: CentroCusto, value: boolean | null) => {
+    const { error } = await supabase
+      .from("centros_custo")
+      .update({ vincular_orcamento: value })
+      .eq("id", cc.id);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Vincular orçamento atualizado", description: cc.codigo });
+    fetchAll();
+  };
+
   const adm = lista.filter((c) => c.tipo === "adm");
   const op = lista.filter((c) => c.tipo === "operacional");
 
