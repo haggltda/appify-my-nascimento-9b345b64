@@ -15,6 +15,7 @@ type Empresa = {
   cnpj: string;
   regime: Regime;
   ativa: boolean;
+  vincular_orcamento_padrao: boolean;
 };
 
 export default function Empresas() {
