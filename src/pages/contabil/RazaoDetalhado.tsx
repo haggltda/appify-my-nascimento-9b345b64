@@ -843,6 +843,19 @@ export default function RazaoDetalhado() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {incluirSaldoAnterior && page === 1 && saldoAntQ.data && (
+                  <TableRow className="bg-muted/40 font-medium text-xs">
+                    <TableCell colSpan={9} className="uppercase tracking-wider text-muted-foreground">
+                      Saldo Anterior (até {fmtDate(dataIni)})
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtBRL(Number(saldoAntQ.data.total_debito) || 0)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {fmtBRL(Number(saldoAntQ.data.total_credito) || 0)}
+                    </TableCell>
+                  </TableRow>
+                )}
                 {linhasQ.isLoading && (
                   <TableRow>
                     <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
