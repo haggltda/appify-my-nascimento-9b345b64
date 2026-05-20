@@ -37,7 +37,7 @@ export function AlcadasTab() {
   const empresasQ = useQuery({
     queryKey: ["empresas-all"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("empresas").select("id,codigo,razao_social,auto_aprovar_orcamento_cc").order("razao_social");
+      const { data, error } = await supabase.from("empresas").select("id,codigo,razao_social,auto_aprovar_orcamento_cc,vincular_orcamento_padrao").order("razao_social");
       if (error) throw error;
       return data ?? [];
     },
