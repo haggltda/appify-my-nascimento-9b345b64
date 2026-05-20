@@ -13,6 +13,7 @@ import pedidoCompra from "./suprimentos/pedido-compra.md?raw";
 import aprovarPedido from "./suprimentos/aprovar-pedido.md?raw";
 import cadastroUsuario from "./admin/cadastro-usuario.md?raw";
 import gestaoUsuarioSistema from "./admin/gestao-usuario-sistema.md?raw";
+import cadastroAlcadas from "./admin/cadastro-alcadas.md?raw";
 import cadastroColaborador from "./rh/cadastro-colaborador.md?raw";
 import minhasPendencias from "./geral/minhas-pendencias.md?raw";
 
@@ -222,6 +223,19 @@ export const ARTIGOS: ArtigoMeta[] = [
     rotasRelacionadas: ["/app/administracao", "/app/admin/permissoes"],
     updatedAt: "2026-05-19",
     conteudo: gestaoUsuarioSistema,
+    personas: ["admin", "controladoria", "presidencia"],
+    status: "disponivel",
+  },
+  {
+    slug: "cadastro-alcadas",
+    modulo: "admin",
+    moduloLabel: "Administração",
+    titulo: "Cadastro de Alçadas",
+    resumo: "Manual completo de fluxos, etapas, faixas de valor, prazos e réguas de escalonamento de aprovação.",
+    tags: ["alçadas", "aprovação", "fluxo", "etapas", "escalonamento", "sla", "governança"],
+    rotasRelacionadas: ["/app/administracao"],
+    updatedAt: "2026-05-20",
+    conteudo: cadastroAlcadas,
     personas: ["admin", "controladoria", "presidencia"],
     status: "disponivel",
   },
