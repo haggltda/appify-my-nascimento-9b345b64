@@ -247,7 +247,7 @@ function NovaRCDialog({
           data_necessidade: dataNecessidade || null,
           valor_estimado: valorTotal,
           status: sendNow ? "enviada" : "rascunho",
-          status_v2: sendNow ? "enviada" : "rascunho",
+          status_v2: sendNow ? "aguardando_aprovacao" : "rascunho",
           justificativa,
           empresa_id: empresaId,
           solicitante_id: userId,
@@ -271,7 +271,26 @@ function NovaRCDialog({
       );
       if (e2) throw e2;
 
-      toast({ title: sendNow ? "RC enviada" : "Rascunho salvo" });
+      // Se for enviar para aprovação, abre instância no motor unificado
+      if (sendNow && empresaId && centroCustoId) {
+        const { data: fluxoId, error: eFluxo } = await (supabase as any).rpc("sup_aprov_fluxo_padrao", {
+          _empresa_id: empresaId,
+          _alvo: "requisicao_compra",
+        });
+        if (eFluxo) throw eFluxo;
+
+        const { error: eInst } = await (supabase as any).rpc("sup_aprov_abrir_instancia", {
+          _fluxo_id: fluxoId,
+          _referencia_id: rc.id,
+          _referencia_codigo: numero,
+          _valor: valorTotal,
+          _centro_custo_id: centroCustoId,
+          _solicitante: userId,
+        });
+        if (eInst) throw eInst;
+      }
+
+      toast({ title: sendNow ? "RC enviada para aprovação" : "Rascunho salvo" });
       onCreated();
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
