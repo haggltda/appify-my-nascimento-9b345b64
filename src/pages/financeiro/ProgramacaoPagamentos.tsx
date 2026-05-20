@@ -634,6 +634,12 @@ export default function ProgramacaoPagamentos() {
                 <Textarea value={decisaoJustif} onChange={(e) => setDecisaoJustif(e.target.value)} />
               </div>
             )}
+            {programacaoId && (
+              <div className="border-t pt-4">
+                <div className="mb-2 text-sm font-semibold">Trilha unificada (motor de alçadas)</div>
+                <TimelineAprovacao alvo="programacao_pagamento" referenciaId={programacaoId} />
+              </div>
+            )}
           </CardContent></Card>
         </TabsContent>
       </Tabs>
