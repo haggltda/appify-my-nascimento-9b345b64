@@ -191,7 +191,7 @@ export function FornecedorDialog({ open, onOpenChange, fornecedor, onSaved, read
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[1180px] max-h-[94vh] gap-0 overflow-hidden p-0">
+      <DialogContent className="w-[96vw] max-w-[96vw] sm:max-w-[96vw] lg:max-w-[1400px] h-[92vh] max-h-[92vh] gap-0 overflow-hidden p-0 flex flex-col">
         {/* ============ Header ============ */}
         <div className="flex items-center justify-between border-b px-6 py-4">
           <div className="flex items-center gap-2">
