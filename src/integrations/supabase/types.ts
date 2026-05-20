@@ -11039,6 +11039,33 @@ export type Database = {
         }
         Relationships: []
       }
+      permissoes_especiais: {
+        Row: {
+          concedido_em: string
+          concedido_por: string | null
+          id: string
+          motivo: string | null
+          permissao: string
+          user_id: string
+        }
+        Insert: {
+          concedido_em?: string
+          concedido_por?: string | null
+          id?: string
+          motivo?: string | null
+          permissao: string
+          user_id: string
+        }
+        Update: {
+          concedido_em?: string
+          concedido_por?: string | null
+          id?: string
+          motivo?: string | null
+          permissao?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       plano_acao: {
         Row: {
           acao: string | null
@@ -17172,6 +17199,10 @@ export type Database = {
       }
       sup_aprov_vincula_orcamento: {
         Args: { _centro_custo_id: string; _empresa_id: string }
+        Returns: boolean
+      }
+      tem_permissao_especial: {
+        Args: { _permissao: string; _user_id: string }
         Returns: boolean
       }
       titulo_agendar: {
