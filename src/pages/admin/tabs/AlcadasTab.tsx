@@ -10,7 +10,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { Plus, Trash2, AlertTriangle, Workflow } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Workflow, Users } from "lucide-react";
+import { GestoresCCPanel } from "./GestoresCCPanel";
 
 const fmt = (v: number | null) =>
   v === null ? "sem teto" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -69,12 +70,17 @@ export function AlcadasTab() {
       <Tabs defaultValue="fluxos" className="p-5">
         <TabsList>
           <TabsTrigger value="fluxos"><Workflow className="h-3.5 w-3.5 mr-1.5" />Fluxos</TabsTrigger>
+          <TabsTrigger value="gestores-cc"><Users className="h-3.5 w-3.5 mr-1.5" />Gestores de CC</TabsTrigger>
           <TabsTrigger value="reguas">Réguas de escalonamento</TabsTrigger>
           <TabsTrigger value="legado"><AlertTriangle className="h-3.5 w-3.5 mr-1.5" />Legado</TabsTrigger>
         </TabsList>
 
         <TabsContent value="fluxos" className="mt-4">
           {eid && <FluxosPanel empresaId={eid} isAdmin={isAdmin} empresa={(empresasQ.data ?? []).find((e: any) => e.id === eid)} />}
+        </TabsContent>
+
+        <TabsContent value="gestores-cc" className="mt-4">
+          {eid && <GestoresCCPanel empresaId={eid} isAdmin={isAdmin} empresa={(empresasQ.data ?? []).find((e: any) => e.id === eid)} />}
         </TabsContent>
 
         <TabsContent value="reguas" className="mt-4">
