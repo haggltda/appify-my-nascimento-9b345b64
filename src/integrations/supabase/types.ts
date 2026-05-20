@@ -1341,6 +1341,39 @@ export type Database = {
           },
         ]
       }
+      centros_custo_empresa_log: {
+        Row: {
+          alterado_em: string
+          alterado_por: string | null
+          cenario: string
+          centro_custo_id: string
+          empresa_id_anterior: string
+          empresa_id_novo: string
+          id: string
+          motivo: string | null
+        }
+        Insert: {
+          alterado_em?: string
+          alterado_por?: string | null
+          cenario: string
+          centro_custo_id: string
+          empresa_id_anterior: string
+          empresa_id_novo: string
+          id?: string
+          motivo?: string | null
+        }
+        Update: {
+          alterado_em?: string
+          alterado_por?: string | null
+          cenario?: string
+          centro_custo_id?: string
+          empresa_id_anterior?: string
+          empresa_id_novo?: string
+          id?: string
+          motivo?: string | null
+        }
+        Relationships: []
+      }
       centros_custo_sequencia: {
         Row: {
           empresa_id: string
@@ -16700,6 +16733,10 @@ export type Database = {
         }
         Returns: Json
       }
+      diagnostico_alterar_empresa_cc: {
+        Args: { _cc_id: string }
+        Returns: Json
+      }
       dre_gerencial_competencia: {
         Args: { _ano: number; _empresa_id: string; _versao_obz?: string }
         Returns: {
@@ -17016,6 +17053,7 @@ export type Database = {
         Args: { _empresa: string; _payload: Json }
         Returns: Json
       }
+      pode_alterar_empresa_cc: { Args: { _cc_id: string }; Returns: string }
       pode_usar_copiloto: { Args: { _uid: string }; Returns: boolean }
       pre_titulo_aprovar: { Args: { _id: string }; Returns: undefined }
       pre_titulo_promover: { Args: { _id: string }; Returns: string }
