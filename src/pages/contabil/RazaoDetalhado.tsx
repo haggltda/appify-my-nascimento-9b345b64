@@ -676,6 +676,22 @@ export default function RazaoDetalhado() {
               />
             </div>
             <div>
+              <Label className="text-xs">Conta inicial (classificação)</Label>
+              <Input
+                placeholder="Ex: 1.0.0.00"
+                value={classifDe}
+                onChange={(e) => { setClassifDe(e.target.value); setPage(1); }}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Conta final (classificação)</Label>
+              <Input
+                placeholder="Ex: 5.1.1.01"
+                value={classifAte}
+                onChange={(e) => { setClassifAte(e.target.value); setPage(1); }}
+              />
+            </div>
+            <div>
               <Label className="text-xs">Grupo DRE</Label>
               <Select
                 value={grupo}
