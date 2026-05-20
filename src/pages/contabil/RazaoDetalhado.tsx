@@ -518,6 +518,8 @@ export default function RazaoDetalhado() {
   function limparFiltros() {
     setContaId("__all__");
     setClassifPrefix("");
+    setClassifDe("");
+    setClassifAte("");
     setNatureza("__all__");
     setGrupo("__all__");
     setCcId("__all__");
