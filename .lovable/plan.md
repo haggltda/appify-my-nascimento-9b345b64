@@ -1,78 +1,80 @@
-## Execução sequencial A → B → C
+# Plano de Execução — Prompt Mestre ERP Grupo Nascimento
 
-Cada etapa segue o ciclo: **Diagnóstico → Migration (aprovação) → Código → Validação → Checkpoint**. Nada fora do escopo declarado será tocado (sem mexer em alçadas, acessos, botões anulares, telas não-listadas).
-
----
-
-### A) Onda 2 RLS Multiempresa — Sub-onda 2.1 (Financeiro/Compras)
-
-**Objetivo:** migrar ~35 tabelas de `get_user_empresa(auth.uid()) = empresa_id` para `user_pode_atuar_empresa(auth.uid(), empresa_id)`, permitindo que usuários com acesso a múltiplas empresas (Helena diretora, gestores multi-CC) leiam/escrevam corretamente.
-
-**Tabelas alvo (a confirmar no diagnóstico):**
-- Financeiro: `titulo_pagar`, `titulo_pagar_baixa`, `titulo_pagar_parcela`, `pre_titulo`, `pre_titulo_anexo`, `financeiro_pagamento_aprovacao`, `programacao_pagamento`, `movimento_bancario`, `extrato_bancario`, `conciliacao_*`
-- Compras: `requisicao_compra*`, `pedido_compra*`, `cotacao*`, `nf_entrada*`, `recebimento*`, `sup_aprov_*`
-
-**Passos:**
-1. Query de diagnóstico: listar todas as policies em `pg_policies` que referenciam `get_user_empresa` nesses domínios.
-2. Migration única: `DROP POLICY ... CREATE POLICY ...` substituindo a expressão. Manter mesmo nome de policy, mesmo escopo (SELECT/INSERT/UPDATE/DELETE), mesmas roles.
-3. Sem alterar estrutura de tabelas, sem mexer em triggers, sem tocar em tabelas de alçada (`sup_aprov_etapa`, `sup_aprov_instancia` — apenas RLS de leitura se aplicável e dentro do domínio Compras).
-4. Validar com `supabase--linter` e queries de fumaça (Helena conseguir ver `titulo_pagar` das 6 empresas; gestor de CC ver só os seus).
-
-**Impacto cruzado:** views que filtram por `empresa_id` continuam funcionando (RLS é transparente). Hooks `useEmpresaAtiva` continuam filtrando explicitamente — sem mudança no frontend.
+**Modo:** PLAN MODE obrigatório. Nada será implementado sem autorização explícita.
+**Prompt Mandatório:** `Engenharia_Final_de_Prompt_-_Star_Lovable.txt` (33 seções, 2.409 linhas).
 
 ---
 
-### B) Onda A2 FCR — Edição controlada de lançamentos históricos
+## ✅ Anexos recebidos e validados (somente-leitura)
 
-**Objetivo:** permitir que a tela `FCR Diário` (em `src/pages/financeiro/`) edite lançamentos `mz_40_fato_fluxo_caixa_realizado` promovendo-os sob demanda para `realizado_lancamentos` oficial. Mantém leitura unificada já existente.
+| Anexo | Status | Estrutura confirmada |
+|---|---|---|
+| Imagem `Tela_de_Pedido_-_Referência_de_Faturamento` | ✅ Recebida | Layout horizontal, cards executivos topo, abas (Dados gerais / Itens / Documentação / Tributos / Observações), drawer lateral "Resumo do pedido", checklist documental. Servirá **apenas como padrão visual/UX**. Dados da imagem são fictícios — **proibido copiar como reais**. |
+| `VERANÓPOLIS 01.2021.xlsm` | ✅ Parseada | 33 abas: `Lista NFs Jan 24` (A1:AI41, 35 cols) + 31 abas individuais de NF (A1:S88) + `Base de dados` (A1:M93). |
+| `Bento Gonçalves 002.2021.xlsm` | ✅ Parseada | 7 abas: `Lista NFs` (A1:AI42, 35 cols) + `NF Item 1..5` (A1:S88) + `Base de dados` (A1:M93). |
 
-**Passos:**
-1. Diagnóstico: confirmar existência de `mz_40_fato_fluxo_caixa_realizado` (58.966 linhas conforme auditoria) e estrutura de `realizado_lancamentos`. Localizar a tela FCR exata.
-2. Migration: criar RPC `fcr_promover_lancamento(_mz_id uuid)` `SECURITY DEFINER` que:
-   - Lê linha do `mz_40`, valida não-promovida.
-   - Insere em `realizado_lancamentos` com `origem='app'` e `mz_origem_id` para rastreio.
-   - Marca `mz_40` como `promovido_em = now()`.
-3. Migration: adicionar coluna `promovido_em timestamptz` em `mz_40_fato_fluxo_caixa_realizado` (se não existir).
-4. Frontend: na tela FCR Diário, ao clicar Editar em linha `origem='mz_carga'`, exibir diálogo "Promover para edição oficial" → chama RPC → recarrega.
-5. **NÃO** altera regras de alçada, não mexe em contas a pagar/receber, não toca em conciliação.
-
-**Impacto cruzado:** `dre_realizado`, `balancete` já leem de `realizado_lancamentos` — passarão a ver os lançamentos promovidos automaticamente. Views unificadas continuam mostrando ambos (mas sem duplicar, pois marcação `promovido_em` filtra).
+**Divergências vs. Prompt Mestre (a registrar no diagnóstico):**
+- Veranópolis tem **33 abas individuais** (o prompt listou ~31 nominais). Diferenças de espaço/acentuação em nomes (`'NF 7 Limpeza Educação '`, `'NF  1 Limpeza Saúde'`, `'NF 1  Turismo'`). Tratar como ruído de naming, não como divergência funcional.
+- Aba `Base de dados` vai até **M93** (não C49 como descrito no prompt). Há mais colunas/linhas — confirmar com controladoria se há campos adicionais relevantes.
+- Aba `'NF  1 Limpeza Saúde'` tem 1 coluna a mais (max_col=20 vs. 19). Possível campo extra — auditar.
 
 ---
 
-### C) Smoke Test Helena — Acionamento
+## Plano sequencial por blocos (B1 → B23)
 
-**Objetivo:** entregar para a Helena o roteiro de smoke test pronto (`.lovable/smoke-test-aprovacoes.md`) e instrumentar tela `Admin > Auditoria` com filtro "Smoke Test Helena" para acompanhar execução em tempo real.
+Cada bloco entrega: **diagnóstico → evidências → riscos → recomendações → perguntas**. Implementação só após "OK" explícito.
 
-**Passos:**
-1. Ler `.lovable/smoke-test-aprovacoes.md` para confirmar roteiro atual.
-2. Criar página `src/pages/admin/SmokeTestHelena.tsx` (read-only) listando os passos do roteiro com checkboxes locais (localStorage), link para cada tela envolvida, e painel lateral com últimos eventos de `audit_log` filtrados por `user_email='helena@...'`.
-3. Adicionar rota `/app/admin/smoke-helena` (sem mexer no Sidebar — apenas link no topo de `Admin > Auditoria`).
-4. **NÃO** cria novas permissões, não dispara notificações reais, não modifica nenhum fluxo de aprovação.
+| # | Bloco | Tipo |
+|---|-------|------|
+| **B1** | Diagnóstico e inventário técnico | Read-only |
+| B2 | Compliance e acesso de lançamentos (seção 12) | Read-only |
+| B3 | DRE projetada zerada (seção 14) | Read-only |
+| B4 | Campos não promovidos (seção 15) | Read-only |
+| B5 | Pedido de Faturamento — mapa planilha→ERP (seções 6–9) | Read-only |
+| B6 | Pedido de Faturamento — tela horizontal (seção 10) | Plano |
+| B7 | Pedido de Faturamento — consulta (seção 11) | Plano |
+| B8 | Documentos exigidos por contrato (9.4–9.5) | Plano |
+| B9 | NF saída / contas a receber | Diag.+Plano |
+| B10 | OS / Empenho / Documento autorizador (seção 17) | Diag.+Plano |
+| B11 | Mobilização / kickoff / checklist (17–18) | Plano |
+| B12 | Triagem IA (19) | Diag.+Plano |
+| B13 | Administração da IA (20) | Plano |
+| B14 | Orçamento / DRE / FCR por contrato (16) | Diag.+Plano |
+| B15 | Consulta RC/Pedidos (21) | Plano |
+| B16 | Despesas parceladas (22) | Plano |
+| B17 | Materiais/serviços (23) | Diag.+Plano |
+| B18 | Centro de custos (24) | Diag.+Plano |
+| B19 | Menu Helena (26) | Diag.+Plano |
+| B20 | Workflow de Aprovações (27) | Diag.+Plano |
+| B21 | Storage / anexos (28) | Diag.+Plano |
+| B22 | Dashboards | Plano |
+| B23 | Testes Given/When/Then (31) | Plano |
 
 ---
 
-### Inventário atualizado (mantido a cada etapa)
+## Bloco 1 — Diagnóstico e Inventário Técnico (próxima ação proposta)
 
-| # | Item Prompt Mestre | Status pré-A→B→C | Após A | Após B | Após C |
-|---|---|---|---|---|---|
-| 1 | Onda 1 RLS (27 tab.) | ✅ | ✅ | ✅ | ✅ |
-| 2 | Helena diretora 6 emp. | ✅ | ✅ | ✅ | ✅ |
-| 3 | Gestores CC | ✅ | ✅ | ✅ | ✅ |
-| 4 | **Onda 2 RLS (~132 tab.)** | ⏳ 0/132 | 🟡 35/132 (sub-onda 2.1) | 🟡 35/132 | 🟡 35/132 |
-| 5 | SLA cron | ✅ | ✅ | ✅ | ✅ |
-| 6 | Edição empresa em CC | ✅ | ✅ | ✅ | ✅ |
-| 7 | Notif. + Saúde Alçadas | ✅ | ✅ | ✅ | ✅ |
-| 8 | **Promoção `mz_*` oficial** | 🟡 A1 (leitura razão) | 🟡 A1 | 🟡 A1+A2 (FCR escrita) | 🟡 A1+A2 |
-| 9 | Smoke test Helena | ⏳ | ⏳ | ⏳ | 🟢 acionado |
+**100% somente-leitura.** Entrega:
 
-**Pendências após A→B→C:**
-- Onda 2 RLS sub-ondas 2.2 (Estoque/RH ~50 tab.) e 2.3 (demais ~47 tab.)
-- Promoção A3 (titulo_pagar histórico), A4 (titulo_receber), A5 (contratos `mz_50`), A6 (contábil `mz_31/32`)
-- Helena executar smoke test e devolver feedback
+1. **Inventário de frentes** (telas, rotas, hooks, tabelas/views/RPCs) cobrindo: Editais, Triagem IA, Licitações, Contratos, Mobilização, Orçamento, DRE/FCR, Requisições/Pedidos, Estoque, NF Entrada, Pré-Títulos, Programação de Pagamento, Pós-Pagamento, Conciliação, Pedido de Faturamento, NF Saída, Contas a Receber, Dashboards, Usuários/Permissões.
+2. **Evidências** via `code--view`, `rg`, `supabase--read_query` em `pg_policies` / `information_schema`, `supabase--linter`. Zero escrita.
+3. **Classificação por item** usando exatamente a terminologia do Prompt Mestre (§3): existe / parcial / não identificado / visual sem governança / gravação sem validação / técnico-desalinhado.
+4. **Matrizes obrigatórias §29** (inventário técnico + ponta a ponta inicial).
+5. **Riscos críticos** (compliance multiempresa, RLS por usuário, anexos expostos).
+6. **Perguntas de validação humana.**
+
+**Ferramentas read-only que usarei:** `code--view`, `code--list_dir`, `code--exec` (rg, parse xlsx), `supabase--read_query`, `supabase--linter`.
+**NÃO usarei:** `supabase--migration`, `code--write` em arquivos do projeto (apenas `.lovable/plan.md`), `code--line_replace`, deploy de edge functions.
 
 ---
 
-### Confirmação solicitada
+## Perguntas antes de iniciar B1
 
-Posso prosseguir já com a **etapa A** (diagnóstico + migration RLS sub-onda 2.1)? Ao final de A, paro para checkpoint antes de B.
+1. **Confirma** acesso somente-leitura ao banco (consultas em `pg_policies`, `information_schema`, contagens sem PII) para B1 e B2?
+2. **Confirma** o sequenciamento B1 → B2 → B3 → B4 antes de qualquer bloco de modelagem/tela (B5+)?
+3. Há **repriorização**? (Ex.: B2 compliance ou B3 DRE zerada antes de B1?)
+4. Para o parsing célula a célula das planilhas (necessário em B5), posso fazer já em B1 como anexo do inventário, ou prefere isolá-lo em B5?
+
+---
+
+**Posso iniciar o Bloco 1 — diagnóstico e inventário técnico, sem implementar alterações?**
