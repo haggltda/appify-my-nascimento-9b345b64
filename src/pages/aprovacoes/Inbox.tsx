@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { TimelineAprovacao } from "@/components/aprovacoes/TimelineAprovacao";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
 const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
@@ -74,8 +75,10 @@ const ORIGEM_META: Record<Origem, { label: string; icon: any; chip: string }> = 
 export default function InboxAprovacoes() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { empresa } = useEmpresaAtiva();
   const [filtro, setFiltro] = useState<"todos" | Origem>("todos");
   const [busca, setBusca] = useState("");
+  const [filtrarEmpresa, setFiltrarEmpresa] = useState(true);
   const [selecionado, setSelecionado] = useState<ItemAprov | null>(null);
   const [decisao, setDecisao] = useState<{ item: ItemAprov; tipo: "aprovado" | "rejeitado" | "devolvido" } | null>(null);
   const [justif, setJustif] = useState("");
@@ -194,13 +197,14 @@ export default function InboxAprovacoes() {
 
   const itens = useMemo(() => {
     const all: ItemAprov[] = [...(financeiroQ.data ?? []), ...(supAprovQ.data ?? [])];
-    const filtered = filtro === "todos" ? all : all.filter((x) => x.origem === filtro);
+    const byEmp = filtrarEmpresa && empresa?.id ? all.filter((x) => x.empresa_id === empresa.id) : all;
+    const filtered = filtro === "todos" ? byEmp : byEmp.filter((x) => x.origem === filtro);
     if (!busca.trim()) return filtered;
     const q = busca.toLowerCase();
     return filtered.filter((i) =>
       [i.titulo, i.fornecedor_nome, i.numero_doc, i.empresa_nome].some((v) => v?.toLowerCase().includes(q))
     );
-  }, [financeiroQ.data, supAprovQ.data, filtro, busca]);
+  }, [financeiroQ.data, supAprovQ.data, filtro, busca, filtrarEmpresa, empresa?.id]);
 
   const counts = useMemo(() => {
     const all = [...(financeiroQ.data ?? []), ...(supAprovQ.data ?? [])];
@@ -295,9 +299,20 @@ export default function InboxAprovacoes() {
                 <TabsTrigger value="contratos">Contratos/Outros <Badge variant="secondary" className="ml-2">{counts.contratos.qtd}</Badge></TabsTrigger>
               </TabsList>
             </Tabs>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Buscar na tabela..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                type="button"
+                size="sm"
+                variant={filtrarEmpresa ? "default" : "outline"}
+                onClick={() => setFiltrarEmpresa((v) => !v)}
+                title="Filtrar pela empresa ativa do topbar"
+              >
+                {filtrarEmpresa ? `Empresa: ${empresa?.sigla ?? "ativa"}` : "Todas as empresas"}
+              </Button>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-9" placeholder="Buscar na tabela..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+              </div>
             </div>
           </div>
         </CardHeader>
