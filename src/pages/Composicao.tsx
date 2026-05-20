@@ -647,6 +647,14 @@ export default function Composicao() {
             </div>
           </div>
 
+          {licitacaoIdParam && (
+            <LicitacaoAprovacaoBox
+              licitacaoId={licitacaoIdParam}
+              licitacaoCodigo={licitacao}
+              valorEstimado={totais.total * 12}
+            />
+          )}
+
           <div className="card-elevated p-4">
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Próximos passos</p>
             <ol className="space-y-1.5 text-xs text-muted-foreground">
