@@ -122,7 +122,7 @@ Toggles: sininho, e-mail, push PWA.
 7. Integração em Licitação e Programação de pagamento.
 8. Tela Meu perfil → Notificações.
 9. Smoke test guiado: requisição sem estoque → cotação → pedido → instância abre → (auto se CC tem saldo e flag on, senão) Helena aprova → segue.
-9. Smoke test guiado: criar requisição → instância abre → Helena recebe → aprova → segue.
+
 
 ---
 
