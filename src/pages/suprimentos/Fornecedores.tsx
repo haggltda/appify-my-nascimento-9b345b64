@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { FornecedorDialog } from "./fornecedores/FornecedorDialog";
 
@@ -14,6 +14,7 @@ export default function Fornecedores() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [viewOnly, setViewOnly] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["fornecedor", "list"],
@@ -46,7 +47,7 @@ export default function Fornecedores() {
         title="Fornecedores"
         subtitle="Cadastro de fornecedores PJ/PF da empresa, incluindo contas bancárias para pagamento."
         actions={
-          <Button onClick={() => { setEditing(null); setOpen(true); }}>
+          <Button onClick={() => { setEditing(null); setViewOnly(false); setOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Novo
           </Button>
         }
@@ -87,10 +88,13 @@ export default function Fornecedores() {
                     <TableCell>{r.contato ?? "—"}</TableCell>
                     <TableCell>{r.ativo ? "✓ Ativo" : "Inativo"}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="icon" variant="ghost" onClick={() => { setEditing(r); setOpen(true); }}>
+                      <Button size="icon" variant="ghost" title="Visualizar" onClick={() => { setEditing(r); setViewOnly(true); setOpen(true); }}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" title="Editar" onClick={() => { setEditing(r); setViewOnly(false); setOpen(true); }}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => { if (confirm("Remover este fornecedor?")) remove.mutate(r.id); }}>
+                      <Button size="icon" variant="ghost" title="Remover" onClick={() => { if (confirm("Remover este fornecedor?")) remove.mutate(r.id); }}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </TableCell>
@@ -106,6 +110,7 @@ export default function Fornecedores() {
         open={open}
         onOpenChange={setOpen}
         fornecedor={editing}
+        readOnly={viewOnly}
         onSaved={() => qc.invalidateQueries({ queryKey: ["fornecedor"] })}
       />
     </div>
