@@ -4,12 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, X, Clock, Bot, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-const TIPO_TONE: Record<string, string> = {
-  bloqueante: "bg-destructive/15 text-destructive border-destructive/30",
-  consultivo: "bg-blue-500/15 text-blue-700 border-blue-300",
-  ciencia: "bg-muted text-muted-foreground border-border",
-};
+import { TipoParecerBadge } from "./TipoParecerBadge";
 
 const STATUS_ICON: Record<string, JSX.Element> = {
   aprovado:      <Check className="h-3.5 w-3.5 text-emerald-600" />,
