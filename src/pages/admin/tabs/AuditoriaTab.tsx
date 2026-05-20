@@ -50,6 +50,12 @@ export function AuditoriaTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <a
+            href="/app/admin/smoke-helena"
+            className="inline-flex h-9 items-center rounded-md border border-primary/40 bg-primary/5 px-3 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            Smoke Test Helena →
+          </a>
           <Input placeholder="Filtrar por tabela…" value={tabela} onChange={(e) => setTabela(e.target.value)} className="h-9 w-56" />
           <Button size="sm" variant="outline" onClick={() => qc.invalidateQueries({ queryKey: ["audit_log_recent"] })} className="gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" /> Atualizar
