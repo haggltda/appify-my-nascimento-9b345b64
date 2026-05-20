@@ -299,9 +299,20 @@ export default function InboxAprovacoes() {
                 <TabsTrigger value="contratos">Contratos/Outros <Badge variant="secondary" className="ml-2">{counts.contratos.qtd}</Badge></TabsTrigger>
               </TabsList>
             </Tabs>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Buscar na tabela..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                type="button"
+                size="sm"
+                variant={filtrarEmpresa ? "default" : "outline"}
+                onClick={() => setFiltrarEmpresa((v) => !v)}
+                title="Filtrar pela empresa ativa do topbar"
+              >
+                {filtrarEmpresa ? `Empresa: ${empresa?.sigla ?? "ativa"}` : "Todas as empresas"}
+              </Button>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-9" placeholder="Buscar na tabela..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+              </div>
             </div>
           </div>
         </CardHeader>
