@@ -264,7 +264,14 @@ function CCSection({
                       {c.origem_cadastro}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-xs">{c.responsavel ?? "—"}</td>
+                  <td className="px-4 py-2 text-xs">
+                    {c.responsavel ?? "—"}
+                    {c.ativo && !c.gestor_user_id && (
+                      <span className="ml-2 chip bg-warning-soft text-[10px] text-warning" title="Sem gestor atribuído — requisições serão bloqueadas">
+                        sem gestor
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-2">
                     <RoleGate acao="alterar" modulo="centros_custo">
                       <select
