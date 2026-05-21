@@ -1,58 +1,176 @@
-# Plano — Correção e Redesenho DRE Gerencial
+# Editor de Orçamentos de Contratos — Plano Visual & Estrutural
 
-## Confirmações recebidas
-- A) R3+R4 compliance: **sobem agora** antes de B3 ✅
-- B) Arquitetura Pedido de Faturamento (1 URL + 3 abas + 3 entidades + workflow): **confirmada** ✅
-- C) B3 redefinido: **NÃO está OK** — telas DRE Gerencial não puxam corretamente os dados dos contratos ativos.
+> Tela enterprise-grade, alto impacto visual, padrão referência (Notion + Linear + Airtable). Foco: você gerenciar 100% dos contratos e editar orçamentos célula a célula como numa planilha viva.
 
-## Problemas reportados na tela `/app/co/dre-gerencial` (e equivalente em Contábil)
+---
 
-### Bugs de dados (B3 — crítico)
-1. **Meses futuros vazios**: filtro 2026, mas JUN–DEZ aparecem "—" mesmo havendo contratos ativos até o final do ano. A view `mz_60_view_dre_gerencial_competencia` (ou a RPC `dre_gerencial_competencia`) só está retornando meses com *realizado*, não está consumindo `mz_50_fato_orcamento_contratos_competencia` (projetado pelos contratos ativos) para preencher meses futuros.
-2. **Orçado zerado**: ao clicar em "Orçado", todos os valores saem R$ 0. A coluna Orçado não está cruzando com `mz_50` (orçamento por competência dos contratos).
-3. **Variação incorreta**: como Orçado=0, Variação fica = Realizado (100% acima), o que é falso.
+## Arquitetura de Navegação
 
-### Ajustes visuais (UI)
-4. Remover coluna **"CÓDIGO"** (L01, L02…) da tabela.
-5. **Truncar/formatar números** para não desfigurar (usar abreviação tipo `1,3M` / `847K` quando a coluna for estreita, ou aumentar largura + alinhamento monoespaçado tabular).
-6. **Valores negativos em vermelho** (já parcialmente feito, garantir em todas as células incluindo TOTAL e linhas de resultado).
-7. **Subtotal separado para Despesas Financeiras** (agrupar L10 + L11 com linha "Subtotal Resultado Financeiro").
-8. **Layout padrão** conforme print anexo (`ChatGPT_Image_20_de_mai…png`) — preciso inspecionar para extrair o padrão exato.
+```text
+/app/contratos/orcamentos                  ← Lista mestre (100% contratos)
+/app/contratos/:id/orcamento               ← Editor grade (planilha viva)
+/app/contratos/:id/orcamento/importar      ← Wizard upload XLSX
+/app/contratos/:id/orcamento/historico     ← Audit log + versões
+```
 
-## Telas afetadas
-- `src/pages/controladoria/DREGerencial.tsx` (principal — rota atual)
-- `src/pages/contabil/DRE.tsx` e `src/pages/contabil/DREGerencialReal.tsx` (Contábil/Escrituração)
-- RPC backend: `dre_gerencial_competencia` + view `mz_60_view_dre_gerencial_competencia`
+Entrada também via: card "Orçamentos" no menu Contratos + atalho na tela DRE Gerencial ("Editar orçamento dos contratos").
 
-## Abordagem proposta (2 frentes paralelas)
+---
 
-### Frente 1 — Backend (dados)
-- Auditar a RPC `dre_gerencial_competencia` e a view `mz_60`:
-  - Garantir que para cada `(linha_dre, mes)` ela retorne **3 colunas**: `realizado`, `orcado`, `projetado`.
-  - `realizado` ← `lancamento_partida` por competência.
-  - `orcado` ← `mz_50_fato_orcamento_contratos_competencia` (já existem 47.739 linhas, 4 empresas).
-  - `projetado` ← `mz_41_fato_fluxo_caixa_projetado` OU `realizado se mes<=hoje senão orcado` (sua definição).
-- Criar migration para nova versão da RPC (`dre_gerencial_competencia_v2`) sem quebrar a antiga.
+## Tela 1 — Lista Mestre de Orçamentos
 
-### Frente 2 — Frontend (UI + tela única consolidada)
-- Refatorar `DREGerencial.tsx`:
-  - Remover coluna Código.
-  - Adicionar linha "Subtotal Resultado Financeiro" entre L11 e L12.
-  - Negativos sempre em vermelho (incluir total e linhas-resultado).
-  - Formatação numérica compacta (`Intl.NumberFormat` com `notation:'compact'` quando coluna < 80px).
-  - Aplicar layout do print de referência.
-- Unificar `contabil/DRE.tsx` e `contabil/DREGerencialReal.tsx` para consumir a mesma RPC v2 (eliminar duplicação).
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ORÇAMENTOS DE CONTRATOS                          [+ Novo]  [↑ Import] │
+│  Carteira completa · 247 contratos · Ano-base 2026                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│  ╔═══════════╗  ╔═══════════╗  ╔═══════════╗  ╔═══════════╗            │
+│  ║ COM ORÇ.  ║  ║ SEM ORÇ.  ║  ║ RECEITA   ║  ║ MARGEM    ║            │
+│  ║   189     ║  ║    58     ║  ║ R$ 47,2M  ║  ║  12,3%    ║            │
+│  ║ ─────●●●  ║  ║ ●─────    ║  ║ ▲ 8% YoY  ║  ║ ▼ 1,2pp   ║            │
+│  ╚═══════════╝  ╚═══════════╝  ╚═══════════╝  ╚═══════════╝            │
+│                                                                         │
+│  [Empresa ▾] [Status ▾] [Ano: 2026 ▾]   🔍 Buscar nº/cliente/objeto    │
+│                                                                         │
+│  CONTRATO          CLIENTE              VIGÊNCIA      MENSAL    STATUS  │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  UFFS-041/2021     U. F. Front. Sul     ▮▮▮▮▮▯▯      R$ 612K   ●Aprov │
+│  HCPA-088/2024     Hospital Clínicas    ▮▮▮▮▮▮▮      R$ 1,2M   ◐Edit  │
+│  PMTO-012/2023     Prefeit. Toledo      ▮▮▮▮▯▯▯      R$ 340K   ○Vazio │
+│  ...                                                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-## Sequenciamento sugerido
-1. **Inspecionar o print anexo + RPC atual** (read-only, 0 risco).
-2. **Apresentar mockup do novo layout** (visual_choice ou screenshot) para sua aprovação.
-3. **Migration RPC v2** (após aprovar mockup).
-4. **Refator frontend** consumindo v2.
-5. **QA visual** (screenshot das 3 telas) antes de fechar.
+**Status do orçamento (badge color-coded):**
+- ● **Aprovado** (verde) — linhas locked
+- ◐ **Em edição** (âmbar) — rascunho ativo
+- ○ **Vazio** (cinza) — contrato sem orçamento ainda
+- ⚠ **Divergente** (vermelho) — mz_50 atualizado mas não promovido
 
-## Perguntas antes de executar
+**Barra de vigência** = mini timeline visual do contrato no ano (▮▮▮▮▯▯▯ mostra início/fim).
 
-1. **Definição de "Projetado" para meses futuros** na DRE: usar (a) `mz_50` orçado por competência do contrato, OU (b) `mz_41` fluxo de caixa projetado, OU (c) ambos lado a lado (3 colunas: Real/Orçado/Projetado por mês)?
-2. **Layout do print anexo**: posso seguir o estilo do print que você acabou de mandar (cards de KPI no topo + tabela embaixo já está nesse formato) — o que falta exatamente? É a **densidade/cores** das linhas-totalizadoras (L03/L06/L13/L14 com fundo azul) ou outra coisa específica?
-3. **Unificar as 3 telas** (`/app/co/dre-gerencial`, `/app/contabil/dre`, `/app/contabil/.../dre-gerencial-real`) em **uma única tela** com seletor de visão (Gerencial/Contábil), ou manter as 3 e só corrigir cada uma?
-4. **Compact notation** (`1,3M` / `847K`): aplicar **sempre** ou só quando coluna estreita (tooltip mostrando valor cheio no hover)?
+---
+
+## Tela 2 — Editor Grade (Planilha Viva) — CORAÇÃO DA TELA
+
+Layout densidade controlada, header sticky, tipografia tabular monoespaçada, paleta sóbria com 1 acento (azul-info para edição ativa).
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────────────────┐
+│ ← UFFS-041/2021 · Univ. Federal Fronteira Sul          [Histórico] [Importar] [Salvar▾] │
+│ Vigência 01/02/2025 → 31/03/2026 · Mensal R$ 612.871 · Margem orçada 14,2%               │
+├──────────────────────────────────────────────────────────────────────────────────────────┤
+│  Ano-base [2026 ▾]   Versão [v3 · em edição ▾]   ● Salvando…                            │
+│                                                                                          │
+│  ┌─ RECEITA ─────────────────────────────────────────────────────────────── R$ 7,35M ─┐ │
+│  │ ITEM              CONTA       JAN     FEV     MAR     ABR  …  DEZ    TOTAL        │ │
+│  │ Faturamento bruto 03.1.01  612.871 612.871 612.871   ─    …  ─    R$ 1.838.613   │ │
+│  │ + Adicionar item                                                                  │ │
+│  └───────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                          │
+│  ┌─ CUSTO DIRETO ────────────────────────────────────────────────────── -R$ 5,12M ──┐  │
+│  │ Salário Base     04.1.3.02  324.640 324.640 324.640  ─    …  ─    -R$ 973.920   │  │
+│  │ EPIs             04.1.3.03   18.420  18.420  18.420  ─    …  ─    -R$  55.260   │  │
+│  │ Vale Transporte  04.1.3.02   42.100  42.100  42.100  ─    …  ─    -R$ 126.300   │  │
+│  │ + Adicionar item                                              [Subtotal Custo]   │  │
+│  └───────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                          │
+│  ┌─ DESPESA ─────────────────────────────────────────────────────────── -R$ 890K ──┐   │
+│  │ ...                                                                              │   │
+│  └──────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                          │
+│  ════════════════════════════════════════════════════════════════════════════════════   │
+│  RESULTADO LÍQUIDO                  ▮▮▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯ 14,2%      R$ 1.043.221      │
+│  ════════════════════════════════════════════════════════════════════════════════════   │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Interações da grade
+- **Clique na célula** → entra modo edição com máscara R$ + spin numérico.
+- **Tab/Enter** navega célula a célula (estilo Excel).
+- **Arrastar canto** copia valor para meses seguintes (fill-handle).
+- **Negativos automáticos**: linhas de custo/despesa mostram em vermelho.
+- **Auto-save** debounce 800ms → indicador "● Salvando…" / "✓ Salvo 14:32".
+- **Linhas locked** (após aprovação) ficam em cinza com ícone 🔒, edição bloqueada.
+- **Botão "+ Adicionar item"** abre combobox com itens-padrão do plano de contas.
+- **Hover na célula** mostra tooltip: "última edição: João Silva, 18/05 14:32, valor anterior R$ 320.000".
+- **Atalho `Cmd+K`** abre paleta de comandos (importar, exportar, ver DRE, aprovar, duplicar item).
+
+### Header rico
+- KPIs ao vivo: Receita total, Custo total, Margem %, Variação vs mz_50 original.
+- Mini-gráfico sparkline mostrando a margem mês a mês.
+- Botão "Salvar▾" com submenu: Salvar rascunho / Salvar e aprovar / Salvar como nova versão.
+
+---
+
+## Tela 3 — Wizard de Importação XLSX
+
+Steps visuais:
+```text
+①  Upload          →  ②  Mapeamento        →  ③  Preview diff       →  ④  Confirmar
+   Arraste .xlsx       Confirma colunas        Linhas novas (verde)     Aplicar
+   ou clique           da planilha             Alteradas (âmbar)
+                                               Removidas (vermelho)
+```
+
+- Botão "Baixar template" no topo (gera xlsx vazio no exato formato do mz_50).
+- Preview diff mostra tabela com cor-código antes de gravar.
+- Modal de confirmação: "Vai gravar 142 alterações em UFFS-041/2021. Continuar?"
+
+---
+
+## Tela 4 — Histórico & Versões
+
+Timeline vertical (estilo GitHub commits):
+```text
+●  v3 · em edição           hoje 14:32  · você      [Diff] [Restaurar]
+│   42 células alteradas, margem +1,2pp
+●  v2 · aprovada            12/05/2026  · Ana Costa [Diff]
+│   Reajuste sindical aplicado
+●  v1 · importada do mz_50  08/05/2026  · sistema   [Diff]
+    Carga inicial da planilha
+```
+
+---
+
+## Identidade Visual (alto impacto, padrão web premium)
+
+- **Tipografia**: cabeçalhos em font display do projeto, números em fonte tabular (`tabular-nums`) para alinhamento perfeito vertical.
+- **Paleta**: usa tokens semânticos do `index.css` — `primary`, `success` (verde receita), `destructive` (vermelho negativo), `warning` (âmbar edição), `muted` (linhas zeradas). Sem cores hard-coded.
+- **Densidade**: grade compacta tipo Linear/Notion (44px de altura por linha, padding lateral 12px).
+- **Hierarquia**: blocos com border-radius generoso, sombra sutil `shadow-elegant`, header sticky com `backdrop-blur`.
+- **Microinterações**: framer-motion no auto-save indicator (pulse), na expansão de blocos receita/custo/despesa (collapse animado), no diff de import (fade-in linha a linha).
+- **Modo escuro**: contraste pleno garantido nos dois temas.
+- **Acessibilidade**: navegação 100% por teclado, ARIA labels nas células editáveis, foco visível.
+
+---
+
+## Backend (migration única)
+
+1. Tabela `orcamento_contrato_linha_audit` (audit trail).
+2. Trigger auditoria em `orcamento_contrato_linha` (insert/update/delete).
+3. RPC `promover_mz50_orcamento(_empresa_id, _ano)` — one-shot que copia mz_50 (47k linhas) para `orcamento_contrato_linha` e marca `destino_id`.
+4. **Atualizar RPC `dre_gerencial_mensal`** para Orçado vir de `orcamento_contrato_linha` (não mais `obz_valores`). → resolve direto o bug da DRE zerada.
+5. RLS por empresa em todas as novas estruturas.
+
+---
+
+## Sequenciamento de entrega
+
+1. Migration backend (promover mz_50 + RPC DRE atualizada + audit).
+2. Tela lista `/app/contratos/orcamentos`.
+3. Editor grade célula a célula (auto-save, fill, lock, hover audit).
+4. Wizard de import XLSX com diff preview.
+5. Histórico + versões.
+6. Refator UI da DRE Gerencial (remover coluna código, subtotal financeiro, negativos vermelhos).
+7. QA visual em todas as telas.
+
+---
+
+## Perguntas finais antes de codar
+
+1. **Granularidade**: edita por **item** (Salário Base, EPI, VT) como mostrado acima OU consolidado por **linha da DRE** (L04, L05) sem ver itens?
+2. **Promoção mz_50**: rodo **automática** já na migration (popula tudo de uma vez) ou prefere botão manual?
+3. **Conflito no import**: planilha (a) sobrescreve tudo, (b) merge com confirmação, (c) só cria novos?
+4. **Versionamento**: cada save cria nova versão OU edição direta com audit log?
+5. **Permissão de edição**: Financeiro+Controladoria+Diretoria apenas, ou também Operação?
