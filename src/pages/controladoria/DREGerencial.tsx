@@ -121,10 +121,10 @@ export default function DREGerencial() {
   const totalOrc = linhaResultado ? linhaResultado.orcMeses.reduce((a, b) => a + b, 0) : 0;
 
   const exportCsv = () => {
-    const header = ["Código", "Descrição", "Natureza", ...MESES, "Total"];
+    const header = ["Descrição", "Natureza", ...MESES, "Total"];
     const rows = linhas.map((l) => {
       const total = l.meses.reduce((a, b) => a + b, 0);
-      return [l.codigo, l.descricao, l.natureza, ...l.meses.map((v) => v.toFixed(2)), total.toFixed(2)];
+      return [l.descricao, l.natureza, ...l.meses.map((v) => v.toFixed(2)), total.toFixed(2)];
     });
     const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
