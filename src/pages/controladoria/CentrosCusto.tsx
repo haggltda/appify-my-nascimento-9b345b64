@@ -110,8 +110,21 @@ export default function CentrosCusto() {
     fetchAll();
   };
 
+  const setTipo = async (cc: CentroCusto, tipo: CCTipo) => {
+    const { error } = await (supabase.from("centros_custo") as any)
+      .update({ tipo })
+      .eq("id", cc.id);
+    if (error) {
+      toast({ title: "Erro ao alterar tipo", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Tipo atualizado", description: `${cc.codigo} → ${tipo}` });
+    fetchAll();
+  };
+
   const adm = lista.filter((c) => c.tipo === "adm");
   const op = lista.filter((c) => c.tipo === "operacional");
+  const socios = lista.filter((c) => c.tipo === "socios");
 
   const semGestor = lista.filter((c) => c.ativo && !c.gestor_user_id);
 
