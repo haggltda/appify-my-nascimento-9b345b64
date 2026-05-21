@@ -10597,6 +10597,7 @@ export type Database = {
           memoria_calculo: string | null
           orcamento_contrato_id: string
           source: Database["public"]["Enums"]["orcamento_linha_source"]
+          sub_codigo: string | null
           updated_at: string
           valor_previsto: number
         }
@@ -10611,6 +10612,7 @@ export type Database = {
           memoria_calculo?: string | null
           orcamento_contrato_id: string
           source?: Database["public"]["Enums"]["orcamento_linha_source"]
+          sub_codigo?: string | null
           updated_at?: string
           valor_previsto?: number
         }
@@ -10625,6 +10627,7 @@ export type Database = {
           memoria_calculo?: string | null
           orcamento_contrato_id?: string
           source?: Database["public"]["Enums"]["orcamento_linha_source"]
+          sub_codigo?: string | null
           updated_at?: string
           valor_previsto?: number
         }
@@ -16902,6 +16905,22 @@ export type Database = {
           variacao: number
         }[]
       }
+      dre_gerencial_competencia_detalhado: {
+        Args: { _ano: number; _empresa_id: string; _versao_obz?: string }
+        Returns: {
+          dre_linha_id: string
+          linha_codigo: string
+          linha_descricao: string
+          linha_natureza: string
+          linha_ordem: number
+          mes: number
+          orcado: number
+          realizado: number
+          sub_codigo: string
+          sub_descricao: string
+          sub_ordem: number
+        }[]
+      }
       dre_gerencial_mensal: {
         Args: { _ano: number; _empresa_id: string; _versao_obz?: string }
         Returns: {
@@ -16924,6 +16943,15 @@ export type Database = {
           descricao: string
           grupo: string
           valor: number
+        }[]
+      }
+      dre_sublinha_label: {
+        Args: { _classificacao: string; _descricao: string }
+        Returns: {
+          linha_codigo: string
+          sub_codigo: string
+          sub_descricao: string
+          sub_ordem: number
         }[]
       }
       emitir_titulo_de_cronograma: {
