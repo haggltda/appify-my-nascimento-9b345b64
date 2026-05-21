@@ -72,6 +72,7 @@ import CapitalGiro from "./pages/financeiro/CapitalGiro";
 import ConciliacaoFluxoCaixa from "./pages/financeiro/ConciliacaoFluxoCaixa";
 import OBZVersoes from "./pages/controladoria/OBZVersoes";
 import DREGerencial from "./pages/controladoria/DREGerencial";
+import OrcamentoCompleto from "./pages/controladoria/OrcamentoCompleto";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
 import ContasBancariasEmpresa from "./pages/financeiro/ContasBancariasEmpresa";
 import IntegracaoBancaria from "./pages/financeiro/IntegracaoBancaria";
