@@ -28,11 +28,15 @@ type CentroCusto = {
 
 type Empresa = { id: string; codigo: string; razao_social: string };
 
+type EditPatch = Partial<Pick<CentroCusto, "tipo" | "ativo" | "vincular_orcamento">>;
+
 export default function CentrosCusto() {
   const { toast } = useToast();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [lista, setLista] = useState<CentroCusto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [edits, setEdits] = useState<Record<string, EditPatch>>({});
   const [draft, setDraft] = useState<{ empresa_id: string; codigo: string; nome: string; tipo: CCTipo; responsavel: string }>({
     empresa_id: "",
     codigo: "",
@@ -51,6 +55,7 @@ export default function CentrosCusto() {
     if (cc.error) toast({ title: "Erro centros de custo", description: cc.error.message, variant: "destructive" });
     setEmpresas(emp.data ?? []);
     setLista((cc.data ?? []) as CentroCusto[]);
+    setEdits({});
     if (!draft.empresa_id && emp.data?.[0]) {
       setDraft((d) => ({ ...d, empresa_id: emp.data![0].id }));
     }
@@ -78,55 +83,66 @@ export default function CentrosCusto() {
     }
     toast({
       title: "CC criado — atribua um gestor",
-      description: `${draft.codigo} foi criado sem gestor. Enquanto não houver gestor, requisições para este CC serão bloqueadas. Defina em Administração → Alçadas → Gestores de CC.`,
+      description: `${draft.codigo} foi criado sem gestor. Defina em Administração → Alçadas → Gestores de CC.`,
       duration: 8000,
     });
     setDraft({ empresa_id: empresas[0]?.id ?? "", codigo: "", nome: "", tipo: "adm", responsavel: "" });
     fetchAll();
   };
 
-  const toggle = async (cc: CentroCusto) => {
-    const { error } = await supabase
-      .from("centros_custo")
-      .update({ ativo: !cc.ativo })
-      .eq("id", cc.id);
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-      return;
+  // Edições em memória (não persistem até clicar em Salvar)
+  const patch = (id: string, p: EditPatch) => {
+    setEdits((prev) => {
+      const original = lista.find((c) => c.id === id);
+      if (!original) return prev;
+      const merged = { ...(prev[id] ?? {}), ...p };
+      // remove chaves que voltaram ao valor original
+      (Object.keys(merged) as (keyof EditPatch)[]).forEach((k) => {
+        if (merged[k] === original[k]) delete (merged as any)[k];
+      });
+      const next = { ...prev };
+      if (Object.keys(merged).length === 0) delete next[id]; else next[id] = merged;
+      return next;
+    });
+  };
+
+  const toggle = (cc: CentroCusto) => patch(cc.id, { ativo: !effective(cc, edits[cc.id]).ativo });
+  const setVincular = (cc: CentroCusto, value: boolean | null) => patch(cc.id, { vincular_orcamento: value });
+  const setTipo = (cc: CentroCusto, tipo: CCTipo) => patch(cc.id, { tipo });
+
+  const dirtyCount = Object.keys(edits).length;
+
+  const salvar = async () => {
+    if (dirtyCount === 0) return;
+    setSaving(true);
+    const entries = Object.entries(edits);
+    let ok = 0; let fail = 0;
+    for (const [id, p] of entries) {
+      const { error } = await (supabase.from("centros_custo") as any).update(p).eq("id", id);
+      if (error) { fail++; } else { ok++; }
+    }
+    setSaving(false);
+    if (fail > 0) {
+      toast({ title: `Salvo parcialmente`, description: `${ok} ok, ${fail} com erro.`, variant: "destructive" });
+    } else {
+      toast({ title: `${ok} alteração${ok > 1 ? "ões" : ""} salva${ok > 1 ? "s" : ""}` });
     }
     fetchAll();
   };
 
-  const setVincular = async (cc: CentroCusto, value: boolean | null) => {
-    const { error } = await supabase
-      .from("centros_custo")
-      .update({ vincular_orcamento: value })
-      .eq("id", cc.id);
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Vincular orçamento atualizado", description: cc.codigo });
-    fetchAll();
+  const descartar = () => {
+    setEdits({});
+    toast({ title: "Alterações descartadas" });
   };
 
-  const setTipo = async (cc: CentroCusto, tipo: CCTipo) => {
-    const { error } = await (supabase.from("centros_custo") as any)
-      .update({ tipo })
-      .eq("id", cc.id);
-    if (error) {
-      toast({ title: "Erro ao alterar tipo", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Tipo atualizado", description: `${cc.codigo} → ${tipo}` });
-    fetchAll();
-  };
+  // Aplica edits para renderização
+  const listaView = useMemo(() => lista.map((c) => effective(c, edits[c.id])), [lista, edits]);
+  const adm = listaView.filter((c) => c.tipo === "adm");
+  const op = listaView.filter((c) => c.tipo === "operacional");
+  const socios = listaView.filter((c) => c.tipo === "socios");
 
-  const adm = lista.filter((c) => c.tipo === "adm");
-  const op = lista.filter((c) => c.tipo === "operacional");
-  const socios = lista.filter((c) => c.tipo === "socios");
+  const semGestor = listaView.filter((c) => c.ativo && !c.gestor_user_id);
 
-  const semGestor = lista.filter((c) => c.ativo && !c.gestor_user_id);
 
   return (
     <div>
