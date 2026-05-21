@@ -271,12 +271,13 @@ export default function CentrosCusto() {
 }
 
 function CCSection({
-  titulo, icone, lista, empresas, onToggle, onSetVincular, onSetTipo, onReload,
+  titulo, icone, lista, empresas, edits, onToggle, onSetVincular, onSetTipo, onReload,
 }: {
   titulo: string;
   icone: React.ReactNode;
   lista: CentroCusto[];
   empresas: Empresa[];
+  edits: Record<string, EditPatch>;
   onToggle: (cc: CentroCusto) => void;
   onSetVincular: (cc: CentroCusto, value: boolean | null) => void;
   onSetTipo: (cc: CentroCusto, tipo: CCTipo) => void;
@@ -284,6 +285,7 @@ function CCSection({
 }) {
   const [trocaCC, setTrocaCC] = useState<CentroCusto | null>(null);
   const empresaCodigo = (id: string) => empresas.find((e) => e.id === id)?.codigo ?? "—";
+  const isDirty = (id: string) => !!edits[id];
   return (
     <section className="mb-6">
       <header className="mb-3 flex items-center gap-2">
