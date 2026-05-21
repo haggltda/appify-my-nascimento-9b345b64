@@ -406,7 +406,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
   };
 
   // (re)gera parcelas quando parcelado ligado, n, valor ou vencimento mudam (modo igual)
-  React.useEffect(() => {
+  useEffect(() => {
     if (!parcelado) {
       setParcelas([]);
       return;
