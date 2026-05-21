@@ -111,14 +111,20 @@ export default function DREGerencial() {
     return [...map.values()].sort((a, b) => a.ordem - b.ordem || a.codigo.localeCompare(b.codigo));
   }, [dadosQ.data, visao]);
 
-  const totalReal = linhas.reduce((s, l) => s + l.realMeses.reduce((a, b) => a + b, 0), 0);
-  const totalOrc = linhas.reduce((s, l) => s + l.orcMeses.reduce((a, b) => a + b, 0), 0);
+  // Resultado Líquido = última linha de natureza 'resultado' (evita duplicar subtotais)
+  const linhaResultado = useMemo(() => {
+    const resultados = linhas.filter((l) => l.natureza === "resultado");
+    if (resultados.length === 0) return null;
+    return resultados[resultados.length - 1];
+  }, [linhas]);
+  const totalReal = linhaResultado ? linhaResultado.realMeses.reduce((a, b) => a + b, 0) : 0;
+  const totalOrc = linhaResultado ? linhaResultado.orcMeses.reduce((a, b) => a + b, 0) : 0;
 
   const exportCsv = () => {
-    const header = ["Código", "Descrição", "Natureza", ...MESES, "Total"];
+    const header = ["Descrição", "Natureza", ...MESES, "Total"];
     const rows = linhas.map((l) => {
       const total = l.meses.reduce((a, b) => a + b, 0);
-      return [l.codigo, l.descricao, l.natureza, ...l.meses.map((v) => v.toFixed(2)), total.toFixed(2)];
+      return [l.descricao, l.natureza, ...l.meses.map((v) => v.toFixed(2)), total.toFixed(2)];
     });
     const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -189,11 +195,16 @@ export default function DREGerencial() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="card-elevated p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Realizado {ano}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Resultado Líquido Realizado {ano}
+          </p>
           <p className={`mt-2 font-display text-3xl font-bold ${totalReal >= 0 ? "text-success" : "text-destructive"}`}>{fmt(totalReal)}</p>
+          {linhaResultado && <p className="mt-1 text-xs text-muted-foreground">{linhaResultado.descricao}</p>}
         </div>
         <div className="card-elevated p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Orçado {ano}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Resultado Líquido Orçado {ano}
+          </p>
           <p className="mt-2 font-display text-3xl font-bold text-info">{fmt(totalOrc)}</p>
         </div>
         <div className="card-elevated p-5">
@@ -212,7 +223,6 @@ export default function DREGerencial() {
         <table className="w-full min-w-[900px] text-sm">
           <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground sticky top-0">
             <tr>
-              <th className="px-3 py-2 text-left w-20">Código</th>
               <th className="px-3 py-2 text-left">Linha</th>
               {MESES.map((m) => (
                 <th key={m} className="px-2 py-2 text-right tabular-nums w-[80px]">{m}</th>
@@ -222,18 +232,18 @@ export default function DREGerencial() {
           </thead>
           <tbody>
             {dadosQ.isLoading && (
-              <tr><td colSpan={15} className="py-10 text-center text-muted-foreground">Carregando…</td></tr>
+              <tr><td colSpan={14} className="py-10 text-center text-muted-foreground">Carregando…</td></tr>
             )}
             {!dadosQ.isLoading && linhas.length === 0 && (
-              <tr><td colSpan={15} className="py-10 text-center text-muted-foreground">Sem dados para o período.</td></tr>
+              <tr><td colSpan={14} className="py-10 text-center text-muted-foreground">Sem dados para o período.</td></tr>
             )}
             {linhas.map((l) => {
               const total = l.meses.reduce((a, b) => a + b, 0);
               const isResultado = ["resultado"].includes(l.natureza);
+              const isSubLinha = /\./.test(l.codigo);
               return (
                 <tr key={l.codigo} className={`border-t border-border/60 ${isResultado ? "bg-primary-soft/30 font-semibold" : ""}`}>
-                  <td className="px-3 py-2 font-mono text-xs text-primary">{l.codigo}</td>
-                  <td className="px-3 py-2">
+                  <td className={`px-3 py-2 ${isSubLinha ? "pl-8 text-muted-foreground" : ""}`}>
                     {l.descricao}
                     <Badge variant="secondary" className="ml-2 text-[10px]">{l.natureza}</Badge>
                   </td>
