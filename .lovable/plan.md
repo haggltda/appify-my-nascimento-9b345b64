@@ -1,65 +1,94 @@
-## Objetivo
+# Plano (Plan Mode / read-only) — Aprovação do Pré-Título pelo Dono do CC + Baixa Manual
 
-Gerar um relatório (XLSX) com **todas as linhas projetadas do orçamento por contrato**, no nível mais analítico disponível no banco, contendo: item granular (água, energia, salários, FGTS, combustível, materiais...), conta contábil, hierarquia DRE, centro de custo, contrato, empresa, classificadores (Direto/Indireto, Fixo/Variável, Custo/Despesa), competência e valor.
+Atualização incorporando as duas regras que você acabou de fixar:
 
-## Varredura realizada
+1. **Sem integração bancária** — a baixa é manual, marcando (flag) os títulos efetivamente pagos.
+2. **Sem alçada por valor / sem escalonamento** — quem aprova é o **dono do CC**, ponto. Notificação no sininho + fila "Aguardando minha aprovação" igual ao fluxo da Helena na programação.
 
-Mapa de onde cada informação está hoje no banco:
+## 1. Fluxo consolidado
 
-| Informação pedida | Tabela / Coluna | Observação |
-|---|---|---|
-| Linha do orçamento (mensal) | `orcamento_contrato_linha` (8.152 linhas) | base do relatório |
-| Valor previsto | `orcamento_contrato_linha.valor_previsto` | por competência |
-| Competência (mês) | `orcamento_contrato_linha.competencia` | |
-| Sub-código (4.1, 4.3, 5.1...) | `orcamento_contrato_linha.sub_codigo` | granularidade intermediária |
-| Memória de cálculo | `orcamento_contrato_linha.memoria_calculo` (jsonb) | quando existe, traz qtd × valor unitário |
-| Linha DRE (L01–L14) | `dre_linhas.codigo + descricao` via `dre_linha_id` | hierarquia gerencial |
-| Conta contábil | `conta_contabil.classificacao + descricao` via `conta_contabil_id` | **vazio em 100% das linhas hoje** — gap |
-| Centro de custo | `centros_custo.codigo + nome + tipo + categoria_gerencial + direto_indireto + fixo_variavel + dimensao` | |
-| Contrato | `contrato.numero + objeto + orgao + vigencia + valor_total + faturamento_mensal + gestor` via `orcamento_contrato → contrato_id` | |
-| Empresa | `empresas.codigo + razao_social + nome_fantasia + cnpj` | |
-| Ciclo orçamentário | `orcamento_ciclo` (ano, versão) | |
-| Direto/Indireto, Fixo/Variável | `centros_custo` + `conta_contabil.classe_contabil/tipo_gerencial` + `mz_25_stg_mapa_de_para_orcamento_contratos` | |
-| Item granular (Água, Energia, FGTS, Uniformes, Vale Transporte, Salários, INSS, etc.) | `mz_25_stg_mapa_de_para_orcamento_contratos.item_orcamento` ligado por `conta_contabil_codigo` | **única fonte com esse nível hoje** |
-| Fornecedor / data de lançamento | `titulo_pagar`, `lancamento_contabil`, `realizado_lancamentos` | **NÃO existe no orçamento** — só no realizado (hoje 4 títulos e 0 lançamentos) |
+```text
+[1] Lançador      cria pré-título + rateio (CC + conta) + anexa NF
+        ▼
+[2] Dono do CC    aprova/reprova  (gestor_user_id do centro_custo do rateio)
+                  → notificação no sininho
+                  → entra em "Aguardando Minha Aprovação"
+        ▼
+[3] Financeiro    promove em título, monta malote, programa pagamento
+        ▼
+[4] Presidente    aprovação final da programação (Helena hoje, modelo já existe)
+        ▼
+[5] Baixa manual  usuário marca os títulos pagos (sem envio bancário)
+        ▼
+[6] Conciliação   futura, quando houver integração
+```
 
-## Diagnóstico crítico (importante)
+## 2. Regra única de aprovador
 
-1. **`conta_contabil_id` está NULL em todas as 8.152 linhas de orçamento.** Hoje a granularidade real persistida é apenas `sub_codigo` (≈17 valores tipo 4.1, 4.3, 5.1...) + `dre_linha_id` (L04, L05, L07, L08, L12). Não há vínculo direto linha-de-orçamento → conta "Energia Elétrica".
-2. O detalhe fino (Água, Luz, FGTS, INSS, Uniformes, Vale Transporte...) existe na staging `mz_25_stg_mapa_de_para_orcamento_contratos` na coluna `item_orcamento`, ligada à conta contábil sugerida. É o "de-para" do Excel original — usaremos para enriquecer.
-3. **Fornecedor e data de lançamento NÃO existem no orçamento projetado** — só aparecem quando o título é realizado (`titulo_pagar` / `lancamento_contabil`). No relatório, essas colunas virão vazias para orçamento puro; se quiser ver fornecedor/data, é o módulo de Realizado (outro relatório).
+- **Aprovador = `centros_custo.gestor_user_id**` do CC do rateio.
+- **Sem faixa de valor.** Sem segunda etapa. Sem controladoria intermediária. Sem presidência na etapa do pré-título.
+- **Rateio com N CCs** — precisa sua decisão (ver §5). Recomendação: **todos os donos de CC envolvidos aprovam em paralelo**, basta 1 reprovação para devolver. É o modelo mais alinhado com "cada um responde pelo seu CC", sem inventar regra de predominante.
+- **Lançador = dono do CC:** bloquear autoaprovação. Cai para suplente (ver §5.3) ou volta para o lançador escolher outro responsável formalmente.
+- **CC sem `gestor_user_id`:** bloquear submissão do pré-título com mensagem clara. Hoje 75,5% dos CCs (560 de 742) estão sem gestor — pré-requisito de cadastro.
 
-## Plano de execução
+## 3. Notificação + Inbox (paridade com fluxo da Helena)
 
-### Passo 1 — Criar/atualizar RPC `export_orcamento_analitico_completo`
-Função SQL `SECURITY DEFINER` que devolve, **uma linha por `orcamento_contrato_linha`**, com JOIN em:
-- `orcamento_contrato` → `contrato` → `centros_custo`
-- `empresas`, `orcamento_ciclo`, `dre_linhas`
-- `conta_contabil` (quando preenchido) — fallback via `mz_25_stg_mapa_de_para_orcamento_contratos` casando por `sub_codigo`/heurística
-- Expande `memoria_calculo` (jsonb) em colunas: `qtd`, `valor_unitario`, `driver`, `descricao_item`
+A Helena hoje recebe:
 
-Parâmetros: `p_limit`, `p_offset`, `p_empresa_id` (opcional), `p_ciclo_id` (opcional).
+- Badge no sininho quando há programação aguardando decisão dela.
+- Card "Aguardando Minha Aprovação" na home/Presidência listando os lotes pendentes.
 
-### Passo 2 — Script Python paginado
-Roda a RPC em chunks de 1.000 (já validado no relatório anterior) e gera um único XLSX com:
+Replicar **exatamente esse padrão** para o dono do CC:
 
-**Colunas (nenhuma oculta):**
-Empresa Código · Empresa Razão Social · CNPJ · Ciclo (Ano/Versão) · Contrato Número · Contrato Objeto · Órgão · Vigência Início · Vigência Fim · Valor Total Contrato · Faturamento Mensal · Gestor · Centro Custo Código · Centro Custo Nome · CC Tipo · CC Dimensão · CC Categoria Gerencial · CC Direto/Indireto · CC Fixo/Variável · DRE Código · DRE Descrição · DRE Natureza · Sub-código · Conta Contábil Código · Conta Contábil Descrição · Conta Tipo Gerencial · Conta Direto/Indireto · Conta Fixo/Variável · **Item Granular (Água/Energia/FGTS/...)** · Driver · Quantidade · Valor Unitário · Competência (AAAA-MM) · Valor Previsto · Origem · Source · Locked · Memória Cálculo (JSON cru) · ID linha · Created At · Updated At
+- Quando `pre_titulo_submeter` rodar, criar registro em `notificacoes` (ou tabela equivalente já usada pelo sininho) para cada dono de CC do rateio.
+- Card/aba "Aguardando Minha Aprovação" filtrando pré-títulos onde o usuário logado é dono de pelo menos um CC do rateio e a etapa ainda está pendente.
+- Ao aprovar/reprovar, baixar a notificação e registrar histórico.
 
-Saída: `/mnt/documents/orcamento_analitico_completo.xlsx`
+## 4. Baixa manual (sem integração bancária)
 
-### Passo 3 — Entregar com diagnóstico de qualidade
-Aba extra "Diagnóstico" com:
-- Total de linhas e somatório por empresa/contrato
-- Quantas linhas têm `conta_contabil_id` preenchido vs. enriquecido via mz_25 vs. sem match
-- Lista de `sub_codigo` sem item granular mapeado (para você priorizar o de-para)
+- A programação de pagamento aprovada pela Presidente **não dispara nada externo**.
+- Tela de baixa: lista títulos com `status='programado'` (ou equivalente), com checkbox por título, campo de data de pagamento e conta bancária debitada.
+- Ao confirmar, marca `titulo_pagar.status='pago'`, grava `data_pagamento`, `conta_debitada`, `usuario_baixa`, e gera lançamento no fluxo de caixa realizado.
+- **Permitir baixa parcial** (parcela a parcela) — bloquear baixa de título não programado e não aprovado.
+- Esse passo substitui temporariamente o "envio ao banco" — quando integração existir, vira opcional/automático.
 
-## Detalhes técnicos
+## 5. Decisões pendentes (preciso da sua confirmação)
 
-- A RPC nova substitui/coexiste com `export_orcamento_completo_dump`. Recomendo manter a anterior e criar a nova com nome diferente para não quebrar nada.
-- O enriquecimento por `mz_25` é heurístico (a tabela não tem FK direta para `orcamento_contrato_linha`) — vamos casar por `(empresa_id, conta_contabil_codigo)` quando possível e marcar a coluna "Item Granular" como `[mz25-match]` ou `[sem-match]`.
-- Sem migrations destrutivas. Apenas `CREATE OR REPLACE FUNCTION` + `GRANT EXECUTE`.
+1. **Rateio com N CCs:** todos os donos em paralelo (recomendado), ou só o do CC predominante? R:  todos em paralelo .
+2. **Reprovação parcial:** se um dono aprova e outro reprova, devolve o pré-título inteiro, ou só o rateio reprovado? R: Devolve tudo.
+3. **Suplente do gestor de CC:** criar `gestor_suplente_user_id` em `centros_custo` para férias/ausência? (recomendado) R: não aplicar ainda
+4. **Lançador = dono do CC:** vai para suplente, vai para o nível acima na hierarquia de CC, ou bloqueia e obriga trocar o responsável? bloqueia e obriga a lançar o responsável corretamente
+5. **Baixa manual — quem pode executar:** só Financeiro, ou Financeiro + Presidência? Finacneiro, Diretoria Administrativa e Presidencia
+6. **Baixa retroativa:** permitir data de pagamento anterior à data de hoje? Até quantos dias? Permitir, até 90 dias.
 
-## O que NÃO está neste relatório (e por quê)
+## 6. O que muda em relação ao plano anterior
 
-- **Fornecedor** e **Data de Lançamento**: não pertencem ao orçamento projetado; só ao realizado. Se quiser, posso fazer um segundo relatório "Realizado vs. Orçado" puxando de `titulo_pagar` + `lancamento_contabil` (hoje com pouquíssimos dados — 4 títulos, 0 lançamentos).
+
+| Item                                                           | Plano anterior                             | Agora                                                                                                                    |
+| -------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Alçada por valor                                               | Camada complementar via `alcada_aprovacao` | **Removida** — fora de escopo                                                                                            |
+| Escalonamento (diretor/controladoria/presidente no pré-título) | Previsto acima de faixas                   | **Removido**                                                                                                             |
+| `alcada_aprovacao`                                             | Seria refatorada                           | **Não tocar** — sem uso na v1                                                                                            |
+| `sup_aprov_*`                                                  | Motor genérico com várias etapas           | Usar apenas para a **etapa única "dono do CC"** (ou implementação direta em `pre_titulo` se ficar mais simples — ver §7) |
+| Presidente no pré-título                                       | Opção em estudo                            | **Não entra** no pré-título; segue só na programação, como já é hoje                                                     |
+| Envio bancário                                                 | Pressuposto futuro                         | Explicitamente **fora de escopo**; baixa manual cobre o ciclo                                                            |
+
+
+## 7. Detalhe técnico (não-bloqueante para sua decisão)
+
+Como a regra ficou **uma única etapa** (dono do CC), há duas formas de implementar quando aprovado:
+
+- **A. Reaproveitar `sup_aprov_***` — incluir `pre_titulo` no enum `sup_aprov_alvo`, fluxo de 1 etapa com `tipo_responsavel='gestor_cc_do_rateio'`. Vantagem: motor único para futuro. Custo: configuração e UI extra.
+- **B. Implementação direta em `pre_titulo**` — campos `aprovador_user_id`, `aprovado_em`, `reprovado_em`, `motivo_reprovacao`; RPC `pre_titulo_aprovar` valida `auth.uid() = gestor_cc do rateio`. Vantagem: simples, rápido, casa com sua regra atual. Custo: se um dia voltar a alçada por valor, refatora.
+
+Recomendação: **B** — menor risco, entrega mais rápida, e a regra "dono do CC" é estável o suficiente para não precisar do motor genérico agora.
+
+## 8. Por que não implementar agora
+
+- **Bloqueador de dados:** 560 CCs sem gestor. Ligar a regra antes da campanha de cadastro trava lançamentos no dia 1.
+- **Bloqueadores de regra:** §5.1 (N CCs), §5.4 (lançador = dono), §5.5 (quem baixa) mudam materialmente a UI e as RPCs.
+- **Decisão técnica:** §7 (A vs B) muda a estrutura de tabelas.
+
+---
+
+> Este plano foi elaborado em Plan Mode/read-only. Nenhuma alteração foi feita em banco, código, RPCs, RLS, policies, roles, notificações, telas ou deploy. Qualquer evolução depende de aprovação humana e da definição dos 6 itens em §5.
