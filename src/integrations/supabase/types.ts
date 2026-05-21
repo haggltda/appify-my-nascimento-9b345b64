@@ -10659,6 +10659,51 @@ export type Database = {
           },
         ]
       }
+      orcamento_contrato_linha_audit: {
+        Row: {
+          alterado_em: string
+          alterado_por: string | null
+          competencia: string | null
+          dre_linha_id: string | null
+          empresa_id: string | null
+          id: string
+          linha_id: string | null
+          memoria_calculo: string | null
+          operation: string
+          orcamento_contrato_id: string | null
+          valor_anterior: number | null
+          valor_novo: number | null
+        }
+        Insert: {
+          alterado_em?: string
+          alterado_por?: string | null
+          competencia?: string | null
+          dre_linha_id?: string | null
+          empresa_id?: string | null
+          id?: string
+          linha_id?: string | null
+          memoria_calculo?: string | null
+          operation: string
+          orcamento_contrato_id?: string | null
+          valor_anterior?: number | null
+          valor_novo?: number | null
+        }
+        Update: {
+          alterado_em?: string
+          alterado_por?: string | null
+          competencia?: string | null
+          dre_linha_id?: string | null
+          empresa_id?: string | null
+          id?: string
+          linha_id?: string | null
+          memoria_calculo?: string | null
+          operation?: string
+          orcamento_contrato_id?: string | null
+          valor_anterior?: number | null
+          valor_novo?: number | null
+        }
+        Relationships: []
+      }
       parametro_cotacao: {
         Row: {
           created_at: string
@@ -17212,6 +17257,13 @@ export type Database = {
         Args: { _empresa_id: string }
         Returns: Json
       }
+      promover_mz50_orcamento: {
+        Args: { _ano: number; _empresa_id: string }
+        Returns: {
+          criadas_linhas: number
+          criados_contratos: number
+        }[]
+      }
       proximo_numero_lancamento: {
         Args: { _empresa_id: string }
         Returns: string
@@ -17297,6 +17349,10 @@ export type Database = {
       regua_agendar_etapas: {
         Args: { _regua_id?: string; _titulo_id: string }
         Returns: Json
+      }
+      resolver_dre_linha: {
+        Args: { _classif: string; _conta_codigo: string }
+        Returns: string
       }
       storage_path_empresa: { Args: { _name: string }; Returns: string }
       sup_aprov_abrir_instancia: {
