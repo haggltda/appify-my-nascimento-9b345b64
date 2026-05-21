@@ -111,8 +111,14 @@ export default function DREGerencial() {
     return [...map.values()].sort((a, b) => a.ordem - b.ordem || a.codigo.localeCompare(b.codigo));
   }, [dadosQ.data, visao]);
 
-  const totalReal = linhas.reduce((s, l) => s + l.realMeses.reduce((a, b) => a + b, 0), 0);
-  const totalOrc = linhas.reduce((s, l) => s + l.orcMeses.reduce((a, b) => a + b, 0), 0);
+  // Resultado Líquido = última linha de natureza 'resultado' (evita duplicar subtotais)
+  const linhaResultado = useMemo(() => {
+    const resultados = linhas.filter((l) => l.natureza === "resultado");
+    if (resultados.length === 0) return null;
+    return resultados[resultados.length - 1];
+  }, [linhas]);
+  const totalReal = linhaResultado ? linhaResultado.realMeses.reduce((a, b) => a + b, 0) : 0;
+  const totalOrc = linhaResultado ? linhaResultado.orcMeses.reduce((a, b) => a + b, 0) : 0;
 
   const exportCsv = () => {
     const header = ["Código", "Descrição", "Natureza", ...MESES, "Total"];
