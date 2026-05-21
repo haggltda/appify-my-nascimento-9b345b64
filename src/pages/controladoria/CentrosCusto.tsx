@@ -196,6 +196,7 @@ export default function CentrosCusto() {
                 >
                   <option value="adm">Administrativo</option>
                   <option value="operacional">Operacional</option>
+                  <option value="socios">Sócios (não operacional)</option>
                 </select>
                 <input
                   placeholder="Responsável"
