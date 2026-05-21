@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog, Building } from "lucide-react";
+import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog, Building, Crown } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { TrocarEmpresaCCDialog } from "./TrocarEmpresaCCDialog";
 
-type CCTipo = "adm" | "operacional";
+type CCTipo = "adm" | "operacional" | "socios";
 
 type CCOrigem = "manual" | "contrato" | "licitacao" | "rateio" | "corporativo";
 
@@ -110,8 +110,21 @@ export default function CentrosCusto() {
     fetchAll();
   };
 
+  const setTipo = async (cc: CentroCusto, tipo: CCTipo) => {
+    const { error } = await (supabase.from("centros_custo") as any)
+      .update({ tipo })
+      .eq("id", cc.id);
+    if (error) {
+      toast({ title: "Erro ao alterar tipo", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Tipo atualizado", description: `${cc.codigo} → ${tipo}` });
+    fetchAll();
+  };
+
   const adm = lista.filter((c) => c.tipo === "adm");
   const op = lista.filter((c) => c.tipo === "operacional");
+  const socios = lista.filter((c) => c.tipo === "socios");
 
   const semGestor = lista.filter((c) => c.ativo && !c.gestor_user_id);
 
@@ -183,6 +196,7 @@ export default function CentrosCusto() {
                 >
                   <option value="adm">Administrativo</option>
                   <option value="operacional">Operacional</option>
+                  <option value="socios">Sócios (não operacional)</option>
                 </select>
                 <input
                   placeholder="Responsável"
@@ -201,8 +215,9 @@ export default function CentrosCusto() {
             </section>
           </RoleGate>
 
-          <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} onReload={fetchAll} />
-          <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} onReload={fetchAll} />
+          <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
+          <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
+          <CCSection titulo={`Sócios — Não Operacional (${socios.length})`} icone={<Crown className="h-4 w-4 text-amber-500" />} lista={socios} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
         </>
       )}
     </div>
@@ -210,7 +225,7 @@ export default function CentrosCusto() {
 }
 
 function CCSection({
-  titulo, icone, lista, empresas, onToggle, onSetVincular, onReload,
+  titulo, icone, lista, empresas, onToggle, onSetVincular, onSetTipo, onReload,
 }: {
   titulo: string;
   icone: React.ReactNode;
@@ -218,6 +233,7 @@ function CCSection({
   empresas: Empresa[];
   onToggle: (cc: CentroCusto) => void;
   onSetVincular: (cc: CentroCusto, value: boolean | null) => void;
+  onSetTipo: (cc: CentroCusto, tipo: CCTipo) => void;
   onReload: () => void;
 }) {
   const [trocaCC, setTrocaCC] = useState<CentroCusto | null>(null);
@@ -314,16 +330,29 @@ function CCSection({
                   </td>
                   <td className="px-4 py-2 text-right">
                     <RoleGate acao="alterar" modulo="centros_custo">
-                      <button
-                        data-write
-                        onClick={() => onToggle(c)}
-                        disabled={c.origem_cadastro !== "manual" && c.entidade_origem_tabela === "contrato"}
-                        title={c.origem_cadastro !== "manual" ? "CC vinculado a contrato — gerenciado automaticamente" : ""}
-                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <PowerOff className="h-3 w-3" />
-                        {c.ativo ? "Desativar" : "Reativar"}
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <select
+                          data-write
+                          value={c.tipo}
+                          onChange={(e) => onSetTipo(c, e.target.value as CCTipo)}
+                          title="Reclassificar tipo do CC (impacta DRE Gerencial)"
+                          className="h-7 rounded-md border border-border bg-card px-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:border-primary/50"
+                        >
+                          <option value="adm">ADM</option>
+                          <option value="operacional">OPER</option>
+                          <option value="socios">SÓCIO</option>
+                        </select>
+                        <button
+                          data-write
+                          onClick={() => onToggle(c)}
+                          disabled={c.origem_cadastro !== "manual" && c.entidade_origem_tabela === "contrato"}
+                          title={c.origem_cadastro !== "manual" ? "CC vinculado a contrato — gerenciado automaticamente" : ""}
+                          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <PowerOff className="h-3 w-3" />
+                          {c.ativo ? "Desativar" : "Reativar"}
+                        </button>
+                      </div>
                     </RoleGate>
                   </td>
                 </tr>
