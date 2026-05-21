@@ -30,6 +30,10 @@ type Empresa = { id: string; codigo: string; razao_social: string };
 
 type EditPatch = Partial<Pick<CentroCusto, "tipo" | "ativo" | "vincular_orcamento">>;
 
+function effective(c: CentroCusto, p?: EditPatch): CentroCusto {
+  return p ? { ...c, ...p } : c;
+}
+
 export default function CentrosCusto() {
   const { toast } = useToast();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
