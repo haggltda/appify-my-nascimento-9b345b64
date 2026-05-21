@@ -639,6 +639,108 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
           </div>
         </section>
 
+        {/* Bloco 1.5: Parcelamento */}
+        <section className="rounded-xl border bg-card p-3 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+              <Checkbox checked={parcelado} onCheckedChange={(v) => setParcelado(!!v)} />
+              Parcelamento da despesa
+            </label>
+            <span className="text-xs text-muted-foreground">
+              {parcelado ? "Despesa parcelada — defina datas e valores abaixo." : "Despesa em parcela única no vencimento informado acima."}
+            </span>
+          </div>
+
+          {parcelado && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div className="md:col-span-3">
+                  <Label className="text-xs">Número de parcelas *</Label>
+                  <Input
+                    type="number"
+                    min={2}
+                    max={MAX_PARCELAS}
+                    value={numParcelas}
+                    onChange={(e) => setNumParcelas(e.target.value)}
+                  />
+                  <div className="text-[11px] text-muted-foreground mt-1">Máx. {MAX_PARCELAS}</div>
+                </div>
+                <div className="md:col-span-9">
+                  <Label className="text-xs">Distribuição</Label>
+                  <RadioGroup
+                    value={distribuicao}
+                    onValueChange={(v: any) => setDistribuicao(v)}
+                    className="flex gap-6 mt-2"
+                  >
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <RadioGroupItem value="igual" /> Dividir igualmente (1ª = vencimento informado, demais a cada 30 dias)
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <RadioGroupItem value="manual" /> Manual
+                    </label>
+                  </RadioGroup>
+                </div>
+              </div>
+
+              {parcelas.length > 0 && (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[80px]">Parcela</TableHead>
+                        <TableHead className="w-[200px] text-right">Valor (R$) *</TableHead>
+                        <TableHead>Data de vencimento *</TableHead>
+                        <TableHead className="w-[40px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {parcelas.map((p, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium">{i + 1}</TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={p.valor}
+                              disabled={distribuicao === "igual"}
+                              onChange={(e) => updateParcela(i, { valor: e.target.value })}
+                              className="text-right"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="date"
+                              value={p.data_vencimento}
+                              disabled={distribuicao === "igual"}
+                              onChange={(e) => updateParcela(i, { data_vencimento: e.target.value })}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {distribuicao === "manual" && parcelas.length > 1 && (
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeParcela(i)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  <Separator className="my-3" />
+                  <div className="flex flex-wrap items-center justify-end gap-6 text-sm">
+                    <div>NF: <span className="font-semibold">{fmtMoney(valorNum)}</span></div>
+                    <div>Somado: <span className="font-semibold">{fmtMoney(totalParcelas)}</span></div>
+                    <div className={Math.abs(diffParcelas) > 0.01 ? "text-destructive font-bold" : "text-emerald-600 font-bold"}>
+                      Diferença: {fmtMoney(diffParcelas)}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
         {/* Bloco 2: Rateio */}
         <section className="rounded-xl border bg-card p-3 space-y-3">
           <div className="flex items-center justify-between">
