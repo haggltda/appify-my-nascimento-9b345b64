@@ -614,8 +614,8 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
               <Input type="date" value={emissao} onChange={(e) => setEmissao(e.target.value)} />
             </div>
             <div className="md:col-span-2 lg:col-span-2">
-              <Label className="text-xs">Vencimento *</Label>
-              <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+              <Label className="text-xs">Vencimento {parcelado ? "" : "*"}</Label>
+              <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} disabled={parcelado} />
             </div>
             <div className="md:col-span-2 lg:col-span-2">
               <Label className="text-xs">Competência</Label>
