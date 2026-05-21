@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog, Building, Crown } from "lucide-react";
+import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog, Building, Crown, Save, X } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
