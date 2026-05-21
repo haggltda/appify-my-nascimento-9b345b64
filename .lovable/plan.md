@@ -1,94 +1,154 @@
-# Plano (Plan Mode / read-only) — Aprovação do Pré-Título pelo Dono do CC + Baixa Manual
+# Plano (Plan Mode / read-only) — Pré-Título: Aprovação pelo Dono do CC + Parcelamento da NF + Baixa Manual
 
-Atualização incorporando as duas regras que você acabou de fixar:
+Atualização incorporando a nova regra de **parcelamento da NF** (vencimentos acordados com o fornecedor), além das regras já fixadas: aprovação por dono do CC, sem alçada por valor, baixa manual.
 
-1. **Sem integração bancária** — a baixa é manual, marcando (flag) os títulos efetivamente pagos.
-2. **Sem alçada por valor / sem escalonamento** — quem aprova é o **dono do CC**, ponto. Notificação no sininho + fila "Aguardando minha aprovação" igual ao fluxo da Helena na programação.
+---
 
 ## 1. Fluxo consolidado
 
 ```text
-[1] Lançador      cria pré-título + rateio (CC + conta) + anexa NF
+[1] Lançador      cria pré-título
+                  + parcelamento da NF (1..N parcelas, datas e valores)
+                  + rateio por CC/conta (obrigatório, mesmo 1 linha)
+                  + anexa NF
         ▼
-[2] Dono do CC    aprova/reprova  (gestor_user_id do centro_custo do rateio)
-                  → notificação no sininho
-                  → entra em "Aguardando Minha Aprovação"
+[2] Dono do CC    aprova/reprova (gestor_user_id do CC do rateio)
+                  → notificação no sininho + "Aguardando Minha Aprovação"
         ▼
-[3] Financeiro    promove em título, monta malote, programa pagamento
+[3] Financeiro    promove o pré-título → gera 1 título por parcela
+                  monta malote, programa pagamento
         ▼
-[4] Presidente    aprovação final da programação (Helena hoje, modelo já existe)
+[4] Presidente    aprova a programação (modelo Helena já existente)
         ▼
-[5] Baixa manual  usuário marca os títulos pagos (sem envio bancário)
+[5] Baixa manual  marca parcelas pagas (Financeiro/Dir. Adm./Presidência)
         ▼
-[6] Conciliação   futura, quando houver integração
+[6] Conciliação   futura (quando houver integração bancária)
 ```
-
-## 2. Regra única de aprovador
-
-- **Aprovador = `centros_custo.gestor_user_id**` do CC do rateio.
-- **Sem faixa de valor.** Sem segunda etapa. Sem controladoria intermediária. Sem presidência na etapa do pré-título.
-- **Rateio com N CCs** — precisa sua decisão (ver §5). Recomendação: **todos os donos de CC envolvidos aprovam em paralelo**, basta 1 reprovação para devolver. É o modelo mais alinhado com "cada um responde pelo seu CC", sem inventar regra de predominante.
-- **Lançador = dono do CC:** bloquear autoaprovação. Cai para suplente (ver §5.3) ou volta para o lançador escolher outro responsável formalmente.
-- **CC sem `gestor_user_id`:** bloquear submissão do pré-título com mensagem clara. Hoje 75,5% dos CCs (560 de 742) estão sem gestor — pré-requisito de cadastro.
-
-## 3. Notificação + Inbox (paridade com fluxo da Helena)
-
-A Helena hoje recebe:
-
-- Badge no sininho quando há programação aguardando decisão dela.
-- Card "Aguardando Minha Aprovação" na home/Presidência listando os lotes pendentes.
-
-Replicar **exatamente esse padrão** para o dono do CC:
-
-- Quando `pre_titulo_submeter` rodar, criar registro em `notificacoes` (ou tabela equivalente já usada pelo sininho) para cada dono de CC do rateio.
-- Card/aba "Aguardando Minha Aprovação" filtrando pré-títulos onde o usuário logado é dono de pelo menos um CC do rateio e a etapa ainda está pendente.
-- Ao aprovar/reprovar, baixar a notificação e registrar histórico.
-
-## 4. Baixa manual (sem integração bancária)
-
-- A programação de pagamento aprovada pela Presidente **não dispara nada externo**.
-- Tela de baixa: lista títulos com `status='programado'` (ou equivalente), com checkbox por título, campo de data de pagamento e conta bancária debitada.
-- Ao confirmar, marca `titulo_pagar.status='pago'`, grava `data_pagamento`, `conta_debitada`, `usuario_baixa`, e gera lançamento no fluxo de caixa realizado.
-- **Permitir baixa parcial** (parcela a parcela) — bloquear baixa de título não programado e não aprovado.
-- Esse passo substitui temporariamente o "envio ao banco" — quando integração existir, vira opcional/automático.
-
-## 5. Decisões pendentes (preciso da sua confirmação)
-
-1. **Rateio com N CCs:** todos os donos em paralelo (recomendado), ou só o do CC predominante? R:  todos em paralelo .
-2. **Reprovação parcial:** se um dono aprova e outro reprova, devolve o pré-título inteiro, ou só o rateio reprovado? R: Devolve tudo.
-3. **Suplente do gestor de CC:** criar `gestor_suplente_user_id` em `centros_custo` para férias/ausência? (recomendado) R: não aplicar ainda
-4. **Lançador = dono do CC:** vai para suplente, vai para o nível acima na hierarquia de CC, ou bloqueia e obriga trocar o responsável? bloqueia e obriga a lançar o responsável corretamente
-5. **Baixa manual — quem pode executar:** só Financeiro, ou Financeiro + Presidência? Finacneiro, Diretoria Administrativa e Presidencia
-6. **Baixa retroativa:** permitir data de pagamento anterior à data de hoje? Até quantos dias? Permitir, até 90 dias.
-
-## 6. O que muda em relação ao plano anterior
-
-
-| Item                                                           | Plano anterior                             | Agora                                                                                                                    |
-| -------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| Alçada por valor                                               | Camada complementar via `alcada_aprovacao` | **Removida** — fora de escopo                                                                                            |
-| Escalonamento (diretor/controladoria/presidente no pré-título) | Previsto acima de faixas                   | **Removido**                                                                                                             |
-| `alcada_aprovacao`                                             | Seria refatorada                           | **Não tocar** — sem uso na v1                                                                                            |
-| `sup_aprov_*`                                                  | Motor genérico com várias etapas           | Usar apenas para a **etapa única "dono do CC"** (ou implementação direta em `pre_titulo` se ficar mais simples — ver §7) |
-| Presidente no pré-título                                       | Opção em estudo                            | **Não entra** no pré-título; segue só na programação, como já é hoje                                                     |
-| Envio bancário                                                 | Pressuposto futuro                         | Explicitamente **fora de escopo**; baixa manual cobre o ciclo                                                            |
-
-
-## 7. Detalhe técnico (não-bloqueante para sua decisão)
-
-Como a regra ficou **uma única etapa** (dono do CC), há duas formas de implementar quando aprovado:
-
-- **A. Reaproveitar `sup_aprov_***` — incluir `pre_titulo` no enum `sup_aprov_alvo`, fluxo de 1 etapa com `tipo_responsavel='gestor_cc_do_rateio'`. Vantagem: motor único para futuro. Custo: configuração e UI extra.
-- **B. Implementação direta em `pre_titulo**` — campos `aprovador_user_id`, `aprovado_em`, `reprovado_em`, `motivo_reprovacao`; RPC `pre_titulo_aprovar` valida `auth.uid() = gestor_cc do rateio`. Vantagem: simples, rápido, casa com sua regra atual. Custo: se um dia voltar a alçada por valor, refatora.
-
-Recomendação: **B** — menor risco, entrega mais rápida, e a regra "dono do CC" é estável o suficiente para não precisar do motor genérico agora.
-
-## 8. Por que não implementar agora
-
-- **Bloqueador de dados:** 560 CCs sem gestor. Ligar a regra antes da campanha de cadastro trava lançamentos no dia 1.
-- **Bloqueadores de regra:** §5.1 (N CCs), §5.4 (lançador = dono), §5.5 (quem baixa) mudam materialmente a UI e as RPCs.
-- **Decisão técnica:** §7 (A vs B) muda a estrutura de tabelas.
 
 ---
 
-> Este plano foi elaborado em Plan Mode/read-only. Nenhuma alteração foi feita em banco, código, RPCs, RLS, policies, roles, notificações, telas ou deploy. Qualquer evolução depende de aprovação humana e da definição dos 6 itens em §5.
+## 2. NOVO — Parcelamento da NF (no lançamento do pré-título)
+
+Conforme tela anexada pelo usuário. É **independente do rateio por CC**: rateio = "para onde vai o custo"; parcelamento = "quando e quanto será pago".
+
+### 2.1 Campos do bloco "Parcelamento da despesa"
+
+- **Checkbox `Despesa parcelada`** — default **desligado** (1 parcela única no vencimento informado no bloco "Dados do documento").
+- Quando ligado, o campo **Vencimento** do bloco superior fica desabilitado (passa a ser derivado das parcelas — usa o menor vencimento, apenas como referência de listagem).
+- **Número de parcelas** (inteiro, ≥ 2, ≤ 36 — sugerido).
+- **Distribuição**:
+  - **Manual** — usuário digita valor e data de cada parcela.
+  - **Dividir igualmente** — sistema calcula valor por parcela (`valor_total / n`, ajusta centavos na última) e gera datas mensais a partir de uma **data-base** (data da 1ª parcela) com intervalo padrão de **30 dias** (configurável por parcela depois).
+- **Modo de valor por parcela**: `R$` (valor absoluto) ou `%` (percentual sobre valor total). Espelha o padrão já usado no rateio.
+- **Tabela de parcelas** (uma linha por parcela):
+  - Nº da parcela (auto)
+  - Valor da parcela (R$ ou %)
+  - Data de vencimento
+  - Lixeira (só no modo Manual, e só se nº parcelas > 1)
+
+### 2.2 Validações (client + server)
+
+- Soma das parcelas == valor total da NF (tolerância R$ 0,01 para arredondamento). Rodapé mostra: **NF / Somado / Diferença** em vermelho se ≠ 0.
+- Toda parcela com `valor > 0` e `data_vencimento >= data_emissao`.
+- Datas em ordem crescente (avisar, não bloquear).
+- Se `Despesa parcelada` desligada → exatamente 1 parcela implícita (valor total, vencimento do bloco superior).
+- Bloquear submissão se houver parcela sem data ou valor.
+
+### 2.3 Impacto no modelo de dados
+
+Novo conceito: **parcela do pré-título**. Duas formas equivalentes:
+
+- **A.** Tabela `pre_titulo_parcela (id, pre_titulo_id, numero, valor, data_vencimento)`. Recomendado — escala melhor e é o que vira `titulo_pagar` 1-para-1 na promoção.
+- **B.** Coluna `parcelas jsonb` em `pre_titulo`. Mais simples, pior para query e relatório.
+
+**Recomendação: A.**
+
+### 2.4 Impacto na promoção para título
+
+Hoje (mental model): 1 pré-título → 1 título.
+Com parcelamento: **1 pré-título → N títulos** (1 por parcela), todos compartilhando o mesmo rateio por CC/conta proporcionalmente, mesmo fornecedor, mesmo documento, com sufixo `nº doc / parcela 1 de N`.
+
+- Cada `titulo_pagar` gerado herda: empresa, fornecedor, descrição, doc, competência, anexos (referência).
+- `valor` e `data_vencimento` vêm da parcela.
+- Rateio é **replicado proporcionalmente** em cada título (mesmo % por CC/conta).
+- Programação de pagamento opera nos títulos individuais (já é assim).
+
+### 2.5 Impacto na aprovação
+
+- **Aprovação continua no nível do pré-título inteiro** (não parcela a parcela) — dono do CC aprova o pacote.
+- Reprovação devolve o pré-título inteiro (parcelas não foram promovidas ainda).
+
+### 2.6 Impacto na baixa manual
+
+- Baixa opera nos títulos individuais (parcelas já viradas em título). Já estava previsto "baixa parcela a parcela" — fica natural.
+
+---
+
+## 3. Regra única de aprovador (inalterada)
+
+- Aprovador = `centros_custo.gestor_user_id` do(s) CC(s) do rateio.
+- Sem faixa de valor, sem escalonamento, sem segunda etapa.
+- Rateio com N CCs → todos os donos aprovam em paralelo; 1 reprovação devolve tudo.
+- Lançador = dono do CC → bloqueia, força trocar o responsável.
+- CC sem gestor → bloqueia submissão.
+
+## 4. Notificação + Inbox (paridade Helena, inalterado)
+
+- Sininho + card "Aguardando Minha Aprovação" para cada dono de CC envolvido.
+- Baixa notificação ao aprovar/reprovar; histórico registrado.
+
+## 5. Baixa manual (inalterada, agora por parcela)
+
+- Executores: Financeiro, Diretoria Administrativa, Presidência.
+- Lista títulos `programado`; checkbox + data pagamento + conta debitada.
+- Retroativa até 90 dias.
+- Grava `data_pagamento`, `conta_debitada`, `usuario_baixa`; gera lançamento no fluxo de caixa realizado.
+
+---
+
+## 6. O que muda em relação ao plano anterior
+
+| Item | Antes | Agora |
+|---|---|---|
+| Parcelamento da NF | Não previsto (1 vencimento único) | **Novo bloco** no modal + tabela `pre_titulo_parcela` + promoção 1→N títulos |
+| Vencimento no bloco "Dados do documento" | Sempre obrigatório | Obrigatório só quando **não** parcelado; quando parcelado, desabilita e usa parcelas |
+| Promoção pré-título → título | 1 para 1 | **1 para N** (uma por parcela) |
+| Aprovação | Nível pré-título | **Inalterado** — nível pré-título (pacote) |
+| Baixa | Por título | **Inalterado** — por título/parcela individualmente |
+
+---
+
+## 7. Decisões pendentes (preciso confirmar antes de implementar)
+
+1. **Limite de parcelas** — sugerido máx. **36**. Confirma ou prefere outro teto?
+2. **Intervalo padrão "Dividir igualmente"** — sugerido **30 dias** entre parcelas, 1ª parcela = vencimento informado no bloco superior. Ok?
+3. **Edição de parcelas após aprovação** — quando o pré-título já virou N títulos, posso permitir o Financeiro **editar data de vencimento** de parcelas ainda não pagas (sem mexer no valor)? Recomendado: **sim**, com log.
+4. **Antecipação/quitação** — permitir baixar uma parcela com valor diferente do programado (desconto/juros)? Recomendado: **sim**, com campos `valor_pago`, `juros`, `desconto`, `multa`.
+5. **Modelo de dados** — confirma opção **A** (tabela `pre_titulo_parcela`) em vez de JSON?
+
+---
+
+## 8. Implementação técnica (resumo, não-bloqueante)
+
+- **Migration**:
+  - `pre_titulo`: adicionar `parcelado boolean default false`.
+  - Nova tabela `pre_titulo_parcela (id, pre_titulo_id fk, numero int, valor numeric, data_vencimento date)` com unique (pre_titulo_id, numero).
+  - RPC `pre_titulo_submeter` valida soma das parcelas == valor_total.
+  - RPC `pre_titulo_promover` (chamada pelo Financeiro após aprovação) cria N `titulo_pagar` a partir das parcelas + replica rateio proporcional.
+- **UI** (modal Novo lançamento):
+  - Bloco "Parcelamento da despesa" entre "Dados do documento" e "Rateio".
+  - Checkbox + Nº parcelas + radio Manual/Igual + tabela editável.
+  - Rodapé com totalizador (NF / Somado / Diferença).
+- **Aprovação / notificação / baixa** — sem mudança estrutural; só passam a operar sobre N títulos quando houver parcelas.
+
+---
+
+## 9. Por que não implementar agora
+
+- Pendências §7 mudam estrutura de tabela e RPC.
+- Bloqueador anterior ainda vale: **560 CCs sem gestor** → ligar a regra de aprovação trava lançamentos no dia 1.
+- Decisão A vs B do plano anterior (motor genérico `sup_aprov_*` vs campos diretos em `pre_titulo`) ainda em aberto — recomendação **B**.
+
+---
+
+> Plan Mode / read-only. Nenhuma alteração foi feita em banco, código, RPCs, RLS, telas ou deploy. Aguardando suas respostas aos itens §7 (5 decisões novas sobre parcelamento) + confirmação de A/B do plano anterior para então implementar.
