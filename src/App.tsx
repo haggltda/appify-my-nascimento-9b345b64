@@ -169,6 +169,7 @@ const App = () => (
             <Route path="co/obz" element={<PlanejadorOBZ />} />
             <Route path="co/obz-versoes" element={<OBZVersoes />} />
             <Route path="co/dre-gerencial" element={<DREGerencial />} />
+            <Route path="co/orcamento-completo" element={<OrcamentoCompleto />} />
             <Route path="orcamento" element={<Orcamento />} />
             {/* Suprimentos */}
             <Route path="suprimentos/fornecedores" element={<Fornecedores />} />
