@@ -16945,6 +16945,15 @@ export type Database = {
           valor: number
         }[]
       }
+      dre_sublinha_dict: {
+        Args: never
+        Returns: {
+          linha_codigo: string
+          sub_codigo: string
+          sub_descricao: string
+          sub_ordem: number
+        }[]
+      }
       dre_sublinha_label: {
         Args: { _classificacao: string; _descricao: string }
         Returns: {
