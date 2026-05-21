@@ -241,14 +241,14 @@ export default function DREGerencial() {
                     <td
                       key={i}
                       className={`px-2 py-2 text-right tabular-nums ${
-                        visao === "variacao" && v !== 0 ? (v >= 0 ? "text-success" : "text-destructive") : ""
+                        v < 0 ? "text-destructive" : visao === "variacao" && v > 0 ? "text-success" : ""
                       }`}
                     >
                       {v === 0 ? "—" : fmt(v)}
                     </td>
                   ))}
                   <td className={`px-3 py-2 text-right font-semibold tabular-nums ${
-                    visao === "variacao" && total !== 0 ? (total >= 0 ? "text-success" : "text-destructive") : ""
+                    total < 0 ? "text-destructive" : visao === "variacao" && total > 0 ? "text-success" : ""
                   }`}>
                     {fmt(total)}
                   </td>
