@@ -101,7 +101,8 @@ export default function OrcamentoCompleto() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("centros_custo").select("id, codigo, nome, tipo")
-        .eq("empresa_id", empresaId).eq("ativo", true).order("codigo");
+        .or(`empresa_id.eq.${empresaId},empresa_id.is.null`)
+        .eq("ativo", true).order("codigo");
       if (error) throw error;
       return data as Array<{ id: string; codigo: string; nome: string; tipo: string }>;
     },
@@ -113,7 +114,8 @@ export default function OrcamentoCompleto() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("dre_linhas").select("id, codigo, descricao, natureza, ordem")
-        .eq("empresa_id", empresaId).eq("ativo", true).order("ordem");
+        .or(`empresa_id.eq.${empresaId},empresa_id.is.null`)
+        .eq("ativo", true).order("ordem");
       if (error) throw error;
       return data as Array<{ id: string; codigo: string; descricao: string; natureza: string; ordem: number }>;
     },
@@ -126,8 +128,10 @@ export default function OrcamentoCompleto() {
       const { data, error } = await (supabase as any)
         .from("conta_contabil")
         .select("id, conta_reduzida, descricao, ativo")
-        .eq("empresa_id", empresaId).eq("ativo", true)
+        .or(`empresa_id.eq.${empresaId},empresa_id.is.null`)
+        .eq("ativo", true)
         .order("conta_reduzida").limit(5000);
+
       if (error) throw error;
       return data as Array<{ id: string; conta_reduzida: string; descricao: string }>;
     },
