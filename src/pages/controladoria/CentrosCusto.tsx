@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog, Building, Crown } from "lucide-react";
+import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog, Building, Crown, Save, X } from "lucide-react";
 import { RoleGate } from "@/components/RoleGate";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,11 +28,19 @@ type CentroCusto = {
 
 type Empresa = { id: string; codigo: string; razao_social: string };
 
+type EditPatch = Partial<Pick<CentroCusto, "tipo" | "ativo" | "vincular_orcamento">>;
+
+function effective(c: CentroCusto, p?: EditPatch): CentroCusto {
+  return p ? { ...c, ...p } : c;
+}
+
 export default function CentrosCusto() {
   const { toast } = useToast();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [lista, setLista] = useState<CentroCusto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [edits, setEdits] = useState<Record<string, EditPatch>>({});
   const [draft, setDraft] = useState<{ empresa_id: string; codigo: string; nome: string; tipo: CCTipo; responsavel: string }>({
     empresa_id: "",
     codigo: "",
@@ -51,6 +59,7 @@ export default function CentrosCusto() {
     if (cc.error) toast({ title: "Erro centros de custo", description: cc.error.message, variant: "destructive" });
     setEmpresas(emp.data ?? []);
     setLista((cc.data ?? []) as CentroCusto[]);
+    setEdits({});
     if (!draft.empresa_id && emp.data?.[0]) {
       setDraft((d) => ({ ...d, empresa_id: emp.data![0].id }));
     }
@@ -78,55 +87,66 @@ export default function CentrosCusto() {
     }
     toast({
       title: "CC criado — atribua um gestor",
-      description: `${draft.codigo} foi criado sem gestor. Enquanto não houver gestor, requisições para este CC serão bloqueadas. Defina em Administração → Alçadas → Gestores de CC.`,
+      description: `${draft.codigo} foi criado sem gestor. Defina em Administração → Alçadas → Gestores de CC.`,
       duration: 8000,
     });
     setDraft({ empresa_id: empresas[0]?.id ?? "", codigo: "", nome: "", tipo: "adm", responsavel: "" });
     fetchAll();
   };
 
-  const toggle = async (cc: CentroCusto) => {
-    const { error } = await supabase
-      .from("centros_custo")
-      .update({ ativo: !cc.ativo })
-      .eq("id", cc.id);
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-      return;
+  // Edições em memória (não persistem até clicar em Salvar)
+  const patch = (id: string, p: EditPatch) => {
+    setEdits((prev) => {
+      const original = lista.find((c) => c.id === id);
+      if (!original) return prev;
+      const merged = { ...(prev[id] ?? {}), ...p };
+      // remove chaves que voltaram ao valor original
+      (Object.keys(merged) as (keyof EditPatch)[]).forEach((k) => {
+        if (merged[k] === original[k]) delete (merged as any)[k];
+      });
+      const next = { ...prev };
+      if (Object.keys(merged).length === 0) delete next[id]; else next[id] = merged;
+      return next;
+    });
+  };
+
+  const toggle = (cc: CentroCusto) => patch(cc.id, { ativo: !effective(cc, edits[cc.id]).ativo });
+  const setVincular = (cc: CentroCusto, value: boolean | null) => patch(cc.id, { vincular_orcamento: value });
+  const setTipo = (cc: CentroCusto, tipo: CCTipo) => patch(cc.id, { tipo });
+
+  const dirtyCount = Object.keys(edits).length;
+
+  const salvar = async () => {
+    if (dirtyCount === 0) return;
+    setSaving(true);
+    const entries = Object.entries(edits);
+    let ok = 0; let fail = 0;
+    for (const [id, p] of entries) {
+      const { error } = await (supabase.from("centros_custo") as any).update(p).eq("id", id);
+      if (error) { fail++; } else { ok++; }
+    }
+    setSaving(false);
+    if (fail > 0) {
+      toast({ title: `Salvo parcialmente`, description: `${ok} ok, ${fail} com erro.`, variant: "destructive" });
+    } else {
+      toast({ title: `${ok} alteração${ok > 1 ? "ões" : ""} salva${ok > 1 ? "s" : ""}` });
     }
     fetchAll();
   };
 
-  const setVincular = async (cc: CentroCusto, value: boolean | null) => {
-    const { error } = await supabase
-      .from("centros_custo")
-      .update({ vincular_orcamento: value })
-      .eq("id", cc.id);
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Vincular orçamento atualizado", description: cc.codigo });
-    fetchAll();
+  const descartar = () => {
+    setEdits({});
+    toast({ title: "Alterações descartadas" });
   };
 
-  const setTipo = async (cc: CentroCusto, tipo: CCTipo) => {
-    const { error } = await (supabase.from("centros_custo") as any)
-      .update({ tipo })
-      .eq("id", cc.id);
-    if (error) {
-      toast({ title: "Erro ao alterar tipo", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Tipo atualizado", description: `${cc.codigo} → ${tipo}` });
-    fetchAll();
-  };
+  // Aplica edits para renderização
+  const listaView = useMemo(() => lista.map((c) => effective(c, edits[c.id])), [lista, edits]);
+  const adm = listaView.filter((c) => c.tipo === "adm");
+  const op = listaView.filter((c) => c.tipo === "operacional");
+  const socios = listaView.filter((c) => c.tipo === "socios");
 
-  const adm = lista.filter((c) => c.tipo === "adm");
-  const op = lista.filter((c) => c.tipo === "operacional");
-  const socios = lista.filter((c) => c.tipo === "socios");
+  const semGestor = listaView.filter((c) => c.ativo && !c.gestor_user_id);
 
-  const semGestor = lista.filter((c) => c.ativo && !c.gestor_user_id);
 
   return (
     <div>
@@ -215,22 +235,49 @@ export default function CentrosCusto() {
             </section>
           </RoleGate>
 
-          <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
-          <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
-          <CCSection titulo={`Sócios — Não Operacional (${socios.length})`} icone={<Crown className="h-4 w-4 text-amber-500" />} lista={socios} empresas={empresas} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
+          <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} edits={edits} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
+          <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} edits={edits} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
+          <CCSection titulo={`Sócios — Não Operacional (${socios.length})`} icone={<Crown className="h-4 w-4 text-amber-500" />} lista={socios} empresas={empresas} edits={edits} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
         </>
+      )}
+
+      {dirtyCount > 0 && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 animate-in fade-in slide-in-from-bottom-4">
+          <div className="card-elevated flex items-center gap-3 rounded-full border border-primary/30 bg-card/95 px-4 py-2 shadow-2xl backdrop-blur">
+            <span className="text-xs font-medium text-muted-foreground">
+              <span className="font-bold text-primary">{dirtyCount}</span> alteração{dirtyCount > 1 ? "ões" : ""} pendente{dirtyCount > 1 ? "s" : ""}
+            </span>
+            <button
+              onClick={descartar}
+              disabled={saving}
+              className="inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] text-muted-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <X className="h-3 w-3" /> Descartar
+            </button>
+            <button
+              data-write
+              onClick={salvar}
+              disabled={saving}
+              className="btn-relief inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Salvar
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
 function CCSection({
-  titulo, icone, lista, empresas, onToggle, onSetVincular, onSetTipo, onReload,
+  titulo, icone, lista, empresas, edits, onToggle, onSetVincular, onSetTipo, onReload,
 }: {
   titulo: string;
   icone: React.ReactNode;
   lista: CentroCusto[];
   empresas: Empresa[];
+  edits: Record<string, EditPatch>;
   onToggle: (cc: CentroCusto) => void;
   onSetVincular: (cc: CentroCusto, value: boolean | null) => void;
   onSetTipo: (cc: CentroCusto, tipo: CCTipo) => void;
@@ -238,6 +285,7 @@ function CCSection({
 }) {
   const [trocaCC, setTrocaCC] = useState<CentroCusto | null>(null);
   const empresaCodigo = (id: string) => empresas.find((e) => e.id === id)?.codigo ?? "—";
+  const isDirty = (id: string) => !!edits[id];
   return (
     <section className="mb-6">
       <header className="mb-3 flex items-center gap-2">
@@ -267,10 +315,13 @@ function CCSection({
               </tr>
             ) : (
               lista.map((c) => (
-                <tr key={c.id} className="border-t border-border/60">
+                <tr key={c.id} className={`border-t border-border/60 ${isDirty(c.id) ? "bg-primary/5" : ""}`}>
                   <td className="px-4 py-2 font-mono text-xs font-semibold text-primary">
-                    {c.codigo}
-                    {c.codigo_legado && <span className="ml-2 chip bg-muted text-[10px] text-muted-foreground">legado</span>}
+                    <div className="flex items-center gap-2">
+                      {isDirty(c.id) && <span className="h-1.5 w-1.5 rounded-full bg-primary" title="Alteração pendente" />}
+                      {c.codigo}
+                      {c.codigo_legado && <span className="chip bg-muted text-[10px] text-muted-foreground">legado</span>}
+                    </div>
                   </td>
                   <td className="px-4 py-2">{c.nome}</td>
                   <td className="px-4 py-2 font-mono text-xs">
