@@ -330,16 +330,29 @@ function CCSection({
                   </td>
                   <td className="px-4 py-2 text-right">
                     <RoleGate acao="alterar" modulo="centros_custo">
-                      <button
-                        data-write
-                        onClick={() => onToggle(c)}
-                        disabled={c.origem_cadastro !== "manual" && c.entidade_origem_tabela === "contrato"}
-                        title={c.origem_cadastro !== "manual" ? "CC vinculado a contrato — gerenciado automaticamente" : ""}
-                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <PowerOff className="h-3 w-3" />
-                        {c.ativo ? "Desativar" : "Reativar"}
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <select
+                          data-write
+                          value={c.tipo}
+                          onChange={(e) => onSetTipo(c, e.target.value as CCTipo)}
+                          title="Reclassificar tipo do CC (impacta DRE Gerencial)"
+                          className="h-7 rounded-md border border-border bg-card px-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:border-primary/50"
+                        >
+                          <option value="adm">ADM</option>
+                          <option value="operacional">OPER</option>
+                          <option value="socios">SÓCIO</option>
+                        </select>
+                        <button
+                          data-write
+                          onClick={() => onToggle(c)}
+                          disabled={c.origem_cadastro !== "manual" && c.entidade_origem_tabela === "contrato"}
+                          title={c.origem_cadastro !== "manual" ? "CC vinculado a contrato — gerenciado automaticamente" : ""}
+                          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <PowerOff className="h-3 w-3" />
+                          {c.ativo ? "Desativar" : "Reativar"}
+                        </button>
+                      </div>
                     </RoleGate>
                   </td>
                 </tr>
