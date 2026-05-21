@@ -10588,14 +10588,17 @@ export type Database = {
       orcamento_contrato_linha: {
         Row: {
           centro_custo_id: string | null
+          ciclo_id: string | null
           competencia: string
+          conta_contabil_id: string | null
           created_at: string
           dre_linha_id: string
           empresa_id: string
           id: string
           locked: boolean
           memoria_calculo: string | null
-          orcamento_contrato_id: string
+          orcamento_contrato_id: string | null
+          origem: Database["public"]["Enums"]["orcamento_linha_origem"]
           source: Database["public"]["Enums"]["orcamento_linha_source"]
           sub_codigo: string | null
           updated_at: string
@@ -10603,14 +10606,17 @@ export type Database = {
         }
         Insert: {
           centro_custo_id?: string | null
+          ciclo_id?: string | null
           competencia: string
+          conta_contabil_id?: string | null
           created_at?: string
           dre_linha_id: string
           empresa_id: string
           id?: string
           locked?: boolean
           memoria_calculo?: string | null
-          orcamento_contrato_id: string
+          orcamento_contrato_id?: string | null
+          origem?: Database["public"]["Enums"]["orcamento_linha_origem"]
           source?: Database["public"]["Enums"]["orcamento_linha_source"]
           sub_codigo?: string | null
           updated_at?: string
@@ -10618,14 +10624,17 @@ export type Database = {
         }
         Update: {
           centro_custo_id?: string | null
+          ciclo_id?: string | null
           competencia?: string
+          conta_contabil_id?: string | null
           created_at?: string
           dre_linha_id?: string
           empresa_id?: string
           id?: string
           locked?: boolean
           memoria_calculo?: string | null
-          orcamento_contrato_id?: string
+          orcamento_contrato_id?: string | null
+          origem?: Database["public"]["Enums"]["orcamento_linha_origem"]
           source?: Database["public"]["Enums"]["orcamento_linha_source"]
           sub_codigo?: string | null
           updated_at?: string
@@ -10637,6 +10646,20 @@ export type Database = {
             columns: ["centro_custo_id"]
             isOneToOne: false
             referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_contrato_linha_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_ciclo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_contrato_linha_conta_contabil_id_fkey"
+            columns: ["conta_contabil_id"]
+            isOneToOne: false
+            referencedRelation: "conta_contabil"
             referencedColumns: ["id"]
           },
           {
@@ -17257,6 +17280,20 @@ export type Database = {
         Args: { _mz_id: number; _payload: Json }
         Returns: string
       }
+      orcamento_copiar_ano: {
+        Args: {
+          p_ano_destino: number
+          p_ano_origem: number
+          p_empresa_id: string
+          p_nome_ciclo?: string
+          p_reajuste_pct?: number
+        }
+        Returns: string
+      }
+      orcamento_criar_ciclo: {
+        Args: { p_ano: number; p_empresa_id: string; p_nome: string }
+        Returns: string
+      }
       plano_acao_can_access: {
         Args: { p_empresa_id: string; p_permission: string; p_user_id: string }
         Returns: boolean
@@ -17756,6 +17793,7 @@ export type Database = {
         | "aprovado"
         | "rejeitado"
         | "encerrado"
+      orcamento_linha_origem: "contrato" | "manual"
       orcamento_linha_source:
         | "licitacao"
         | "obz"
@@ -18331,6 +18369,7 @@ export const Constants = {
         "rejeitado",
         "encerrado",
       ],
+      orcamento_linha_origem: ["contrato", "manual"],
       orcamento_linha_source: [
         "licitacao",
         "obz",
