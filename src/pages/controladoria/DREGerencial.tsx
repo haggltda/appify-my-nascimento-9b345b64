@@ -27,7 +27,7 @@ type Visao = "realizado" | "orcado" | "variacao";
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const fmt = (n: number) =>
-  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  n.toLocaleString("pt-BR", { maximumFractionDigits: 0, minimumFractionDigits: 0 });
 const fmtPct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
 export default function DREGerencial() {
