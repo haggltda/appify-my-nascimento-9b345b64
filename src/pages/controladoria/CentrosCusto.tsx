@@ -225,7 +225,7 @@ export default function CentrosCusto() {
 }
 
 function CCSection({
-  titulo, icone, lista, empresas, onToggle, onSetVincular, onReload,
+  titulo, icone, lista, empresas, onToggle, onSetVincular, onSetTipo, onReload,
 }: {
   titulo: string;
   icone: React.ReactNode;
@@ -233,6 +233,7 @@ function CCSection({
   empresas: Empresa[];
   onToggle: (cc: CentroCusto) => void;
   onSetVincular: (cc: CentroCusto, value: boolean | null) => void;
+  onSetTipo: (cc: CentroCusto, tipo: CCTipo) => void;
   onReload: () => void;
 }) {
   const [trocaCC, setTrocaCC] = useState<CentroCusto | null>(null);
