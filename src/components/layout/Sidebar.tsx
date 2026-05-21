@@ -162,6 +162,7 @@ const controladoriaOrcModule: ModuleDef = {
         { label: "Planejador OBZ (mock)", to: "/app/co/obz", icon: Calculator },
         { label: "OBZ — Versões", to: "/app/co/obz-versoes", icon: Calculator },
         { label: "DRE Gerencial", to: "/app/co/dre-gerencial", icon: TrendingUp },
+        { label: "Orçamento Completo", to: "/app/co/orcamento-completo", icon: Calculator },
       ],
     },
   ],
