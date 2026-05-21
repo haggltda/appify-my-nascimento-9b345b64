@@ -11991,6 +11991,7 @@ export type Database = {
           motivo_rejeicao: string | null
           numero_documento: string | null
           observacoes: string | null
+          parcelado: boolean
           solicitante_id: string | null
           status: Database["public"]["Enums"]["pre_titulo_status"]
           titulo_pagar_id: string | null
@@ -12017,6 +12018,7 @@ export type Database = {
           motivo_rejeicao?: string | null
           numero_documento?: string | null
           observacoes?: string | null
+          parcelado?: boolean
           solicitante_id?: string | null
           status?: Database["public"]["Enums"]["pre_titulo_status"]
           titulo_pagar_id?: string | null
@@ -12043,6 +12045,7 @@ export type Database = {
           motivo_rejeicao?: string | null
           numero_documento?: string | null
           observacoes?: string | null
+          parcelado?: boolean
           solicitante_id?: string | null
           status?: Database["public"]["Enums"]["pre_titulo_status"]
           titulo_pagar_id?: string | null
@@ -12104,6 +12107,44 @@ export type Database = {
             columns: ["titulo_pagar_id"]
             isOneToOne: false
             referencedRelation: "titulo_pagar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pre_titulo_parcela: {
+        Row: {
+          created_at: string
+          data_vencimento: string
+          id: string
+          numero: number
+          pre_titulo_id: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data_vencimento: string
+          id?: string
+          numero: number
+          pre_titulo_id: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          data_vencimento?: string
+          id?: string
+          numero?: number
+          pre_titulo_id?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pre_titulo_parcela_pre_titulo_id_fkey"
+            columns: ["pre_titulo_id"]
+            isOneToOne: false
+            referencedRelation: "pre_titulo_pagar"
             referencedColumns: ["id"]
           },
         ]

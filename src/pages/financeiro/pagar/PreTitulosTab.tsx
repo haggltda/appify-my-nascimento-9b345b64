@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Plus, Send, Check, X, ArrowRight, FileText, Paperclip, Download, Trash2,
   FileSpreadsheet, Receipt, Building2, Wallet, AlertCircle, Sparkles
@@ -257,6 +259,20 @@ type RateioItem = {
 
 type AnexoItem = { file: File; tipo: string };
 
+type ParcelaItem = {
+  valor: string;
+  data_vencimento: string;
+};
+
+const MAX_PARCELAS = 24;
+
+function addDays(iso: string, days: number) {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
   const [empresaId, setEmpresaId] = useState("");
   const [fornecedorId, setFornecedorId] = useState("");
@@ -268,6 +284,10 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
   const [competencia, setCompetencia] = useState(new Date().toISOString().slice(0, 10));
   const [contaContabilId, setContaContabilId] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [parcelado, setParcelado] = useState(false);
+  const [numParcelas, setNumParcelas] = useState("2");
+  const [distribuicao, setDistribuicao] = useState<"manual" | "igual">("igual");
+  const [parcelas, setParcelas] = useState<ParcelaItem[]>([]);
   const [rateios, setRateios] = useState<RateioItem[]>([
     { centro_custo_id: "", modo: "percentual", percentual: "100", valor: "", descricao: "" },
   ]);
@@ -371,6 +391,57 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
     setRateios((r) => r.map((x) => ({ ...x, modo: "percentual", percentual: String(pct), valor: "" })));
   };
 
+  // --- Parcelamento ---
+  const nParc = Math.max(1, Math.min(MAX_PARCELAS, Number(numParcelas) || 1));
+
+  const gerarParcelasIgual = (n: number, total: number, baseVenc: string): ParcelaItem[] => {
+    if (n <= 0 || total <= 0) return [];
+    const base = Math.floor((total * 100) / n) / 100;
+    const arr: ParcelaItem[] = [];
+    let soma = 0;
+    for (let i = 0; i < n; i++) {
+      const v = i === n - 1 ? +(total - soma).toFixed(2) : base;
+      soma += v;
+      arr.push({ valor: v.toFixed(2), data_vencimento: addDays(baseVenc, i * 30) });
+    }
+    return arr;
+  };
+
+  // (re)gera parcelas quando parcelado ligado, n, valor ou vencimento mudam (modo igual)
+  useEffect(() => {
+    if (!parcelado) {
+      setParcelas([]);
+      return;
+    }
+    if (distribuicao === "igual") {
+      setParcelas(gerarParcelasIgual(nParc, valorNum, vencimento));
+    } else {
+      // manual: ajusta o tamanho preservando valores existentes
+      setParcelas((cur) => {
+        const next = [...cur];
+        if (next.length < nParc) {
+          for (let i = next.length; i < nParc; i++) {
+            next.push({ valor: "", data_vencimento: addDays(vencimento, i * 30) });
+          }
+        } else if (next.length > nParc) {
+          next.length = nParc;
+        }
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parcelado, nParc, valorNum, vencimento, distribuicao]);
+
+  const totalParcelas = parcelas.reduce((s, p) => s + (Number(p.valor) || 0), 0);
+  const diffParcelas = +(valorNum - totalParcelas).toFixed(2);
+
+  const updateParcela = (i: number, patch: Partial<ParcelaItem>) =>
+    setParcelas((arr) => arr.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+  const removeParcela = (i: number) => {
+    setParcelas((arr) => arr.filter((_, k) => k !== i));
+    setNumParcelas((s) => String(Math.max(1, (Number(s) || 1) - 1)));
+  };
+
   const onPickFiles = (files: FileList | null) => {
     if (!files) return;
     const list: AnexoItem[] = Array.from(files).map((f) => ({ file: f, tipo: "nf" }));
@@ -379,14 +450,28 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
 
   const salvar = useMutation({
     mutationFn: async () => {
-      if (!empresaId || !descricao || !valor || !vencimento)
-        throw new Error("Preencha empresa, descrição, valor e vencimento");
+      if (!empresaId || !descricao || !valor) throw new Error("Preencha empresa, descrição e valor");
+      if (!parcelado && !vencimento) throw new Error("Informe o vencimento ou marque como parcelado");
+      if (parcelado) {
+        if (parcelas.length < 2) throw new Error("Parcelado exige pelo menos 2 parcelas");
+        if (parcelas.some((p) => !p.data_vencimento || !(Number(p.valor) > 0)))
+          throw new Error("Toda parcela precisa de valor e data de vencimento");
+        if (parcelas.some((p) => p.data_vencimento < emissao))
+          throw new Error("Vencimento de parcela não pode ser anterior à emissão");
+        if (Math.abs(diffParcelas) > 0.01)
+          throw new Error(`Soma das parcelas não bate com o valor da NF (diferença ${fmtMoney(diffParcelas)})`);
+      }
       if (rateios.length > 0 && Math.abs(diff) > 0.01)
         throw new Error(`Rateio não fecha (diferença ${fmtMoney(diff)})`);
       if (rateios.some((r) => !r.centro_custo_id))
         throw new Error("Toda linha de rateio precisa de um centro de custo");
 
       const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+
+      // Vencimento "oficial" no cabeçalho: menor data quando parcelado
+      const vencCabec = parcelado
+        ? parcelas.reduce((m, p) => (m && m < p.data_vencimento ? m : p.data_vencimento), parcelas[0]?.data_vencimento || vencimento)
+        : vencimento;
 
       const { data: pretit, error } = await (supabase as any)
         .from("pre_titulo_pagar")
@@ -397,17 +482,30 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
           numero_documento: numDoc || null,
           valor: valorNum,
           data_emissao: emissao,
-          data_vencimento: vencimento,
+          data_vencimento: vencCabec,
           competencia: competencia || null,
           conta_contabil_id: contaContabilId || null,
           observacoes: observacoes || null,
           solicitante_id: userId,
+          parcelado,
         })
         .select("id")
         .single();
       if (error) throw error;
 
       const preId = pretit.id as string;
+
+      // Parcelas
+      if (parcelado && parcelas.length > 0) {
+        const payloadP = parcelas.map((p, idx) => ({
+          pre_titulo_id: preId,
+          numero: idx + 1,
+          valor: +(Number(p.valor) || 0).toFixed(2),
+          data_vencimento: p.data_vencimento,
+        }));
+        const { error: ep } = await (supabase as any).from("pre_titulo_parcela").insert(payloadP);
+        if (ep) throw ep;
+      }
 
       // Rateios
       if (rateios.length > 0) {
@@ -428,6 +526,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
         const { error: er } = await (supabase as any).from("pre_titulo_rateio").insert(payload);
         if (er) throw er;
       }
+
 
       // Anexos
       for (const a of anexos) {
@@ -515,8 +614,8 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
               <Input type="date" value={emissao} onChange={(e) => setEmissao(e.target.value)} />
             </div>
             <div className="md:col-span-2 lg:col-span-2">
-              <Label className="text-xs">Vencimento *</Label>
-              <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+              <Label className="text-xs">Vencimento {parcelado ? "" : "*"}</Label>
+              <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} disabled={parcelado} />
             </div>
             <div className="md:col-span-2 lg:col-span-2">
               <Label className="text-xs">Competência</Label>
@@ -538,6 +637,108 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
               <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} />
             </div>
           </div>
+        </section>
+
+        {/* Bloco 1.5: Parcelamento */}
+        <section className="rounded-xl border bg-card p-3 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+              <Checkbox checked={parcelado} onCheckedChange={(v) => setParcelado(!!v)} />
+              Parcelamento da despesa
+            </label>
+            <span className="text-xs text-muted-foreground">
+              {parcelado ? "Despesa parcelada — defina datas e valores abaixo." : "Despesa em parcela única no vencimento informado acima."}
+            </span>
+          </div>
+
+          {parcelado && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div className="md:col-span-3">
+                  <Label className="text-xs">Número de parcelas *</Label>
+                  <Input
+                    type="number"
+                    min={2}
+                    max={MAX_PARCELAS}
+                    value={numParcelas}
+                    onChange={(e) => setNumParcelas(e.target.value)}
+                  />
+                  <div className="text-[11px] text-muted-foreground mt-1">Máx. {MAX_PARCELAS}</div>
+                </div>
+                <div className="md:col-span-9">
+                  <Label className="text-xs">Distribuição</Label>
+                  <RadioGroup
+                    value={distribuicao}
+                    onValueChange={(v: any) => setDistribuicao(v)}
+                    className="flex gap-6 mt-2"
+                  >
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <RadioGroupItem value="igual" /> Dividir igualmente (1ª = vencimento informado, demais a cada 30 dias)
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <RadioGroupItem value="manual" /> Manual
+                    </label>
+                  </RadioGroup>
+                </div>
+              </div>
+
+              {parcelas.length > 0 && (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[80px]">Parcela</TableHead>
+                        <TableHead className="w-[200px] text-right">Valor (R$) *</TableHead>
+                        <TableHead>Data de vencimento *</TableHead>
+                        <TableHead className="w-[40px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {parcelas.map((p, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium">{i + 1}</TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={p.valor}
+                              disabled={distribuicao === "igual"}
+                              onChange={(e) => updateParcela(i, { valor: e.target.value })}
+                              className="text-right"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="date"
+                              value={p.data_vencimento}
+                              disabled={distribuicao === "igual"}
+                              onChange={(e) => updateParcela(i, { data_vencimento: e.target.value })}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {distribuicao === "manual" && parcelas.length > 1 && (
+                              <Button type="button" variant="ghost" size="icon" onClick={() => removeParcela(i)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  <Separator className="my-3" />
+                  <div className="flex flex-wrap items-center justify-end gap-6 text-sm">
+                    <div>NF: <span className="font-semibold">{fmtMoney(valorNum)}</span></div>
+                    <div>Somado: <span className="font-semibold">{fmtMoney(totalParcelas)}</span></div>
+                    <div className={Math.abs(diffParcelas) > 0.01 ? "text-destructive font-bold" : "text-emerald-600 font-bold"}>
+                      Diferença: {fmtMoney(diffParcelas)}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </section>
 
         {/* Bloco 2: Rateio */}
