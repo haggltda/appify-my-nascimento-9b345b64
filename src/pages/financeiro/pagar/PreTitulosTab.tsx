@@ -448,14 +448,28 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
 
   const salvar = useMutation({
     mutationFn: async () => {
-      if (!empresaId || !descricao || !valor || !vencimento)
-        throw new Error("Preencha empresa, descrição, valor e vencimento");
+      if (!empresaId || !descricao || !valor) throw new Error("Preencha empresa, descrição e valor");
+      if (!parcelado && !vencimento) throw new Error("Informe o vencimento ou marque como parcelado");
+      if (parcelado) {
+        if (parcelas.length < 2) throw new Error("Parcelado exige pelo menos 2 parcelas");
+        if (parcelas.some((p) => !p.data_vencimento || !(Number(p.valor) > 0)))
+          throw new Error("Toda parcela precisa de valor e data de vencimento");
+        if (parcelas.some((p) => p.data_vencimento < emissao))
+          throw new Error("Vencimento de parcela não pode ser anterior à emissão");
+        if (Math.abs(diffParcelas) > 0.01)
+          throw new Error(`Soma das parcelas não bate com o valor da NF (diferença ${fmtMoney(diffParcelas)})`);
+      }
       if (rateios.length > 0 && Math.abs(diff) > 0.01)
         throw new Error(`Rateio não fecha (diferença ${fmtMoney(diff)})`);
       if (rateios.some((r) => !r.centro_custo_id))
         throw new Error("Toda linha de rateio precisa de um centro de custo");
 
       const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+
+      // Vencimento "oficial" no cabeçalho: menor data quando parcelado
+      const vencCabec = parcelado
+        ? parcelas.reduce((m, p) => (m && m < p.data_vencimento ? m : p.data_vencimento), parcelas[0]?.data_vencimento || vencimento)
+        : vencimento;
 
       const { data: pretit, error } = await (supabase as any)
         .from("pre_titulo_pagar")
@@ -466,17 +480,30 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
           numero_documento: numDoc || null,
           valor: valorNum,
           data_emissao: emissao,
-          data_vencimento: vencimento,
+          data_vencimento: vencCabec,
           competencia: competencia || null,
           conta_contabil_id: contaContabilId || null,
           observacoes: observacoes || null,
           solicitante_id: userId,
+          parcelado,
         })
         .select("id")
         .single();
       if (error) throw error;
 
       const preId = pretit.id as string;
+
+      // Parcelas
+      if (parcelado && parcelas.length > 0) {
+        const payloadP = parcelas.map((p, idx) => ({
+          pre_titulo_id: preId,
+          numero: idx + 1,
+          valor: +(Number(p.valor) || 0).toFixed(2),
+          data_vencimento: p.data_vencimento,
+        }));
+        const { error: ep } = await (supabase as any).from("pre_titulo_parcela").insert(payloadP);
+        if (ep) throw ep;
+      }
 
       // Rateios
       if (rateios.length > 0) {
@@ -497,6 +524,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
         const { error: er } = await (supabase as any).from("pre_titulo_rateio").insert(payload);
         if (er) throw er;
       }
+
 
       // Anexos
       for (const a of anexos) {
