@@ -223,7 +223,6 @@ export default function DREGerencial() {
         <table className="w-full min-w-[900px] text-sm">
           <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground sticky top-0">
             <tr>
-              <th className="px-3 py-2 text-left w-20">Código</th>
               <th className="px-3 py-2 text-left">Linha</th>
               {MESES.map((m) => (
                 <th key={m} className="px-2 py-2 text-right tabular-nums w-[80px]">{m}</th>
@@ -233,18 +232,18 @@ export default function DREGerencial() {
           </thead>
           <tbody>
             {dadosQ.isLoading && (
-              <tr><td colSpan={15} className="py-10 text-center text-muted-foreground">Carregando…</td></tr>
+              <tr><td colSpan={14} className="py-10 text-center text-muted-foreground">Carregando…</td></tr>
             )}
             {!dadosQ.isLoading && linhas.length === 0 && (
-              <tr><td colSpan={15} className="py-10 text-center text-muted-foreground">Sem dados para o período.</td></tr>
+              <tr><td colSpan={14} className="py-10 text-center text-muted-foreground">Sem dados para o período.</td></tr>
             )}
             {linhas.map((l) => {
               const total = l.meses.reduce((a, b) => a + b, 0);
               const isResultado = ["resultado"].includes(l.natureza);
+              const isSubLinha = /\./.test(l.codigo);
               return (
                 <tr key={l.codigo} className={`border-t border-border/60 ${isResultado ? "bg-primary-soft/30 font-semibold" : ""}`}>
-                  <td className="px-3 py-2 font-mono text-xs text-primary">{l.codigo}</td>
-                  <td className="px-3 py-2">
+                  <td className={`px-3 py-2 ${isSubLinha ? "pl-8 text-muted-foreground" : ""}`}>
                     {l.descricao}
                     <Badge variant="secondary" className="ml-2 text-[10px]">{l.natureza}</Badge>
                   </td>
