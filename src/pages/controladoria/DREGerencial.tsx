@@ -195,11 +195,16 @@ export default function DREGerencial() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="card-elevated p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Realizado {ano}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Resultado Líquido Realizado {ano}
+          </p>
           <p className={`mt-2 font-display text-3xl font-bold ${totalReal >= 0 ? "text-success" : "text-destructive"}`}>{fmt(totalReal)}</p>
+          {linhaResultado && <p className="mt-1 text-xs text-muted-foreground">{linhaResultado.descricao}</p>}
         </div>
         <div className="card-elevated p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Orçado {ano}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Resultado Líquido Orçado {ano}
+          </p>
           <p className="mt-2 font-display text-3xl font-bold text-info">{fmt(totalOrc)}</p>
         </div>
         <div className="card-elevated p-5">
