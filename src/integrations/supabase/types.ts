@@ -17011,6 +17011,7 @@ export type Database = {
         Args: { p_lancamento_id: string; p_motivo?: string }
         Returns: string
       }
+      export_orcamento_completo_dump: { Args: never; Returns: Json[] }
       extrato_importar: {
         Args: {
           _conta_bancaria_id: string
