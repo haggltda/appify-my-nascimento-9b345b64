@@ -389,6 +389,57 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
     setRateios((r) => r.map((x) => ({ ...x, modo: "percentual", percentual: String(pct), valor: "" })));
   };
 
+  // --- Parcelamento ---
+  const nParc = Math.max(1, Math.min(MAX_PARCELAS, Number(numParcelas) || 1));
+
+  const gerarParcelasIgual = (n: number, total: number, baseVenc: string): ParcelaItem[] => {
+    if (n <= 0 || total <= 0) return [];
+    const base = Math.floor((total * 100) / n) / 100;
+    const arr: ParcelaItem[] = [];
+    let soma = 0;
+    for (let i = 0; i < n; i++) {
+      const v = i === n - 1 ? +(total - soma).toFixed(2) : base;
+      soma += v;
+      arr.push({ valor: v.toFixed(2), data_vencimento: addDays(baseVenc, i * 30) });
+    }
+    return arr;
+  };
+
+  // (re)gera parcelas quando parcelado ligado, n, valor ou vencimento mudam (modo igual)
+  React.useEffect(() => {
+    if (!parcelado) {
+      setParcelas([]);
+      return;
+    }
+    if (distribuicao === "igual") {
+      setParcelas(gerarParcelasIgual(nParc, valorNum, vencimento));
+    } else {
+      // manual: ajusta o tamanho preservando valores existentes
+      setParcelas((cur) => {
+        const next = [...cur];
+        if (next.length < nParc) {
+          for (let i = next.length; i < nParc; i++) {
+            next.push({ valor: "", data_vencimento: addDays(vencimento, i * 30) });
+          }
+        } else if (next.length > nParc) {
+          next.length = nParc;
+        }
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parcelado, nParc, valorNum, vencimento, distribuicao]);
+
+  const totalParcelas = parcelas.reduce((s, p) => s + (Number(p.valor) || 0), 0);
+  const diffParcelas = +(valorNum - totalParcelas).toFixed(2);
+
+  const updateParcela = (i: number, patch: Partial<ParcelaItem>) =>
+    setParcelas((arr) => arr.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+  const removeParcela = (i: number) => {
+    setParcelas((arr) => arr.filter((_, k) => k !== i));
+    setNumParcelas((s) => String(Math.max(1, (Number(s) || 1) - 1)));
+  };
+
   const onPickFiles = (files: FileList | null) => {
     if (!files) return;
     const list: AnexoItem[] = Array.from(files).map((f) => ({ file: f, tipo: "nf" }));
