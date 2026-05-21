@@ -257,6 +257,20 @@ type RateioItem = {
 
 type AnexoItem = { file: File; tipo: string };
 
+type ParcelaItem = {
+  valor: string;
+  data_vencimento: string;
+};
+
+const MAX_PARCELAS = 24;
+
+function addDays(iso: string, days: number) {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
   const [empresaId, setEmpresaId] = useState("");
   const [fornecedorId, setFornecedorId] = useState("");
@@ -268,6 +282,10 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
   const [competencia, setCompetencia] = useState(new Date().toISOString().slice(0, 10));
   const [contaContabilId, setContaContabilId] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [parcelado, setParcelado] = useState(false);
+  const [numParcelas, setNumParcelas] = useState("2");
+  const [distribuicao, setDistribuicao] = useState<"manual" | "igual">("igual");
+  const [parcelas, setParcelas] = useState<ParcelaItem[]>([]);
   const [rateios, setRateios] = useState<RateioItem[]>([
     { centro_custo_id: "", modo: "percentual", percentual: "100", valor: "", descricao: "" },
   ]);
