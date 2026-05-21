@@ -155,6 +155,33 @@ export default function CentrosCusto() {
         breadcrumb={["Cadastros Mestres", "Centros de Custo"]}
         title="Centros de Custo"
         subtitle="Cadastro de CCs administrativos e operacionais por empresa. CRUD restrito à Controladoria."
+        actions={
+          <div className="flex items-center gap-2">
+            {dirtyCount > 0 && (
+              <>
+                <span className="hidden text-xs text-muted-foreground sm:inline">
+                  <span className="font-bold text-primary">{dirtyCount}</span> alteração{dirtyCount > 1 ? "ões" : ""} pendente{dirtyCount > 1 ? "s" : ""}
+                </span>
+                <button
+                  onClick={descartar}
+                  disabled={saving}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-medium text-muted-foreground hover:bg-muted disabled:opacity-50"
+                >
+                  <X className="h-3.5 w-3.5" /> Descartar
+                </button>
+              </>
+            )}
+            <button
+              data-write
+              onClick={salvar}
+              disabled={saving || dirtyCount === 0}
+              className="btn-relief inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-xs font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Salvar alterações{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
+            </button>
+          </div>
+        }
       />
 
       {!loading && semGestor.length > 0 && (
