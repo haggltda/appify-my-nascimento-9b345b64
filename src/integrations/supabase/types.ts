@@ -17566,7 +17566,7 @@ export type Database = {
         | "arquivada"
       banco_tipo: "corrente" | "poupanca" | "aplicacao" | "vinculada"
       cc_origem: "manual" | "contrato" | "licitacao" | "rateio" | "corporativo"
-      cc_tipo: "adm" | "operacional"
+      cc_tipo: "adm" | "operacional" | "socios"
       cobranca_registro_status:
         | "pendente"
         | "enviado"
@@ -18118,7 +18118,7 @@ export const Constants = {
       ],
       banco_tipo: ["corrente", "poupanca", "aplicacao", "vinculada"],
       cc_origem: ["manual", "contrato", "licitacao", "rateio", "corporativo"],
-      cc_tipo: ["adm", "operacional"],
+      cc_tipo: ["adm", "operacional", "socios"],
       cobranca_registro_status: [
         "pendente",
         "enviado",
