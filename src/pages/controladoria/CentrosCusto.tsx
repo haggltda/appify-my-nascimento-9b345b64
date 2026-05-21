@@ -315,10 +315,13 @@ function CCSection({
               </tr>
             ) : (
               lista.map((c) => (
-                <tr key={c.id} className="border-t border-border/60">
+                <tr key={c.id} className={`border-t border-border/60 ${isDirty(c.id) ? "bg-primary/5" : ""}`}>
                   <td className="px-4 py-2 font-mono text-xs font-semibold text-primary">
-                    {c.codigo}
-                    {c.codigo_legado && <span className="ml-2 chip bg-muted text-[10px] text-muted-foreground">legado</span>}
+                    <div className="flex items-center gap-2">
+                      {isDirty(c.id) && <span className="h-1.5 w-1.5 rounded-full bg-primary" title="Alteração pendente" />}
+                      {c.codigo}
+                      {c.codigo_legado && <span className="chip bg-muted text-[10px] text-muted-foreground">legado</span>}
+                    </div>
                   </td>
                   <td className="px-4 py-2">{c.nome}</td>
                   <td className="px-4 py-2 font-mono text-xs">
