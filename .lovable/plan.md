@@ -1,176 +1,65 @@
-# Editor de Orçamentos de Contratos — Plano Visual & Estrutural
+## Objetivo
 
-> Tela enterprise-grade, alto impacto visual, padrão referência (Notion + Linear + Airtable). Foco: você gerenciar 100% dos contratos e editar orçamentos célula a célula como numa planilha viva.
+Gerar um relatório (XLSX) com **todas as linhas projetadas do orçamento por contrato**, no nível mais analítico disponível no banco, contendo: item granular (água, energia, salários, FGTS, combustível, materiais...), conta contábil, hierarquia DRE, centro de custo, contrato, empresa, classificadores (Direto/Indireto, Fixo/Variável, Custo/Despesa), competência e valor.
 
----
+## Varredura realizada
 
-## Arquitetura de Navegação
+Mapa de onde cada informação está hoje no banco:
 
-```text
-/app/contratos/orcamentos                  ← Lista mestre (100% contratos)
-/app/contratos/:id/orcamento               ← Editor grade (planilha viva)
-/app/contratos/:id/orcamento/importar      ← Wizard upload XLSX
-/app/contratos/:id/orcamento/historico     ← Audit log + versões
-```
+| Informação pedida | Tabela / Coluna | Observação |
+|---|---|---|
+| Linha do orçamento (mensal) | `orcamento_contrato_linha` (8.152 linhas) | base do relatório |
+| Valor previsto | `orcamento_contrato_linha.valor_previsto` | por competência |
+| Competência (mês) | `orcamento_contrato_linha.competencia` | |
+| Sub-código (4.1, 4.3, 5.1...) | `orcamento_contrato_linha.sub_codigo` | granularidade intermediária |
+| Memória de cálculo | `orcamento_contrato_linha.memoria_calculo` (jsonb) | quando existe, traz qtd × valor unitário |
+| Linha DRE (L01–L14) | `dre_linhas.codigo + descricao` via `dre_linha_id` | hierarquia gerencial |
+| Conta contábil | `conta_contabil.classificacao + descricao` via `conta_contabil_id` | **vazio em 100% das linhas hoje** — gap |
+| Centro de custo | `centros_custo.codigo + nome + tipo + categoria_gerencial + direto_indireto + fixo_variavel + dimensao` | |
+| Contrato | `contrato.numero + objeto + orgao + vigencia + valor_total + faturamento_mensal + gestor` via `orcamento_contrato → contrato_id` | |
+| Empresa | `empresas.codigo + razao_social + nome_fantasia + cnpj` | |
+| Ciclo orçamentário | `orcamento_ciclo` (ano, versão) | |
+| Direto/Indireto, Fixo/Variável | `centros_custo` + `conta_contabil.classe_contabil/tipo_gerencial` + `mz_25_stg_mapa_de_para_orcamento_contratos` | |
+| Item granular (Água, Energia, FGTS, Uniformes, Vale Transporte, Salários, INSS, etc.) | `mz_25_stg_mapa_de_para_orcamento_contratos.item_orcamento` ligado por `conta_contabil_codigo` | **única fonte com esse nível hoje** |
+| Fornecedor / data de lançamento | `titulo_pagar`, `lancamento_contabil`, `realizado_lancamentos` | **NÃO existe no orçamento** — só no realizado (hoje 4 títulos e 0 lançamentos) |
 
-Entrada também via: card "Orçamentos" no menu Contratos + atalho na tela DRE Gerencial ("Editar orçamento dos contratos").
+## Diagnóstico crítico (importante)
 
----
+1. **`conta_contabil_id` está NULL em todas as 8.152 linhas de orçamento.** Hoje a granularidade real persistida é apenas `sub_codigo` (≈17 valores tipo 4.1, 4.3, 5.1...) + `dre_linha_id` (L04, L05, L07, L08, L12). Não há vínculo direto linha-de-orçamento → conta "Energia Elétrica".
+2. O detalhe fino (Água, Luz, FGTS, INSS, Uniformes, Vale Transporte...) existe na staging `mz_25_stg_mapa_de_para_orcamento_contratos` na coluna `item_orcamento`, ligada à conta contábil sugerida. É o "de-para" do Excel original — usaremos para enriquecer.
+3. **Fornecedor e data de lançamento NÃO existem no orçamento projetado** — só aparecem quando o título é realizado (`titulo_pagar` / `lancamento_contabil`). No relatório, essas colunas virão vazias para orçamento puro; se quiser ver fornecedor/data, é o módulo de Realizado (outro relatório).
 
-## Tela 1 — Lista Mestre de Orçamentos
+## Plano de execução
 
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  ORÇAMENTOS DE CONTRATOS                          [+ Novo]  [↑ Import] │
-│  Carteira completa · 247 contratos · Ano-base 2026                     │
-├─────────────────────────────────────────────────────────────────────────┤
-│  ╔═══════════╗  ╔═══════════╗  ╔═══════════╗  ╔═══════════╗            │
-│  ║ COM ORÇ.  ║  ║ SEM ORÇ.  ║  ║ RECEITA   ║  ║ MARGEM    ║            │
-│  ║   189     ║  ║    58     ║  ║ R$ 47,2M  ║  ║  12,3%    ║            │
-│  ║ ─────●●●  ║  ║ ●─────    ║  ║ ▲ 8% YoY  ║  ║ ▼ 1,2pp   ║            │
-│  ╚═══════════╝  ╚═══════════╝  ╚═══════════╝  ╚═══════════╝            │
-│                                                                         │
-│  [Empresa ▾] [Status ▾] [Ano: 2026 ▾]   🔍 Buscar nº/cliente/objeto    │
-│                                                                         │
-│  CONTRATO          CLIENTE              VIGÊNCIA      MENSAL    STATUS  │
-│  ─────────────────────────────────────────────────────────────────────  │
-│  UFFS-041/2021     U. F. Front. Sul     ▮▮▮▮▮▯▯      R$ 612K   ●Aprov │
-│  HCPA-088/2024     Hospital Clínicas    ▮▮▮▮▮▮▮      R$ 1,2M   ◐Edit  │
-│  PMTO-012/2023     Prefeit. Toledo      ▮▮▮▮▯▯▯      R$ 340K   ○Vazio │
-│  ...                                                                    │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+### Passo 1 — Criar/atualizar RPC `export_orcamento_analitico_completo`
+Função SQL `SECURITY DEFINER` que devolve, **uma linha por `orcamento_contrato_linha`**, com JOIN em:
+- `orcamento_contrato` → `contrato` → `centros_custo`
+- `empresas`, `orcamento_ciclo`, `dre_linhas`
+- `conta_contabil` (quando preenchido) — fallback via `mz_25_stg_mapa_de_para_orcamento_contratos` casando por `sub_codigo`/heurística
+- Expande `memoria_calculo` (jsonb) em colunas: `qtd`, `valor_unitario`, `driver`, `descricao_item`
 
-**Status do orçamento (badge color-coded):**
-- ● **Aprovado** (verde) — linhas locked
-- ◐ **Em edição** (âmbar) — rascunho ativo
-- ○ **Vazio** (cinza) — contrato sem orçamento ainda
-- ⚠ **Divergente** (vermelho) — mz_50 atualizado mas não promovido
+Parâmetros: `p_limit`, `p_offset`, `p_empresa_id` (opcional), `p_ciclo_id` (opcional).
 
-**Barra de vigência** = mini timeline visual do contrato no ano (▮▮▮▮▯▯▯ mostra início/fim).
+### Passo 2 — Script Python paginado
+Roda a RPC em chunks de 1.000 (já validado no relatório anterior) e gera um único XLSX com:
 
----
+**Colunas (nenhuma oculta):**
+Empresa Código · Empresa Razão Social · CNPJ · Ciclo (Ano/Versão) · Contrato Número · Contrato Objeto · Órgão · Vigência Início · Vigência Fim · Valor Total Contrato · Faturamento Mensal · Gestor · Centro Custo Código · Centro Custo Nome · CC Tipo · CC Dimensão · CC Categoria Gerencial · CC Direto/Indireto · CC Fixo/Variável · DRE Código · DRE Descrição · DRE Natureza · Sub-código · Conta Contábil Código · Conta Contábil Descrição · Conta Tipo Gerencial · Conta Direto/Indireto · Conta Fixo/Variável · **Item Granular (Água/Energia/FGTS/...)** · Driver · Quantidade · Valor Unitário · Competência (AAAA-MM) · Valor Previsto · Origem · Source · Locked · Memória Cálculo (JSON cru) · ID linha · Created At · Updated At
 
-## Tela 2 — Editor Grade (Planilha Viva) — CORAÇÃO DA TELA
+Saída: `/mnt/documents/orcamento_analitico_completo.xlsx`
 
-Layout densidade controlada, header sticky, tipografia tabular monoespaçada, paleta sóbria com 1 acento (azul-info para edição ativa).
+### Passo 3 — Entregar com diagnóstico de qualidade
+Aba extra "Diagnóstico" com:
+- Total de linhas e somatório por empresa/contrato
+- Quantas linhas têm `conta_contabil_id` preenchido vs. enriquecido via mz_25 vs. sem match
+- Lista de `sub_codigo` sem item granular mapeado (para você priorizar o de-para)
 
-```text
-┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│ ← UFFS-041/2021 · Univ. Federal Fronteira Sul          [Histórico] [Importar] [Salvar▾] │
-│ Vigência 01/02/2025 → 31/03/2026 · Mensal R$ 612.871 · Margem orçada 14,2%               │
-├──────────────────────────────────────────────────────────────────────────────────────────┤
-│  Ano-base [2026 ▾]   Versão [v3 · em edição ▾]   ● Salvando…                            │
-│                                                                                          │
-│  ┌─ RECEITA ─────────────────────────────────────────────────────────────── R$ 7,35M ─┐ │
-│  │ ITEM              CONTA       JAN     FEV     MAR     ABR  …  DEZ    TOTAL        │ │
-│  │ Faturamento bruto 03.1.01  612.871 612.871 612.871   ─    …  ─    R$ 1.838.613   │ │
-│  │ + Adicionar item                                                                  │ │
-│  └───────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                          │
-│  ┌─ CUSTO DIRETO ────────────────────────────────────────────────────── -R$ 5,12M ──┐  │
-│  │ Salário Base     04.1.3.02  324.640 324.640 324.640  ─    …  ─    -R$ 973.920   │  │
-│  │ EPIs             04.1.3.03   18.420  18.420  18.420  ─    …  ─    -R$  55.260   │  │
-│  │ Vale Transporte  04.1.3.02   42.100  42.100  42.100  ─    …  ─    -R$ 126.300   │  │
-│  │ + Adicionar item                                              [Subtotal Custo]   │  │
-│  └───────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                          │
-│  ┌─ DESPESA ─────────────────────────────────────────────────────────── -R$ 890K ──┐   │
-│  │ ...                                                                              │   │
-│  └──────────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                          │
-│  ════════════════════════════════════════════════════════════════════════════════════   │
-│  RESULTADO LÍQUIDO                  ▮▮▮▮▮▮▮▮▮▮▮▮▮▮▯▯▯▯▯▯ 14,2%      R$ 1.043.221      │
-│  ════════════════════════════════════════════════════════════════════════════════════   │
-└──────────────────────────────────────────────────────────────────────────────────────────┘
-```
+## Detalhes técnicos
 
-### Interações da grade
-- **Clique na célula** → entra modo edição com máscara R$ + spin numérico.
-- **Tab/Enter** navega célula a célula (estilo Excel).
-- **Arrastar canto** copia valor para meses seguintes (fill-handle).
-- **Negativos automáticos**: linhas de custo/despesa mostram em vermelho.
-- **Auto-save** debounce 800ms → indicador "● Salvando…" / "✓ Salvo 14:32".
-- **Linhas locked** (após aprovação) ficam em cinza com ícone 🔒, edição bloqueada.
-- **Botão "+ Adicionar item"** abre combobox com itens-padrão do plano de contas.
-- **Hover na célula** mostra tooltip: "última edição: João Silva, 18/05 14:32, valor anterior R$ 320.000".
-- **Atalho `Cmd+K`** abre paleta de comandos (importar, exportar, ver DRE, aprovar, duplicar item).
+- A RPC nova substitui/coexiste com `export_orcamento_completo_dump`. Recomendo manter a anterior e criar a nova com nome diferente para não quebrar nada.
+- O enriquecimento por `mz_25` é heurístico (a tabela não tem FK direta para `orcamento_contrato_linha`) — vamos casar por `(empresa_id, conta_contabil_codigo)` quando possível e marcar a coluna "Item Granular" como `[mz25-match]` ou `[sem-match]`.
+- Sem migrations destrutivas. Apenas `CREATE OR REPLACE FUNCTION` + `GRANT EXECUTE`.
 
-### Header rico
-- KPIs ao vivo: Receita total, Custo total, Margem %, Variação vs mz_50 original.
-- Mini-gráfico sparkline mostrando a margem mês a mês.
-- Botão "Salvar▾" com submenu: Salvar rascunho / Salvar e aprovar / Salvar como nova versão.
+## O que NÃO está neste relatório (e por quê)
 
----
-
-## Tela 3 — Wizard de Importação XLSX
-
-Steps visuais:
-```text
-①  Upload          →  ②  Mapeamento        →  ③  Preview diff       →  ④  Confirmar
-   Arraste .xlsx       Confirma colunas        Linhas novas (verde)     Aplicar
-   ou clique           da planilha             Alteradas (âmbar)
-                                               Removidas (vermelho)
-```
-
-- Botão "Baixar template" no topo (gera xlsx vazio no exato formato do mz_50).
-- Preview diff mostra tabela com cor-código antes de gravar.
-- Modal de confirmação: "Vai gravar 142 alterações em UFFS-041/2021. Continuar?"
-
----
-
-## Tela 4 — Histórico & Versões
-
-Timeline vertical (estilo GitHub commits):
-```text
-●  v3 · em edição           hoje 14:32  · você      [Diff] [Restaurar]
-│   42 células alteradas, margem +1,2pp
-●  v2 · aprovada            12/05/2026  · Ana Costa [Diff]
-│   Reajuste sindical aplicado
-●  v1 · importada do mz_50  08/05/2026  · sistema   [Diff]
-    Carga inicial da planilha
-```
-
----
-
-## Identidade Visual (alto impacto, padrão web premium)
-
-- **Tipografia**: cabeçalhos em font display do projeto, números em fonte tabular (`tabular-nums`) para alinhamento perfeito vertical.
-- **Paleta**: usa tokens semânticos do `index.css` — `primary`, `success` (verde receita), `destructive` (vermelho negativo), `warning` (âmbar edição), `muted` (linhas zeradas). Sem cores hard-coded.
-- **Densidade**: grade compacta tipo Linear/Notion (44px de altura por linha, padding lateral 12px).
-- **Hierarquia**: blocos com border-radius generoso, sombra sutil `shadow-elegant`, header sticky com `backdrop-blur`.
-- **Microinterações**: framer-motion no auto-save indicator (pulse), na expansão de blocos receita/custo/despesa (collapse animado), no diff de import (fade-in linha a linha).
-- **Modo escuro**: contraste pleno garantido nos dois temas.
-- **Acessibilidade**: navegação 100% por teclado, ARIA labels nas células editáveis, foco visível.
-
----
-
-## Backend (migration única)
-
-1. Tabela `orcamento_contrato_linha_audit` (audit trail).
-2. Trigger auditoria em `orcamento_contrato_linha` (insert/update/delete).
-3. RPC `promover_mz50_orcamento(_empresa_id, _ano)` — one-shot que copia mz_50 (47k linhas) para `orcamento_contrato_linha` e marca `destino_id`.
-4. **Atualizar RPC `dre_gerencial_mensal`** para Orçado vir de `orcamento_contrato_linha` (não mais `obz_valores`). → resolve direto o bug da DRE zerada.
-5. RLS por empresa em todas as novas estruturas.
-
----
-
-## Sequenciamento de entrega
-
-1. Migration backend (promover mz_50 + RPC DRE atualizada + audit).
-2. Tela lista `/app/contratos/orcamentos`.
-3. Editor grade célula a célula (auto-save, fill, lock, hover audit).
-4. Wizard de import XLSX com diff preview.
-5. Histórico + versões.
-6. Refator UI da DRE Gerencial (remover coluna código, subtotal financeiro, negativos vermelhos).
-7. QA visual em todas as telas.
-
----
-
-## Perguntas finais antes de codar
-
-1. **Granularidade**: edita por **item** (Salário Base, EPI, VT) como mostrado acima OU consolidado por **linha da DRE** (L04, L05) sem ver itens?
-2. **Promoção mz_50**: rodo **automática** já na migration (popula tudo de uma vez) ou prefere botão manual?
-3. **Conflito no import**: planilha (a) sobrescreve tudo, (b) merge com confirmação, (c) só cria novos?
-4. **Versionamento**: cada save cria nova versão OU edição direta com audit log?
-5. **Permissão de edição**: Financeiro+Controladoria+Diretoria apenas, ou também Operação?
+- **Fornecedor** e **Data de Lançamento**: não pertencem ao orçamento projetado; só ao realizado. Se quiser, posso fazer um segundo relatório "Realizado vs. Orçado" puxando de `titulo_pagar` + `lancamento_contabil` (hoje com pouquíssimos dados — 4 títulos, 0 lançamentos).
