@@ -11185,6 +11185,45 @@ export type Database = {
         }
         Relationships: []
       }
+      permission_migration_snapshot: {
+        Row: {
+          app_menu: Json
+          captured_at: string
+          counts: Json
+          id: string
+          migration_tag: string
+          perfil_metadata: Json
+          role_permissions: Json
+          screen_permission_profile: Json
+          screen_permission_user: Json
+          user_roles: Json
+        }
+        Insert: {
+          app_menu?: Json
+          captured_at?: string
+          counts?: Json
+          id?: string
+          migration_tag: string
+          perfil_metadata?: Json
+          role_permissions?: Json
+          screen_permission_profile?: Json
+          screen_permission_user?: Json
+          user_roles?: Json
+        }
+        Update: {
+          app_menu?: Json
+          captured_at?: string
+          counts?: Json
+          id?: string
+          migration_tag?: string
+          perfil_metadata?: Json
+          role_permissions?: Json
+          screen_permission_profile?: Json
+          screen_permission_user?: Json
+          user_roles?: Json
+        }
+        Relationships: []
+      }
       permissoes_especiais: {
         Row: {
           concedido_em: string
@@ -16901,6 +16940,16 @@ export type Database = {
           grupo: string
           saldo: number
         }[]
+      }
+      can_access: {
+        Args: {
+          _acao?: Database["public"]["Enums"]["app_acao"]
+          _empresa?: string
+          _menu: string
+          _modulo?: string
+          _user: string
+        }
+        Returns: boolean
       }
       cnab_gerar_remessa: {
         Args: { _conta_bancaria_id: string; _titulo_ids: string[] }
