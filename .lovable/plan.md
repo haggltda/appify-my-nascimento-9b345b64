@@ -1,154 +1,141 @@
-# B1.5 v3.1 — PLAN MODE FINAL (pré-migration)
+# Bloco 2 — PLAN MODE: Permissões, Rotas, Menus e Triagem IA fora do fluxo
 
-Ajuste único sobre o v3 aprovado: **DELETE restrito a admin + controladoria**. Demais políticas inalteradas. Nada executado.
+Diagnóstico read-only completo. **Nada executado.**
 
-## 1. SQL proposto (texto, não aplicado)
+## 1. Achados-chave
 
-```sql
--- Pré-condição: as 4 policies "perm *" abertas e as "auth *" abertas
--- em public.fornecedor_conta_bancaria serão substituídas.
+### 1.1 Falha estrutural no `RouteGuard`
+`src/components/auth/RouteGuard.tsx` linha 27:
+```ts
+const allowed = !data || data.isAdmin || !menuCode || data.codes.has(menuCode) || privilegedBypass;
+```
+**`!menuCode` libera por padrão**. Toda rota não catalogada em `app_menu` passa sem verificação. Comportamento atual = **allow-by-default**, oposto do critério de aceite do bloco.
 
--- Limpeza
-DROP POLICY IF EXISTS "perm select fornecedor_conta_bancaria"  ON public.fornecedor_conta_bancaria;
-DROP POLICY IF EXISTS "perm insert fornecedor_conta_bancaria"  ON public.fornecedor_conta_bancaria;
-DROP POLICY IF EXISTS "perm update fornecedor_conta_bancaria"  ON public.fornecedor_conta_bancaria;
-DROP POLICY IF EXISTS "perm delete fornecedor_conta_bancaria"  ON public.fornecedor_conta_bancaria;
-DROP POLICY IF EXISTS "auth select fornecedor_conta_bancaria"  ON public.fornecedor_conta_bancaria;
-DROP POLICY IF EXISTS "auth insert fornecedor_conta_bancaria"  ON public.fornecedor_conta_bancaria;
-DROP POLICY IF EXISTS "auth update fornecedor_conta_bancaria"  ON public.fornecedor_conta_bancaria;
-DROP POLICY IF EXISTS "auth delete fornecedor_conta_bancaria"  ON public.fornecedor_conta_bancaria;
+### 1.2 Mesmo problema no `Sidebar`
+`src/components/layout/Sidebar.tsx` linha 373:
+```ts
+if (!code) return true; // legacy / not catalogued routes remain visible
+```
+Itens cuja rota não está em `app_menu` aparecem para todos.
 
-ALTER TABLE public.fornecedor_conta_bancaria ENABLE ROW LEVEL SECURITY;
+### 1.3 Triagem IA
+- Rota declarada em `src/App.tsx` linha 135: `<Route path="triagem" element={<TriagemIA />} />`.
+- Item da Sidebar em `Sidebar.tsx` linha 88: `{ label: "Triagem & IA", to: "/app/triagem", icon: Sparkles }`.
+- **Não existe** registro `triagem` em `app_menu` (consulta confirmou). Logo: hoje aparece na Sidebar para todos e `RouteGuard` libera por `!menuCode`.
 
--- SELECT: admin OU (permissão + empresa do usuário == empresa_id da conta)
-CREATE POLICY fcb_select
-ON public.fornecedor_conta_bancaria
-FOR SELECT
-TO authenticated
-USING (
-  public.has_role(auth.uid(), 'admin')
-  OR (
-    public.has_permissao('suprimentos','visualizar','fornecedor.conta_bancaria')
-    AND empresa_id = public.empresa_do_usuario(auth.uid())
-  )
-);
+### 1.4 Auditoria App.tsx × `app_menu`
+**Rotas em App.tsx sem registro em `app_menu` (parciais, a serem confirmadas no execução):**
 
--- INSERT: admin OU (permissão incluir + empresa do usuário == empresa_id
--- + fornecedor global OU pertencente à mesma empresa)
-CREATE POLICY fcb_insert
-ON public.fornecedor_conta_bancaria
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  public.has_role(auth.uid(), 'admin')
-  OR (
-    public.has_permissao('suprimentos','incluir','fornecedor.conta_bancaria')
-    AND empresa_id = public.empresa_do_usuario(auth.uid())
-    AND EXISTS (
-      SELECT 1 FROM public.fornecedor f
-      WHERE f.id = fornecedor_conta_bancaria.fornecedor_id
-        AND (f.is_global = true OR f.empresa_id = fornecedor_conta_bancaria.empresa_id)
-    )
-  )
-);
+| Rota | Componente | Categoria proposta |
+|---|---|---|
+| `/app` (index) | Inicio | técnica — allowlist |
+| `/app/meu-perfil` | MeuPerfil | técnica — allowlist (toda pessoa logada) |
+| `/app/triagem` | TriagemIA | **deny** (B2 manda tirar do fluxo) |
+| `/app/admin/smoke-helena` | SmokeTestHelena | técnica admin — restrita a `admin` |
+| `/app/contratos/:id` | ContratoDetalhe | herda `app_menu` de `/app/contratos/ativos` via prefix match (verificar) |
+| `/app/financeiro/integracao-bancaria/builder/:contaId` | IntegracaoBancariaBuilder | herda `integracao-bancaria` |
+| `/app/integracao/:id` | BatchDetalhe | herda `integracao` |
+| `/app/plano-acoes/:id` | PlanoAcaoDetalhe | herda `plano_acoes_lista` |
+| `/app/ajuda/:modulo/:slug` | AjudaTopico | herda `ajuda` |
+| `/app/fiscal` | Fiscal | verificar — pode estar truncado na consulta |
+| `/app/bi` | BIDashboard | verificar |
+| `/app/financeiro/validacao-pos-pagamento` | ValidacaoPosPagamento | verificar |
 
--- UPDATE: USING (linha atual da empresa) + WITH CHECK (linha nova continua na empresa
--- e fornecedor ainda válido)
-CREATE POLICY fcb_update
-ON public.fornecedor_conta_bancaria
-FOR UPDATE
-TO authenticated
-USING (
-  public.has_role(auth.uid(), 'admin')
-  OR (
-    public.has_permissao('suprimentos','alterar','fornecedor.conta_bancaria')
-    AND empresa_id = public.empresa_do_usuario(auth.uid())
-  )
-)
-WITH CHECK (
-  public.has_role(auth.uid(), 'admin')
-  OR (
-    public.has_permissao('suprimentos','alterar','fornecedor.conta_bancaria')
-    AND empresa_id = public.empresa_do_usuario(auth.uid())
-    AND EXISTS (
-      SELECT 1 FROM public.fornecedor f
-      WHERE f.id = fornecedor_conta_bancaria.fornecedor_id
-        AND (f.is_global = true OR f.empresa_id = fornecedor_conta_bancaria.empresa_id)
-    )
-  )
-);
+A lista final será produzida em B2-execução por query completa `app_menu` × varredura de `<Route path="...">` em App.tsx.
 
--- DELETE: AJUSTE v3.1 — apenas admin OU controladoria, e ainda assim
--- só na empresa da conta. Permissão excluir deixa de bastar.
-CREATE POLICY fcb_delete
-ON public.fornecedor_conta_bancaria
-FOR DELETE
-TO authenticated
-USING (
-  public.has_role(auth.uid(), 'admin')
-  OR (
-    public.has_role(auth.uid(), 'controladoria')
-    AND empresa_id = public.empresa_do_usuario(auth.uid())
-  )
-);
+### 1.5 `PRIVILEGED_ROUTES` hardcoded
+`RouteGuard.tsx` linhas 13–14: bypass de `["/app/admin/permissoes"]` para `["admin","controladoria","presidencia"]`. Funciona, mas é regra fora do banco. Não dá para administradores configurarem pela UI. Mantém-se no B2; reavaliar em bloco futuro.
+
+## 2. Plano proposto (a aprovar antes da execução)
+
+### 2.1 RouteGuard: deny-by-default + allowlist técnica explícita
+
+```ts
+// Allowlist somente para rotas técnicas sem operação de negócio.
+// Toda rota operacional precisa estar em app_menu para liberar.
+const TECHNICAL_ALLOWLIST = [
+  "/app",                 // exato (index = Inicio)
+  "/app/meu-perfil",
+  "/app/ajuda",           // listagem; tópicos herdam por prefix
+];
+
+// Rotas operacionais SEM menuCode -> negado.
+const allowed =
+  !data ||                       // ainda carregando contexto
+  data.isAdmin ||
+  privilegedBypass ||
+  (menuCode && data.codes.has(menuCode)) ||
+  TECHNICAL_ALLOWLIST.includes(pathname) ||
+  TECHNICAL_ALLOWLIST.some(p => pathname.startsWith(p + "/"));
 ```
 
-Observação: `empresa_do_usuario(uuid)` e `has_permissao(text,text,text)` já existem (confirmadas no B0/B1). Se `empresa_do_usuario` não estiver marcada SECURITY DEFINER stable, a migration falhará — a verificação será feita antes de gerar o arquivo.
+Audit log em negação continua igual.
 
-## 2. Impacto
+### 2.2 Sidebar: deny-by-default igual ao RouteGuard
+Trocar `if (!code) return true` por `if (!code) return false` em `canSee` (linha 373), exceto para itens da allowlist técnica. Itens sem `menuCode` somem para não-admin.
 
-- **Financeiro / suprimentos com permissão `fornecedor.conta_bancaria`:** vê/edita só contas da própria empresa.
-- **Sem permissão:** sem acesso.
-- **Admin:** total.
-- **Controladoria:** SELECT/INSERT/UPDATE se tiver permissão; DELETE permitido pelo papel + escopo de empresa.
-- **DELETE por outros perfis (financeiro, comprador, etc.):** **bloqueado**, mesmo com permissão `excluir`. Mudança em relação ao v3.
-- **Fornecedor global:** continua selecionável em qualquer empresa (PreTitulos, NF, etc. intocados).
-- **PreTitulos, NF, Contas a Pagar, Programação, Malotes/CNAB, Conciliação, Receber:** sem efeito (não usam a tabela).
-- **`ContasBancariasGenericTab` / `ContaBancariaDialog`:** o botão "Excluir" continua visível para quem tem permissão, mas a operação falhará com erro RLS para perfis fora de admin/controladoria. Isso é aceitável agora; ajuste de UI fica para bloco posterior.
+Adicional: **remover o item “Triagem & IA”** do `licitacoesModule` (linha 88). Mantém-se a rota em App.tsx e o componente `TriagemIA.tsx` intocados — só fica inacessível por menu. Quem digitar `/app/triagem` recebe “Acesso negado” pelo novo RouteGuard.
 
-## 3. Checklist de testes (T1–T13, pós-migration, janela controlada)
+### 2.3 `app_menu`: nenhuma alteração estrutural neste bloco
+- **Não criar** registro para `triagem` (o objetivo é mantê-la fora do fluxo).
+- **Não criar** registros para `/app/admin/smoke-helena`, `/app` index, `/app/meu-perfil`: ficam tratados via allowlist técnica ou role-check.
+- Se a auditoria completa (passo §2.5) revelar rotas operacionais legítimas sem `app_menu` (ex.: `fiscal`, `bi`, `validacao-pos-pagamento`), incluí-las em `app_menu` será proposto em **PLAN separado** com SQL revisado, não neste bloco.
 
-Usuário-piloto: **Renan Bahr** (`financeiro2@haggltda.com.br`).
+### 2.4 `screen_permission_*` / `has_screen_access` / `list_accessible_menus`
+**Intocados.** Confirmado no diagnóstico que o ajuste do RouteGuard + Sidebar é suficiente; não é necessário criar terceiro sistema de permissões nem alterar RPC.
 
-| # | Cenário | Esperado |
-|---|---------|----------|
-| T1 | Renan SELECT conta da empresa dele | OK |
-| T2 | Renan SELECT conta de outra empresa | 0 linhas |
-| T3 | Renan INSERT conta na empresa dele, fornecedor global | OK se tiver permissão `incluir` |
-| T4 | Renan INSERT conta apontando outra empresa | bloqueado |
-| T5 | Renan INSERT em fornecedor local de outra empresa | bloqueado |
-| T6 | Renan UPDATE conta da empresa dele | OK |
-| T7 | Renan UPDATE tentando trocar `empresa_id` | bloqueado pelo WITH CHECK |
-| T8 | Renan UPDATE conta de outra empresa | 0 linhas afetadas |
-| T9 | Renan DELETE conta da empresa dele | **bloqueado** (não é admin/controladoria) — mudança v3.1 |
-| T10 | Usuário controladoria DELETE conta da empresa dele | OK |
-| T11 | Usuário controladoria DELETE conta de outra empresa | bloqueado |
-| T12 | Admin DELETE qualquer conta | OK |
-| T13 | Usuário sem permissão `fornecedor.conta_bancaria` SELECT | 0 linhas |
+### 2.5 Auditoria completa App.tsx × app_menu (parte da execução)
+Antes de tocar em código de produção:
+1. Listar 100% das rotas de `src/App.tsx` (parser estático ou regex).
+2. Confrontar com `SELECT codigo, rota FROM app_menu WHERE ativo`.
+3. Produzir tabela rotaApp → menuCode (ou “sem cadastro”).
+4. Para cada “sem cadastro”, decidir: allowlist técnica, role-check específico, ou registro futuro em `app_menu`.
+5. Entregar a tabela no PR de execução para revisão humana.
 
-Decisão prévia: testes rodam **após** a migration, em janela controlada. Antes de gerar a migration eu vou montar (somente leitura) uma consulta que confirma o uid do Renan, a empresa dele, e quais policies/perms ele possui hoje, para servir de baseline.
+### 2.6 Edge functions e tabelas de Triagem
+**Não alterar.** `dump-regras`, qualquer função IA, `triagem_*` tables (se existirem) — preservadas. O bloco só fecha o acesso pelo front.
 
-## 4. Rollback
+## 3. Itens fora do Bloco 2
 
-- **Seguro:** `DROP POLICY` das 3 de escrita (`fcb_insert`, `fcb_update`, `fcb_delete`). `fcb_select` permanece. Escrita fica travada para todos exceto admin (sem policy = bloqueado).
-- **Emergencial controlado:** recriar `fcb_insert`/`fcb_update` originais do v3 (sem o `EXISTS`), mas **nunca** recriar `perm *` ou `auth *` abertas. Reservado a admin via SQL Editor.
-- **Proibido:** reabrir SELECT global.
+- Botões de Fase 1–7 dentro das telas (escondidos por permissão fina): exige varredura por tela. **Proposta: B2.1 separado** após B2 concluído.
+- Alterar `has_screen_access` / `list_accessible_menus` (RPC do banco): proibido.
+- Apagar Triagem IA ou edge functions: proibido.
+- Substituir `PRIVILEGED_ROUTES` hardcoded por configuração no banco: backlog.
+- Migrar `screen_permission_*` para outro modelo: backlog.
+- Bloquear `Sidebar` index `/app` (Inicio): mantém-se aberto a todos (allowlist).
 
-## 5. Fora deste bloco
+## 4. Critérios de aceite (validação pós-execução)
 
-- `forn_insert` / `forn_delete` em `public.fornecedor` → **B1.6** (PLAN separado, depois).
-- Banner UI em `ContasBancariasGenericTab` informando escopo de empresa → bloco UI futuro.
-- Ocultar botão "Excluir" para perfis fora de admin/controladoria → bloco UI futuro.
-- Consolidação dos dois diálogos legados de conta bancária → backlog.
-- Formalizar `cb.is_global` → fora.
-- RouteGuard, Sidebar, app_menu, Triagem, centros_custo, pre_titulo_promover, DRE/Fluxo, conferências, orçamento/faturamento → fora.
+1. URL direta `/app/triagem` por usuário não-admin → tela “Acesso negado” + linha em `access_audit_log` com `motivo = route_guard_block`.
+2. Item “Triagem & IA” **ausente** da Sidebar para todos os perfis (inclusive admin — decisão: remover do array; admin acessa via URL se precisar).
+3. URL direta `/app/admin/migracao-zero` por usuário sem permissão `migracao-zero` → negado.
+4. URL `/app/meu-perfil` continua acessível a qualquer usuário logado.
+5. URL `/app/co/empresas` por perfil financeiro sem permissão → negado (já funcionava; confirmar regressão zero).
+6. Tabela completa rota×menuCode entregue e revisada antes do merge.
 
-## 6. Próximos passos (aguardando aprovação humana)
+## 5. Rollback
 
-1. Você aprova este v3.1.
-2. Eu gero o arquivo `*_b15v31_fcb_escopo_empresa.sql` com o SQL acima exatamente.
-3. **Paro de novo** antes de aplicar — você decide a janela.
-4. Aplicada a migration, rodo T1–T13 read-only com o uid do Renan e reporto.
-5. Em seguida abro PLAN do B1.6.
+- **Front:** reverter commit; basta restaurar `RouteGuard.tsx` linha 27 (`!menuCode` original) e linha 373 do `Sidebar.tsx` (`return true`) + reinserir item “Triagem & IA”.
+- **Banco:** nenhuma migration; nenhum rollback de DB necessário.
+- **Snapshot prévio:**
+  - `SELECT * FROM app_menu` para JSON.
+  - `SELECT * FROM screen_permission_role` para JSON.
+  - `SELECT * FROM screen_permission_user` para JSON.
+  - Tudo armazenado em `.lovable/B2-snapshot-pre.json` antes de qualquer execução (read-only, parte da execução).
 
-**Nada foi executado. Nada foi alterado no banco, no Storage ou no frontend.**
+## 6. Riscos
+
+- **R1 — quebra de telas legítimas sem cadastro em `app_menu`:** auditoria §2.5 mitiga antes do switch para deny-by-default. Sem ela, há risco de bloquear telas como `/app/fiscal` ou `/app/bi` para todo mundo.
+- **R2 — usuários ativos perdem acesso a `/app/triagem` em produção:** se Triagem estiver em uso real, esconder do menu não é suficiente — uso direto por URL passa a falhar. **Decisão necessária:** confirmar com PO se Triagem pode ficar inacessível agora ou se precisamos deixar bypass para um role específico durante janela de migração.
+- **R3 — admin perde atalho visual:** admin sempre passa pelo `data.isAdmin` no RouteGuard, mas se a Sidebar esconder “Triagem & IA” do admin também, ele precisa lembrar a URL. Aceitável segundo o objetivo do bloco.
+
+## 7. Próximos passos (aguardando aprovação humana)
+
+1. Aprovar este plano.
+2. Em build mode: rodar §2.5 (auditoria completa) e gravar `.lovable/B2-snapshot-pre.json`.
+3. Parar; revisar tabela rota×menuCode com você.
+4. Após sua segunda aprovação, aplicar §2.1 + §2.2 (apenas frontend, dois arquivos: `RouteGuard.tsx`, `Sidebar.tsx`).
+5. Rodar §4 (critérios de aceite) com Renan Bahr e um admin.
+6. Encerrar B2 e abrir PLAN do B2.1 (botões de Fase 1–7 dentro das telas) ou de B1.6 (`fornecedor` insert/delete), conforme sua prioridade.
+
+**Nada executado, nada alterado.**
