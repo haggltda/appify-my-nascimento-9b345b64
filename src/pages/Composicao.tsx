@@ -85,6 +85,12 @@ const abas: AbaDef[] = [
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export default function Composicao() {
+  // B2.1.g — Fase 3: gating fino (incluir/alterar/aprovar) no menu "composicao".
+  const { can } = usePermissoes();
+  const canIncluir = can("incluir", "licitacoes", "composicao");
+  const canAlterar = can("alterar", "licitacoes", "composicao");
+  const canAprovar = can("aprovar", "licitacoes", "composicao");
+
   const [searchParams] = useSearchParams();
   const licitacaoIdParam = searchParams.get("licitacao");
   const contratoIdParam = searchParams.get("contrato");
