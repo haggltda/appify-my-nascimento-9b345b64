@@ -4,6 +4,7 @@ import { ParecerDetalhadoForm, type ParecerDetalhadoConfig } from "@/components/
 
 const config: Omit<ParecerDetalhadoConfig, "subtitulo"> = {
   papel: "Jurídico Administrativo",
+  menuCodigo: "parecer-juridico",
   tituloCard: "Análise jurídico-administrativa do edital",
   chipsExtras: [{ label: "Análise legal", tom: "info" }],
   checklist: {
