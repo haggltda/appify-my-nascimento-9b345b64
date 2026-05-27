@@ -107,7 +107,8 @@ const licitacoesModule: ModuleDef = {
       {
         label: "Pregão & Encaminhamento",
         items: [
-          { label: "Pregão & Lances", to: "/app/pregao", icon: Gavel },
+          // B2.1.c.1 — "Pregão & Lances" inutilizado: item removido do menu e app_menu.ativo=false.
+          //            Componente Pregao.tsx, rota /app/pregao e status "pregao" do fluxo preservados.
           { label: "Resultado Final", to: "/app/resultado", icon: Trophy },
           { label: "Prontas p/ Contrato", to: "/app/prontas-contrato", icon: PackageCheck },
         ],
