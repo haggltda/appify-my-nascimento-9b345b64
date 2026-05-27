@@ -243,17 +243,20 @@ export default function Composicao() {
         subtitle="Detalhamento por posto, verbas da folha, tributos e definição da margem de lucro — fase de licitação."
         actions={
           <>
+            {canIncluir && (
+              <button
+                onClick={() => toast("Rascunho salvo", { description: "Você pode continuar mais tarde." })}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
+              >
+                <Save className="h-3.5 w-3.5" /> Salvar rascunho
+              </button>
+            )}
             <button
-              onClick={() => toast("Rascunho salvo", { description: "Você pode continuar mais tarde." })}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
-            >
-              <Save className="h-3.5 w-3.5" /> Salvar rascunho
-            </button>
-            <button
-              disabled={!todasValidas}
+              disabled={!todasValidas || !canAprovar}
               onClick={enviarControladoria}
+              title={!canAprovar ? "Sem permissão para aprovar nesta fase" : (!todasValidas ? "Valide todas as abas antes de enviar" : undefined)}
               className={`btn-relief inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-all ${
-                todasValidas
+                todasValidas && canAprovar
                   ? "bg-gradient-accent text-accent-foreground"
                   : "cursor-not-allowed bg-muted text-muted-foreground opacity-60"
               }`}
