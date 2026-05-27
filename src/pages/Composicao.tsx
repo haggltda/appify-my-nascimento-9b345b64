@@ -348,9 +348,11 @@ export default function Composicao() {
                 <h2 className="flex items-center gap-2 font-display text-sm font-bold">
                   <Briefcase className="h-4 w-4 text-primary" /> Postos de trabalho
                 </h2>
-                <button onClick={addPosto} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover">
-                  <Plus className="h-3.5 w-3.5" /> Adicionar posto
-                </button>
+                {canIncluir && (
+                  <button onClick={addPosto} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover">
+                    <Plus className="h-3.5 w-3.5" /> Adicionar posto
+                  </button>
+                )}
               </header>
 
               <div className="space-y-4">
@@ -361,21 +363,27 @@ export default function Composicao() {
                         <input
                           value={p.cargo}
                           onChange={(e) => updatePosto(p.id, "cargo", e.target.value)}
-                          className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm font-semibold outline-none focus:border-primary"
+                          disabled={!canAlterar}
+                          title={!canAlterar ? "Sem permissão para alterar nesta fase" : undefined}
+                          className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm font-semibold outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                         />
                         <div className="w-20">
                           <input
                             type="number"
                             value={p.qtd}
                             onChange={(e) => updatePosto(p.id, "qtd", e.target.value)}
-                            className="h-9 w-full rounded-md border border-input bg-background px-3 text-center text-sm font-semibold outline-none focus:border-primary"
+                            disabled={!canAlterar}
+                            title={!canAlterar ? "Sem permissão para alterar nesta fase" : undefined}
+                            className="h-9 w-full rounded-md border border-input bg-background px-3 text-center text-sm font-semibold outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                           />
                           <p className="mt-1 text-center text-[10px] uppercase text-muted-foreground">Qtd</p>
                         </div>
                       </div>
-                      <button onClick={() => removePosto(p.id)} className="grid h-8 w-8 place-items-center rounded-md text-destructive hover:bg-destructive-soft">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canIncluir && (
+                        <button onClick={() => removePosto(p.id)} className="grid h-8 w-8 place-items-center rounded-md text-destructive hover:bg-destructive-soft">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                     <div className="mb-3 flex items-center gap-2">
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
@@ -383,13 +391,15 @@ export default function Composicao() {
                         value={p.local}
                         onChange={(e) => updatePosto(p.id, "local", e.target.value)}
                         placeholder="Local de prestação"
-                        className="h-8 flex-1 rounded-md border border-input bg-background px-3 text-xs outline-none focus:border-primary"
+                        disabled={!canAlterar}
+                        title={!canAlterar ? "Sem permissão para alterar nesta fase" : undefined}
+                        className="h-8 flex-1 rounded-md border border-input bg-background px-3 text-xs outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                       />
                     </div>
                     <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-3">
-                      <Money label="Salário base" v={p.salario} onChange={(v) => updatePosto(p.id, "salario", v)} />
-                      <Money label="Insalub. (%)" v={p.insalubridade} onChange={(v) => updatePosto(p.id, "insalubridade", v)} />
-                      <Money label="VT (R$)" v={p.vt} onChange={(v) => updatePosto(p.id, "vt", v)} />
+                      <Money label="Salário base" v={p.salario} onChange={(v) => updatePosto(p.id, "salario", v)} disabled={!canAlterar} />
+                      <Money label="Insalub. (%)" v={p.insalubridade} onChange={(v) => updatePosto(p.id, "insalubridade", v)} disabled={!canAlterar} />
+                      <Money label="VT (R$)" v={p.vt} onChange={(v) => updatePosto(p.id, "vt", v)} disabled={!canAlterar} />
                     </div>
                   </div>
                 ))}
