@@ -152,6 +152,12 @@ function calcLinha(v: Record<string, number | string>) {
 }
 
 export default function CustosBDI() {
+  // B2.1.g — Fase 3: gating fino (incluir/alterar/aprovar) no menu "custos-bdi".
+  const { can } = usePermissoes();
+  const canIncluir = can("incluir", "licitacoes", "custos-bdi");
+  const canAlterar = can("alterar", "licitacoes", "custos-bdi");
+  const canAprovar = can("aprovar", "licitacoes", "custos-bdi");
+
   const [linhas, setLinhas] = useState<Linha[]>(linhasMock);
   const [ativa, setAtiva] = useState<string>(linhasMock[0].id);
 
