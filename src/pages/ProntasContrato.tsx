@@ -18,6 +18,10 @@ const candidatas = [
 ];
 
 export default function ProntasContrato() {
+  const { can } = usePermissoes();
+  // B2.1.d — Fase 7 (ProntasContrato): permissões finas
+  const canAprovar = can("aprovar", "licitacoes", "prontas-contrato");
+  const canAlterar = can("alterar", "licitacoes", "prontas-contrato");
   return (
     <div className="space-y-6">
       <PageHeader
