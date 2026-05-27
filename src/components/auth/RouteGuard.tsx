@@ -85,7 +85,7 @@ export function RouteGuard({ children }: { children: ReactNode }) {
         rota: pathname,
         acao: "visualizar",
         allowed: false,
-        motivo: "route_guard_block",
+        motivo: menuCode ? "route_guard_block" : "route_guard_block_no_menu",
       });
     })();
   }, [isLoading, allowed, pathname, menuCode]);
