@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Search, Filter, Upload, FileText, FileSpreadsheet, FileArchive, Clock, Eye, Download, CheckCircle2, AlertCircle } from "lucide-react";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 const docs = [
   { id: "d1", nome: "Edital_PE_142-2025.pdf", tipo: "Edital", licitacao: "PE 142/2025", versao: "v3", autor: "Ana Carvalho", data: "12/04/2025", status: "validado", tamanho: "4.2 MB" },
@@ -15,6 +16,10 @@ const tipoIcon: Record<string, any> = {
 };
 
 export default function Documentos() {
+  const { can } = usePermissoes();
+  // B2.1.b — Fase 2 (Documentos): permissões finas
+  const canIncluir = can("incluir", "licitacoes", "documentos");
+  const canExportar = can("exportar", "licitacoes", "documentos");
   return (
     <div className="space-y-6">
       <PageHeader
@@ -26,9 +31,11 @@ export default function Documentos() {
             <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
               <Filter className="h-3.5 w-3.5" /> Filtros
             </button>
-            <button className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground">
-              <Upload className="h-3.5 w-3.5" /> Enviar arquivo
-            </button>
+            {canIncluir && (
+              <button className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground">
+                <Upload className="h-3.5 w-3.5" /> Enviar arquivo
+              </button>
+            )}
           </>
         }
       />
@@ -105,8 +112,12 @@ export default function Documentos() {
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <button className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"><Eye className="h-3.5 w-3.5" /></button>
-                        <button className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>
+                        <button className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground" title="Visualizar"><Eye className="h-3.5 w-3.5" /></button>
+                        <button
+                          disabled={!canExportar}
+                          title={canExportar ? "Baixar" : "Sem permissão para exportar documentos"}
+                          className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                        ><Download className="h-3.5 w-3.5" /></button>
                       </div>
                     </td>
                   </tr>
