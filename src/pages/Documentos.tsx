@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Search, Filter, Upload, FileText, FileSpreadsheet, FileArchive, Clock, Eye, Download, CheckCircle2, AlertCircle } from "lucide-react";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 const docs = [
   { id: "d1", nome: "Edital_PE_142-2025.pdf", tipo: "Edital", licitacao: "PE 142/2025", versao: "v3", autor: "Ana Carvalho", data: "12/04/2025", status: "validado", tamanho: "4.2 MB" },
@@ -15,6 +16,10 @@ const tipoIcon: Record<string, any> = {
 };
 
 export default function Documentos() {
+  const { can } = usePermissoes();
+  // B2.1.b — Fase 2 (Documentos): permissões finas
+  const canIncluir = can("incluir", "licitacoes", "documentos");
+  const canExportar = can("exportar", "licitacoes", "documentos");
   return (
     <div className="space-y-6">
       <PageHeader
