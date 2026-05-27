@@ -1,13 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 
 /**
  * Returns the set of menu codes the current user can VIEW.
  * Used to filter the Sidebar and to enforce route-level access.
+ *
+ * Passes the active empresa to `list_accessible_menus` so that
+ * per-empresa overrides in `screen_permission_user` are honored
+ * by the menu/route layer (parity with `useScreenAccess`).
  */
 export function useAccessibleMenus(acao: string = "visualizar") {
+  const { empresa } = useEmpresaAtiva();
+  const empresaId = empresa?.id ?? null;
+
   return useQuery({
-    queryKey: ["accessible-menus", acao],
+    queryKey: ["accessible-menus", acao, empresaId],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data: u } = await supabase.auth.getUser();
@@ -23,7 +31,7 @@ export function useAccessibleMenus(acao: string = "visualizar") {
       const { data, error } = await supabase.rpc("list_accessible_menus", {
         _user: u.user.id,
         _acao: acao,
-        _empresa: null,
+        _empresa: empresaId,
       });
       if (error) {
         console.warn("list_accessible_menus error", error);

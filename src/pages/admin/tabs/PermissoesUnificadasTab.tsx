@@ -735,16 +735,18 @@ function OverridesPorPessoa() {
     const allow = value === "inherit" ? null : value === "allow";
     const nextPending = new Map(pending);
 
-    if (!existing && allow === null) {
+    if (allow === null) {
+      if (existing) {
+        nextPending.set(key, { user_id: userId, menu_codigo: menu, acao, allow: null, empresa_id: null });
+      } else {
+        nextPending.delete(key);
+      }
+    } else if (existing && existing.allow === allow) {
       nextPending.delete(key);
-    } else if (existing && ((allow === null && value === "inherit") || existing.allow === allow)) {
-      if (allow === null) nextPending.set(key, { user_id: userId, menu_codigo: menu, acao, allow: null, empresa_id: null });
-      else nextPending.delete(key);
     } else {
       nextPending.set(key, { user_id: userId, menu_codigo: menu, acao, allow, empresa_id: null });
     }
 
-    nextPending.delete(key);
     setPending(nextPending);
   };
 
