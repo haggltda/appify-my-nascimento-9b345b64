@@ -222,6 +222,8 @@ function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
   onAssume: (l: Licitacao) => void;
   compact?: boolean;
 }) {
+  const { can } = usePermissoes();
+  const canAlterar = can("alterar", "licitacoes", "pipeline");
   const isMine = currentUser && licitacao.responsavel === currentUser;
   const temResponsavel = !!licitacao.responsavel && licitacao.responsavel.trim() !== "" && licitacao.responsavel.toLowerCase() !== "—";
   if (isMine) {
@@ -243,6 +245,17 @@ function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
       )} title={`Atribuído a ${licitacao.responsavel}`}>
         <UserCheck className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
         Atribuído
+      </span>
+    );
+  }
+  // B2.1.a — Sem permissão de alterar pipeline: mostra estado neutro em vez do botão Assumir
+  if (!canAlterar) {
+    return (
+      <span className={cn(
+        "inline-flex items-center gap-1 rounded-md border border-dashed border-border bg-muted/20 px-2 py-1 font-medium text-muted-foreground",
+        compact ? "text-[10px]" : "text-xs"
+      )} title="Sem permissão para assumir processos">
+        Disponível
       </span>
     );
   }
