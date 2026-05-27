@@ -219,24 +219,14 @@ export default function CustosBDI() {
             {l.nome}
           </button>
         ))}
+        {canIncluir && (
           <button
-            key={l.id}
-            onClick={() => setAtiva(l.id)}
-            className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors ${
-              ativa === l.id
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card hover:bg-muted"
-            }`}
+            onClick={addLinha}
+            className="inline-flex items-center gap-1 rounded-md border border-dashed border-primary/40 bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10"
           >
-            {l.nome}
+            <Plus className="h-3.5 w-3.5" /> Novo posto
           </button>
-        ))}
-        <button
-          onClick={addLinha}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-primary/40 bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10"
-        >
-          <Plus className="h-3.5 w-3.5" /> Novo posto
-        </button>
+        )}
       </div>
 
       {/* Data Grid */}
