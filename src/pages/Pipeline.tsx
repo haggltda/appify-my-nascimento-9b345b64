@@ -135,19 +135,23 @@ export default function Pipeline() {
             <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
               <Filter className="h-3.5 w-3.5" /> Filtros avançados
             </button>
-            <button
-              onClick={handleImportGrade}
-              disabled={importing}
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary disabled:opacity-60"
-            >
-              <Upload className="h-3.5 w-3.5" /> {importing ? "Importando..." : "Importar Grade 2026"}
-            </button>
-            <button
-              onClick={() => navigate("/app/editais")}
-              className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground"
-            >
-              <Plus className="h-3.5 w-3.5" /> Nova Oportunidade
-            </button>
+            {canExcluir && (
+              <button
+                onClick={handleImportGrade}
+                disabled={importing}
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary disabled:opacity-60"
+              >
+                <Upload className="h-3.5 w-3.5" /> {importing ? "Importando..." : "Importar Grade 2026"}
+              </button>
+            )}
+            {canIncluir && (
+              <button
+                onClick={() => navigate("/app/editais")}
+                className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground"
+              >
+                <Plus className="h-3.5 w-3.5" /> Nova Oportunidade
+              </button>
+            )}
           </>
         }
       />
