@@ -473,8 +473,8 @@ export default function Composicao() {
                   <div key={p.id} className="rounded-md border border-border bg-surface-sunken p-3">
                     <p className="mb-2 text-xs font-semibold">{p.cargo} · {p.qtd} posto(s)</p>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      <Money label="Uniformes (R$/mês)" v={p.uniformes} onChange={(v) => updatePosto(p.id, "uniformes", v)} />
-                      <Money label="EPIs (R$/mês)" v={p.epis} onChange={(v) => updatePosto(p.id, "epis", v)} />
+                      <Money label="Uniformes (R$/mês)" v={p.uniformes} onChange={(v) => updatePosto(p.id, "uniformes", v)} disabled={!canAlterar} />
+                      <Money label="EPIs (R$/mês)" v={p.epis} onChange={(v) => updatePosto(p.id, "epis", v)} disabled={!canAlterar} />
                     </div>
                   </div>
                 ))}
