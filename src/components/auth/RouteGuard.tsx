@@ -13,6 +13,39 @@ import { Button } from "@/components/ui/button";
 const PRIVILEGED_ROUTES = ["/app/admin/permissoes"];
 const PRIVILEGED_ROLES = ["admin", "controladoria", "presidencia"];
 
+/**
+ * B2 — Allowlist técnica.
+ * Rotas que NÃO precisam estar em `app_menu` para serem acessadas, por serem
+ * técnicas (perfil próprio, índice do app) ou ainda pendentes de cadastro na
+ * matriz do ERP (decisão temporária — devem migrar para `app_menu` no futuro).
+ * Suporta match exato OU prefixo (`/app/ajuda/qualquer-coisa` casa com `/app/ajuda`).
+ */
+const TECHNICAL_ALLOWLIST = [
+  "/app",                            // Início (index do AppShell)
+  "/app/meu-perfil",                 // Perfil do próprio usuário logado
+  "/app/co/orcamento-completo",      // TODO B2.x: cadastrar em app_menu
+  "/app/contabil/razao-detalhado",   // TODO B2.x: cadastrar em app_menu
+];
+
+/** Rotas técnicas restritas a um role específico (sem registro em app_menu). */
+const ROLE_RESTRICTED_ROUTES: { route: string; roles: string[] }[] = [
+  { route: "/app/admin/smoke-helena", roles: ["admin"] },
+];
+
+function inAllowlist(pathname: string): boolean {
+  return TECHNICAL_ALLOWLIST.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+}
+
+function checkRoleRestricted(pathname: string, roles: string[]): boolean | null {
+  const match = ROLE_RESTRICTED_ROUTES.find(
+    (r) => pathname === r.route || pathname.startsWith(r.route + "/"),
+  );
+  if (!match) return null; // não é rota role-restricted
+  return roles.some((r) => match.roles.includes(r));
+}
+
 export function RouteGuard({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { data, isLoading } = useAccessibleMenus("visualizar");
@@ -23,8 +56,19 @@ export function RouteGuard({ children }: { children: ReactNode }) {
   const isPrivilegedRoute = PRIVILEGED_ROUTES.some((r) => pathname.startsWith(r));
   const hasPrivilegedRole = roles.some((r) => PRIVILEGED_ROLES.includes(r));
   const privilegedBypass = isPrivilegedRoute && hasPrivilegedRole;
+  const roleRestricted = checkRoleRestricted(pathname, roles);
+
+  // B2 — deny-by-default: rota sem menuCode e fora da allowlist é negada
+  // (admin sempre passa pelo bypass `data.isAdmin`).
   const allowed =
-    !data || data.isAdmin || !menuCode || data.codes.has(menuCode) || privilegedBypass;
+    !data ||
+    data.isAdmin ||
+    privilegedBypass ||
+    (roleRestricted !== null
+      ? roleRestricted
+      : (menuCode ? data.codes.has(menuCode) : inAllowlist(pathname)));
+
+
 
 
   useEffect(() => {
