@@ -700,7 +700,7 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Money({ label, v, onChange }: { label: string; v: number; onChange: (v: number) => void }) {
+function Money({ label, v, onChange, disabled }: { label: string; v: number; onChange: (v: number) => void; disabled?: boolean }) {
   return (
     <div>
       <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
@@ -708,7 +708,9 @@ function Money({ label, v, onChange }: { label: string; v: number; onChange: (v:
         type="number"
         value={v}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className="h-8 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary"
+        disabled={disabled}
+        title={disabled ? "Sem permissão para alterar nesta fase" : undefined}
+        className="h-8 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
       />
     </div>
   );
