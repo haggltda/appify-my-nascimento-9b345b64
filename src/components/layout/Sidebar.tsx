@@ -85,7 +85,8 @@ const licitacoesModule: ModuleDef = {
         items: [
           { label: "Cadastro de Editais", to: "/app/editais", icon: FileText },
           { label: "Documentos", to: "/app/documentos", icon: ScrollText },
-          { label: "Triagem & IA", to: "/app/triagem", icon: Sparkles },
+          // B2: "Triagem & IA" removida do menu (rota /app/triagem segue existindo,
+          // mas controlada pelo RouteGuard + matriz de permissões do ERP).
           { label: "Composição & BDI", to: "/app/composicao", icon: PieChart },
         ],
       },
