@@ -491,9 +491,9 @@ export default function Composicao() {
                 <TrendingUp className="h-4 w-4 text-accent" /> Tributos, indiretos e margem
               </h2>
               <div className="grid gap-4 sm:grid-cols-3">
-                <Slider label="Custos indiretos (% s/ direto)" v={custoIndireto} onChange={(v: number) => { setCustoIndireto(v); marcarValida("impostos"); }} max={30} />
-                <Slider label="Carga tributária estimada" v={tributos} onChange={(v: number) => { setTributos(v); marcarValida("impostos"); }} max={30} />
-                <Slider label="Margem de lucro desejada" v={margem} onChange={(v: number) => { setMargem(v); marcarValida("impostos"); }} max={40} highlight />
+                <Slider label="Custos indiretos (% s/ direto)" v={custoIndireto} onChange={(v: number) => { setCustoIndireto(v); marcarValida("impostos"); }} max={30} disabled={!canAlterar} />
+                <Slider label="Carga tributária estimada" v={tributos} onChange={(v: number) => { setTributos(v); marcarValida("impostos"); }} max={30} disabled={!canAlterar} />
+                <Slider label="Margem de lucro desejada" v={margem} onChange={(v: number) => { setMargem(v); marcarValida("impostos"); }} max={40} highlight disabled={!canAlterar} />
               </div>
               <div className="mt-4 rounded-md border border-warning/30 bg-warning-soft px-3 py-2.5 text-[12px] text-warning">
                 A margem definida aqui é decisão da licitação — ela será revisada pela Controladoria antes da aprovação final
