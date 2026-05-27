@@ -73,6 +73,19 @@ export const MODULOS: { id: string; label: string; descricao: string }[] = [
 
 export const ARTIGOS: ArtigoMeta[] = [
   {
+    slug: "manual-usuarios-permissoes",
+    modulo: "admin",
+    moduloLabel: "Administração",
+    titulo: "Manual de Gestão de Usuários e Permissões",
+    resumo: "Guia completo das 4 camadas de segurança: usuários, perfis, permissões (ações) e visibilidade de menu, com FAQ e troubleshooting.",
+    tags: ["usuários", "permissões", "perfis", "roles", "visibilidade", "menu", "overrides", "acl", "plano de ações", "troubleshooting", "faq", "manual"],
+    rotasRelacionadas: ["/app/administracao", "/app/admin/permissoes"],
+    updatedAt: "2026-05-27",
+    conteudo: manualUsuariosPermissoes,
+    personas: ["admin", "controladoria", "presidencia"],
+    status: "disponivel",
+  },
+  {
     slug: "programacao-pagamentos",
     modulo: "financeiro",
     moduloLabel: "Financeiro",
