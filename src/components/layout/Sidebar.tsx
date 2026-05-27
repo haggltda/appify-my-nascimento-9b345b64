@@ -130,7 +130,7 @@ const licitacoesModule: ModuleDef = {
       label: "Governança",
       items: [
         { label: "Histórico & Auditoria", to: "/app/historico", icon: History },
-        { label: "Administração", to: "/app/administracao", icon: Shield },
+        // Consolidação: "Administração" removida daqui — acesso único via rodapé "Configurações do ERP".
       ],
     },
   ],
@@ -297,22 +297,10 @@ const integracaoModule: ModuleDef = {
   }],
 };
 
-// Configurações (admin, controladoria, presidência)
-const configuracoesModule: ModuleDef = {
-  id: "configuracoes", label: "Configurações", description: "Acessos, permissões e parâmetros",
-  icon: Settings, basePath: "/app/admin", status: "active",
-  groups: [{
-    label: "Segurança", defaultOpen: true,
-    items: [
-      // B2.2 — "Acessos & Permissões" (sistema legado screen_permission_*) removido do menu.
-      //        Rota /app/admin/permissoes preservada; reativar = restaurar a linha abaixo.
-      // { label: "Acessos & Permissões", to: "/app/admin/permissoes", icon: Shield },
-      { label: "Permissões (matriz canônica)", to: "/app/administracao?tab=permissoes", icon: Shield },
-      { label: "Alçadas de aprovação", to: "/app/administracao?tab=alcadas", icon: GitBranch },
-      { label: "Administração (todas as abas)", to: "/app/administracao", icon: Settings },
-    ],
-  }],
-};
+// Consolidação: módulo "Configurações" removido do Sidebar.
+// Todo acesso à governança do ERP é feito pelo rodapé "Configurações do ERP" → /app/administracao.
+// Permissões (matriz), Visibilidade (overrides por usuário), Alçadas, Plano de Ações (ACL),
+// Parâmetros, Sessões, Logs, Auditoria e Identidade são abas de Administracao.tsx.
 
 
 function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
@@ -322,7 +310,8 @@ function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
     { label: "Kanban", to: "/app/plano-acoes/kanban", icon: FolderKanban },
     { label: "Aprovações", to: "/app/plano-acoes/aprovacoes", icon: ClipboardCheck },
     { label: "Importar", to: "/app/plano-acoes/importar", icon: DatabaseZap },
-    { label: "Configurações", to: "/app/plano-acoes/configuracoes", icon: Settings },
+    // Consolidação: "Configurações" do Plano de Ações virou aba em Configurações do ERP
+    // (/app/administracao?tab=plano-acoes-acl).
   ];
   if (podeCopiloto) {
     items.splice(1, 0, { label: "Copiloto IA", to: "/app/plano-acoes/copiloto", icon: Sparkles, badge: "IA" });
@@ -360,13 +349,10 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
   const podeCopiloto = roles.includes("admin") || roles.includes("presidencia");
 
-  const podeConfiguracoes = roles.includes("admin") || roles.includes("controladoria") || roles.includes("presidencia");
-
   const allModules = [
     ...erpModules,
     ...(podeVerPlanoAcoes ? [buildPlanoAcoesModule(podeCopiloto)] : []),
     ...(roles.includes("admin") ? [integracaoModule] : []),
-    ...(podeConfiguracoes ? [configuracoesModule] : []),
   ];
 
 
