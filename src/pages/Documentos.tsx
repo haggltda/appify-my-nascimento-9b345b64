@@ -112,8 +112,12 @@ export default function Documentos() {
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <button className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"><Eye className="h-3.5 w-3.5" /></button>
-                        <button className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"><Download className="h-3.5 w-3.5" /></button>
+                        <button className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground" title="Visualizar"><Eye className="h-3.5 w-3.5" /></button>
+                        <button
+                          disabled={!canExportar}
+                          title={canExportar ? "Baixar" : "Sem permissão para exportar documentos"}
+                          className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                        ><Download className="h-3.5 w-3.5" /></button>
                       </div>
                     </td>
                   </tr>
