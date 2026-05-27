@@ -1,205 +1,135 @@
-# Manual de Gestão de Usuários e Permissões
+# Central de Governança e Acessos
 
-Guia oficial e didático para administrar **quem entra**, **o que vê** e **o que pode fazer** dentro do ERP. Toda a governança está concentrada em **Configurações do ERP** (`/app/administracao`).
+Guia Oficial de Gestão de Usuários, Perfis e Permissões do ERP
+
+Bem-vindo(a) ao guia de segurança do nosso ERP. Aqui, você aprenderá como administrar de forma fácil, segura e com autonomia quem entra, o que vê e o que pode fazer no sistema.
+
+Todo o controle de acessos está concentrado em um único lugar: no menu **Configurações do ERP** (`/app/administracao`).
 
 ---
 
 ## Módulo 1 — A Lógica de Segurança do ERP
 
-### O que é isso?
-A segurança do ERP funciona em **4 camadas independentes e complementares**. Entender cada uma evita 90% dos chamados de "não consigo acessar".
+A nossa arquitetura de segurança foi desenhada para ser simples no dia a dia, mas impenetrável por trás das telas. Para evitar 90% das dúvidas de "não consigo acessar", basta entender que o sistema trabalha com duas perguntas na hora de liberar ou bloquear uma ação:
 
-### Para que serve e Por que fazer?
-Separar as camadas permite dar acesso **cirúrgico**: liberar uma tela sem liberar o botão de excluir, ou esconder um menu inteiro para um único usuário sem mexer no perfil do cargo.
+**1. Qual é o Perfil (Cargo) da pessoa?** A grande maioria da sua equipe (os 90%) se encaixa em Perfis predefinidos (ex: Financeiro, Comercial, Almoxarife). Nós configuramos a regra padrão para aquele cargo: "Todo mundo que é do Financeiro pode ver Contas a Pagar e Inserir dados, mas não pode Excluir".
 
-### As 4 camadas
+**2. Essa pessoa tem alguma Exceção Individual?** Para os 10% da equipe que fogem à regra (ex: o João é do Financeiro, mas ele é o Coordenador e precisa aprovar/excluir contas), nós usamos a **Exceção Individual (Override)**. Você não precisa criar um perfil novo chamado "Financeiro Master". Você simplesmente vai na ficha do João e marca: "Deixe ele no perfil Financeiro, mas libere a Exclusão só para ele".
 
-| # | Camada | Responde à pergunta | Onde se configura |
-|---|---|---|---|
-| 1 | **Usuários** | Quem é a pessoa? | Aba **Usuários** |
-| 2 | **Perfis de Acesso (Roles)** | Qual é o cargo dela? | Aba **Perfis** (só visual) |
-| 3 | **Permissões (ações na tela)** | O que ela pode FAZER dentro da tela? | Aba **Permissões — Ações na tela** |
-| 4 | **Visibilidade de menu** | Ela VÊ o item no menu lateral? | Aba **Visibilidade de menu** |
+### 🌟 A Regra de Ouro: A Exceção Individual SEMPRE vence o Perfil
 
-**Perfis fixos disponíveis:** Admin, Controladoria, Comercial, Operacional, Jurídico, SST, Diretor Administrativo, Diretor Operacional, Comprador, Almoxarife, Gestor CC, Fiscal Recebedor.
+Para que não haja nenhuma dúvida de como o ERP pensa, imagine que a segurança funciona como um condomínio empresarial com dois tipos de autorizações:
 
-**Ações da matriz CRUD:** Visualizar · Incluir · Alterar · Excluir · Aprovar · Exportar · Executar.
+- **O Perfil (A Regra do Cargo):** É o "crachá padrão" do departamento. Todos os analistas do financeiro usam exatamente o mesmo crachá, que abre as portas básicas do setor.
+- **A Exceção Individual (O Passe VIP ou Bloqueio):** É uma ordem direta e nominal. É um comando que diz: "O crachá dessa pessoa é do Financeiro, mas dê a ela acesso extra à sala da Diretoria" OU "O crachá dela é do Financeiro, mas proíba ela de entrar na sala de investimentos".
 
-### ⚠️ Exemplo Prático
-Maria é **Compradora**. Por perfil, ela vê o módulo *Suprimentos*. Você quer que ela veja a tela de **Pedidos**, mas **não possa excluir** pedidos já aprovados.
-- Camada 4 (Visibilidade): mantém o menu *Pedidos* visível para o perfil Comprador.
-- Camada 3 (Permissões): desmarca *Excluir* na linha *Pedidos* do perfil Comprador.
-- Resultado: Maria abre a tela normalmente, mas o botão *Excluir* fica desabilitado.
+Quando um funcionário clica em um botão, o ERP realiza uma varredura hierárquica e rígida de cima para baixo:
 
----
+1. **O usuário tem uma Exceção Individual?**
+   - **SIM:** O ERP executa a Exceção (Permitir ou Negar) e ENCERRA a verificação. A regra do perfil é totalmente ignorada.
+   - **NÃO:** O ERP vai para o passo 2.
+2. **O que diz a Regra Geral do Perfil dele?**
+   - O ERP aplica a regra do cargo padrão.
 
-## Módulo 2 — Aba "Usuários" (Passo a Passo)
+### Exemplos Práticos do Dia a Dia
 
-### O que é isso?
-Tela onde você cadastra as **pessoas físicas** que terão login no ERP.
-
-### Onde clicar?
-**Menu rodapé → Configurações do ERP → aba Usuários**.
-
-### Passo a passo — Novo usuário
-1. Clique em **+ Novo usuário** (canto superior direito).
-2. Preencha:
-   - **Nome completo** — como aparecerá na tela e em assinaturas de aprovação.
-   - **E-mail** — será o login. Deve ser único.
-   - **Senha temporária** — o sistema força troca no primeiro acesso.
-   - **Empresa padrão** — empresa que abre automaticamente ao logar.
-   - **Switch "Acessa todas as empresas do grupo"** — quando ligado, o usuário pode trocar de empresa no topbar; quando desligado, fica restrito à empresa padrão.
-3. Marque os **Perfis (Roles)** aplicáveis nas checkboxes (pode marcar mais de um — ex: *Controladoria* + *Diretor Administrativo*).
-4. **Salvar**.
-
-### Passo a passo — Editar usuário
-1. Localize na lista (busca por nome/e-mail).
-2. Clique em **Editar** na linha.
-3. Altere o que precisar. Para **revogar acesso**, desligue todos os Perfis ou marque como inativo.
-4. **Salvar**.
-
-### O que esperar?
-O usuário recebe a senha temporária. No primeiro login, é forçado a trocá-la. A partir daí, vê apenas os menus e ações liberados pelas camadas 3 e 4.
-
-### ⚠️ Atenção
-- Trocar a **Empresa padrão** não afeta dados antigos — só muda o que abre por default.
-- Desmarcar **"Acessa todas as empresas"** corta imediatamente a visão multi-empresa, inclusive de relatórios consolidados.
+- **Cenário A (Superpoder Temporário):** O perfil Comercial não pode excluir editais. Carlos é do Comercial, mas foi nomeado líder da semana. Você vai na aba de Exceções Individuais do Carlos e muda a coluna **Excluir** para **Permitir**. Quando Carlos tentar excluir um edital, o ERP lê a exceção dele e libera. Ele nem olha que o perfil Comercial proibia. O resto da equipe continua bloqueada; só Carlos recebeu o "superpoder".
+- **Cenário B (Restringir funcionário novo):** O perfil Controladoria pode ver a tela de BDI. Amanda acabou de entrar no setor e está em treinamento, então não deve ver essa tela ainda. Você vai nas Exceções Individuais dela e muda a coluna **Visualizar** para **Negar**. O ERP bloqueia o menu para ela imediatamente, ignorando que o cargo dela dava acesso.
+- **Cenário C (Comportamento Padrão):** Se na ficha de exceções do usuário todas as colunas estiverem como **Herdar**, o sistema seguirá 100% o que estiver na regra geral do Perfil.
 
 ---
 
-## Módulo 3 — Aba "Perfis de Acesso"
+## Módulo 2 — Gestão de Usuários (Quem acessa o sistema?)
 
-### O que é isso?
-Tela para editar **apenas o visual** dos cargos fixos: **nome de exibição, ícone e cor de badge**.
+A aba **Usuários** é onde a jornada começa. É aqui que você cria logins, define o e-mail, vincula a pessoa à empresa e diz qual é o perfil dela.
 
-### Para que serve?
-Padronizar a identidade visual dos cargos na interface (ex: badge vermelho para Diretoria, azul para Controladoria).
+### Passo a passo: Criando um Novo Usuário
 
-### Onde clicar?
-**Configurações do ERP → aba Perfis**.
+1. Acesse **Configurações do ERP ➔ aba Usuários**.
+2. Clique no botão **+ Novo usuário** (no canto superior direito).
+3. Preencha os dados fundamentais:
+   - **Nome completo:** Como a pessoa será chamada nas telas e assinaturas.
+   - **E-mail:** Será o login de acesso (deve ser único).
+   - **Senha temporária:** Crie uma senha simples (ex: `Mudar123`). O ERP forçará a pessoa a criar uma nova senha definitiva no primeiro acesso.
+   - **Empresa padrão:** A empresa que o ERP carregará automaticamente para ela.
+   - **Acessa todas as empresas:** Se ativado, ela poderá trocar de empresa no menu do topo. Se desativado, ficará restrita à empresa padrão.
+   - **Perfil (Role):** Selecione as caixinhas referentes aos cargos dela (pode ser mais de um).
+4. Clique em **Salvar**.
 
-### ⚠️ Atenção — Regra de Ouro
-**Aqui NÃO se altera nenhuma regra lógica.** As permissões dos perfis ficam na aba *Permissões — Ações na tela* (Módulo 4). Os perfis em si são fixos no sistema (não podem ser criados nem excluídos), só o rótulo visual é editável.
+### Passo a passo: Editar ou Bloquear um Usuário
 
----
-
-## Módulo 4 — Aba "Permissões (ações na tela)"
-
-### O que é isso?
-Matriz **Perfil × Tela × Ação** que define o que cada cargo pode FAZER dentro de cada tela.
-
-### Onde clicar?
-**Configurações do ERP → aba Permissões — Ações na tela**.
-
-### Passo a passo
-1. No dropdown **Perfil ativo**, selecione o cargo a configurar (ex: *Controladoria*).
-2. Expanda o **Módulo** desejado (ex: *Financeiro*).
-3. Para cada **tela** listada, marque/desmarque as caixas das ações: *Visualizar · Incluir · Alterar · Excluir · Aprovar · Exportar · Executar*.
-4. As alterações são salvas automaticamente (auto-save com confirmação no rodapé).
-
-### O que esperar?
-Mudanças entram em vigor **no próximo refresh** da tela do usuário afetado. Botões e menus se reabilitam/desabilitam de acordo.
-
-### ⚠️ Regra de Ouro
-> Se o usuário tem **visibilidade de menu ativa** (camada 4), mas a ação *Alterar* está **desmarcada aqui** (camada 3), ele **vê a tela**, mas o **botão Salvar fica bloqueado**. Isso é intencional: dá leitura sem dar edição.
-
-### Exemplo Prático
-*Comercial* deve consultar a Contabilidade mas nunca editar:
-- Marque *Visualizar* nas telas de Contábil.
-- Desmarque *Incluir / Alterar / Excluir / Executar*.
-- Resultado: lê o DRE, mas não consegue lançar partidas.
+1. Na lista, busque a pessoa pelo nome ou e-mail.
+2. Clique em **Editar** na linha correspondente.
+3. Altere o que precisar.
+4. Para **bloquear/revogar** o acesso: Mude o "Status" para inativo ou desmarque todos os Perfis. Clique em **Salvar**.
 
 ---
 
-## Módulo 5 — Aba "Visibilidade de Menu"
+## Módulo 3 — Matriz Unificada de Permissões (O coração do sistema)
 
-### O que é isso?
-Controla **se o item aparece no menu lateral** — independente da permissão de ação. Tem duas sub-abas.
+Graças à nossa **Gestão Unificada**, você não precisa ir em uma tela para liberar o menu e em outra tela para liberar os botões. Tudo é feito em um único painel de controle.
 
-### Onde clicar?
-**Configurações do ERP → aba Visibilidade de menu**.
+Acesse **Configurações do ERP ➔ aba Permissões Unificadas**.
 
-### Sub-aba "Por Perfil"
-- Liste o perfil (ex: *Almoxarife*) e use os **toggles** para ligar/desligar módulos inteiros ou itens individuais.
-- Afeta **todos** os usuários que possuem aquele perfil.
+Você verá uma tabela com as telas do sistema e 7 colunas de ações: **Visualizar · Incluir · Alterar · Excluir · Aprovar · Exportar · Executar IA**.
 
-### Sub-aba "Overrides por Pessoa"
-- Use quando precisar **abrir uma exceção para 1 pessoa específica** sem mexer no perfil do cargo.
-- Localize o usuário pelo nome/e-mail.
-- Use os toggles para **forçar visível** ou **forçar oculto** itens de menu.
-- **Precedência:** *Override de usuário* **sempre vence** o perfil.
+**O Botão Mágico (Visualizar):** A coluna **Visualizar** é a chave principal. Se ela estiver marcada, o menu lateral aparece para o usuário. Se estiver desmarcada, o menu some. As outras colunas (Incluir, Alterar, etc.) dizem o que ele pode fazer depois de entrar na tela. Por exemplo: você pode marcar Visualizar e desmarcar Alterar; o usuário conseguirá ler tudo, mas o botão "Salvar" ficará bloqueado.
 
-### O que esperar?
-O Sidebar do usuário se atualiza no próximo carregamento. Itens desligados somem completamente — não ficam acinzentados.
+### Sub-aba: Permissões por Perfil (A Regra Geral)
 
-### ⚠️ Exemplo Prático
-João é *Comprador*, mas vai cobrir férias do Financeiro por 15 dias. Em vez de criar perfil novo:
-- Vá em **Overrides por Pessoa** → busque *João* → ligue os toggles do módulo *Financeiro*.
-- Em 15 dias, desligue de volta.
+1. Selecione o **Perfil** desejado no topo (ex: Comercial).
+2. Expanda o módulo que deseja configurar (ex: Financeiro).
+3. Marque ou desmarque as caixinhas de ação de acordo com o que esse cargo deve fazer.
+4. Clique em **Salvar matriz** no rodapé.
+
+### Sub-aba: Exceções Individuais (Para pessoas específicas)
+
+1. Selecione o **usuário** (ex: Carlos).
+2. A tabela mostrará o que ele já possui de acesso (estará escrito "Herança").
+3. Vá até a tela e ação que deseja mudar. Clique no seletor e mude de "Herdar" para **Permitir** (conceder superpoder) ou **Negar** (bloquear acesso).
+4. Clique em **Salvar exceções**.
 
 ---
 
-## Módulo 6 — Aba "Plano de Ações (ACL)"
+## Módulo 4 — Plano de Ações (A ACL Especial)
 
-### O que é isso?
-**ACL ultra-específica por USUÁRIO** (não por perfil) exclusiva para o módulo **Plano de Ações**. Existe porque esse módulo tem regras de governança muito particulares (ex: só o dono cria, só o comitê aprova).
+O módulo "Plano de Ações" possui uma governança própria e muito rigorosa (ex: comitês, donos de planos). Devido a isso, suas permissões finas ficam em uma aba separada.
 
-### Onde clicar?
-**Configurações do ERP → aba Plano de Ações (ACL)**.
+1. Acesse **Configurações do ERP ➔ aba Plano de Ações (ACL)**.
+2. Busque o usuário pelo nome.
+3. Marque/desmarque as colunas necessárias (**Dashboard, Criar, Editar, Excluir, Importar, Aprovar**).
 
-### Colunas de permissão especial
-| Coluna | O que libera |
-|---|---|
-| **Visualizar** | Ver planos de ação dentro do escopo permitido |
-| **Dashboard** | Acessar o painel consolidado |
-| **Criar** | Abrir um novo plano |
-| **Editar** | Alterar planos existentes |
-| **Excluir** | Remover planos (uso restrito) |
-| **Importar** | Carga em lote via planilha |
-| **Aprovar** | Aprovar marcos e encerramentos |
-
-### Passo a passo
-1. Busque o usuário pelo nome.
-2. Marque/desmarque as colunas necessárias.
-3. Salve.
-
-### ⚠️ Atenção
-Estas regras **convivem** com Permissões e Visibilidade — porém, no módulo *Plano de Ações*, a ACL específica é quem decide. Se o usuário tem visibilidade do menu mas a ACL não libera *Criar*, o botão *Novo Plano* não aparece.
+**Atenção:** Se o usuário não tiver a permissão de **Visualizar** o Plano de Ações na Matriz Unificada (Módulo 3), ele nem verá o menu, independentemente do que estiver configurado aqui. Essa aba apenas refina o que ele faz lá dentro.
 
 ---
 
-## Módulo 7 — FAQ & Troubleshooting
+## Módulo 5 — Personalizando o Visual dos Perfis
 
-### "O usuário diz que o menu Financeiro sumiu. O que fazer?"
-1. Vá em **Configurações do ERP → Visibilidade de menu**.
-2. Verifique primeiro em **Overrides por Pessoa** se há um override desligando *Financeiro* para esse usuário.
-3. Se não houver override, vá em **Por Perfil** e confirme que o perfil do usuário tem o módulo *Financeiro* ligado.
-4. Peça ao usuário para fazer logout/login.
+Quer deixar o ERP com a cara da sua empresa? Você pode mudar a cor ou o ícone que representa um cargo no sistema (ex: colocar uma maleta azul para a Diretoria e um escudo vermelho para a Auditoria).
 
-### "O usuário entra na tela de Licitações mas o botão Excluir não funciona. O que arrumar?"
-1. Vá em **Configurações do ERP → Permissões — Ações na tela**.
-2. Selecione o perfil do usuário.
-3. Expanda *Licitações* → confirme a marca em *Excluir* na tela específica.
+1. Acesse **Configurações do ERP ➔ aba Perfis de Acesso**.
+2. Clique em **Editar** no cartão desejado e mude o rótulo, ícone ou cor.
 
-### "Preciso dar acesso temporário/extra para apenas UM usuário sem mudar o perfil do cargo."
-- Para **mostrar/esconder menu**: use **Visibilidade de menu → Overrides por Pessoa**.
-- Para **liberar ação no Plano de Ações**: use a aba **Plano de Ações (ACL)**.
-- Para outras ações pontuais (CRUD em telas): hoje só é possível via Perfil — neste caso, considere criar override no menu e combinar com perfil mais permissivo, ou avalie redesenhar a divisão de cargos.
-
-### "Mudei a permissão e o usuário continua sem acesso. Por quê?"
-- Peça **F5 / logout-login**. O ERP cacheia permissões por sessão.
-- Verifique se há **override por pessoa** sobrescrevendo o perfil.
-- Confirme que o usuário tem o perfil correto marcado na aba *Usuários*.
-
-### "Onde fica o histórico de quem mudou o quê?"
-Em **Configurações do ERP → aba Auditoria** (mostra alterações em perfis, permissões, overrides e usuários com data, autor e valor antigo/novo).
+**Aviso de Segurança:** Isso é puramente estético. Mudar o nome ou a cor de um perfil aqui **não altera nenhuma regra de acesso**. A segurança mora exclusivamente na Matriz Unificada (Módulo 3).
 
 ---
 
-**Resumo de precedência (do mais forte para o mais fraco):**
-1. **Override por Pessoa** (Visibilidade de menu)
-2. **ACL Plano de Ações** (somente nesse módulo)
-3. **Permissões por Perfil** (ações CRUD)
-4. **Visibilidade por Perfil** (menu lateral)
+## Módulo 6 — FAQ & Solução Rápida de Problemas
 
-Quando algo "não funciona", percorra essa lista de cima para baixo.
+**1. "O usuário diz que a tela do Financeiro sumiu do menu. O que fazer?"**
+
+- Primeiro, vá na aba **Permissões Unificadas ➔ Exceções individuais**. Busque pelo usuário e veja se não há um "Negar" bloqueando a coluna **Visualizar** apenas para ele.
+- Se estiver limpo, vá em **Permissões Unificadas ➔ Permissões por perfil**, selecione o cargo dele e veja se a coluna **Visualizar** do Financeiro está marcada.
+- Tudo certo? Peça para ele fazer **Logout e Login** (ou F5). O ERP carrega os acessos novos no momento do login.
+
+**2. "O usuário entra na tela de Licitações, mas o botão Excluir não funciona."**
+
+- Siga o mesmo caminho: verifique as **Exceções individuais** (se há um "Negar" na coluna Excluir). Depois verifique as **Permissões por perfil** (se a coluna Excluir está marcada). Ajuste, salve e peça para ele recarregar a página.
+
+**3. "Preciso dar acesso ao João de um módulo que não é dele, só por 15 dias (cobertura de férias)."**
+
+- Não suje o sistema criando um perfil novo! Vá em **Permissões Unificadas ➔ Exceções individuais**, selecione o João e mude de "Herdar" para "Permitir" na coluna **Visualizar** do módulo das férias. Quando ele voltar, mude para "Herdar" novamente.
+
+**4. "Onde eu vejo quem alterou as permissões do sistema?"**
+
+- O ERP é blindado e rastreável. Toda mudança de segurança (quem deu acesso para quem, dia, hora, e o que mudou) fica guardada na aba **Auditoria sensível**. Você pode consultar esse histórico sempre que precisar.
