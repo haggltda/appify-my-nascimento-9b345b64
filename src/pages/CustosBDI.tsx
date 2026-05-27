@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Save, Send, Calculator, Plus } from "lucide-react";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 interface CampoNum { key: string; label: string; tipo?: "moeda" | "percent" | "texto" | "numero" }
 interface Grupo { id: string; label: string; cor: string; campos: CampoNum[] }
