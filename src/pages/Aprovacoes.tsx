@@ -9,6 +9,10 @@ const steps = [
   { label: "Presidência (exceção)", who: "Aguardando alçada", state: "pending", date: "—" },
 ] as const;
 
+// B2.1.f — Fase 5 (Aprovações Licitações):
+// Tela puramente display (KPIs + stepper + histórico). Não há ações mutantes a gatear.
+// Decisões reais já gateadas: Parecer Gerencial (B2.1.e), Resultado/ProntasContrato (B2.1.d).
+// Acesso à rota /app/aprovacoes continua governado pelo RouteGuard (deny-by-default).
 export default function Aprovacoes() {
   return (
     <div className="space-y-6">
