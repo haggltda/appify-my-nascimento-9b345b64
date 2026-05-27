@@ -4,6 +4,7 @@ import { PareceristaWorkspace } from "@/components/pareceres/PareceristaWorkspac
 import { FileCheck2, Save, Send, Paperclip, Shield, ChevronRight, ArrowLeft } from "lucide-react";
 import type { Licitacao } from "@/data/licitacoes";
 import { formatBRL, formatDate } from "@/data/licitacoes";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 interface Props { papel?: "tecnico" | "gerencial" }
 
