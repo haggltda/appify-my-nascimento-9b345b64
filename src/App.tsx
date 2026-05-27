@@ -221,14 +221,15 @@ const App = () => (
             <Route path="integracao/aliases" element={<IntegracaoAliases />} />
             <Route path="integracao/:id" element={<BatchDetalhe />} />
             <Route path="admin/migracao-zero" element={<MigracaoZero />} />
-            <Route path="admin/permissoes" element={<AcessosPermissoes />} />
+            {/* Consolidação: rota antiga preservada como redirect para Configurações do ERP. */}
+            <Route path="admin/permissoes" element={<Navigate to="/app/administracao?tab=visibilidade" replace />} />
             {/* Plano de Ações */}
             <Route path="plano-acoes" element={<PlanoAcoesLista />} />
             <Route path="plano-acoes/dashboard" element={<PlanoAcoesDashboard />} />
             <Route path="plano-acoes/kanban" element={<PlanoAcoesKanban />} />
             <Route path="plano-acoes/importar" element={<PlanoAcoesImportar />} />
             <Route path="plano-acoes/aprovacoes" element={<PlanoAcoesAprovacoes />} />
-            <Route path="plano-acoes/configuracoes" element={<PlanoAcoesConfiguracoes />} />
+            <Route path="plano-acoes/configuracoes" element={<Navigate to="/app/administracao?tab=plano-acoes-acl" replace />} />
             <Route path="plano-acoes/copiloto" element={<CopilotoIA />} />
             <Route path="plano-acoes/:id" element={<PlanoAcaoDetalhe />} />
             {/* Ajuda / Base de Conhecimento */}
