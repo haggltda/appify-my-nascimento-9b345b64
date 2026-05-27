@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 const STORAGE_KEY = "pipeline_responsaveis_v1";
 
@@ -39,8 +40,14 @@ export default function Pipeline() {
   const [overrides, setOverrides] = useState<Record<string, string>>(() => loadOverrides());
   const [target, setTarget] = useState<Licitacao | null>(null);
   const { user } = useAuth();
+  const { can } = usePermissoes();
   const [displayName, setDisplayName] = useState<string>("");
   const navigate = useNavigate();
+
+  // B2.1.a — Fase 1 (Pipeline): permissões finas
+  const canIncluir = can("incluir", "licitacoes", "pipeline");
+  const canExcluir = can("excluir", "licitacoes", "pipeline");
+  const canAlterar = can("alterar", "licitacoes", "pipeline");
 
   const openComposicao = (l: Licitacao) => {
     // Filtro híbrido: licitacao= sempre; (futuro) contrato= se vinculado
@@ -128,19 +135,23 @@ export default function Pipeline() {
             <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
               <Filter className="h-3.5 w-3.5" /> Filtros avançados
             </button>
-            <button
-              onClick={handleImportGrade}
-              disabled={importing}
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary disabled:opacity-60"
-            >
-              <Upload className="h-3.5 w-3.5" /> {importing ? "Importando..." : "Importar Grade 2026"}
-            </button>
-            <button
-              onClick={() => navigate("/app/editais")}
-              className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground"
-            >
-              <Plus className="h-3.5 w-3.5" /> Nova Oportunidade
-            </button>
+            {canExcluir && (
+              <button
+                onClick={handleImportGrade}
+                disabled={importing}
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary disabled:opacity-60"
+              >
+                <Upload className="h-3.5 w-3.5" /> {importing ? "Importando..." : "Importar Grade 2026"}
+              </button>
+            )}
+            {canIncluir && (
+              <button
+                onClick={() => navigate("/app/editais")}
+                className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground"
+              >
+                <Plus className="h-3.5 w-3.5" /> Nova Oportunidade
+              </button>
+            )}
           </>
         }
       />
@@ -211,6 +222,8 @@ function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
   onAssume: (l: Licitacao) => void;
   compact?: boolean;
 }) {
+  const { can } = usePermissoes();
+  const canAlterar = can("alterar", "licitacoes", "pipeline");
   const isMine = currentUser && licitacao.responsavel === currentUser;
   const temResponsavel = !!licitacao.responsavel && licitacao.responsavel.trim() !== "" && licitacao.responsavel.toLowerCase() !== "—";
   if (isMine) {
@@ -232,6 +245,17 @@ function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
       )} title={`Atribuído a ${licitacao.responsavel}`}>
         <UserCheck className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
         Atribuído
+      </span>
+    );
+  }
+  // B2.1.a — Sem permissão de alterar pipeline: mostra estado neutro em vez do botão Assumir
+  if (!canAlterar) {
+    return (
+      <span className={cn(
+        "inline-flex items-center gap-1 rounded-md border border-dashed border-border bg-muted/20 px-2 py-1 font-medium text-muted-foreground",
+        compact ? "text-[10px]" : "text-xs"
+      )} title="Sem permissão para assumir processos">
+        Disponível
       </span>
     );
   }
