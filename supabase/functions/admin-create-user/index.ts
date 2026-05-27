@@ -1,6 +1,8 @@
-// Edge Function: admin-create-user
-// Cria um novo usuário (auth.users + profile + roles + empresa) usando service_role.
-// Requer que o chamador esteja autenticado e tenha role 'admin'.
+// Arquivo: supabase/functions/admin-create-user/index.ts
+// FASE 2 / EDGE FUNCTION
+// Cria auth.users + profiles + user_roles sem lista fixa de perfis.
+// Perfis válidos são lidos dinamicamente de public.perfil_metadata.
+// Requer chamador autenticado e role admin.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -11,25 +13,16 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-type Role =
-  | "admin" | "controladoria" | "comercial" | "operacional"
-  | "juridico" | "sst" | "diretor_adm" | "diretor_op" | "visitante";
-
-const ALLOWED_ROLES: Role[] = [
-  "admin","controladoria","comercial","operacional",
-  "juridico","sst","diretor_adm","diretor_op","visitante",
-];
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
 interface Body {
   email: string;
   password: string;
   display_name?: string | null;
   empresa_id?: string | null;
-  roles?: Role[];
+  roles?: string[];
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -39,9 +32,35 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function normalizeEmail(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function normalizeTextOrNull(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function uniqueStrings(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+  return Array.from(
+    new Set(
+      values
+        .filter((v): v is string => typeof v === "string")
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0),
+    ),
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
+
+  if (!SUPABASE_URL || !SERVICE_ROLE || !ANON_KEY) {
+    return jsonResponse({ error: "Variáveis de ambiente Supabase não configuradas." }, 500);
+  }
 
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
@@ -49,52 +68,106 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Não autenticado" }, 401);
     }
 
-    // Cliente que valida o JWT do chamador
     const userClient = createClient(SUPABASE_URL, ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
     });
+
     const { data: userData, error: userErr } = await userClient.auth.getUser();
     if (userErr || !userData?.user) {
       return jsonResponse({ error: "Sessão inválida" }, 401);
     }
+
     const callerId = userData.user.id;
 
-    // Cliente admin (service role) — nunca exposto ao front
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+      auth: { persistSession: false },
+    });
 
-    // Verifica se o chamador é admin
     const { data: isAdmin, error: roleErr } = await admin.rpc("has_role", {
       _user_id: callerId,
       _role: "admin",
     });
+
     if (roleErr) return jsonResponse({ error: roleErr.message }, 500);
-    if (!isAdmin) return jsonResponse({ error: "Apenas administradores podem criar usuários." }, 403);
+    if (!isAdmin) {
+      return jsonResponse({ error: "Apenas administradores podem criar usuários." }, 403);
+    }
 
-    // Valida payload
     let body: Body;
-    try { body = await req.json(); }
-    catch { return jsonResponse({ error: "JSON inválido" }, 400); }
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "JSON inválido" }, 400);
+    }
 
-    const email = (body.email ?? "").trim().toLowerCase();
-    const password = body.password ?? "";
-    const display_name = (body.display_name ?? "").trim() || null;
-    const empresa_id = body.empresa_id || null;
-    const roles = Array.isArray(body.roles) ? body.roles.filter((r) => ALLOWED_ROLES.includes(r)) : [];
+    const email = normalizeEmail(body.email);
+    const password = typeof body.password === "string" ? body.password : "";
+    const display_name = normalizeTextOrNull(body.display_name);
+    const empresa_id = normalizeTextOrNull(body.empresa_id);
+    const requestedRoles = uniqueStrings(body.roles);
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return jsonResponse({ error: "E-mail inválido" }, 400);
     }
+
     if (!password || password.length < 6) {
       return jsonResponse({ error: "Senha deve ter ao menos 6 caracteres" }, 400);
     }
 
-    // Cria o usuário (já confirmado, sem precisar de e-mail)
+    const { data: perfilRows, error: perfilErr } = await admin
+      .from("perfil_metadata")
+      .select("role")
+      .order("role", { ascending: true });
+
+    if (perfilErr) {
+      return jsonResponse({ error: `Erro ao carregar perfis: ${perfilErr.message}` }, 500);
+    }
+
+    const validRoles = new Set((perfilRows ?? []).map((row: { role: string }) => row.role));
+    const defaultRole = validRoles.has("usuario") ? "usuario" : null;
+    const rolesToApply = requestedRoles.length > 0 ? requestedRoles : defaultRole ? [defaultRole] : [];
+    const invalidRoles = rolesToApply.filter((role) => !validRoles.has(role));
+
+    if (invalidRoles.length > 0) {
+      return jsonResponse({
+        error: "Perfil inválido informado.",
+        invalid_roles: invalidRoles,
+        valid_roles: Array.from(validRoles).sort(),
+      }, 400);
+    }
+
+    if (rolesToApply.length === 0) {
+      return jsonResponse({
+        error: "Nenhum perfil válido disponível em perfil_metadata. Cadastre ao menos o perfil usuario ou informe perfis válidos.",
+      }, 400);
+    }
+
+    if (empresa_id) {
+      const { data: empresa, error: empresaErr } = await admin
+        .from("empresas")
+        .select("id")
+        .eq("id", empresa_id)
+        .maybeSingle();
+
+      if (empresaErr) {
+        return jsonResponse({ error: `Erro ao validar empresa: ${empresaErr.message}` }, 500);
+      }
+
+      if (!empresa) {
+        return jsonResponse({ error: "Empresa informada não existe." }, 400);
+      }
+    }
+
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { display_name: display_name ?? email.split("@")[0] },
+      user_metadata: {
+        display_name: display_name ?? email.split("@")[0],
+      },
     });
+
     if (createErr || !created?.user) {
       const msg = createErr?.message ?? "Falha ao criar usuário";
       const status = /already|registered|exists/i.test(msg) ? 409 : 400;
@@ -103,35 +176,65 @@ Deno.serve(async (req) => {
 
     const newUserId = created.user.id;
 
-    // Garante profile (o trigger handle_new_user já deve criar, mas reforçamos os campos)
-    const { error: profErr } = await admin
+    const rollbackCreatedUser = async () => {
+      try {
+        await admin.auth.admin.deleteUser(newUserId);
+      } catch {
+        console.error("Falha ao executar rollback do usuário criado", newUserId);
+      }
+    };
+
+    const { error: profileErr } = await admin
       .from("profiles")
       .upsert({
         id: newUserId,
         email,
         display_name,
         empresa_id,
+        empresa_atual_id: empresa_id,
         must_change_password: true,
+        ativo: true,
       }, { onConflict: "id" });
-    if (profErr) {
-      // rollback: remove usuário criado se profile falhar
-      await admin.auth.admin.deleteUser(newUserId);
-      return jsonResponse({ error: `Erro ao gravar profile: ${profErr.message}` }, 500);
+
+    if (profileErr) {
+      await rollbackCreatedUser();
+      return jsonResponse({ error: `Erro ao gravar profile: ${profileErr.message}` }, 500);
     }
 
-    // Vincula roles
-    if (roles.length > 0) {
-      const { error: rolesErr } = await admin
-        .from("user_roles")
-        .insert(roles.map((r) => ({ user_id: newUserId, role: r })));
-      if (rolesErr) {
-        return jsonResponse({ error: `Usuário criado, mas falhou ao vincular roles: ${rolesErr.message}`, user_id: newUserId }, 207);
+    const { error: rolesErr } = await admin
+      .from("user_roles")
+      .insert(rolesToApply.map((role) => ({ user_id: newUserId, role })));
+
+    if (rolesErr) {
+      await rollbackCreatedUser();
+      return jsonResponse({ error: `Erro ao vincular perfis: ${rolesErr.message}` }, 500);
+    }
+
+    if (empresa_id) {
+      const { error: userEmpresaErr } = await admin
+        .from("user_empresa")
+        .upsert({
+          user_id: newUserId,
+          empresa_id,
+          is_default: true,
+          created_by: callerId,
+        }, { onConflict: "user_id,empresa_id" });
+
+      if (userEmpresaErr) {
+        await rollbackCreatedUser();
+        return jsonResponse({ error: `Erro ao vincular empresa ao usuário: ${userEmpresaErr.message}` }, 500);
       }
     }
 
-    return jsonResponse({ ok: true, user_id: newUserId });
+    return jsonResponse({
+      ok: true,
+      user_id: newUserId,
+      roles: rolesToApply,
+      empresa_id,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return jsonResponse({ error: msg }, 500);
   }
 });
+
