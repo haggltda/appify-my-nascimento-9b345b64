@@ -36,7 +36,11 @@ export default function Resultado() {
                 <p className="text-sm text-muted-foreground">Empresa NSV · Valor: R$ 28.300.000 · Resultado: 22/04/2025</p>
               </div>
             </div>
-            <button className="btn-relief inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-accent px-4 text-sm font-semibold text-accent-foreground">
+            <button
+              disabled={!canAprovar}
+              title={canAprovar ? undefined : "Sem permissão para migrar licitações para Contratos"}
+              className="btn-relief inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-accent px-4 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
               Migrar para módulo de Contratos <ArrowRight className="h-4 w-4" />
             </button>
           </div>
