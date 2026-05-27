@@ -15,6 +15,7 @@ import cadastroUsuario from "./admin/cadastro-usuario.md?raw";
 import gestaoUsuarioSistema from "./admin/gestao-usuario-sistema.md?raw";
 import cadastroAlcadas from "./admin/cadastro-alcadas.md?raw";
 import trocarEmpresaCc from "./admin/trocar-empresa-cc.md?raw";
+import manualUsuariosPermissoes from "./admin/manual-usuarios-permissoes.md?raw";
 import cadastroColaborador from "./rh/cadastro-colaborador.md?raw";
 import minhasPendencias from "./geral/minhas-pendencias.md?raw";
 
