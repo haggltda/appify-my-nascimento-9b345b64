@@ -19,24 +19,25 @@ import { OcorrenciasTab } from "@/pages/admin/tabs/OcorrenciasTab";
 import { AuditoriaTab } from "@/pages/admin/tabs/AuditoriaTab";
 import { IdentidadeTab } from "@/pages/admin/tabs/IdentidadeTab";
 import AcessosPermissoes from "@/pages/admin/AcessosPermissoes";
+import PlanoAcoesConfiguracoes from "@/pages/plano-acoes/Configuracoes";
 
 type Tab =
-  | "usuarios" | "perfis" | "modulos" | "permissoes" | "acessos" | "alcadas" | "parametros"
-  | "sessoes" | "logs" | "ocorrencias" | "auditoria" | "identidade";
+  | "usuarios" | "perfis" | "modulos" | "permissoes" | "visibilidade" | "plano-acoes-acl"
+  | "alcadas" | "parametros" | "sessoes" | "logs" | "ocorrencias" | "auditoria" | "identidade";
 
-// B2.2 — Consolidação da tela de Permissões:
-// A aba "acessos" (AcessosPermissoes / screen_permission_*) é o sistema LEGADO
-// e não é consumida por usePermissoes().can() nem por nenhum gate ativo no front.
-// A matriz canônica é a aba "permissoes" (PermissoesTab → role_permissions).
-// Mantemos o componente, a rota /app/admin/permissoes e as tabelas intactos
-// para preservar histórico; apenas escondemos a entrada da navegação.
-// Para reativar: descomentar a linha "acessos" abaixo e re-adicionar no sidebar.
+// Consolidação total: TODA a governança do ERP vive aqui (Configurações do ERP).
+// - "permissoes" (role_permissions) → ações DENTRO da tela (incluir/alterar/aprovar).
+// - "visibilidade" (screen_permission_profile + screen_permission_user) → se o item APARECE no menu.
+//     Inclui overrides por usuário (132 registros em produção, preservados).
+// - "plano-acoes-acl" (plano_acao_usuario_permissao) → ACL específica do módulo Plano de Ações.
+// - "alcadas" (alcada_aprovacao + permissoes_especiais) → motor de aprovações por valor/tipo.
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "usuarios", label: "Usuários", icon: Users },
   { id: "perfis", label: "Perfis de acesso", icon: ShieldCheck },
   { id: "modulos", label: "Módulos & Menus", icon: GitBranch },
-  { id: "permissoes", label: "Permissões (matriz canônica)", icon: Key },
-  // { id: "acessos", label: "Acessos & Permissões", icon: Shield }, // B2.2 — legado
+  { id: "permissoes", label: "Permissões (ações na tela)", icon: Key },
+  { id: "visibilidade", label: "Visibilidade de menu", icon: Shield },
+  { id: "plano-acoes-acl", label: "Plano de Ações (ACL)", icon: ShieldCheck },
   { id: "alcadas", label: "Alçadas de aprovação", icon: GitBranch },
   { id: "parametros", label: "Parâmetros gerais", icon: Settings },
   { id: "sessoes", label: "Sessões ativas", icon: Activity },
@@ -94,7 +95,8 @@ export default function Administracao() {
           {tab === "perfis" && <PerfisTab />}
           {tab === "modulos" && <ModulosMenusTab />}
           {tab === "permissoes" && <PermissoesTab />}
-          {tab === "acessos" && <AcessosPermissoes />}
+          {tab === "visibilidade" && <AcessosPermissoes />}
+          {tab === "plano-acoes-acl" && <PlanoAcoesConfiguracoes />}
           {tab === "alcadas" && <AlcadasTab />}
           {tab === "parametros" && <ParametrosTab />}
           {tab === "sessoes" && <SessoesTab />}
