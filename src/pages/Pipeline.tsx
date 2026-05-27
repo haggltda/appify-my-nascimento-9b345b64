@@ -19,6 +19,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 const STORAGE_KEY = "pipeline_responsaveis_v1";
 
