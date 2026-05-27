@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Building2, CheckCircle2, AlertCircle, ArrowRight, FileText, ShieldCheck, ClipboardCheck } from "lucide-react";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 const candidatas = [
   {
