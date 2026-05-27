@@ -24,12 +24,19 @@ type Tab =
   | "usuarios" | "perfis" | "modulos" | "permissoes" | "acessos" | "alcadas" | "parametros"
   | "sessoes" | "logs" | "ocorrencias" | "auditoria" | "identidade";
 
+// B2.2 — Consolidação da tela de Permissões:
+// A aba "acessos" (AcessosPermissoes / screen_permission_*) é o sistema LEGADO
+// e não é consumida por usePermissoes().can() nem por nenhum gate ativo no front.
+// A matriz canônica é a aba "permissoes" (PermissoesTab → role_permissions).
+// Mantemos o componente, a rota /app/admin/permissoes e as tabelas intactos
+// para preservar histórico; apenas escondemos a entrada da navegação.
+// Para reativar: descomentar a linha "acessos" abaixo e re-adicionar no sidebar.
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "usuarios", label: "Usuários", icon: Users },
   { id: "perfis", label: "Perfis de acesso", icon: ShieldCheck },
   { id: "modulos", label: "Módulos & Menus", icon: GitBranch },
-  { id: "permissoes", label: "Permissões por perfil", icon: Key },
-  { id: "acessos", label: "Acessos & Permissões", icon: Shield },
+  { id: "permissoes", label: "Permissões (matriz canônica)", icon: Key },
+  // { id: "acessos", label: "Acessos & Permissões", icon: Shield }, // B2.2 — legado
   { id: "alcadas", label: "Alçadas de aprovação", icon: GitBranch },
   { id: "parametros", label: "Parâmetros gerais", icon: Settings },
   { id: "sessoes", label: "Sessões ativas", icon: Activity },
