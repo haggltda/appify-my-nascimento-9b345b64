@@ -716,7 +716,7 @@ function Money({ label, v, onChange, disabled }: { label: string; v: number; onC
   );
 }
 
-function Slider({ label, v, onChange, max, highlight }: any) {
+function Slider({ label, v, onChange, max, highlight, disabled }: any) {
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
@@ -730,7 +730,9 @@ function Slider({ label, v, onChange, max, highlight }: any) {
         step={0.5}
         value={v}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-accent"
+        disabled={disabled}
+        title={disabled ? "Sem permissão para alterar nesta fase" : undefined}
+        className="w-full accent-accent disabled:cursor-not-allowed disabled:opacity-60"
       />
     </div>
   );
