@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Save, Send, Paperclip, Building2, FileText, AlertCircle, CalendarDays, FileCheck2, ShieldCheck } from "lucide-react";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 type DocsTab = "edital" | "empresa";
 
 export default function CadastroEdital() {
   const [docsTab, setDocsTab] = useState<DocsTab>("edital");
+  const { can } = usePermissoes();
+  // B2.1.a — Fase 1 (CadastroEdital): permissões finas
+  const canIncluir = can("incluir", "licitacoes", "editais");
+  const canAprovar = can("aprovar", "licitacoes", "editais");
   return (
     <div className="space-y-6">
       <PageHeader
@@ -14,10 +19,16 @@ export default function CadastroEdital() {
         subtitle="Registre as informações estruturais do edital. Campos obrigatórios são validados ao salvar."
         actions={
           <>
-            <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
-              <Save className="h-3.5 w-3.5" /> Salvar rascunho
-            </button>
-            <button className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground">
+            {canIncluir && (
+              <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
+                <Save className="h-3.5 w-3.5" /> Salvar rascunho
+              </button>
+            )}
+            <button
+              disabled={!canAprovar}
+              title={canAprovar ? undefined : "Sem permissão para enviar editais para triagem"}
+              className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
               <Send className="h-3.5 w-3.5" /> Enviar para triagem
             </button>
           </>
