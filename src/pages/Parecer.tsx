@@ -33,6 +33,11 @@ export default function Parecer({ papel = "tecnico" }: Props) {
 }
 
 function ParecerDetalhe({ licitacao: l, isGerencial }: { licitacao: Licitacao; isGerencial: boolean; voltar: () => void }) {
+  const { can } = usePermissoes();
+  // B2.1.e/f — Fase 4 (tecnico) e Fase 5 (gerencial)
+  const menuCodigo = isGerencial ? "parecer-gerencial" : "parecer-tecnico";
+  const canIncluir = can("incluir", "licitacoes", menuCodigo);
+  const canAprovar = can("aprovar", "licitacoes", menuCodigo);
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
       <div className="space-y-5">
