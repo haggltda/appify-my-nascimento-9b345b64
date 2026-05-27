@@ -1,8 +1,12 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Trophy, XCircle, AlertTriangle, Ban, ArrowRight } from "lucide-react";
 import { licitacoes, formatBRL, formatDate } from "@/data/licitacoes";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 export default function Resultado() {
+  const { can } = usePermissoes();
+  // B2.1.d — Fase 7 (Resultado): permissão fina
+  const canAprovar = can("aprovar", "licitacoes", "resultado");
   return (
     <div className="space-y-6">
       <PageHeader
