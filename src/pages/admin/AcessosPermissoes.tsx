@@ -19,11 +19,23 @@ interface ProfilePerm { role: string; menu_codigo: string; acao: AppAcao; allow:
 interface UserPerm { id?: string; user_id: string; menu_codigo: string; acao: AppAcao; allow: boolean; empresa_id: string | null; }
 interface UserOpt { id: string; nome: string; }
 
+/**
+ * B2.2 — LEGADO. Esta tela grava em `screen_permission_profile` / `screen_permission_user`,
+ * mas o front (RouteGuard, RoleGate, usePermissoes().can(), gating B2.1) lê apenas
+ * `role_permissions` via PermissoesTab. A entrada de menu foi removida em Administracao.tsx
+ * e Sidebar.tsx; rota /app/admin/permissoes preservada para acesso direto se necessário.
+ * Não usar para configurar permissões reais — use a aba "Permissões (matriz canônica)".
+ */
 export default function AcessosPermissoes() {
   return (
     <div className="space-y-4 p-4">
+      <div className="rounded-md border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-warning">
+        <strong>Tela legada.</strong> Esta configuração grava em tabelas (<code>screen_permission_*</code>) que
+        <strong> não são consumidas</strong> pelo front. Para configurar permissões reais, use
+        <em> Administração → Permissões (matriz canônica)</em>.
+      </div>
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Shield className="h-6 w-6" /> Acessos & Permissões</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Shield className="h-6 w-6" /> Acessos & Permissões (legado)</h1>
         <p className="text-muted-foreground text-sm">Configure permissões por perfil ou override por pessoa. Precedência: pessoa &gt; perfil.</p>
       </div>
       <Tabs defaultValue="perfil">
