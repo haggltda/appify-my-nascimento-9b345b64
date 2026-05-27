@@ -51,6 +51,11 @@ export default function ParecerSST() {
 }
 
 function FormularioSST({ licitacao: l, voltar }: { licitacao: Licitacao; voltar: () => void }) {
+  const { can } = usePermissoes();
+  // B2.1.e — Fase 4 (SST)
+  const canIncluir = can("incluir", "licitacoes", "parecer-sst");
+  const canAprovar = can("aprovar", "licitacoes", "parecer-sst");
+
   const [cargo, setCargo] = useState("");
   const [riscos, setRiscos] = useState<string[]>(["fisico"]);
   const [episSelecionados, setEpisSelecionados] = useState<string[]>(["Botina de Segurança", "Capacete"]);
