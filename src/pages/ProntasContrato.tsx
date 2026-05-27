@@ -57,15 +57,26 @@ export default function ProntasContrato() {
                   <p className="text-xs text-muted-foreground">Empresa {c.emp} · Valor estimado {c.v}</p>
                 </div>
               </div>
-              <button
-                disabled={!c.ready}
-                className={`btn-relief inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold ${
-                  c.ready ? "bg-gradient-accent text-accent-foreground" : "bg-muted text-muted-foreground cursor-not-allowed"
-                }`}
-              >
-                {c.ready ? "Migrar para Contrato" : "Resolver pendências"}
-                {c.ready && <ArrowRight className="h-4 w-4" />}
-              </button>
+              {(() => {
+                const acaoPermitida = c.ready ? canAprovar : canAlterar;
+                const tooltip = acaoPermitida
+                  ? undefined
+                  : c.ready
+                    ? "Sem permissão para migrar para Contratos"
+                    : "Sem permissão para alterar pendências";
+                return (
+                  <button
+                    disabled={!acaoPermitida || (!c.ready && !canAlterar)}
+                    title={tooltip}
+                    className={`btn-relief inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+                      c.ready ? "bg-gradient-accent text-accent-foreground" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {c.ready ? "Migrar para Contrato" : "Resolver pendências"}
+                    {c.ready && <ArrowRight className="h-4 w-4" />}
+                  </button>
+                );
+              })()}
             </header>
             <div className="grid gap-3 p-5 sm:grid-cols-4">
               <Check ok={c.checks.docs} label="Documentação" icon={FileText} />
