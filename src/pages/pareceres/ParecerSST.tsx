@@ -4,6 +4,7 @@ import { PareceristaWorkspace } from "@/components/pareceres/PareceristaWorkspac
 import { HardHat, Save, Send, Shield, X, Plus, ShieldCheck } from "lucide-react";
 import type { Licitacao } from "@/data/licitacoes";
 import { toast } from "sonner";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 const cargosMock = [
   "Operador de UTE",
