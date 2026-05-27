@@ -1,0 +1,1 @@
+UPDATE public.app_menu SET ativo = false WHERE codigo = 'pregao';
