@@ -1,154 +1,271 @@
-# Plano (Plan Mode / read-only) — Pré-Título: Aprovação pelo Dono do CC + Parcelamento da NF + Baixa Manual
 
-Atualização incorporando a nova regra de **parcelamento da NF** (vencimentos acordados com o fornecedor), além das regras já fixadas: aprovação por dono do CC, sem alçada por valor, baixa manual.
+# B1.5 v3 — Plano final de RLS para `fornecedor_conta_bancaria` (PLAN MODE, nada executado)
+
+Escopo restrito: somente `public.fornecedor_conta_bancaria`. Não toca `fornecedor`, frontend, Storage, RouteGuard, Sidebar, app_menu, Triagem, centros_custo, pre_titulo_promover, DRE/Fluxo, conferências, orçamento/faturamento. `forn_insert` e `forn_delete` permanecem registrados para **B1.6** (não incluídos aqui).
 
 ---
 
-## 1. Fluxo consolidado
+## 1. SQL proposto (texto, não aplicado)
 
-```text
-[1] Lançador      cria pré-título
-                  + parcelamento da NF (1..N parcelas, datas e valores)
-                  + rateio por CC/conta (obrigatório, mesmo 1 linha)
-                  + anexa NF
-        ▼
-[2] Dono do CC    aprova/reprova (gestor_user_id do CC do rateio)
-                  → notificação no sininho + "Aguardando Minha Aprovação"
-        ▼
-[3] Financeiro    promove o pré-título → gera 1 título por parcela
-                  monta malote, programa pagamento
-        ▼
-[4] Presidente    aprova a programação (modelo Helena já existente)
-        ▼
-[5] Baixa manual  marca parcelas pagas (Financeiro/Dir. Adm./Presidência)
-        ▼
-[6] Conciliação   futura (quando houver integração bancária)
+Nome sugerido do arquivo (a gerar somente após aprovação): `<timestamp>_b15v3_fcb_escopo_empresa.sql`.
+
+```sql
+-- =====================================================================
+-- B1.5 v3 — RLS escopado por empresa em public.fornecedor_conta_bancaria
+-- Pré-requisitos (já existentes no banco, confirmados em B0/B1):
+--   - public.has_role(uuid, app_role)
+--   - public.has_permissao(uuid, text, text, text)
+--   - public.user_pode_atuar_empresa(uuid, uuid)
+--   - public.fornecedor(id, empresa_id, is_global, ...)
+--   - public.fornecedor_conta_bancaria(id, fornecedor_id, empresa_id, ...)
+-- Não altera tabela, grants nem triggers.
+-- Não recria as policies "auth *" abertas removidas no B1 original.
+-- =====================================================================
+
+BEGIN;
+
+-- 1) Remover as 4 policies "perm *" sem escopo de empresa.
+DROP POLICY IF EXISTS "perm select fornecedor_conta" ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "perm insert fornecedor_conta" ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "perm update fornecedor_conta" ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "perm delete fornecedor_conta" ON public.fornecedor_conta_bancaria;
+
+-- Sanidade: garantir que policies "auth *" abertas não existam (foram removidas em B1).
+DROP POLICY IF EXISTS "auth read fornecedor_conta_bancaria"   ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "auth insert fornecedor_conta_bancaria" ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "auth update fornecedor_conta_bancaria" ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "auth delete fornecedor_conta_bancaria" ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "auth select fornecedor_conta"          ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "auth insert fornecedor_conta"          ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "auth update fornecedor_conta"          ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "auth delete fornecedor_conta"          ON public.fornecedor_conta_bancaria;
+
+-- 2) SELECT escopado por empresa
+CREATE POLICY "fcb_select"
+ON public.fornecedor_conta_bancaria
+FOR SELECT
+TO authenticated
+USING (
+  public.has_permissao(auth.uid(), 'suprimentos', 'visualizar', 'fornecedor.conta_bancaria')
+  AND (
+    public.has_role(auth.uid(), 'admin'::public.app_role)
+    OR public.user_pode_atuar_empresa(auth.uid(), empresa_id)
+  )
+);
+
+-- 3) INSERT escopado + validação cruzada do fornecedor
+CREATE POLICY "fcb_insert"
+ON public.fornecedor_conta_bancaria
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  public.has_permissao(auth.uid(), 'suprimentos', 'incluir', 'fornecedor.conta_bancaria')
+  AND (
+    public.has_role(auth.uid(), 'admin'::public.app_role)
+    OR public.user_pode_atuar_empresa(auth.uid(), empresa_id)
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM public.fornecedor f
+    WHERE f.id = fornecedor_conta_bancaria.fornecedor_id
+      AND (
+        f.is_global = true
+        OR f.empresa_id = fornecedor_conta_bancaria.empresa_id
+      )
+  )
+);
+
+-- 4) UPDATE escopado + validação cruzada repetida no WITH CHECK
+--    (USING controla a linha antiga; WITH CHECK controla a linha resultante)
+CREATE POLICY "fcb_update"
+ON public.fornecedor_conta_bancaria
+FOR UPDATE
+TO authenticated
+USING (
+  public.has_permissao(auth.uid(), 'suprimentos', 'alterar', 'fornecedor.conta_bancaria')
+  AND (
+    public.has_role(auth.uid(), 'admin'::public.app_role)
+    OR public.user_pode_atuar_empresa(auth.uid(), empresa_id)
+  )
+)
+WITH CHECK (
+  public.has_permissao(auth.uid(), 'suprimentos', 'alterar', 'fornecedor.conta_bancaria')
+  AND (
+    public.has_role(auth.uid(), 'admin'::public.app_role)
+    OR public.user_pode_atuar_empresa(auth.uid(), empresa_id)
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM public.fornecedor f
+    WHERE f.id = fornecedor_conta_bancaria.fornecedor_id
+      AND (
+        f.is_global = true
+        OR f.empresa_id = fornecedor_conta_bancaria.empresa_id
+      )
+  )
+);
+
+-- 5) DELETE escopado
+CREATE POLICY "fcb_delete"
+ON public.fornecedor_conta_bancaria
+FOR DELETE
+TO authenticated
+USING (
+  public.has_permissao(auth.uid(), 'suprimentos', 'excluir', 'fornecedor.conta_bancaria')
+  AND (
+    public.has_role(auth.uid(), 'admin'::public.app_role)
+    OR public.user_pode_atuar_empresa(auth.uid(), empresa_id)
+  )
+);
+
+COMMIT;
 ```
 
----
-
-## 2. NOVO — Parcelamento da NF (no lançamento do pré-título)
-
-Conforme tela anexada pelo usuário. É **independente do rateio por CC**: rateio = "para onde vai o custo"; parcelamento = "quando e quanto será pago".
-
-### 2.1 Campos do bloco "Parcelamento da despesa"
-
-- **Checkbox `Despesa parcelada`** — default **desligado** (1 parcela única no vencimento informado no bloco "Dados do documento").
-- Quando ligado, o campo **Vencimento** do bloco superior fica desabilitado (passa a ser derivado das parcelas — usa o menor vencimento, apenas como referência de listagem).
-- **Número de parcelas** (inteiro, ≥ 2, ≤ 36 — sugerido).
-- **Distribuição**:
-  - **Manual** — usuário digita valor e data de cada parcela.
-  - **Dividir igualmente** — sistema calcula valor por parcela (`valor_total / n`, ajusta centavos na última) e gera datas mensais a partir de uma **data-base** (data da 1ª parcela) com intervalo padrão de **30 dias** (configurável por parcela depois).
-- **Modo de valor por parcela**: `R$` (valor absoluto) ou `%` (percentual sobre valor total). Espelha o padrão já usado no rateio.
-- **Tabela de parcelas** (uma linha por parcela):
-  - Nº da parcela (auto)
-  - Valor da parcela (R$ ou %)
-  - Data de vencimento
-  - Lixeira (só no modo Manual, e só se nº parcelas > 1)
-
-### 2.2 Validações (client + server)
-
-- Soma das parcelas == valor total da NF (tolerância R$ 0,01 para arredondamento). Rodapé mostra: **NF / Somado / Diferença** em vermelho se ≠ 0.
-- Toda parcela com `valor > 0` e `data_vencimento >= data_emissao`.
-- Datas em ordem crescente (avisar, não bloquear).
-- Se `Despesa parcelada` desligada → exatamente 1 parcela implícita (valor total, vencimento do bloco superior).
-- Bloquear submissão se houver parcela sem data ou valor.
-
-### 2.3 Impacto no modelo de dados
-
-Novo conceito: **parcela do pré-título**. Duas formas equivalentes:
-
-- **A.** Tabela `pre_titulo_parcela (id, pre_titulo_id, numero, valor, data_vencimento)`. Recomendado — escala melhor e é o que vira `titulo_pagar` 1-para-1 na promoção.
-- **B.** Coluna `parcelas jsonb` em `pre_titulo`. Mais simples, pior para query e relatório.
-
-**Recomendação: A.**
-
-### 2.4 Impacto na promoção para título
-
-Hoje (mental model): 1 pré-título → 1 título.
-Com parcelamento: **1 pré-título → N títulos** (1 por parcela), todos compartilhando o mesmo rateio por CC/conta proporcionalmente, mesmo fornecedor, mesmo documento, com sufixo `nº doc / parcela 1 de N`.
-
-- Cada `titulo_pagar` gerado herda: empresa, fornecedor, descrição, doc, competência, anexos (referência).
-- `valor` e `data_vencimento` vêm da parcela.
-- Rateio é **replicado proporcionalmente** em cada título (mesmo % por CC/conta).
-- Programação de pagamento opera nos títulos individuais (já é assim).
-
-### 2.5 Impacto na aprovação
-
-- **Aprovação continua no nível do pré-título inteiro** (não parcela a parcela) — dono do CC aprova o pacote.
-- Reprovação devolve o pré-título inteiro (parcelas não foram promovidas ainda).
-
-### 2.6 Impacto na baixa manual
-
-- Baixa opera nos títulos individuais (parcelas já viradas em título). Já estava previsto "baixa parcela a parcela" — fica natural.
+Notas técnicas:
+- `WITH CHECK` no UPDATE é **obrigatório** para bloquear o caso "atualizar conta da empresa A apontando `fornecedor_id` para fornecedor local da empresa B". Sem ele, USING valida só a linha anterior.
+- Não há `INSERT` com `empresa_id` divergente da empresa ativa: `EXISTS(...) f.is_global OR f.empresa_id = fcb.empresa_id` garante que conta de fornecedor local só pode ser cadastrada na empresa dona do fornecedor.
+- Admin bypass mantido em todas as 4 policies via `has_role(...,'admin')`.
+- Nenhum `GRANT` alterado — privilégios atuais (`authenticated`, `service_role`) preservados.
 
 ---
 
-## 3. Regra única de aprovador (inalterada)
+## 2. Resumo de impacto
 
-- Aprovador = `centros_custo.gestor_user_id` do(s) CC(s) do rateio.
-- Sem faixa de valor, sem escalonamento, sem segunda etapa.
-- Rateio com N CCs → todos os donos aprovam em paralelo; 1 reprovação devolve tudo.
-- Lançador = dono do CC → bloqueia, força trocar o responsável.
-- CC sem gestor → bloqueia submissão.
-
-## 4. Notificação + Inbox (paridade Helena, inalterado)
-
-- Sininho + card "Aguardando Minha Aprovação" para cada dono de CC envolvido.
-- Baixa notificação ao aprovar/reprovar; histórico registrado.
-
-## 5. Baixa manual (inalterada, agora por parcela)
-
-- Executores: Financeiro, Diretoria Administrativa, Presidência.
-- Lista títulos `programado`; checkbox + data pagamento + conta debitada.
-- Retroativa até 90 dias.
-- Grava `data_pagamento`, `conta_debitada`, `usuario_baixa`; gera lançamento no fluxo de caixa realizado.
-
----
-
-## 6. O que muda em relação ao plano anterior
-
-| Item | Antes | Agora |
+| Persona | Antes | Depois (B1.5 v3) |
 |---|---|---|
-| Parcelamento da NF | Não previsto (1 vencimento único) | **Novo bloco** no modal + tabela `pre_titulo_parcela` + promoção 1→N títulos |
-| Vencimento no bloco "Dados do documento" | Sempre obrigatório | Obrigatório só quando **não** parcelado; quando parcelado, desabilita e usa parcelas |
-| Promoção pré-título → título | 1 para 1 | **1 para N** (uma por parcela) |
-| Aprovação | Nível pré-título | **Inalterado** — nível pré-título (pacote) |
-| Baixa | Por título | **Inalterado** — por título/parcela individualmente |
+| Usuário sem `fornecedor.conta_bancaria` | Bloqueado pela `perm` | Bloqueado igual (sem mudança visível) |
+| Comprador E1 | Via contas de qualquer empresa | Vê só contas com `empresa_id` em que atua |
+| Financeiro E1 | Cadastrava/editava cross-empresa | Cadastra/edita só na sua empresa; bloqueado para fornecedor local de E2 |
+| Suprimentos E1 | Idem | Idem; pode ter conta própria para fornecedor global |
+| Controladoria E1 | Cross-empresa | Escopada por empresa em que atua |
+| Admin | Tudo | Tudo (bypass mantido) |
+
+Impacto operacional fora do cadastro de fornecedor: **zero**. PreTítulos, NF, Contas a Pagar, Programação, Malotes/CNAB, Conciliação e Receber não usam essa tabela (confirmado no diagnóstico aprovado).
+
+Risco de regressão de dados: nulo — `fornecedor_conta_bancaria` tem 1 registro vinculado a fornecedor não-global na empresa correta.
 
 ---
 
-## 7. Decisões pendentes (preciso confirmar antes de implementar)
+## 3. Checklist de testes Given/When/Then
 
-1. **Limite de parcelas** — sugerido máx. **36**. Confirma ou prefere outro teto?
-2. **Intervalo padrão "Dividir igualmente"** — sugerido **30 dias** entre parcelas, 1ª parcela = vencimento informado no bloco superior. Ok?
-3. **Edição de parcelas após aprovação** — quando o pré-título já virou N títulos, posso permitir o Financeiro **editar data de vencimento** de parcelas ainda não pagas (sem mexer no valor)? Recomendado: **sim**, com log.
-4. **Antecipação/quitação** — permitir baixar uma parcela com valor diferente do programado (desconto/juros)? Recomendado: **sim**, com campos `valor_pago`, `juros`, `desconto`, `multa`.
-5. **Modelo de dados** — confirma opção **A** (tabela `pre_titulo_parcela`) em vez de JSON?
+Pré-condições compartilhadas:
+- E1 e E2 são empresas distintas.
+- `u_e1_fin` = usuário financeiro com `user_pode_atuar_empresa(u_e1_fin, E1)=true` e permissão `suprimentos.fornecedor.conta_bancaria` (visualizar/incluir/alterar/excluir).
+- `u_e1_sem_perm` = usuário E1 sem `has_permissao('suprimentos','*','fornecedor.conta_bancaria')`.
+- `forn_global` com `is_global=true`.
+- `forn_local_e2` com `is_global=false`, `empresa_id=E2`.
+- `cb_e2_global` = conta bancária para `forn_global` com `empresa_id=E2`.
+
+| # | Given | When | Then | Resultado esperado |
+|---|---|---|---|---|
+| T1 | `u_e1_fin` logado | SELECT em `fornecedor` filtrando `forn_global` | retorno não vazio | ✅ PASS (RLS de `fornecedor` mantida em B1.5) |
+| T2 | `u_e1_fin` logado | SELECT em `fornecedor_conta_bancaria` WHERE id = cb_e2_global | 0 linhas | ✅ PASS (empresa_id=E2 não está no escopo de u_e1_fin) |
+| T3 | `u_e1_fin` logado | INSERT em fcb (`fornecedor_id=forn_global, empresa_id=E1`) | sucesso | ✅ PASS |
+| T4 | `u_e1_fin` logado | INSERT em fcb (`fornecedor_id=forn_local_e2, empresa_id=E1`) | erro RLS / 0 linhas | ✅ PASS (forn não-global e empresa_id diverge) |
+| T5 | `u_e1_fin` logado | INSERT em fcb (`fornecedor_id=forn_global, empresa_id=E2`) | erro RLS | ✅ PASS (u_e1_fin não atua em E2) |
+| T6 | `u_e1_fin` logado, conta `cb_e1` (forn_global, E1) já existe | UPDATE cb_e1 SET fornecedor_id=forn_local_e2 | erro RLS via WITH CHECK | ✅ PASS (bloqueia troca para fornecedor local de outra empresa) |
+| T7 | `u_e1_fin` logado, cb_e1 existente | UPDATE cb_e1 SET principal=true | sucesso | ✅ PASS |
+| T8 | `u_e1_fin` logado | DELETE cb_e2_global (empresa_id=E2) | 0 linhas | ✅ PASS |
+| T9 | `u_e1_sem_perm` logado | SELECT em fcb | 0 linhas | ✅ PASS (permissão bloqueia antes do escopo) |
+| T10 | `u_e1_sem_perm` logado | INSERT em fcb (qualquer) | erro RLS | ✅ PASS |
+| T11 | admin logado | SELECT em fcb (qualquer empresa) | retorna tudo | ✅ PASS (bypass) |
+| T12 | `u_e1_fin` em PreTitulosTab | `supabase.from('fornecedor').select('id, razao_social')` | lista inclui `forn_global` | ✅ PASS (PreTítulos não depende de fcb) |
+| T13 | `u_e1_fin` em PreTitulosTab | INSERT em `pre_titulo` com `fornecedor_id=forn_global, empresa_id=E1` | sucesso | ✅ PASS (sem acoplamento com fcb) |
+
+Todos os 13 testes devem rodar antes e depois da migração para confirmar não-regressão (T1, T12, T13) e correção (T2, T4–T6, T8–T10).
+
+Forma de execução sugerida (após aprovação): SQL `SET LOCAL role authenticated; SET LOCAL request.jwt.claims = '{"sub":"<uuid>"}'` em transação read-only, ou checks via Supabase JS com sessão dos usuários de teste.
 
 ---
 
-## 8. Implementação técnica (resumo, não-bloqueante)
+## 4. Rollback
 
-- **Migration**:
-  - `pre_titulo`: adicionar `parcelado boolean default false`.
-  - Nova tabela `pre_titulo_parcela (id, pre_titulo_id fk, numero int, valor numeric, data_vencimento date)` com unique (pre_titulo_id, numero).
-  - RPC `pre_titulo_submeter` valida soma das parcelas == valor_total.
-  - RPC `pre_titulo_promover` (chamada pelo Financeiro após aprovação) cria N `titulo_pagar` a partir das parcelas + replica rateio proporcional.
-- **UI** (modal Novo lançamento):
-  - Bloco "Parcelamento da despesa" entre "Dados do documento" e "Rateio".
-  - Checkbox + Nº parcelas + radio Manual/Igual + tabela editável.
-  - Rodapé com totalizador (NF / Somado / Diferença).
-- **Aprovação / notificação / baixa** — sem mudança estrutural; só passam a operar sobre N títulos quando houver parcelas.
+### 4.1 Rollback seguro (recomendado)
+
+Restaura apenas leitura escopada e bloqueia escritas sensíveis — **não** reabre SELECT global. Útil se algo travar fluxo legítimo de cadastro.
+
+```sql
+BEGIN;
+
+DROP POLICY IF EXISTS "fcb_insert" ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "fcb_update" ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "fcb_delete" ON public.fornecedor_conta_bancaria;
+
+-- Mantém "fcb_select" intacta → leitura continua escopada por empresa.
+-- Escritas ficam totalmente bloqueadas até reaplicar policies corrigidas.
+
+COMMIT;
+```
+
+### 4.2 Rollback emergencial restrito (janela controlada)
+
+Se for absolutamente necessário escrever cross-empresa em uma janela de minutos (ex.: ajuste manual feito por admin via app, não via SQL), recriar apenas INSERT/UPDATE **ainda exigindo permissão e admin/atuação na empresa**, mas sem o `EXISTS(... fornecedor ...)`. Não recria policies abertas.
+
+```sql
+BEGIN;
+
+DROP POLICY IF EXISTS "fcb_insert" ON public.fornecedor_conta_bancaria;
+DROP POLICY IF EXISTS "fcb_update" ON public.fornecedor_conta_bancaria;
+
+CREATE POLICY "fcb_insert_relaxed" ON public.fornecedor_conta_bancaria
+FOR INSERT TO authenticated
+WITH CHECK (
+  public.has_permissao(auth.uid(),'suprimentos','incluir','fornecedor.conta_bancaria')
+  AND (public.has_role(auth.uid(),'admin'::public.app_role)
+       OR public.user_pode_atuar_empresa(auth.uid(), empresa_id))
+);
+
+CREATE POLICY "fcb_update_relaxed" ON public.fornecedor_conta_bancaria
+FOR UPDATE TO authenticated
+USING (
+  public.has_permissao(auth.uid(),'suprimentos','alterar','fornecedor.conta_bancaria')
+  AND (public.has_role(auth.uid(),'admin'::public.app_role)
+       OR public.user_pode_atuar_empresa(auth.uid(), empresa_id))
+)
+WITH CHECK (
+  public.has_permissao(auth.uid(),'suprimentos','alterar','fornecedor.conta_bancaria')
+  AND (public.has_role(auth.uid(),'admin'::public.app_role)
+       OR public.user_pode_atuar_empresa(auth.uid(), empresa_id))
+);
+
+COMMIT;
+```
+
+Política operacional: rollback 4.2 só com aprovação humana explícita, janela de tempo declarada e reaplicação obrigatória do B1.5 v3 ao fim da janela.
+
+### 4.3 O que rollback **não** faz
+
+- Não recria `auth select/insert/update/delete fornecedor_conta`.
+- Não recria `auth read/insert/update/delete fornecedor_conta_bancaria`.
+- Não recria `perm * fornecedor_conta` sem escopo.
+- Nunca reabre leitura cross-empresa.
 
 ---
 
-## 9. Por que não implementar agora
+## 5. Itens fora do escopo (registrados para B1.6)
 
-- Pendências §7 mudam estrutura de tabela e RPC.
-- Bloqueador anterior ainda vale: **560 CCs sem gestor** → ligar a regra de aprovação trava lançamentos no dia 1.
-- Decisão A vs B do plano anterior (motor genérico `sup_aprov_*` vs campos diretos em `pre_titulo`) ainda em aberto — recomendação **B**.
+- `forn_insert` em `public.fornecedor` sem `WITH CHECK` — risco de inserir fornecedor com `is_global=true` ou `empresa_id` arbitrário.
+- `forn_delete` em `public.fornecedor` sem escopo por empresa/admin.
+- Banner UI em `ContasBancariasGenericTab` ("conta visível apenas para a empresa X").
+- Consolidação dos dois dialogs (`ContaBancariaDialog` legado vs `ContaBancariaGenericDialog`).
+- Eventual `cb.is_global` formal para conta bancária compartilhada entre empresas (decisão de produto, hoje não existe).
+
+Nenhum desses itens entra na migration B1.5 v3.
 
 ---
 
-> Plan Mode / read-only. Nenhuma alteração foi feita em banco, código, RPCs, RLS, telas ou deploy. Aguardando suas respostas aos itens §7 (5 decisões novas sobre parcelamento) + confirmação de A/B do plano anterior para então implementar.
+## 6. Confirmação
+
+**Nada executado.** Nenhuma migration criada. Nenhum `DROP POLICY` ou `CREATE POLICY` rodado no banco. Frontend, Storage, RouteGuard, Sidebar, app_menu, Triagem, centros_custo, pre_titulo_promover, DRE/Fluxo, conferências e orçamento/faturamento permanecem intocados.
+
+---
+
+## 7. Próximas opções (aguardando aprovação humana)
+
+1. **Aprovar B1.5 v3** e autorizar a geração da migration `*_b15v3_fcb_escopo_empresa.sql` exatamente como §1. Eu crio o arquivo e paro novamente antes de aplicar.
+2. **Aprovar B1.5 v3 + B1.6** juntos no próximo plano (sem executar) para revisar `forn_insert` e `forn_delete` em `public.fornecedor`.
+3. **Pedir ajustes em §1** (ex.: incluir `diretor_operacional` no SELECT independentemente de permissão; permitir DELETE apenas para admin+controladoria; adicionar checagem `cb.ativa=false` antes de DELETE; logar via trigger de auditoria). Eu reescrevo §1 e §3.
+4. **Rodar antes os testes T1–T13 em ambiente** read-only com usuários reais que você indicar. Diga os UUIDs e eu monto o script de verificação (somente SELECT).
+5. **Pausar B1.5** e voltar para B1 ou outro bloco.
+
+Pare aqui. Aguardando aprovação humana.
