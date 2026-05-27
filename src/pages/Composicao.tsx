@@ -429,7 +429,9 @@ export default function Composicao() {
                           step={0.01}
                           value={v.percentual}
                           onChange={(e) => updateVerba(i, Number(e.target.value) || 0)}
-                          className="ml-auto block h-8 w-24 rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary"
+                          disabled={!canAlterar}
+                          title={!canAlterar ? "Sem permissão para alterar nesta fase" : undefined}
+                          className="ml-auto block h-8 w-24 rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                         />
                       </td>
                     </tr>
