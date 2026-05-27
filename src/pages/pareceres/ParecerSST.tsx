@@ -4,6 +4,7 @@ import { PareceristaWorkspace } from "@/components/pareceres/PareceristaWorkspac
 import { HardHat, Save, Send, Shield, X, Plus, ShieldCheck } from "lucide-react";
 import type { Licitacao } from "@/data/licitacoes";
 import { toast } from "sonner";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 const cargosMock = [
   "Operador de UTE",
@@ -50,6 +51,11 @@ export default function ParecerSST() {
 }
 
 function FormularioSST({ licitacao: l, voltar }: { licitacao: Licitacao; voltar: () => void }) {
+  const { can } = usePermissoes();
+  // B2.1.e — Fase 4 (SST)
+  const canIncluir = can("incluir", "licitacoes", "parecer-sst");
+  const canAprovar = can("aprovar", "licitacoes", "parecer-sst");
+
   const [cargo, setCargo] = useState("");
   const [riscos, setRiscos] = useState<string[]>(["fisico"]);
   const [episSelecionados, setEpisSelecionados] = useState<string[]>(["Botina de Segurança", "Capacete"]);
@@ -104,10 +110,17 @@ function FormularioSST({ licitacao: l, voltar }: { licitacao: Licitacao; voltar:
               <h3 className="font-display text-sm font-bold">Avaliação por Função / Cargo</h3>
             </div>
             <div className="flex items-center gap-2">
-              <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
-                <Save className="h-3.5 w-3.5" /> Salvar rascunho
-              </button>
-              <button onClick={enviar} className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground">
+              {canIncluir && (
+                <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
+                  <Save className="h-3.5 w-3.5" /> Salvar rascunho
+                </button>
+              )}
+              <button
+                onClick={enviar}
+                disabled={!canAprovar}
+                title={canAprovar ? undefined : "Sem permissão para enviar parecer SST"}
+                className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 <Send className="h-3.5 w-3.5" /> Enviar parecer SST
               </button>
             </div>

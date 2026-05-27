@@ -4,6 +4,7 @@ import { PareceristaWorkspace } from "@/components/pareceres/PareceristaWorkspac
 import { FileCheck2, Save, Send, Paperclip, Shield, ChevronRight, ArrowLeft } from "lucide-react";
 import type { Licitacao } from "@/data/licitacoes";
 import { formatBRL, formatDate } from "@/data/licitacoes";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 interface Props { papel?: "tecnico" | "gerencial" }
 
@@ -32,6 +33,11 @@ export default function Parecer({ papel = "tecnico" }: Props) {
 }
 
 function ParecerDetalhe({ licitacao: l, isGerencial }: { licitacao: Licitacao; isGerencial: boolean; voltar: () => void }) {
+  const { can } = usePermissoes();
+  // B2.1.e/f — Fase 4 (tecnico) e Fase 5 (gerencial)
+  const menuCodigo = isGerencial ? "parecer-gerencial" : "parecer-tecnico";
+  const canIncluir = can("incluir", "licitacoes", menuCodigo);
+  const canAprovar = can("aprovar", "licitacoes", menuCodigo);
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
       <div className="space-y-5">
@@ -69,10 +75,16 @@ function ParecerDetalhe({ licitacao: l, isGerencial }: { licitacao: Licitacao; i
               <h3 className="font-display text-sm font-bold">Redação do parecer</h3>
             </div>
             <div className="flex items-center gap-2">
-              <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
-                <Save className="h-3.5 w-3.5" /> Salvar rascunho
-              </button>
-              <button className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground">
+              {canIncluir && (
+                <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
+                  <Save className="h-3.5 w-3.5" /> Salvar rascunho
+                </button>
+              )}
+              <button
+                disabled={!canAprovar}
+                title={canAprovar ? undefined : `Sem permissão para enviar parecer ${isGerencial ? "gerencial" : "técnico"}`}
+                className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 <Send className="h-3.5 w-3.5" /> {isGerencial ? "Encaminhar à controladoria" : "Enviar para gerência"}
               </button>
             </div>

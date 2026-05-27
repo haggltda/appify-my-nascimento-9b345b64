@@ -4,6 +4,7 @@ import { ParecerDetalhadoForm, type ParecerDetalhadoConfig } from "@/components/
 
 const config: Omit<ParecerDetalhadoConfig, "subtitulo"> = {
   papel: "Diretor Administrativo",
+  menuCodigo: "parecer-dir-administrativo",
   tituloCard: "Decisão executiva — alinhamento estratégico",
   cor: "accent",
   chipsExtras: [{ label: "Decisão estratégica", tom: "warning" }],

@@ -3,6 +3,7 @@ import { Save, Send, Shield, FileCheck2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import type { Licitacao } from "@/data/licitacoes";
 import { formatBRL, formatDate } from "@/data/licitacoes";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 export interface ChecklistItem {
   id: string;
@@ -39,6 +40,8 @@ export interface ParecerDetalhadoConfig {
   /** lista de "frequentes" mostrados na lateral */
   referenciasLaterais?: { titulo: string; itens: string[] };
   cor?: "primary" | "accent";
+  /** B2.1.e — código do menu em app_menu, usado para gating fino de permissões (`incluir` para salvar rascunho, `aprovar` para enviar). */
+  menuCodigo?: string;
 }
 
 const tomChip = {
@@ -57,6 +60,11 @@ export function ParecerDetalhadoForm({
   voltar: () => void;
   config: ParecerDetalhadoConfig;
 }) {
+  const { can } = usePermissoes();
+  // B2.1.e — gating fino: salvar = incluir; enviar = aprovar
+  const canIncluir = config.menuCodigo ? can("incluir", "licitacoes", config.menuCodigo) : true;
+  const canAprovar = config.menuCodigo ? can("aprovar", "licitacoes", config.menuCodigo) : true;
+
   const [marcados, setMarcados] = useState<string[]>(config.checklist.defaultMarcados ?? []);
   const [valoresCampos, setValoresCampos] = useState<Record<string, string>>({});
   const [recomendacao, setRecomendacao] = useState(config.recomendacoes[0]);
@@ -111,12 +119,16 @@ export function ParecerDetalhadoForm({
               <h3 className="font-display text-sm font-bold">{config.tituloCard}</h3>
             </div>
             <div className="flex items-center gap-2">
-              <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
-                <Save className="h-3.5 w-3.5" /> Salvar rascunho
-              </button>
+              {canIncluir && (
+                <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
+                  <Save className="h-3.5 w-3.5" /> Salvar rascunho
+                </button>
+              )}
               <button
                 onClick={enviar}
-                className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground"
+                disabled={!canAprovar}
+                title={canAprovar ? undefined : `Sem permissão para enviar parecer ${config.papel}`}
+                className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Send className="h-3.5 w-3.5" /> {config.labelEnviar}
               </button>
