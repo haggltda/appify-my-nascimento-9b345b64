@@ -60,6 +60,11 @@ export function ParecerDetalhadoForm({
   voltar: () => void;
   config: ParecerDetalhadoConfig;
 }) {
+  const { can } = usePermissoes();
+  // B2.1.e — gating fino: salvar = incluir; enviar = aprovar
+  const canIncluir = config.menuCodigo ? can("incluir", "licitacoes", config.menuCodigo) : true;
+  const canAprovar = config.menuCodigo ? can("aprovar", "licitacoes", config.menuCodigo) : true;
+
   const [marcados, setMarcados] = useState<string[]>(config.checklist.defaultMarcados ?? []);
   const [valoresCampos, setValoresCampos] = useState<Record<string, string>>({});
   const [recomendacao, setRecomendacao] = useState(config.recomendacoes[0]);
