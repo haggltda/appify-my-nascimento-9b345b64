@@ -304,7 +304,10 @@ const configuracoesModule: ModuleDef = {
   groups: [{
     label: "Segurança", defaultOpen: true,
     items: [
-      { label: "Acessos & Permissões", to: "/app/admin/permissoes", icon: Shield },
+      // B2.2 — "Acessos & Permissões" (sistema legado screen_permission_*) removido do menu.
+      //        Rota /app/admin/permissoes preservada; reativar = restaurar a linha abaixo.
+      // { label: "Acessos & Permissões", to: "/app/admin/permissoes", icon: Shield },
+      { label: "Permissões (matriz canônica)", to: "/app/administracao?tab=permissoes", icon: Shield },
       { label: "Alçadas de aprovação", to: "/app/administracao?tab=alcadas", icon: GitBranch },
       { label: "Administração (todas as abas)", to: "/app/administracao", icon: Settings },
     ],
