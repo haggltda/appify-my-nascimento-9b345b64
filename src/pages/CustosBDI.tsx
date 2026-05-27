@@ -261,7 +261,9 @@ export default function CustosBDI() {
                         type={c.tipo === "texto" ? "text" : "number"}
                         value={String(linhaAtiva.valores[c.key] ?? "")}
                         onChange={(e) => update(c.key, e.target.value, c.tipo)}
-                        className="ml-auto block h-8 w-full max-w-[200px] rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary"
+                        disabled={!canAlterar}
+                        title={!canAlterar ? "Sem permissão para alterar nesta fase" : undefined}
+                        className="ml-auto block h-8 w-full max-w-[200px] rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                       />
                     </td>
                     <td className="px-4 py-2.5 text-center">
