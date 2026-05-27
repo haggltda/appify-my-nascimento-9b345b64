@@ -40,8 +40,14 @@ export default function Pipeline() {
   const [overrides, setOverrides] = useState<Record<string, string>>(() => loadOverrides());
   const [target, setTarget] = useState<Licitacao | null>(null);
   const { user } = useAuth();
+  const { can } = usePermissoes();
   const [displayName, setDisplayName] = useState<string>("");
   const navigate = useNavigate();
+
+  // B2.1.a — Fase 1 (Pipeline): permissões finas
+  const canIncluir = can("incluir", "licitacoes", "pipeline");
+  const canExcluir = can("excluir", "licitacoes", "pipeline");
+  const canAlterar = can("alterar", "licitacoes", "pipeline");
 
   const openComposicao = (l: Licitacao) => {
     // Filtro híbrido: licitacao= sempre; (futuro) contrato= se vinculado
