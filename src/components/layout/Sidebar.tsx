@@ -366,13 +366,17 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   ];
 
 
-  // Filter modules/groups/items based on screen access (admins see everything)
+  // Filter modules/groups/items based on screen access (admins see everything).
+  // B2 — deny-by-default: itens sem menuCode somem para não-admin, exceto
+  // rotas técnicas explícitas (mesmas listadas na allowlist do RouteGuard).
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil"];
   const visibleModules = useMemo(() => {
     if (!access || access.isAdmin) return allModules;
     const canSee = (to: string) => {
       const code = matchMenuCode(to, access.routes);
-      if (!code) return true; // legacy / not catalogued routes remain visible
-      return access.codes.has(code);
+      if (code) return access.codes.has(code);
+      // Sem código: só visível se estiver na allowlist técnica da Sidebar.
+      return SIDEBAR_TECHNICAL_ALLOWLIST.includes(to);
     };
     return allModules
       .map((mod) => {
