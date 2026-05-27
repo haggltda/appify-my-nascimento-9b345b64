@@ -119,12 +119,16 @@ export function ParecerDetalhadoForm({
               <h3 className="font-display text-sm font-bold">{config.tituloCard}</h3>
             </div>
             <div className="flex items-center gap-2">
-              <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
-                <Save className="h-3.5 w-3.5" /> Salvar rascunho
-              </button>
+              {canIncluir && (
+                <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
+                  <Save className="h-3.5 w-3.5" /> Salvar rascunho
+                </button>
+              )}
               <button
                 onClick={enviar}
-                className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground"
+                disabled={!canAprovar}
+                title={canAprovar ? undefined : `Sem permissão para enviar parecer ${config.papel}`}
+                className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Send className="h-3.5 w-3.5" /> {config.labelEnviar}
               </button>
