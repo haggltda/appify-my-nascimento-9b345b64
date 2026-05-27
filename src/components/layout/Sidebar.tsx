@@ -85,7 +85,8 @@ const licitacoesModule: ModuleDef = {
         items: [
           { label: "Cadastro de Editais", to: "/app/editais", icon: FileText },
           { label: "Documentos", to: "/app/documentos", icon: ScrollText },
-          { label: "Triagem & IA", to: "/app/triagem", icon: Sparkles },
+          // B2: "Triagem & IA" removida do menu (rota /app/triagem segue existindo,
+          // mas controlada pelo RouteGuard + matriz de permissões do ERP).
           { label: "Composição & BDI", to: "/app/composicao", icon: PieChart },
         ],
       },
@@ -365,13 +366,17 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   ];
 
 
-  // Filter modules/groups/items based on screen access (admins see everything)
+  // Filter modules/groups/items based on screen access (admins see everything).
+  // B2 — deny-by-default: itens sem menuCode somem para não-admin, exceto
+  // rotas técnicas explícitas (mesmas listadas na allowlist do RouteGuard).
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil"];
   const visibleModules = useMemo(() => {
     if (!access || access.isAdmin) return allModules;
     const canSee = (to: string) => {
       const code = matchMenuCode(to, access.routes);
-      if (!code) return true; // legacy / not catalogued routes remain visible
-      return access.codes.has(code);
+      if (code) return access.codes.has(code);
+      // Sem código: só visível se estiver na allowlist técnica da Sidebar.
+      return SIDEBAR_TECHNICAL_ALLOWLIST.includes(to);
     };
     return allModules
       .map((mod) => {
