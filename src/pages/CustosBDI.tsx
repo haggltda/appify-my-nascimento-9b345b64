@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Save, Send, Calculator, Plus } from "lucide-react";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 interface CampoNum { key: string; label: string; tipo?: "moeda" | "percent" | "texto" | "numero" }
 interface Grupo { id: string; label: string; cor: string; campos: CampoNum[] }
@@ -151,6 +152,12 @@ function calcLinha(v: Record<string, number | string>) {
 }
 
 export default function CustosBDI() {
+  // B2.1.g — Fase 3: gating fino (incluir/alterar/aprovar) no menu "custos-bdi".
+  const { can } = usePermissoes();
+  const canIncluir = can("incluir", "licitacoes", "custos-bdi");
+  const canAlterar = can("alterar", "licitacoes", "custos-bdi");
+  const canAprovar = can("aprovar", "licitacoes", "custos-bdi");
+
   const [linhas, setLinhas] = useState<Linha[]>(linhasMock);
   const [ativa, setAtiva] = useState<string>(linhasMock[0].id);
 
@@ -181,10 +188,16 @@ export default function CustosBDI() {
         subtitle="Precificação detalhada por posto/função: salários, encargos, benefícios, insumos, BDI e tributos."
         actions={
           <>
-            <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
-              <Save className="h-3.5 w-3.5" /> Salvar rascunho
-            </button>
-            <button className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground">
+            {canIncluir && (
+              <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
+                <Save className="h-3.5 w-3.5" /> Salvar rascunho
+              </button>
+            )}
+            <button
+              disabled={!canAprovar}
+              title={!canAprovar ? "Sem permissão para aprovar nesta fase" : undefined}
+              className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
               <Send className="h-3.5 w-3.5" /> Enviar à Controladoria
             </button>
           </>
@@ -206,12 +219,14 @@ export default function CustosBDI() {
             {l.nome}
           </button>
         ))}
-        <button
-          onClick={addLinha}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-primary/40 bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10"
-        >
-          <Plus className="h-3.5 w-3.5" /> Novo posto
-        </button>
+        {canIncluir && (
+          <button
+            onClick={addLinha}
+            className="inline-flex items-center gap-1 rounded-md border border-dashed border-primary/40 bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10"
+          >
+            <Plus className="h-3.5 w-3.5" /> Novo posto
+          </button>
+        )}
       </div>
 
       {/* Data Grid */}
@@ -246,7 +261,9 @@ export default function CustosBDI() {
                         type={c.tipo === "texto" ? "text" : "number"}
                         value={String(linhaAtiva.valores[c.key] ?? "")}
                         onChange={(e) => update(c.key, e.target.value, c.tipo)}
-                        className="ml-auto block h-8 w-full max-w-[200px] rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary"
+                        disabled={!canAlterar}
+                        title={!canAlterar ? "Sem permissão para alterar nesta fase" : undefined}
+                        className="ml-auto block h-8 w-full max-w-[200px] rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                       />
                     </td>
                     <td className="px-4 py-2.5 text-center">

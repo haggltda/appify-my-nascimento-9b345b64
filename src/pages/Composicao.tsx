@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { licitacoes as licitacoesBase } from "@/data/licitacoes";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LicitacaoAprovacaoBox } from "@/components/aprovacoes/LicitacaoAprovacaoBox";
+import { usePermissoes } from "@/context/PermissoesContext";
 import {
   PieChart,
   Briefcase,
@@ -84,6 +85,12 @@ const abas: AbaDef[] = [
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 export default function Composicao() {
+  // B2.1.g — Fase 3: gating fino (incluir/alterar/aprovar) no menu "composicao".
+  const { can } = usePermissoes();
+  const canIncluir = can("incluir", "licitacoes", "composicao");
+  const canAlterar = can("alterar", "licitacoes", "composicao");
+  const canAprovar = can("aprovar", "licitacoes", "composicao");
+
   const [searchParams] = useSearchParams();
   const licitacaoIdParam = searchParams.get("licitacao");
   const contratoIdParam = searchParams.get("contrato");
@@ -236,17 +243,20 @@ export default function Composicao() {
         subtitle="Detalhamento por posto, verbas da folha, tributos e definição da margem de lucro — fase de licitação."
         actions={
           <>
+            {canIncluir && (
+              <button
+                onClick={() => toast("Rascunho salvo", { description: "Você pode continuar mais tarde." })}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
+              >
+                <Save className="h-3.5 w-3.5" /> Salvar rascunho
+              </button>
+            )}
             <button
-              onClick={() => toast("Rascunho salvo", { description: "Você pode continuar mais tarde." })}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
-            >
-              <Save className="h-3.5 w-3.5" /> Salvar rascunho
-            </button>
-            <button
-              disabled={!todasValidas}
+              disabled={!todasValidas || !canAprovar}
               onClick={enviarControladoria}
+              title={!canAprovar ? "Sem permissão para aprovar nesta fase" : (!todasValidas ? "Valide todas as abas antes de enviar" : undefined)}
               className={`btn-relief inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-all ${
-                todasValidas
+                todasValidas && canAprovar
                   ? "bg-gradient-accent text-accent-foreground"
                   : "cursor-not-allowed bg-muted text-muted-foreground opacity-60"
               }`}
@@ -338,9 +348,11 @@ export default function Composicao() {
                 <h2 className="flex items-center gap-2 font-display text-sm font-bold">
                   <Briefcase className="h-4 w-4 text-primary" /> Postos de trabalho
                 </h2>
-                <button onClick={addPosto} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover">
-                  <Plus className="h-3.5 w-3.5" /> Adicionar posto
-                </button>
+                {canIncluir && (
+                  <button onClick={addPosto} className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary-hover">
+                    <Plus className="h-3.5 w-3.5" /> Adicionar posto
+                  </button>
+                )}
               </header>
 
               <div className="space-y-4">
@@ -351,21 +363,27 @@ export default function Composicao() {
                         <input
                           value={p.cargo}
                           onChange={(e) => updatePosto(p.id, "cargo", e.target.value)}
-                          className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm font-semibold outline-none focus:border-primary"
+                          disabled={!canAlterar}
+                          title={!canAlterar ? "Sem permissão para alterar nesta fase" : undefined}
+                          className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm font-semibold outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                         />
                         <div className="w-20">
                           <input
                             type="number"
                             value={p.qtd}
                             onChange={(e) => updatePosto(p.id, "qtd", e.target.value)}
-                            className="h-9 w-full rounded-md border border-input bg-background px-3 text-center text-sm font-semibold outline-none focus:border-primary"
+                            disabled={!canAlterar}
+                            title={!canAlterar ? "Sem permissão para alterar nesta fase" : undefined}
+                            className="h-9 w-full rounded-md border border-input bg-background px-3 text-center text-sm font-semibold outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                           />
                           <p className="mt-1 text-center text-[10px] uppercase text-muted-foreground">Qtd</p>
                         </div>
                       </div>
-                      <button onClick={() => removePosto(p.id)} className="grid h-8 w-8 place-items-center rounded-md text-destructive hover:bg-destructive-soft">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canIncluir && (
+                        <button onClick={() => removePosto(p.id)} className="grid h-8 w-8 place-items-center rounded-md text-destructive hover:bg-destructive-soft">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                     <div className="mb-3 flex items-center gap-2">
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
@@ -373,13 +391,15 @@ export default function Composicao() {
                         value={p.local}
                         onChange={(e) => updatePosto(p.id, "local", e.target.value)}
                         placeholder="Local de prestação"
-                        className="h-8 flex-1 rounded-md border border-input bg-background px-3 text-xs outline-none focus:border-primary"
+                        disabled={!canAlterar}
+                        title={!canAlterar ? "Sem permissão para alterar nesta fase" : undefined}
+                        className="h-8 flex-1 rounded-md border border-input bg-background px-3 text-xs outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                       />
                     </div>
                     <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-3">
-                      <Money label="Salário base" v={p.salario} onChange={(v) => updatePosto(p.id, "salario", v)} />
-                      <Money label="Insalub. (%)" v={p.insalubridade} onChange={(v) => updatePosto(p.id, "insalubridade", v)} />
-                      <Money label="VT (R$)" v={p.vt} onChange={(v) => updatePosto(p.id, "vt", v)} />
+                      <Money label="Salário base" v={p.salario} onChange={(v) => updatePosto(p.id, "salario", v)} disabled={!canAlterar} />
+                      <Money label="Insalub. (%)" v={p.insalubridade} onChange={(v) => updatePosto(p.id, "insalubridade", v)} disabled={!canAlterar} />
+                      <Money label="VT (R$)" v={p.vt} onChange={(v) => updatePosto(p.id, "vt", v)} disabled={!canAlterar} />
                     </div>
                   </div>
                 ))}
@@ -409,7 +429,9 @@ export default function Composicao() {
                           step={0.01}
                           value={v.percentual}
                           onChange={(e) => updateVerba(i, Number(e.target.value) || 0)}
-                          className="ml-auto block h-8 w-24 rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary"
+                          disabled={!canAlterar}
+                          title={!canAlterar ? "Sem permissão para alterar nesta fase" : undefined}
+                          className="ml-auto block h-8 w-24 rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                         />
                       </td>
                     </tr>
@@ -432,9 +454,9 @@ export default function Composicao() {
                 {postos.map((p) => (
                   <div key={p.id} className="grid grid-cols-3 gap-2 rounded-md border border-border bg-surface-sunken p-3">
                     <div className="col-span-3 text-xs font-semibold">{p.cargo}</div>
-                    <Money label="VA" v={p.va} onChange={(v) => updatePosto(p.id, "va", v)} />
-                    <Money label="VT" v={p.vt} onChange={(v) => updatePosto(p.id, "vt", v)} />
-                    <Money label="Insalub %" v={p.insalubridade} onChange={(v) => updatePosto(p.id, "insalubridade", v)} />
+                    <Money label="VA" v={p.va} onChange={(v) => updatePosto(p.id, "va", v)} disabled={!canAlterar} />
+                    <Money label="VT" v={p.vt} onChange={(v) => updatePosto(p.id, "vt", v)} disabled={!canAlterar} />
+                    <Money label="Insalub %" v={p.insalubridade} onChange={(v) => updatePosto(p.id, "insalubridade", v)} disabled={!canAlterar} />
                   </div>
                 ))}
               </div>
@@ -451,8 +473,8 @@ export default function Composicao() {
                   <div key={p.id} className="rounded-md border border-border bg-surface-sunken p-3">
                     <p className="mb-2 text-xs font-semibold">{p.cargo} · {p.qtd} posto(s)</p>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      <Money label="Uniformes (R$/mês)" v={p.uniformes} onChange={(v) => updatePosto(p.id, "uniformes", v)} />
-                      <Money label="EPIs (R$/mês)" v={p.epis} onChange={(v) => updatePosto(p.id, "epis", v)} />
+                      <Money label="Uniformes (R$/mês)" v={p.uniformes} onChange={(v) => updatePosto(p.id, "uniformes", v)} disabled={!canAlterar} />
+                      <Money label="EPIs (R$/mês)" v={p.epis} onChange={(v) => updatePosto(p.id, "epis", v)} disabled={!canAlterar} />
                     </div>
                   </div>
                 ))}
@@ -469,9 +491,9 @@ export default function Composicao() {
                 <TrendingUp className="h-4 w-4 text-accent" /> Tributos, indiretos e margem
               </h2>
               <div className="grid gap-4 sm:grid-cols-3">
-                <Slider label="Custos indiretos (% s/ direto)" v={custoIndireto} onChange={(v: number) => { setCustoIndireto(v); marcarValida("impostos"); }} max={30} />
-                <Slider label="Carga tributária estimada" v={tributos} onChange={(v: number) => { setTributos(v); marcarValida("impostos"); }} max={30} />
-                <Slider label="Margem de lucro desejada" v={margem} onChange={(v: number) => { setMargem(v); marcarValida("impostos"); }} max={40} highlight />
+                <Slider label="Custos indiretos (% s/ direto)" v={custoIndireto} onChange={(v: number) => { setCustoIndireto(v); marcarValida("impostos"); }} max={30} disabled={!canAlterar} />
+                <Slider label="Carga tributária estimada" v={tributos} onChange={(v: number) => { setTributos(v); marcarValida("impostos"); }} max={30} disabled={!canAlterar} />
+                <Slider label="Margem de lucro desejada" v={margem} onChange={(v: number) => { setMargem(v); marcarValida("impostos"); }} max={40} highlight disabled={!canAlterar} />
               </div>
               <div className="mt-4 rounded-md border border-warning/30 bg-warning-soft px-3 py-2.5 text-[12px] text-warning">
                 A margem definida aqui é decisão da licitação — ela será revisada pela Controladoria antes da aprovação final
@@ -680,7 +702,7 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Money({ label, v, onChange }: { label: string; v: number; onChange: (v: number) => void }) {
+function Money({ label, v, onChange, disabled }: { label: string; v: number; onChange: (v: number) => void; disabled?: boolean }) {
   return (
     <div>
       <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
@@ -688,13 +710,15 @@ function Money({ label, v, onChange }: { label: string; v: number; onChange: (v:
         type="number"
         value={v}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className="h-8 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary"
+        disabled={disabled}
+        title={disabled ? "Sem permissão para alterar nesta fase" : undefined}
+        className="h-8 w-full rounded-md border border-input bg-background px-2 text-right font-mono text-xs outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
       />
     </div>
   );
 }
 
-function Slider({ label, v, onChange, max, highlight }: any) {
+function Slider({ label, v, onChange, max, highlight, disabled }: any) {
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
@@ -708,7 +732,9 @@ function Slider({ label, v, onChange, max, highlight }: any) {
         step={0.5}
         value={v}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-accent"
+        disabled={disabled}
+        title={disabled ? "Sem permissão para alterar nesta fase" : undefined}
+        className="w-full accent-accent disabled:cursor-not-allowed disabled:opacity-60"
       />
     </div>
   );
