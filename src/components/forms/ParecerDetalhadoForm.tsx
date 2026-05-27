@@ -3,6 +3,7 @@ import { Save, Send, Shield, FileCheck2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import type { Licitacao } from "@/data/licitacoes";
 import { formatBRL, formatDate } from "@/data/licitacoes";
+import { usePermissoes } from "@/context/PermissoesContext";
 
 export interface ChecklistItem {
   id: string;
@@ -39,6 +40,8 @@ export interface ParecerDetalhadoConfig {
   /** lista de "frequentes" mostrados na lateral */
   referenciasLaterais?: { titulo: string; itens: string[] };
   cor?: "primary" | "accent";
+  /** B2.1.e — código do menu em app_menu, usado para gating fino de permissões (`incluir` para salvar rascunho, `aprovar` para enviar). */
+  menuCodigo?: string;
 }
 
 const tomChip = {
