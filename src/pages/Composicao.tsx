@@ -454,9 +454,9 @@ export default function Composicao() {
                 {postos.map((p) => (
                   <div key={p.id} className="grid grid-cols-3 gap-2 rounded-md border border-border bg-surface-sunken p-3">
                     <div className="col-span-3 text-xs font-semibold">{p.cargo}</div>
-                    <Money label="VA" v={p.va} onChange={(v) => updatePosto(p.id, "va", v)} />
-                    <Money label="VT" v={p.vt} onChange={(v) => updatePosto(p.id, "vt", v)} />
-                    <Money label="Insalub %" v={p.insalubridade} onChange={(v) => updatePosto(p.id, "insalubridade", v)} />
+                    <Money label="VA" v={p.va} onChange={(v) => updatePosto(p.id, "va", v)} disabled={!canAlterar} />
+                    <Money label="VT" v={p.vt} onChange={(v) => updatePosto(p.id, "vt", v)} disabled={!canAlterar} />
+                    <Money label="Insalub %" v={p.insalubridade} onChange={(v) => updatePosto(p.id, "insalubridade", v)} disabled={!canAlterar} />
                   </div>
                 ))}
               </div>
