@@ -188,10 +188,16 @@ export default function CustosBDI() {
         subtitle="Precificação detalhada por posto/função: salários, encargos, benefícios, insumos, BDI e tributos."
         actions={
           <>
-            <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
-              <Save className="h-3.5 w-3.5" /> Salvar rascunho
-            </button>
-            <button className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground">
+            {canIncluir && (
+              <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
+                <Save className="h-3.5 w-3.5" /> Salvar rascunho
+              </button>
+            )}
+            <button
+              disabled={!canAprovar}
+              title={!canAprovar ? "Sem permissão para aprovar nesta fase" : undefined}
+              className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
               <Send className="h-3.5 w-3.5" /> Enviar à Controladoria
             </button>
           </>
@@ -201,6 +207,18 @@ export default function CustosBDI() {
       {/* Tabs de postos */}
       <div className="flex flex-wrap items-center gap-2">
         {linhas.map((l) => (
+          <button
+            key={l.id}
+            onClick={() => setAtiva(l.id)}
+            className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              ativa === l.id
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card hover:bg-muted"
+            }`}
+          >
+            {l.nome}
+          </button>
+        ))}
           <button
             key={l.id}
             onClick={() => setAtiva(l.id)}
