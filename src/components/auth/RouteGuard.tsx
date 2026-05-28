@@ -5,6 +5,17 @@ import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
 import { usePermissoes } from "@/context/PermissoesContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useFeatureFlag } from "@/lib/featureFlags";
+
+/**
+ * Bloco V3 — Rotas governadas por feature flag soberana de fase.
+ * Quando a flag está desativada, o RouteGuard nega acesso mesmo para admin
+ * e mesmo que a rota esteja em app_menu / permissões. Reativação exige
+ * flip explícito da flag (Fase 1 = desativada por padrão).
+ */
+const PHASE_FLAGGED_ROUTES: { prefix: string; flag: "triagemIA" }[] = [
+  { prefix: "/app/triagem", flag: "triagemIA" },
+];
 
 /**
  * Rotas privilegiadas que sempre são liberadas para admin, controladoria e
@@ -52,6 +63,17 @@ export function RouteGuard({ children }: { children: ReactNode }) {
   const { roles } = usePermissoes();
   const loggedRef = useRef<string>("");
 
+  // Bloco V3 — checagem soberana de fase via feature flag.
+  // Se a flag de fase estiver desativada, a rota é negada mesmo para
+  // admin / menu liberado / permissão liberada.
+  const [triagemIAEnabled] = useFeatureFlag("triagemIA", false);
+  const phaseFlagged = PHASE_FLAGGED_ROUTES.find(
+    (r) => pathname === r.prefix || pathname.startsWith(r.prefix + "/"),
+  );
+  const phaseFlagEnabled = phaseFlagged
+    ? (phaseFlagged.flag === "triagemIA" ? triagemIAEnabled : false)
+    : true;
+
   const menuCode = data ? matchMenuCode(pathname, data.routes) : null;
   const isPrivilegedRoute = PRIVILEGED_ROUTES.some((r) => pathname.startsWith(r));
   const hasPrivilegedRole = roles.some((r) => PRIVILEGED_ROLES.includes(r));
@@ -60,13 +82,15 @@ export function RouteGuard({ children }: { children: ReactNode }) {
 
   // B2 — deny-by-default: rota sem menuCode e fora da allowlist é negada
   // (admin sempre passa pelo bypass `data.isAdmin`).
+  // V3 — flag soberana de fase prevalece sobre qualquer bypass.
   const allowed =
-    !data ||
-    data.isAdmin ||
-    privilegedBypass ||
-    (roleRestricted !== null
-      ? roleRestricted
-      : (menuCode ? data.codes.has(menuCode) : inAllowlist(pathname)));
+    phaseFlagEnabled &&
+    (!data ||
+      data.isAdmin ||
+      privilegedBypass ||
+      (roleRestricted !== null
+        ? roleRestricted
+        : (menuCode ? data.codes.has(menuCode) : inAllowlist(pathname))));
 
 
 
@@ -85,7 +109,9 @@ export function RouteGuard({ children }: { children: ReactNode }) {
         rota: pathname,
         acao: "visualizar",
         allowed: false,
-        motivo: menuCode ? "route_guard_block" : "route_guard_block_no_menu",
+        motivo: !phaseFlagEnabled
+          ? `route_guard_phase_flag_off:${phaseFlagged?.flag}`
+          : (menuCode ? "route_guard_block" : "route_guard_block_no_menu"),
       });
     })();
   }, [isLoading, allowed, pathname, menuCode]);
