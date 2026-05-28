@@ -1,100 +1,36 @@
-# Plano — Desativação dos menus IA (Fase 1) + Bloco V5
+# Bloco F4 — Hardening RLS CUD/SELECT (migration única)
 
-## Parte 1 — Migration: desativar `triagem` e `copiloto_ia` em `app_menu`
+Aplicar a migration já revisada e aprovada, sem alterar uma vírgula em relação ao script auditado.
 
-### Estado atual (apurado read-only)
-- `app_menu.codigo='triagem'` → `/app/triagem`, `ativo=true`
-- `app_menu.codigo='copiloto_ia'` → `/app/plano-acoes/copiloto`, `ativo=true`
-- `screen_permission_profile`: 8 linhas para `triagem`, 8 para `copiloto_ia` (perfis × ações)
-- `screen_permission_user`: **0** linhas (nenhum override individual)
-- `RouteGuard` já bloqueia ambas as rotas pela flag soberana `triagemIA` (default `false`) — Bloco V3 + V4
+## Escopo (3 tabelas)
 
-### Objetivo
-Remover os dois itens da barra lateral e de qualquer listagem governada por `app_menu.ativo=true`, sem destruir histórico de permissões nem o registro do menu (auditoria e reversão simples).
+1. **`public.orcamento_contrato_linha_audit`** — substitui `ocla_insert` (INSERT `WITH CHECK true`) por regra que exige `alterado_por = auth.uid()` E (`admin` OU `user_pode_atuar_empresa(auth.uid(), empresa_id)`).
+2. **`public.pre_titulo_anexo`** — remove policies abertas (SELECT e ALL `USING true`) e cria 4 policies granulares (SELECT/INSERT/UPDATE/DELETE) que herdam o escopo de empresa via `EXISTS` em `pre_titulo_pagar`. Papéis:
+   - SELECT/UPDATE: `financeiro` | `controladoria` | `diretor_adm`
+   - INSERT: idem + `gestor_cc` (e `uploaded_by = auth.uid()`)
+   - DELETE: `financeiro` apenas
+   - `admin` sempre passa.
+3. **`public.pre_titulo_rateio`** — mesmo padrão do anexo (sem trava `uploaded_by`, que não existe na tabela).
 
-### Estratégia — **soft deactivation reversível**
-```text
-1) UPDATE public.app_menu
-     SET ativo = false, updated_at = now()
-   WHERE codigo IN ('triagem','copiloto_ia');
+## Execução
 
-2) (Sem DELETE) Linhas em screen_permission_profile e screen_permission_user
-   permanecem como estão — servem como histórico. Como o menu fica ativo=false,
-   list_accessible_menus / useAccessibleMenus já não retornam o código, e o
-   RouteGuard continua barrando pela flag soberana mesmo se algo tentar burlar.
-```
+- 1 chamada de `supabase--migration` contendo os 3 blocos (F4.1 + F4.2 + F4.3) na ordem acima.
+- Sem alterações de schema, sem novos GRANTs (tabelas já existentes), sem mudanças no frontend.
+- `SECURITY DEFINER` reaproveitado: `public.has_role` e `public.user_pode_atuar_empresa` (já em produção).
 
-### Por que não DELETE
-- Preserva histórico de quem tinha acesso (auditoria/compliance).
-- Reversão = `UPDATE ... SET ativo = true` (1 linha SQL), sem reconstruir permissões.
-- Evita efeito colateral em FKs ou em RPCs que ainda referenciem os códigos.
+## Pós-execução
 
-### Por que não remover do `App.tsx` agora
-Fora de escopo. As rotas continuam registradas, mas:
-- Sidebar não exibe (menu inativo).
-- `RouteGuard` nega por flag soberana mesmo para admin.
-- Acesso direto pela URL → tela "Acesso negado" com log em `access_audit_log` (`route_guard_phase_flag_off:triagemIA`).
+1. Rodar `supabase--linter` e reportar apenas regressões deste bloco (warnings legados ficam fora).
+2. Read-only check em `pg_policies` confirmando:
+   - `orcamento_contrato_linha_audit`: 1 policy `ocla_insert` com `with_check` não-trivial.
+   - `pre_titulo_anexo`: 4 policies (`pretit_anexo_select/insert/update/delete`), nenhuma com `qual = true`.
+   - `pre_titulo_rateio`: 4 policies análogas.
+3. Entregar relatório de sucesso com: SQL aplicado, contagem de policies antes/depois, riscos residuais (R1 do trigger de auditoria assumido pelo arquiteto), e link do SQL Editor para inspeção.
 
-### Riscos e mitigações (modo guardião)
-| Risco | Mitigação |
-|---|---|
-| Algum cache em cliente ainda mostra o item por minutos | `useAccessibleMenus` re-busca em foco/intervalo; aceitável. Comunicar timing. |
-| RPC `list_accessible_menus` filtra por `ativo=true`? | **Confirmar no Bloco V5** (introspecção). Hoje a assunção é sim; se não for, reabro o plano. |
-| Reativação acidental via SPU | SPU referencia `menu_codigo`, mas `useAccessibleMenus` cruza com `app_menu.ativo`. Mesmo com SPU `allow=true`, menu inativo não retorna. **Validar no V5.** |
-| Algum link estático na UI aponta para `/app/triagem` ou `/app/plano-acoes/copiloto` | Não removido neste passo. RouteGuard nega. Item separado para varredura futura. |
+## Rollback (pronto, não executado)
 
-### Smoke pós-migration (manual, 2 min)
-1. Recarregar `/app` como admin → sidebar não mostra "Triagem" nem "Copiloto IA".
-2. Acessar `/app/triagem` direto → "Acesso negado" + linha em `access_audit_log` com motivo `route_guard_phase_flag_off:triagemIA`.
-3. Acessar `/app/plano-acoes/copiloto` direto → idem.
-4. Verificar que demais menus do módulo `licitacoes` e `plano_acoes` continuam acessíveis.
+Já documentado no relatório anterior — 3 blocos `DROP POLICY` + `CREATE POLICY ... USING(true)` restaurando o estado original. Acionado apenas sob ordem expressa.
 
-### Rollback
-```sql
-UPDATE public.app_menu SET ativo = true, updated_at = now()
-WHERE codigo IN ('triagem','copiloto_ia');
-```
-(Permissões em SPP/SPU permanecem intactas, então o acesso é restaurado idêntico.)
+## Trava
 
----
-
-## Parte 2 — Bloco V5: introspecção read-only de governança
-
-### Objetivo
-Produzir um único documento `.lovable/A2-introspeccao-governanca.md` com a **fotografia atual** das regras de acesso aplicadas pelo banco, sem alterar nada. Insumo obrigatório antes de qualquer hardening de RLS/RPC.
-
-### Escopo (estritamente read-only)
-1. **`pg_policies`** — listar todas as policies do schema `public`, agrupadas por tabela: nome, comando, roles, `qual`, `with_check`. Marcar tabelas sem policy + sem RLS habilitada como **risco**.
-2. **RPCs de governança** — código completo de:
-   - `public.has_role`
-   - `public.can_access`
-   - `public.list_accessible_menus`
-   - Quaisquer funções `SECURITY DEFINER` em `public` (listar e marcar `search_path`, owner, `volatile/stable`).
-3. **Cruzamento com A1** — para cada tabela `EMPRESARIAL` da matriz V4, conferir se há policy que filtre por `empresa_id`. Listar lacunas.
-4. **Tabelas-pivô de permissão** (`screen_permission_profile`, `screen_permission_user`, `user_roles`, `app_menu`, `app_modulo`) — schema + grants + policies. Confirmar premissa "menu inativo nunca aparece".
-5. **GRANTs no schema public** — listar quais tabelas concedem o quê para `anon` / `authenticated` / `service_role`. Sinalizar `anon` em tabelas sensíveis.
-6. **Findings** — lista classificada (BLOQUEANTE / ALERTA / OK) com recomendação curta. **Nenhuma alteração proposta como execução** — apenas registro.
-
-### O que **não** entra no V5
-- Nenhuma migration.
-- Nenhuma alteração de policy, GRANT, RPC ou código frontend.
-- Nenhuma decisão de reescrita — apenas inventário e gaps.
-
-### Entregável
-Arquivo `.lovable/A2-introspeccao-governanca.md`, formato compatível com A1, pronto para virar input do próximo bloco de hardening (a ser planejado depois com sua aprovação).
-
-### Ferramentas
-- `supabase--read_query` para introspeção (`pg_policies`, `pg_proc`, `information_schema.role_table_grants`, etc.).
-- `code--view` em `useAccessibleMenus`, `RouteGuard`, `PermissoesContext` para confirmar como o frontend consome cada RPC.
-
----
-
-## Ordem de execução proposta
-
-1. **Aguardo seu OK** neste plano (tanto da migration quanto do escopo V5).
-2. Disparar a migration (ferramenta de migration pedirá sua aprovação explícita antes de rodar).
-3. Após confirmação de que a migration rodou, executar smoke (1 min).
-4. Em seguida, executar V5 (read-only, sem nova aprovação necessária por ser inventário).
-5. Entregar A2 e parar — qualquer ação derivada exige novo plano.
-
-**Nada será executado sem sua autorização explícita.**
+Nada além das 3 tabelas listadas será tocado. Sem mudanças em código TS/TSX. Sem alterações no `app_menu`, RPCs ou views.
