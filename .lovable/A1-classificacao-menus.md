@@ -131,7 +131,7 @@
 | plano_acoes_importar | /app/plano-acoes/importar | CORPORATIVO |
 | plano_acoes_aprovacoes | /app/plano-acoes/aprovacoes | CORPORATIVO |
 | plano_acoes_configuracoes | /app/plano-acoes/configuracoes | CORPORATIVO |
-| copiloto_ia | /app/plano-acoes/copiloto | INDEFINIDO | **Copiloto IA** — revisar se deve cair sob a mesma flag soberana de IA da Triagem; pendente de decisão humana. |
+| copiloto_ia | /app/plano-acoes/copiloto | DEPRECATED | **Desativado permanentemente** (decisão 2026-05-28). Bloqueado pelo `RouteGuard` sob a mesma flag soberana `triagemIA`. Nenhum usuário final do ERP deve acessar. |
 
 ### Módulo `rh` — EMPRESARIAL
 
