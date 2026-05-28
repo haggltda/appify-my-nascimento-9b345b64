@@ -1,0 +1,1 @@
+UPDATE public.app_menu SET ativo = false, updated_at = now() WHERE codigo IN ('triagem','copiloto_ia');
