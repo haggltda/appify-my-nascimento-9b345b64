@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.list_accessible_menus(uuid, text, uuid) TO supabase_read_only_user;
