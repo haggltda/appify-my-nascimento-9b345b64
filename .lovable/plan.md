@@ -1,36 +1,48 @@
-# Bloco F4 — Hardening RLS CUD/SELECT (migration única)
+# Gerar guia Excel: criação de usuário de teste
 
-Aplicar a migration já revisada e aprovada, sem alterar uma vírgula em relação ao script auditado.
+## Objetivo
+Produzir uma planilha `.xlsx` documentando a sequência correta para um usuário júnior criar um usuário de teste no ERP **no estado atual** (sem aplicar a correção do `admin-create-user`).
 
-## Escopo (3 tabelas)
+## Escopo (o que NÃO será feito)
+- Nenhuma alteração em código front-end, edge functions, migrations, banco Supabase, triggers ou GitHub
+- Nenhum comando que altere estrutura do projeto
+- Apenas geração de arquivo de documentação em `/mnt/documents/`
 
-1. **`public.orcamento_contrato_linha_audit`** — substitui `ocla_insert` (INSERT `WITH CHECK true`) por regra que exige `alterado_por = auth.uid()` E (`admin` OU `user_pode_atuar_empresa(auth.uid(), empresa_id)`).
-2. **`public.pre_titulo_anexo`** — remove policies abertas (SELECT e ALL `USING true`) e cria 4 policies granulares (SELECT/INSERT/UPDATE/DELETE) que herdam o escopo de empresa via `EXISTS` em `pre_titulo_pagar`. Papéis:
-   - SELECT/UPDATE: `financeiro` | `controladoria` | `diretor_adm`
-   - INSERT: idem + `gestor_cc` (e `uploaded_by = auth.uid()`)
-   - DELETE: `financeiro` apenas
-   - `admin` sempre passa.
-3. **`public.pre_titulo_rateio`** — mesmo padrão do anexo (sem trava `uploaded_by`, que não existe na tabela).
+## Entregável
+Arquivo: `/mnt/documents/guia-criacao-usuario-teste.xlsx`
 
-## Execução
+## Estrutura da planilha
+Aba única "Guia criação usuário", com cabeçalho azul/branco, células com `wrap_text`, bordas finas, larguras ajustadas.
 
-- 1 chamada de `supabase--migration` contendo os 3 blocos (F4.1 + F4.2 + F4.3) na ordem acima.
-- Sem alterações de schema, sem novos GRANTs (tabelas já existentes), sem mudanças no frontend.
-- `SECURITY DEFINER` reaproveitado: `public.has_role` e `public.user_pode_atuar_empresa` (já em produção).
+**Colunas (conforme solicitado):**
+1. Etapa (nº)
+2. Rota no front-end
+3. O que fazer / onde clicar / o que esperar
+4. Por que essa etapa é necessária
+5. O que acontece ao executar
+6. Próxima etapa
 
-## Pós-execução
+## Sequência das 10 etapas
+1. Login como admin → `/login`
+2. Acessar Administração → `/app/administracao`
+3. Abrir aba "Usuários" → `/app/administracao` (UsuariosReal)
+4. Criar usuário **sem empresa** (workaround do bug atual do trigger) — e-mail, senha, display name
+5. Vincular empresa HAGG via aba/tela `user_empresa` → Permissões Unificadas / Usuários
+6. Atribuir perfil em `user_roles` (ex.: `usuario`, `gestor`)
+7. Configurar permissões por perfil em "Permissões Unificadas → Por perfil" → `/app/administracao` (PermissoesUnificadasTab)
+8. (Opcional) Exceções individuais em "Por pessoa"
+9. Logout admin → login com o novo usuário → trocar senha obrigatória (`/trocar-senha`)
+10. Smoke test: trocar empresa ativa e navegar pelos menus liberados
 
-1. Rodar `supabase--linter` e reportar apenas regressões deste bloco (warnings legados ficam fora).
-2. Read-only check em `pg_policies` confirmando:
-   - `orcamento_contrato_linha_audit`: 1 policy `ocla_insert` com `with_check` não-trivial.
-   - `pre_titulo_anexo`: 4 policies (`pretit_anexo_select/insert/update/delete`), nenhuma com `qual = true`.
-   - `pre_titulo_rateio`: 4 policies análogas.
-3. Entregar relatório de sucesso com: SQL aplicado, contagem de policies antes/depois, riscos residuais (R1 do trigger de auditoria assumido pelo arquiteto), e link do SQL Editor para inspeção.
+## Processo de geração
+1. Script Python em `/tmp/gen_guia.py` usando `openpyxl`
+2. Salvar `.xlsx` em `/mnt/documents/`
+3. QA visual: converter para PDF/imagem temporária via LibreOffice e inspecionar todas as células (sem copiar QA para `/mnt/documents/`)
+4. Corrigir e regerar se houver texto cortado, sobreposição ou layout quebrado
+5. Entregar com tag `<presentation-artifact>` para download
 
-## Rollback (pronto, não executado)
-
-Já documentado no relatório anterior — 3 blocos `DROP POLICY` + `CREATE POLICY ... USING(true)` restaurando o estado original. Acionado apenas sob ordem expressa.
-
-## Trava
-
-Nada além das 3 tabelas listadas será tocado. Sem mudanças em código TS/TSX. Sem alterações no `app_menu`, RPCs ou views.
+## Critério de aceite
+- Planilha abre sem erros
+- 10 linhas preenchidas, texto legível, sem cortes
+- Linguagem clara para júnior leigo
+- Reflete o fluxo **atual** do ERP (com o workaround "criar sem empresa, vincular depois")
