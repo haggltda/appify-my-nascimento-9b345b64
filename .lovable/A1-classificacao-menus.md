@@ -131,7 +131,7 @@
 | plano_acoes_importar | /app/plano-acoes/importar | CORPORATIVO |
 | plano_acoes_aprovacoes | /app/plano-acoes/aprovacoes | CORPORATIVO |
 | plano_acoes_configuracoes | /app/plano-acoes/configuracoes | CORPORATIVO |
-| copiloto_ia | /app/plano-acoes/copiloto | INDEFINIDO | **Copiloto IA** — revisar se deve cair sob a mesma flag soberana de IA da Triagem; pendente de decisão humana. |
+| copiloto_ia | /app/plano-acoes/copiloto | DEPRECATED | **Desativado permanentemente** (decisão 2026-05-28). Bloqueado pelo `RouteGuard` sob a mesma flag soberana `triagemIA`. Nenhum usuário final do ERP deve acessar. |
 
 ### Módulo `rh` — EMPRESARIAL
 
@@ -159,12 +159,14 @@
 | recebimentos | /app/suprimentos/recebimentos | EMPRESARIAL | |
 | cotacoes | /app/suprimentos/cotacoes | EMPRESARIAL | |
 
-## Itens marcados INDEFINIDO — exigem decisão humana antes de qualquer mexida
+## Itens DEPRECATED — desativados permanentemente
 
-| codigo | rota | motivo |
-|---|---|---|
-| triagem (licitacoes) | /app/triagem | Governado por flag soberana `triagemIA`. Fase 1 = fechada. Não reclassificar enquanto a fase estiver fechada. |
-| copiloto_ia (plano_acoes) | /app/plano-acoes/copiloto | Funcionalidade de IA. Avaliar se entra na mesma flag soberana ou em flag própria (`copilotoIA`). **Risco:** liberar IA por canal alternativo enquanto Triagem IA está bloqueada. Trava recomendada até decisão. |
+| codigo | rota | flag de bloqueio | decisão |
+|---|---|---|---|
+| triagem (licitacoes) | /app/triagem | `triagemIA` (default `false`) | Decisão 2026-05-28: Triagem IA não será mais ativada. Bloqueado no `RouteGuard`. |
+| copiloto_ia (plano_acoes) | /app/plano-acoes/copiloto | `triagemIA` (mesma flag) | Decisão 2026-05-28: Copiloto IA não será mais ativado. Mesma natureza de IA Fase 1. Bloqueado no `RouteGuard`. |
+
+> **Guardião — alerta residual:** os registros em `app_menu` para `triagem` e `copiloto_ia` ainda estão `ativo = true`, portanto ainda aparecem na barra lateral para quem tem permissão de menu. O `RouteGuard` impede o acesso, mas a presença visual pode gerar tentativas e ruído. **Recomendação:** migration futura para `UPDATE app_menu SET ativo = false WHERE codigo IN ('triagem','copiloto_ia')` — não executada agora porque foge do escopo do V4 (classificação) e exige confirmação para perder o histórico de menu. Aguarda aprovação humana explícita.
 
 ## Itens potencialmente faltantes em `app_menu` (gap não-bloqueante)
 
@@ -177,19 +179,18 @@ Detectados em `App.tsx` / `RouteGuard.allowlist` mas sem registro em `app_menu` 
 
 Esses gaps são técnicos e não invalidam a classificação. Devem migrar para `app_menu` em bloco futuro.
 
+## Reclassificações confirmadas (decisão 2026-05-28)
+
+Itens revisados e mantidos como **CORPORATIVO** por decisão de negócio:
+`fornecedores`, `produtos`, `produtos-servicos`, `categorias` (suprimentos), `plano-contas`, `avancada` (contabilidade). Cadastros e regras tratados como estrutura global do grupo, não segregados por empresa.
+
 ## Regras operacionais derivadas
 
 1. **Antes de bloquear um menu pela empresa ativa**, conferir se é `CORPORATIVO` — se for, **não filtrar**.
 2. **Override por empresa em `screen_permission_user`** só faz sentido em menus `EMPRESARIAL`. Para `CORPORATIVO` e `ADMINISTRATIVO_GLOBAL`, exigir `empresa_id=null` (override global).
-3. **Menus `INDEFINIDO`** são tratados como negados por padrão até decisão. A flag soberana de fase, quando aplicável, prevalece.
+3. **Menus `DEPRECATED`** são tratados como negados por padrão. A flag soberana de fase prevalece sobre qualquer bypass (inclusive admin).
 4. **Adição de novo menu em `app_menu`** deve vir acompanhada de classificação aqui, antes de ir para produção.
-
-## Pendências e próximos passos
-
-- **Decidir** se `copiloto_ia` entra na flag `triagemIA`, em uma flag nova `copilotoIA`, ou em uma flag genérica `iaPhase1`.
-- **Validar** com a controladoria/operação se algum menu marcado como `CORPORATIVO` aqui deveria, por regra de negócio interna, ser `EMPRESARIAL` (ex.: `fornecedores`, `plano-contas`, `produtos-servicos` — comumente são globais, mas algumas operações exigem segregação por empresa).
-- **Não alterar** `useAccessibleMenus` / `RouteGuard` / `can_access` enquanto esta matriz não estiver aceita formalmente. Quando aceita, ela vira input para o Bloco V5 (introspecção read-only de `pg_policies` e RPCs) e, depois, para qualquer hardening de permissão por empresa.
 
 ## Status
 
-Documento entregue. **Nenhum código foi alterado.** Aguarda revisão humana, especialmente nos itens marcados `INDEFINIDO` e nos potencialmente reclassificáveis (fornecedores, plano-contas, produtos).
+Documento aceito (decisões humanas 2026-05-28 incorporadas). Copiloto IA bloqueado no `RouteGuard` sob a flag `triagemIA`. Próximo bloco candidato: V1/V2 (smoke tests) ou V5 (introspecção read-only de `pg_policies` e RPCs).
