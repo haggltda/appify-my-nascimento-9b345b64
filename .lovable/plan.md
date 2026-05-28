@@ -1,51 +1,100 @@
-# Fase 0 — Diagnóstico (read-only)
+# Plano — Desativação dos menus IA (Fase 1) + Bloco V5
 
-Antes de tocar em qualquer SQL ou código, vou rodar um diagnóstico completo e **somente leitura** do estado atual de permissões, RLS e governança. Nada é alterado nesta fase.
+## Parte 1 — Migration: desativar `triagem` e `copiloto_ia` em `app_menu`
 
-## O que vou fazer
+### Estado atual (apurado read-only)
+- `app_menu.codigo='triagem'` → `/app/triagem`, `ativo=true`
+- `app_menu.codigo='copiloto_ia'` → `/app/plano-acoes/copiloto`, `ativo=true`
+- `screen_permission_profile`: 8 linhas para `triagem`, 8 para `copiloto_ia` (perfis × ações)
+- `screen_permission_user`: **0** linhas (nenhum override individual)
+- `RouteGuard` já bloqueia ambas as rotas pela flag soberana `triagemIA` (default `false`) — Bloco V3 + V4
 
-### 1. Inventário do banco (via supabase--read_query)
-- Listar todas as tabelas do schema `public` e identificar quais **NÃO** têm RLS habilitada.
-- Listar enums relevantes: `app_role`, `app_modulo`, `app_acao`, `app_menu_codigo`.
-- Conferir tabelas-chave de governança: `user_roles`, `role_permissions`, `screen_permission_profile`, `screen_permission_user`, `perfil_metadata`, `app_menu`, `app_alcadas_*`.
-- Contar registros (quantos perfis, quantas regras por perfil, quantos overrides por usuário, quantos usuários ativos).
-- Listar todas as funções `SECURITY DEFINER` existentes: `has_role`, `has_screen_access`, `list_accessible_menus` etc., e ver seu corpo.
+### Objetivo
+Remover os dois itens da barra lateral e de qualquer listagem governada por `app_menu.ativo=true`, sem destruir histórico de permissões nem o registro do menu (auditoria e reversão simples).
 
-### 2. Auditoria de RLS
-- Rodar `supabase--linter` para capturar:
-  - Tabelas sem RLS
-  - Policies permissivas demais (`USING (true)`)
-  - Funções sem `search_path`
-- Foco especial em `fornecedor_conta_bancaria` (piloto previsto na Fase 1).
+### Estratégia — **soft deactivation reversível**
+```text
+1) UPDATE public.app_menu
+     SET ativo = false, updated_at = now()
+   WHERE codigo IN ('triagem','copiloto_ia');
 
-### 3. Auditoria de código (frontend)
-- Mapear todos os pontos que leem permissão: `PermissoesContext`, `useScreenAccess`, `useAccessibleMenus`, `ScreenGate`, `RoleGate`, `RouteGuard`.
-- Identificar telas que **ainda usam role hardcoded** em vez de `has_screen_access`.
-- Listar Edge Functions sensíveis (`admin-create-user`, `admin-reset-password`, `admin-revoke-session`) e validar se já checam role admin internamente.
+2) (Sem DELETE) Linhas em screen_permission_profile e screen_permission_user
+   permanecem como estão — servem como histórico. Como o menu fica ativo=false,
+   list_accessible_menus / useAccessibleMenus já não retornam o código, e o
+   RouteGuard continua barrando pela flag soberana mesmo se algo tentar burlar.
+```
 
-### 4. Relatório consolidado
-Vou gravar o diagnóstico em `.lovable/A1-fase0-diagnostico.md` com:
-- Tabelas sem RLS (lista completa)
-- Funções definer existentes vs. faltantes
-- Gap entre perfis cadastrados em `perfil_metadata` e roles do enum `app_role`
-- Linhas em `screen_permission_user` (overrides) — quantas, por usuário
-- Pontos de código que fazem bypass de permissão
-- Riscos identificados (com severidade: crítico / alto / médio)
-- **Estimativa refinada de créditos para Fase 1 e Fase 2** com base nos números reais
+### Por que não DELETE
+- Preserva histórico de quem tinha acesso (auditoria/compliance).
+- Reversão = `UPDATE ... SET ativo = true` (1 linha SQL), sem reconstruir permissões.
+- Evita efeito colateral em FKs ou em RPCs que ainda referenciem os códigos.
 
-## O que NÃO vou fazer nesta fase
-- Nenhum `CREATE`, `ALTER`, `DROP`, `INSERT`, `UPDATE`, `DELETE`.
-- Nenhuma alteração de código frontend ou Edge Function.
-- Nenhuma migração.
+### Por que não remover do `App.tsx` agora
+Fora de escopo. As rotas continuam registradas, mas:
+- Sidebar não exibe (menu inativo).
+- `RouteGuard` nega por flag soberana mesmo para admin.
+- Acesso direto pela URL → tela "Acesso negado" com log em `access_audit_log` (`route_guard_phase_flag_off:triagemIA`).
 
-## Entregável
-Um único arquivo `.lovable/A1-fase0-diagnostico.md` + resposta no chat com:
-1. Resumo executivo (3–5 bullets)
-2. Tabela de riscos
-3. Estimativa de créditos refinada para Fase 1
-4. Pergunta de gate: **"Aprovar Fase 1 (SQL + RLS piloto)?"**
+### Riscos e mitigações (modo guardião)
+| Risco | Mitigação |
+|---|---|
+| Algum cache em cliente ainda mostra o item por minutos | `useAccessibleMenus` re-busca em foco/intervalo; aceitável. Comunicar timing. |
+| RPC `list_accessible_menus` filtra por `ativo=true`? | **Confirmar no Bloco V5** (introspecção). Hoje a assunção é sim; se não for, reabro o plano. |
+| Reativação acidental via SPU | SPU referencia `menu_codigo`, mas `useAccessibleMenus` cruza com `app_menu.ativo`. Mesmo com SPU `allow=true`, menu inativo não retorna. **Validar no V5.** |
+| Algum link estático na UI aponta para `/app/triagem` ou `/app/plano-acoes/copiloto` | Não removido neste passo. RouteGuard nega. Item separado para varredura futura. |
 
-## Para leigo
-É como um raio-X antes da cirurgia: eu olho o estado do sistema (quem tem acesso a quê, onde estão as portas destrancadas, quais regras já existem) e devolvo um relatório. Só depois do seu OK eu mexo em qualquer coisa.
+### Smoke pós-migration (manual, 2 min)
+1. Recarregar `/app` como admin → sidebar não mostra "Triagem" nem "Copiloto IA".
+2. Acessar `/app/triagem` direto → "Acesso negado" + linha em `access_audit_log` com motivo `route_guard_phase_flag_off:triagemIA`.
+3. Acessar `/app/plano-acoes/copiloto` direto → idem.
+4. Verificar que demais menus do módulo `licitacoes` e `plano_acoes` continuam acessíveis.
 
-Aprova rodar a Fase 0?
+### Rollback
+```sql
+UPDATE public.app_menu SET ativo = true, updated_at = now()
+WHERE codigo IN ('triagem','copiloto_ia');
+```
+(Permissões em SPP/SPU permanecem intactas, então o acesso é restaurado idêntico.)
+
+---
+
+## Parte 2 — Bloco V5: introspecção read-only de governança
+
+### Objetivo
+Produzir um único documento `.lovable/A2-introspeccao-governanca.md` com a **fotografia atual** das regras de acesso aplicadas pelo banco, sem alterar nada. Insumo obrigatório antes de qualquer hardening de RLS/RPC.
+
+### Escopo (estritamente read-only)
+1. **`pg_policies`** — listar todas as policies do schema `public`, agrupadas por tabela: nome, comando, roles, `qual`, `with_check`. Marcar tabelas sem policy + sem RLS habilitada como **risco**.
+2. **RPCs de governança** — código completo de:
+   - `public.has_role`
+   - `public.can_access`
+   - `public.list_accessible_menus`
+   - Quaisquer funções `SECURITY DEFINER` em `public` (listar e marcar `search_path`, owner, `volatile/stable`).
+3. **Cruzamento com A1** — para cada tabela `EMPRESARIAL` da matriz V4, conferir se há policy que filtre por `empresa_id`. Listar lacunas.
+4. **Tabelas-pivô de permissão** (`screen_permission_profile`, `screen_permission_user`, `user_roles`, `app_menu`, `app_modulo`) — schema + grants + policies. Confirmar premissa "menu inativo nunca aparece".
+5. **GRANTs no schema public** — listar quais tabelas concedem o quê para `anon` / `authenticated` / `service_role`. Sinalizar `anon` em tabelas sensíveis.
+6. **Findings** — lista classificada (BLOQUEANTE / ALERTA / OK) com recomendação curta. **Nenhuma alteração proposta como execução** — apenas registro.
+
+### O que **não** entra no V5
+- Nenhuma migration.
+- Nenhuma alteração de policy, GRANT, RPC ou código frontend.
+- Nenhuma decisão de reescrita — apenas inventário e gaps.
+
+### Entregável
+Arquivo `.lovable/A2-introspeccao-governanca.md`, formato compatível com A1, pronto para virar input do próximo bloco de hardening (a ser planejado depois com sua aprovação).
+
+### Ferramentas
+- `supabase--read_query` para introspeção (`pg_policies`, `pg_proc`, `information_schema.role_table_grants`, etc.).
+- `code--view` em `useAccessibleMenus`, `RouteGuard`, `PermissoesContext` para confirmar como o frontend consome cada RPC.
+
+---
+
+## Ordem de execução proposta
+
+1. **Aguardo seu OK** neste plano (tanto da migration quanto do escopo V5).
+2. Disparar a migration (ferramenta de migration pedirá sua aprovação explícita antes de rodar).
+3. Após confirmação de que a migration rodou, executar smoke (1 min).
+4. Em seguida, executar V5 (read-only, sem nova aprovação necessária por ser inventário).
+5. Entregar A2 e parar — qualquer ação derivada exige novo plano.
+
+**Nada será executado sem sua autorização explícita.**
