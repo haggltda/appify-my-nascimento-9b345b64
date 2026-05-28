@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.can_access(uuid, text, public.app_acao, uuid, text) TO supabase_read_only_user;
