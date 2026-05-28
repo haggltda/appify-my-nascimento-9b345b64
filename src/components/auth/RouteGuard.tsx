@@ -14,7 +14,12 @@ import { useFeatureFlag } from "@/lib/featureFlags";
  * flip explícito da flag (Fase 1 = desativada por padrão).
  */
 const PHASE_FLAGGED_ROUTES: { prefix: string; flag: "triagemIA" }[] = [
+  // Triagem IA — desativada permanentemente (decisão de negócio 2026-05-28).
   { prefix: "/app/triagem", flag: "triagemIA" },
+  // Copiloto IA (plano de ações) — desativado permanentemente sob a mesma flag
+  // soberana de IA. Decisão de negócio 2026-05-28: nenhum usuário final do ERP
+  // deve acessar funcionalidades de IA da Fase 1.
+  { prefix: "/app/plano-acoes/copiloto", flag: "triagemIA" },
 ];
 
 /**
