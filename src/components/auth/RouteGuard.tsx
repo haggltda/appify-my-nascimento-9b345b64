@@ -63,6 +63,17 @@ export function RouteGuard({ children }: { children: ReactNode }) {
   const { roles } = usePermissoes();
   const loggedRef = useRef<string>("");
 
+  // Bloco V3 — checagem soberana de fase via feature flag.
+  // Se a flag de fase estiver desativada, a rota é negada mesmo para
+  // admin / menu liberado / permissão liberada.
+  const [triagemIAEnabled] = useFeatureFlag("triagemIA", false);
+  const phaseFlagged = PHASE_FLAGGED_ROUTES.find(
+    (r) => pathname === r.prefix || pathname.startsWith(r.prefix + "/"),
+  );
+  const phaseFlagEnabled = phaseFlagged
+    ? (phaseFlagged.flag === "triagemIA" ? triagemIAEnabled : false)
+    : true;
+
   const menuCode = data ? matchMenuCode(pathname, data.routes) : null;
   const isPrivilegedRoute = PRIVILEGED_ROUTES.some((r) => pathname.startsWith(r));
   const hasPrivilegedRole = roles.some((r) => PRIVILEGED_ROLES.includes(r));
@@ -71,13 +82,15 @@ export function RouteGuard({ children }: { children: ReactNode }) {
 
   // B2 — deny-by-default: rota sem menuCode e fora da allowlist é negada
   // (admin sempre passa pelo bypass `data.isAdmin`).
+  // V3 — flag soberana de fase prevalece sobre qualquer bypass.
   const allowed =
-    !data ||
-    data.isAdmin ||
-    privilegedBypass ||
-    (roleRestricted !== null
-      ? roleRestricted
-      : (menuCode ? data.codes.has(menuCode) : inAllowlist(pathname)));
+    phaseFlagEnabled &&
+    (!data ||
+      data.isAdmin ||
+      privilegedBypass ||
+      (roleRestricted !== null
+        ? roleRestricted
+        : (menuCode ? data.codes.has(menuCode) : inAllowlist(pathname))));
 
 
 
