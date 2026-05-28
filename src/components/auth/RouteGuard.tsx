@@ -5,6 +5,17 @@ import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
 import { usePermissoes } from "@/context/PermissoesContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useFeatureFlag } from "@/lib/featureFlags";
+
+/**
+ * Bloco V3 — Rotas governadas por feature flag soberana de fase.
+ * Quando a flag está desativada, o RouteGuard nega acesso mesmo para admin
+ * e mesmo que a rota esteja em app_menu / permissões. Reativação exige
+ * flip explícito da flag (Fase 1 = desativada por padrão).
+ */
+const PHASE_FLAGGED_ROUTES: { prefix: string; flag: "triagemIA" }[] = [
+  { prefix: "/app/triagem", flag: "triagemIA" },
+];
 
 /**
  * Rotas privilegiadas que sempre são liberadas para admin, controladoria e
