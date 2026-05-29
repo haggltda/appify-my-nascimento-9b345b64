@@ -1237,6 +1237,376 @@ export type Database = {
           },
         ]
       }
+      bdi_aprovacao: {
+        Row: {
+          acao: Database["public"]["Enums"]["bdi_aprovacao_acao"]
+          ator_id: string
+          bdi_versao_id: string
+          created_at: string
+          de_status: Database["public"]["Enums"]["bdi_status"] | null
+          empresa_id: string
+          id: string
+          justificativa: string | null
+          para_status: Database["public"]["Enums"]["bdi_status"]
+        }
+        Insert: {
+          acao: Database["public"]["Enums"]["bdi_aprovacao_acao"]
+          ator_id: string
+          bdi_versao_id: string
+          created_at?: string
+          de_status?: Database["public"]["Enums"]["bdi_status"] | null
+          empresa_id: string
+          id?: string
+          justificativa?: string | null
+          para_status: Database["public"]["Enums"]["bdi_status"]
+        }
+        Update: {
+          acao?: Database["public"]["Enums"]["bdi_aprovacao_acao"]
+          ator_id?: string
+          bdi_versao_id?: string
+          created_at?: string
+          de_status?: Database["public"]["Enums"]["bdi_status"] | null
+          empresa_id?: string
+          id?: string
+          justificativa?: string | null
+          para_status?: Database["public"]["Enums"]["bdi_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bdi_aprovacao_bdi_versao_id_fkey"
+            columns: ["bdi_versao_id"]
+            isOneToOne: false
+            referencedRelation: "bdi_versao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bdi_item: {
+        Row: {
+          bdi_versao_id: string
+          campo_key: string
+          created_at: string
+          empresa_id: string
+          grupo: Database["public"]["Enums"]["bdi_item_grupo"]
+          id: string
+          label: string
+          observacao: string | null
+          ordem: number
+          produto_servico_id: string | null
+          quantidade: number
+          tipo: Database["public"]["Enums"]["bdi_item_tipo"]
+          unidade: string | null
+          updated_at: string
+          valor: number
+          valor_total_estimado: number | null
+          valor_unitario_estimado: number
+        }
+        Insert: {
+          bdi_versao_id: string
+          campo_key: string
+          created_at?: string
+          empresa_id: string
+          grupo: Database["public"]["Enums"]["bdi_item_grupo"]
+          id?: string
+          label: string
+          observacao?: string | null
+          ordem?: number
+          produto_servico_id?: string | null
+          quantidade?: number
+          tipo?: Database["public"]["Enums"]["bdi_item_tipo"]
+          unidade?: string | null
+          updated_at?: string
+          valor?: number
+          valor_total_estimado?: number | null
+          valor_unitario_estimado?: number
+        }
+        Update: {
+          bdi_versao_id?: string
+          campo_key?: string
+          created_at?: string
+          empresa_id?: string
+          grupo?: Database["public"]["Enums"]["bdi_item_grupo"]
+          id?: string
+          label?: string
+          observacao?: string | null
+          ordem?: number
+          produto_servico_id?: string | null
+          quantidade?: number
+          tipo?: Database["public"]["Enums"]["bdi_item_tipo"]
+          unidade?: string | null
+          updated_at?: string
+          valor?: number
+          valor_total_estimado?: number | null
+          valor_unitario_estimado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bdi_item_bdi_versao_id_fkey"
+            columns: ["bdi_versao_id"]
+            isOneToOne: false
+            referencedRelation: "bdi_versao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bdi_item_produto_servico_id_fkey"
+            columns: ["produto_servico_id"]
+            isOneToOne: false
+            referencedRelation: "produto_servico"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bdi_posto: {
+        Row: {
+          bdi_versao_id: string
+          cargo: string
+          created_at: string
+          empresa_id: string
+          epis: number
+          id: string
+          insalubridade_pct: number
+          local: string | null
+          observacao: string | null
+          ordem: number
+          periculosidade_pct: number
+          qtd: number
+          salario_base: number
+          uniformes: number
+          updated_at: string
+          va: number
+          vt: number
+        }
+        Insert: {
+          bdi_versao_id: string
+          cargo: string
+          created_at?: string
+          empresa_id: string
+          epis?: number
+          id?: string
+          insalubridade_pct?: number
+          local?: string | null
+          observacao?: string | null
+          ordem?: number
+          periculosidade_pct?: number
+          qtd?: number
+          salario_base?: number
+          uniformes?: number
+          updated_at?: string
+          va?: number
+          vt?: number
+        }
+        Update: {
+          bdi_versao_id?: string
+          cargo?: string
+          created_at?: string
+          empresa_id?: string
+          epis?: number
+          id?: string
+          insalubridade_pct?: number
+          local?: string | null
+          observacao?: string | null
+          ordem?: number
+          periculosidade_pct?: number
+          qtd?: number
+          salario_base?: number
+          uniformes?: number
+          updated_at?: string
+          va?: number
+          vt?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bdi_posto_bdi_versao_id_fkey"
+            columns: ["bdi_versao_id"]
+            isOneToOne: false
+            referencedRelation: "bdi_versao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bdi_snapshot: {
+        Row: {
+          bdi_versao_id: string
+          empresa_id: string
+          gerado_em: string
+          gerado_por: string
+          id: string
+          payload: Json
+          totais: Json
+        }
+        Insert: {
+          bdi_versao_id: string
+          empresa_id: string
+          gerado_em?: string
+          gerado_por: string
+          id?: string
+          payload: Json
+          totais?: Json
+        }
+        Update: {
+          bdi_versao_id?: string
+          empresa_id?: string
+          gerado_em?: string
+          gerado_por?: string
+          id?: string
+          payload?: Json
+          totais?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bdi_snapshot_bdi_versao_id_fkey"
+            columns: ["bdi_versao_id"]
+            isOneToOne: false
+            referencedRelation: "bdi_versao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bdi_verba_folha: {
+        Row: {
+          bdi_versao_id: string
+          created_at: string
+          empresa_id: string
+          id: string
+          observacao: string | null
+          ordem: number
+          percentual: number
+          rubrica: string
+          updated_at: string
+        }
+        Insert: {
+          bdi_versao_id: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          observacao?: string | null
+          ordem?: number
+          percentual?: number
+          rubrica: string
+          updated_at?: string
+        }
+        Update: {
+          bdi_versao_id?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          observacao?: string | null
+          ordem?: number
+          percentual?: number
+          rubrica?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bdi_verba_folha_bdi_versao_id_fkey"
+            columns: ["bdi_versao_id"]
+            isOneToOne: false
+            referencedRelation: "bdi_versao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bdi_versao: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          base_versao_id: string | null
+          centro_custo_id: string | null
+          codigo: string
+          contrato_id: string | null
+          created_at: string
+          created_by: string
+          custo_indireto_pct: number
+          descricao: string | null
+          empresa_id: string
+          id: string
+          licitacao_id: string | null
+          margem_pct: number
+          observacao: string | null
+          status: Database["public"]["Enums"]["bdi_status"]
+          totais_cache: Json
+          tributos_pct: number
+          updated_at: string
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          base_versao_id?: string | null
+          centro_custo_id?: string | null
+          codigo: string
+          contrato_id?: string | null
+          created_at?: string
+          created_by?: string
+          custo_indireto_pct?: number
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          licitacao_id?: string | null
+          margem_pct?: number
+          observacao?: string | null
+          status?: Database["public"]["Enums"]["bdi_status"]
+          totais_cache?: Json
+          tributos_pct?: number
+          updated_at?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          base_versao_id?: string | null
+          centro_custo_id?: string | null
+          codigo?: string
+          contrato_id?: string | null
+          created_at?: string
+          created_by?: string
+          custo_indireto_pct?: number
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          licitacao_id?: string | null
+          margem_pct?: number
+          observacao?: string | null
+          status?: Database["public"]["Enums"]["bdi_status"]
+          totais_cache?: Json
+          tributos_pct?: number
+          updated_at?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bdi_versao_base_versao_id_fkey"
+            columns: ["base_versao_id"]
+            isOneToOne: false
+            referencedRelation: "bdi_versao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bdi_versao_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bdi_versao_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bdi_versao_licitacao_id_fkey"
+            columns: ["licitacao_id"]
+            isOneToOne: false
+            referencedRelation: "licitacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       centros_custo: {
         Row: {
           ativo: boolean
@@ -17692,6 +18062,28 @@ export type Database = {
         | "rejeitada"
         | "arquivada"
       banco_tipo: "corrente" | "poupanca" | "aplicacao" | "vinculada"
+      bdi_aprovacao_acao:
+        | "submeter"
+        | "aprovar"
+        | "reprovar"
+        | "congelar"
+        | "cancelar"
+      bdi_item_grupo:
+        | "posto"
+        | "encargo"
+        | "beneficio"
+        | "insumo"
+        | "imposto"
+        | "margem"
+        | "outro"
+      bdi_item_tipo: "moeda" | "percent" | "numero" | "texto"
+      bdi_status:
+        | "rascunho"
+        | "em_revisao"
+        | "aprovado"
+        | "congelado"
+        | "substituido"
+        | "cancelado"
       cc_origem: "manual" | "contrato" | "licitacao" | "rateio" | "corporativo"
       cc_tipo: "adm" | "operacional" | "socios"
       cobranca_registro_status:
@@ -18245,6 +18637,31 @@ export const Constants = {
         "arquivada",
       ],
       banco_tipo: ["corrente", "poupanca", "aplicacao", "vinculada"],
+      bdi_aprovacao_acao: [
+        "submeter",
+        "aprovar",
+        "reprovar",
+        "congelar",
+        "cancelar",
+      ],
+      bdi_item_grupo: [
+        "posto",
+        "encargo",
+        "beneficio",
+        "insumo",
+        "imposto",
+        "margem",
+        "outro",
+      ],
+      bdi_item_tipo: ["moeda", "percent", "numero", "texto"],
+      bdi_status: [
+        "rascunho",
+        "em_revisao",
+        "aprovado",
+        "congelado",
+        "substituido",
+        "cancelado",
+      ],
       cc_origem: ["manual", "contrato", "licitacao", "rateio", "corporativo"],
       cc_tipo: ["adm", "operacional", "socios"],
       cobranca_registro_status: [
