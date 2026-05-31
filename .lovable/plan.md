@@ -1,34 +1,39 @@
-# BLOCO 2A.1-IMPORT-FE REV2 — execução
+# BLOCO 2A.1-PIPELINE-DB REV1 — execução aprovada condicionalmente
 
-Plano aprovado tecnicamente em REV2. Estou em plan mode — clique em **Implement plan** para entrar em build mode e aplicar exatamente o que está abaixo.
+Plano REV1 aprovado. Clique em **Implement plan** para entrar em build mode e aplicar exatamente o que está abaixo.
 
 ## Arquivos a criar
 
-1. `src/utils/licitacoes/mapGradeToImportRows.ts` — mapper Grade → contrato RPC; `normalizarValor` BR/US, `normalizarAbertura`, `extrairResponsavelTexto`, `hashRows`, `raw_original` enumerável.
-2. `src/hooks/useLicitacaoImportacao.ts` — `useMutation` para as 4 RPCs (`criar_lote`, `anexar_linhas`, `confirmar`, `cancelar`) + `obterLote` (select em `licitacao_importacao_lote`); helper `normalizeError`/`explainError`; flags `isCreating/Uploading/Confirming/Canceling/isBusy`; invalida `["licitacoes"]` e `["pipeline"]` no confirmar.
-3. `src/components/licitacoes/ImportGradeDialog.tsx` — wizard `idle → preview → confirmando → sucesso`. Cria lote, anexa, busca resumo, mostra erros (`{linha,erro}` ou `{linha,campo,mensagem}`), pendências previstas vs registradas, bloqueia Confirmar com `linhas_invalidas > 0`, cancela lote em fechamento prematuro / falha em anexar; **mantém modal aberto** se cancelar falhar; exibe aviso de fonte temporária no sucesso.
+1. `src/utils/licitacoes/mapDbLicitacaoToPipeline.ts` — mapper `public.licitacao → Licitacao` (UI). Mapeia enum DB (`rascunho|oportunidade|em_andamento|vencida|perdida|cancelada`) para enum UI; `criticidade="media"` (CRITICIDADE_NAO_LOCALIZADA_NO_BANCO); `empresa=""` (sigla pendente — D-PIPE-1); `prazo=abertura` (proxy); preserva `id` uuid e `responsavel_user_id`; resolve nome via `ResponsavelMap` com fallback `"—" → display_name → email → "Responsável vinculado"`.
+2. `src/hooks/useLicitacoesPipeline.ts` — `useQuery({ queryKey:["licitacoes-pipeline", empresaId], enabled:!!empresaId, staleTime:30s })`. SELECT em `public.licitacao` (17 colunas) filtrado por `empresa_id`, `order("abertura" asc nullsFirst:false).order("updated_at" desc).limit(2000)`. Segunda query opcional em `profiles.select("id,display_name,email").in("id", ids)` para resolver responsáveis. Sem `service_role`. Apenas SELECT.
 
 ## Arquivo a alterar
 
 `src/pages/Pipeline.tsx` (3 edits cirúrgicos):
 
-- **linha 6**: remover `import gradeSeed from "@/data/licitacoesGradeSeed.json";` e adicionar `import { ImportGradeDialog } from "@/components/licitacoes/ImportGradeDialog";` + `import { useEmpresaId } from "@/hooks/useEmpresaId";`. Mantém `supabase` (linha 20) e `toast` (linha 21) — ainda usados em `useEffect` de profile e em `handleConfirmAssume`.
-- **linhas 89–109**: remover `const [importing, setImporting]` + `handleImportGrade` (destrutivo). Substituir por `const [importOpen, setImportOpen] = useState(false);`, `const { data: empresaAtivaId } = useEmpresaId();`, `const handleRefreshPipeline = () => setOverrides(loadOverrides());`.
-- **linhas 138–146**: trocar `onClick={handleImportGrade}` por `onClick={() => setImportOpen(true)}`; remover `disabled={importing}` e texto condicional.
-- Antes do `</div>` raiz (após `</AlertDialog>` linha 204): renderizar `<ImportGradeDialog open={importOpen} onOpenChange={setImportOpen} empresaId={empresaAtivaId ?? null} onImported={handleRefreshPipeline} />`.
+- **linha 9**: adicionar `import { useLicitacoesPipeline } from "@/hooks/useLicitacoesPipeline";` após o import de `useEmpresaId`.
+- **linhas 70–93**: remover o `useMemo` que lia direto do `licitacoesBase` e o comentário/handleRefresh temporário. Em seu lugar: manter `handleConfirmAssume`, depois declarar `importOpen`, `empresaAtivaId`, chamar `useLicitacoesPipeline`, calcular `usandoFonteTemporaria` e o novo `data` (real > mock só com banner). `handleRefreshPipeline` passa a chamar `setOverrides(loadOverrides())` **e** `refetchPipeline()`.
+- **linhas 158–162**: envolver o `view === "kanban" ? KanbanView : TableView` em uma cadeia de estados: sem empresa → empty "Selecione uma empresa"; loading → empty "Carregando licitações…"; erro → empty tone error com `error.message`; banco vazio sem mock → empty "Nenhuma licitação importada"; senão → banner amarelo de fonte temporária (quando aplicável) + Kanban/Table.
+- Acrescentar componente auxiliar `EmptyPipeline({ title, message, tone? })` ao lado de `FilterPill`.
+
+ImportGradeDialog, botão "Importar Grade 2026" (linhas 122–129), `openComposicao` (duplo clique → `/app/composicao?licitacao=<uuid>`), filtros, `AssumirButton`, `KanbanView`, `TableView` — todos preservados byte-a-byte.
 
 ## Garantias pós-build
 
-- `rg "handleImportGrade|gradeSeed" src/pages/Pipeline.tsx` → 0.
-- `rg 'from\("licitacao"\)\.(delete|insert)' src/pages/Pipeline.tsx` → 0.
+- `rg 'from\("licitacao"\)\.(delete|insert|update|upsert)' src/pages/Pipeline.tsx src/hooks/useLicitacoesPipeline.ts src/utils/licitacoes/mapDbLicitacaoToPipeline.ts` → 0.
+- `rg 'from\("licitacao"\)\.select' src/hooks/useLicitacoesPipeline.ts` → 1.
+- `rg "service_role" src/pages/Pipeline.tsx src/hooks/useLicitacoesPipeline.ts src/utils/licitacoes/mapDbLicitacaoToPipeline.ts` → 0.
+- Composicao.tsx, ImportGradeDialog.tsx, useLicitacaoImportacao.ts, mapGradeToImportRows.ts, useEmpresaId.ts, mocks/seeds, localStorage — intactos.
+- Backend, RPCs, `public.licitacao`, `stg_licitacoes`, enums e Edge Functions — intactos.
 - TypeScript compila; lint passa.
-- Backend, RPCs, `stg_licitacoes`, `public.licitacao`, mocks/seeds, `localStorage`, `Composicao.tsx`, Suprimentos/Financeiro/Fiscal/Contábil/DRE/Caixa **intactos**.
-- Nenhum `service_role` no frontend; nenhuma Edge Function criada; nenhuma migration.
 
 ## Rollback frontend
 
-Excluir os 3 arquivos novos e reverter o diff de `Pipeline.tsx` via VCS. Não tocar em backend ou dados importados.
+1. `rm src/hooks/useLicitacoesPipeline.ts`
+2. `rm src/utils/licitacoes/mapDbLicitacaoToPipeline.ts`
+3. Reverter os 3 edits em `Pipeline.tsx` via VCS.
+4. Banco e dados importados não são tocados.
 
-## Conteúdo dos arquivos
+## Conteúdo completo dos arquivos
 
-O conteúdo completo de cada arquivo já foi entregue no documento **BLOCO_2A_1_IMPORT_FE_PLAN_MODE_REV2** anterior nesta thread (seções §5, §6, §7 e §8) e será aplicado byte-a-byte na execução.
+O conteúdo byte-a-byte de cada arquivo já foi entregue em **BLOCO_2A_1_PIPELINE_DB_PLAN_MODE_REV1** (§9.1, §9.2, §9.3) e será aplicado na execução.
