@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
 import { licitacoes as licitacoesBase, statusOrdem, statusLabel, formatBRL, formatDate, type StatusLicitacao, type Licitacao } from "@/data/licitacoes";
-import gradeSeed from "@/data/licitacoesGradeSeed.json";
 import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical, UserCheck, Hand, Upload } from "lucide-react";
+import { ImportGradeDialog } from "@/components/licitacoes/ImportGradeDialog";
+import { useEmpresaId } from "@/hooks/useEmpresaId";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -86,27 +87,10 @@ export default function Pipeline() {
     setTarget(null);
   };
 
-  const [importing, setImporting] = useState(false);
-  const handleImportGrade = async () => {
-    if (importing) return;
-    if (!confirm(`Importar ${(gradeSeed as any[]).length} licitações da Grade 2026 para o banco? Isso substituirá a carga existente da empresa HAGG.`)) return;
-    setImporting(true);
-    try {
-      const empresaId = "5a61c769-21d8-4e61-b9bb-506b8db0bce8";
-      await supabase.from("licitacao").delete().eq("empresa_id", empresaId);
-      const rows = gradeSeed as any[];
-      const batch = 50;
-      for (let i = 0; i < rows.length; i += batch) {
-        const { error } = await supabase.from("licitacao").insert(rows.slice(i, i + batch));
-        if (error) throw error;
-      }
-      toast({ title: "Grade importada", description: `${rows.length} licitações carregadas.` });
-    } catch (e: any) {
-      toast({ title: "Erro ao importar", description: e?.message || "Falha", variant: "destructive" });
-    } finally {
-      setImporting(false);
-    }
-  };
+  const [importOpen, setImportOpen] = useState(false);
+  const { data: empresaAtivaId } = useEmpresaId();
+  // Pipeline ainda lê mock + overrides; refetch real virá no bloco 2A.1-PIPELINE-DB.
+  const handleRefreshPipeline = () => setOverrides(loadOverrides());
 
   return (
     <div className="space-y-6">
@@ -137,11 +121,10 @@ export default function Pipeline() {
             </button>
             {canExcluir && (
               <button
-                onClick={handleImportGrade}
-                disabled={importing}
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary disabled:opacity-60"
+                onClick={() => setImportOpen(true)}
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary"
               >
-                <Upload className="h-3.5 w-3.5" /> {importing ? "Importando..." : "Importar Grade 2026"}
+                <Upload className="h-3.5 w-3.5" /> Importar Grade 2026
               </button>
             )}
             {canIncluir && (
@@ -202,6 +185,12 @@ export default function Pipeline() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <ImportGradeDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        empresaId={empresaAtivaId ?? null}
+        onImported={handleRefreshPipeline}
+      />
     </div>
   );
 }
