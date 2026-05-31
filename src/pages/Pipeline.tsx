@@ -185,6 +185,12 @@ export default function Pipeline() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <ImportGradeDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        empresaId={empresaAtivaId ?? null}
+        onImported={handleRefreshPipeline}
+      />
     </div>
   );
 }
