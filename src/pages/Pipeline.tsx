@@ -6,6 +6,7 @@ import { licitacoes as licitacoesBase, statusOrdem, statusLabel, formatBRL, form
 import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical, UserCheck, Hand, Upload } from "lucide-react";
 import { ImportGradeDialog } from "@/components/licitacoes/ImportGradeDialog";
 import { useEmpresaId } from "@/hooks/useEmpresaId";
+import { useLicitacoesPipeline } from "@/hooks/useLicitacoesPipeline";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -67,11 +68,6 @@ export default function Pipeline() {
       });
   }, [user]);
 
-  const data = useMemo<Licitacao[]>(
-    () => licitacoesBase.map((l) => (overrides[l.id] ? { ...l, responsavel: overrides[l.id] } : l)),
-    [overrides]
-  );
-
   const handleConfirmAssume = () => {
     if (!target) return;
     if (!user) {
@@ -89,8 +85,38 @@ export default function Pipeline() {
 
   const [importOpen, setImportOpen] = useState(false);
   const { data: empresaAtivaId } = useEmpresaId();
-  // Pipeline ainda lê mock + overrides; refetch real virá no bloco 2A.1-PIPELINE-DB.
-  const handleRefreshPipeline = () => setOverrides(loadOverrides());
+  const {
+    data: dataReal,
+    isLoading: pipelineLoading,
+    error: pipelineError,
+    refetch: refetchPipeline,
+  } = useLicitacoesPipeline({ empresaId: empresaAtivaId ?? null });
+
+  // Fonte real = public.licitacao. Mock só aparece como FONTE_TEMPORARIA
+  // se houver empresa ativa, sem erro, banco vazio e mock disponível.
+  const usandoFonteTemporaria =
+    !!empresaAtivaId &&
+    !pipelineLoading &&
+    !pipelineError &&
+    dataReal.length === 0 &&
+    licitacoesBase.length > 0;
+
+  const data = useMemo<Licitacao[]>(() => {
+    if (!empresaAtivaId) return [];
+    if (pipelineError) return [];
+    if (dataReal.length > 0) {
+      return dataReal.map((l) => (overrides[l.id] ? { ...l, responsavel: overrides[l.id] } : l));
+    }
+    if (usandoFonteTemporaria) {
+      return licitacoesBase.map((l) => (overrides[l.id] ? { ...l, responsavel: overrides[l.id] } : l));
+    }
+    return [];
+  }, [empresaAtivaId, dataReal, pipelineError, usandoFonteTemporaria, overrides]);
+
+  const handleRefreshPipeline = () => {
+    setOverrides(loadOverrides());
+    refetchPipeline();
+  };
 
   return (
     <div className="space-y-6">
@@ -155,10 +181,34 @@ export default function Pipeline() {
         <FilterPill label="Período" value="Últimos 90 dias" icon={<Calendar className="h-3 w-3" />} />
       </div>
 
-      {view === "kanban" ? (
-        <KanbanView data={data} currentUser={displayName} onAssume={setTarget} onOpen={openComposicao} />
+      {!empresaAtivaId ? (
+        <EmptyPipeline title="Selecione uma empresa" message="Selecione uma empresa para visualizar o Pipeline." />
+      ) : pipelineLoading ? (
+        <EmptyPipeline title="Carregando licitações…" message="Buscando dados em public.licitacao." />
+      ) : pipelineError ? (
+        <EmptyPipeline
+          title="Erro ao carregar licitações"
+          message={pipelineError.message ?? "Falha ao consultar public.licitacao."}
+          tone="error"
+        />
+      ) : dataReal.length === 0 && !usandoFonteTemporaria ? (
+        <EmptyPipeline
+          title="Nenhuma licitação importada"
+          message="Nenhuma licitação importada para esta empresa. Use 'Importar Grade 2026' para carregar dados."
+        />
       ) : (
-        <TableView data={data} currentUser={displayName} onAssume={setTarget} onOpen={openComposicao} />
+        <>
+          {usandoFonteTemporaria && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+              Fonte temporária: o banco ainda não possui licitações para esta empresa. Exibindo grade local até a próxima importação.
+            </div>
+          )}
+          {view === "kanban" ? (
+            <KanbanView data={data} currentUser={displayName} onAssume={setTarget} onOpen={openComposicao} />
+          ) : (
+            <TableView data={data} currentUser={displayName} onAssume={setTarget} onOpen={openComposicao} />
+          )}
+        </>
       )}
 
       <AlertDialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
@@ -202,6 +252,16 @@ function FilterPill({ label, value, icon }: { label: string; value: string; icon
       <span className="font-medium text-muted-foreground">{label}:</span>
       <span className="font-semibold text-foreground">{value}</span>
     </button>
+  );
+}
+
+function EmptyPipeline({ title, message, tone = "muted" }: { title: string; message: string; tone?: "muted" | "error" }) {
+  const cls = tone === "error" ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-border bg-muted/30 text-muted-foreground";
+  return (
+    <div className={cn("rounded-lg border px-4 py-10 text-center text-sm", cls)}>
+      <p className="text-base font-semibold">{title}</p>
+      <p className="mt-1 text-xs">{message}</p>
+    </div>
   );
 }
 
