@@ -6931,6 +6931,63 @@ export type Database = {
           },
         ]
       }
+      licitacao_importacao_lote: {
+        Row: {
+          arquivo_hash: string | null
+          arquivo_nome: string | null
+          criado_em: string
+          criado_por: string
+          empresa_id: string
+          erros_json: Json
+          finalizado_em: string | null
+          id: string
+          pendencias_responsavel: Json
+          status: string
+          total_atualizadas: number
+          total_erros: number
+          total_ignoradas: number
+          total_inseridas: number
+          total_linhas: number
+          updated_at: string
+        }
+        Insert: {
+          arquivo_hash?: string | null
+          arquivo_nome?: string | null
+          criado_em?: string
+          criado_por: string
+          empresa_id: string
+          erros_json?: Json
+          finalizado_em?: string | null
+          id?: string
+          pendencias_responsavel?: Json
+          status?: string
+          total_atualizadas?: number
+          total_erros?: number
+          total_ignoradas?: number
+          total_inseridas?: number
+          total_linhas?: number
+          updated_at?: string
+        }
+        Update: {
+          arquivo_hash?: string | null
+          arquivo_nome?: string | null
+          criado_em?: string
+          criado_por?: string
+          empresa_id?: string
+          erros_json?: Json
+          finalizado_em?: string | null
+          id?: string
+          pendencias_responsavel?: Json
+          status?: string
+          total_atualizadas?: number
+          total_erros?: number
+          total_ignoradas?: number
+          total_inseridas?: number
+          total_linhas?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       licitacao_responsavel_historico: {
         Row: {
           acao: string
@@ -17705,6 +17762,26 @@ export type Database = {
         Returns: string
       }
       licitacao_assumir: { Args: { p_licitacao_id: string }; Returns: string }
+      licitacao_importacao_anexar_linhas: {
+        Args: { p_linhas: Json; p_lote: string }
+        Returns: Json
+      }
+      licitacao_importacao_cancelar: {
+        Args: { p_lote: string }
+        Returns: undefined
+      }
+      licitacao_importacao_confirmar: {
+        Args: { p_lote: string }
+        Returns: Json
+      }
+      licitacao_importacao_criar_lote: {
+        Args: {
+          p_arquivo_hash: string
+          p_arquivo_nome: string
+          p_empresa: string
+        }
+        Returns: string
+      }
       licitacao_transferir: {
         Args: {
           p_justificativa: string
