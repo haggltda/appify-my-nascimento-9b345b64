@@ -6842,6 +6842,8 @@ export type Database = {
       licitacao: {
         Row: {
           abertura: string | null
+          assumido_em: string | null
+          assumido_por: string | null
           batch_id: string | null
           created_at: string
           empresa_id: string
@@ -6853,12 +6855,15 @@ export type Database = {
           observacoes: string | null
           orgao: string
           origem_carga: string | null
+          responsavel_user_id: string | null
           status: Database["public"]["Enums"]["licitacao_status"]
           updated_at: string
           valor_estimado: number | null
         }
         Insert: {
           abertura?: string | null
+          assumido_em?: string | null
+          assumido_por?: string | null
           batch_id?: string | null
           created_at?: string
           empresa_id: string
@@ -6870,12 +6875,15 @@ export type Database = {
           observacoes?: string | null
           orgao: string
           origem_carga?: string | null
+          responsavel_user_id?: string | null
           status?: Database["public"]["Enums"]["licitacao_status"]
           updated_at?: string
           valor_estimado?: number | null
         }
         Update: {
           abertura?: string | null
+          assumido_em?: string | null
+          assumido_por?: string | null
           batch_id?: string | null
           created_at?: string
           empresa_id?: string
@@ -6887,6 +6895,7 @@ export type Database = {
           observacoes?: string | null
           orgao?: string
           origem_carga?: string | null
+          responsavel_user_id?: string | null
           status?: Database["public"]["Enums"]["licitacao_status"]
           updated_at?: string
           valor_estimado?: number | null
@@ -6919,6 +6928,50 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_bi_resumo_empresa"
             referencedColumns: ["empresa_id"]
+          },
+        ]
+      }
+      licitacao_responsavel_historico: {
+        Row: {
+          acao: string
+          ator_id: string
+          created_at: string
+          de_user_id: string | null
+          empresa_id: string
+          id: string
+          justificativa: string | null
+          licitacao_id: string
+          para_user_id: string
+        }
+        Insert: {
+          acao: string
+          ator_id: string
+          created_at?: string
+          de_user_id?: string | null
+          empresa_id: string
+          id?: string
+          justificativa?: string | null
+          licitacao_id: string
+          para_user_id: string
+        }
+        Update: {
+          acao?: string
+          ator_id?: string
+          created_at?: string
+          de_user_id?: string | null
+          empresa_id?: string
+          id?: string
+          justificativa?: string | null
+          licitacao_id?: string
+          para_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "licitacao_responsavel_historico_licitacao_id_fkey"
+            columns: ["licitacao_id"]
+            isOneToOne: false
+            referencedRelation: "licitacao"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -17649,6 +17702,15 @@ export type Database = {
       layout_submeter_aprovacao: { Args: { _versao_id: string }; Returns: Json }
       lc_promover_partida_contabil: {
         Args: { _mz_id: number; _payload: Json }
+        Returns: string
+      }
+      licitacao_assumir: { Args: { p_licitacao_id: string }; Returns: string }
+      licitacao_transferir: {
+        Args: {
+          p_justificativa: string
+          p_licitacao_id: string
+          p_novo_user: string
+        }
         Returns: string
       }
       list_accessible_menus: {
