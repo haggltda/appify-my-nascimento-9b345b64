@@ -255,6 +255,16 @@ function FilterPill({ label, value, icon }: { label: string; value: string; icon
   );
 }
 
+function EmptyPipeline({ title, message, tone = "muted" }: { title: string; message: string; tone?: "muted" | "error" }) {
+  const cls = tone === "error" ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-border bg-muted/30 text-muted-foreground";
+  return (
+    <div className={cn("rounded-lg border px-4 py-10 text-center text-sm", cls)}>
+      <p className="text-base font-semibold">{title}</p>
+      <p className="mt-1 text-xs">{message}</p>
+    </div>
+  );
+}
+
 function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
   licitacao: Licitacao;
   currentUser: string;
