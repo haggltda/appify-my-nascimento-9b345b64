@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Filter, RefreshCw, Send, FileDown, Eraser, CheckSquare, AlertTriangle, FileSpreadsheet, Plus } from "lucide-react";
 import { toast } from "sonner";
 
