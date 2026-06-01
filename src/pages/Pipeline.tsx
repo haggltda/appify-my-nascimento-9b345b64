@@ -65,104 +65,102 @@ export default function Pipeline() {
     return s;
   };
 
+  const normalizeUuid = (value: unknown): string | null => {
+    const s = String(value ?? "").trim();
+    return isUuid(s) ? s : null;
+  };
+
+  type ResolveRealIdResult = {
+    id: string | null;
+    matchesCount: number;
+    mode: "licitacao_id" | "id" | "match" | "none";
+  };
+
   const openComposicao = (licitacao: LicitacaoPipeline) => {
-    // eslint-disable-next-line no-console
-    console.info("[Pipeline/openComposicao]", {
-      id: licitacao.id,
-      licitacao_id: licitacao.licitacao_id,
-      numero: licitacao.numero,
-      orgao: licitacao.orgao,
-      abertura: licitacao.abertura ?? licitacao.prazo,
-      isUuidId: isUuid(licitacao.id),
-      isUuidLicitacaoId: isUuid(licitacao.licitacao_id),
-      hasRealData,
-      dataRealLength: dataReal.length,
-    });
+    const resolveRealId = (item: LicitacaoPipeline): ResolveRealIdResult => {
+      const byLicId = normalizeUuid(item.licitacao_id);
+      if (byLicId) return { id: byLicId, matchesCount: 0, mode: "licitacao_id" };
 
-    const resolveRealId = (
-      item: LicitacaoPipeline,
-    ): { id: string | null; matchesCount: number } => {
-      if (isUuid(item.licitacao_id)) {
-        return { id: item.licitacao_id as string, matchesCount: 0 };
-      }
-      if (isUuid(item.id)) {
-        return { id: item.id, matchesCount: 0 };
-      }
+      const byId = normalizeUuid(item.id);
+      if (byId) return { id: byId, matchesCount: 0, mode: "id" };
 
-      if (!hasRealData) return { id: null, matchesCount: 0 };
+      if (!hasRealData) return { id: null, matchesCount: 0, mode: "none" };
 
       const itemNumero = String(item.numero ?? "").trim();
       const itemOrgao = String(item.orgao ?? "").trim().toUpperCase();
       const itemAbertura = getAberturaKey(item.abertura ?? item.prazo);
 
-      const matches = dataReal.filter((r) => {
+      const matches = dataReal.flatMap((r) => {
         const rNumero = String(r.numero ?? "").trim();
         const rOrgao = String(r.orgao ?? "").trim().toUpperCase();
         const rAbertura = getAberturaKey(r.abertura ?? r.prazo);
-        const rId = r.licitacao_id ?? r.id;
-        return (
-          rNumero === itemNumero &&
-          rOrgao === itemOrgao &&
-          rAbertura === itemAbertura &&
-          isUuid(rId)
-        );
+        const rId = normalizeUuid(r.licitacao_id ?? r.id);
+        if (!rId) return [];
+        if (rNumero !== itemNumero || rOrgao !== itemOrgao || rAbertura !== itemAbertura) return [];
+        return [{ row: r, uuid: rId }];
       });
 
-      // eslint-disable-next-line no-console
-      console.info("[Pipeline/resolveRealId]", {
-        itemNumero,
-        itemOrgao,
-        itemAbertura,
-        matchesCount: matches.length,
-        matchesSample: matches.slice(0, 3).map((m) => ({
-          id: m.id,
-          licitacao_id: m.licitacao_id,
-          numero: m.numero,
-          orgao: m.orgao,
-          abertura: m.abertura ?? m.prazo,
-        })),
-      });
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.info("[Pipeline/resolveRealId]", {
+          itemNumero,
+          itemOrgao,
+          itemAbertura,
+          matchesCount: matches.length,
+          matchesSample: matches.slice(0, 3).map((m) => ({
+            id: m.row.id,
+            licitacao_id: m.row.licitacao_id,
+            uuid: m.uuid,
+          })),
+        });
+      }
 
       if (matches.length === 1) {
-        return {
-          id: (matches[0].licitacao_id ?? matches[0].id) as string,
-          matchesCount: 1,
-        };
+        return { id: matches[0].uuid, matchesCount: 1, mode: "match" };
       }
-
-      return { id: null, matchesCount: matches.length };
+      return { id: null, matchesCount: matches.length, mode: "none" };
     };
 
-    const { id, matchesCount } = resolveRealId(licitacao);
+    const result = resolveRealId(licitacao);
 
-    // eslint-disable-next-line no-console
-    console.info("[Pipeline/openComposicao:resolved]", {
-      resolvedId: id,
-      matchesCount,
-      willNavigateTo: id ? `/app/composicao?licitacao=${id}` : null,
-    });
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info("[Pipeline/openComposicao]", {
+        id: licitacao.id,
+        licitacao_id: licitacao.licitacao_id,
+        numero: licitacao.numero,
+        orgao: licitacao.orgao,
+        abertura: licitacao.abertura ?? licitacao.prazo,
+        isUuidId: isUuid(String(licitacao.id ?? "").trim()),
+        isUuidLicitacaoId: isUuid(String(licitacao.licitacao_id ?? "").trim()),
+        hasRealData,
+        dataRealLength: dataReal.length,
+        mode: result.mode,
+        resolvedId: result.id,
+        matchesCount: result.matchesCount,
+      });
+    }
 
-    if (!id) {
-      if (hasRealData) {
-        toast({
-          title: "Erro ao abrir Composição",
-          description:
-            `Não foi possível resolver o UUID da linha. Debug: id=${licitacao.id} licitacao_id=${licitacao.licitacao_id ?? "—"} matches=${matchesCount}`,
-          variant: "destructive",
-        });
-        return;
-      }
+    if (result.id) {
+      navigate(`/app/composicao?licitacao=${encodeURIComponent(result.id)}`);
+      return;
+    }
 
+    if (hasRealData) {
       toast({
-        title: "Licitação ainda não está no banco",
-        description:
-          "Esta linha é da fonte temporária. Use “Importar Grade 2026”, valide e confirme a importação para gerar o ID real antes de abrir a Composição & BDI.",
+        title: "Erro ao abrir Composição",
+        description: `Não foi possível resolver o UUID da linha. Debug: id=${licitacao.id} licitacao_id=${licitacao.licitacao_id ?? "—"} matches=${result.matchesCount} mode=${result.mode}`,
         variant: "destructive",
       });
       return;
     }
 
-    navigate(`/app/composicao?licitacao=${encodeURIComponent(id)}`);
+    toast({
+      title: "Licitação ainda não está no banco",
+      description:
+        "Esta linha é da fonte temporária. Use “Importar Grade 2026”, valide e confirme a importação para gerar o ID real antes de abrir a Composição & BDI.",
+      variant: "destructive",
+    });
   };
 
 
