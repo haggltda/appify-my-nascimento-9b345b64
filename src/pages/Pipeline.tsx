@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
-import { licitacoes as licitacoesBase, statusOrdem, statusLabel, formatBRL, formatDate, type StatusLicitacao, type Licitacao } from "@/data/licitacoes";
+import { formatBRL, formatDate, type StatusLicitacao, type Licitacao } from "@/data/licitacoes";
 import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical, UserCheck, Hand, Upload } from "lucide-react";
 import { ImportGradeDialog } from "@/components/licitacoes/ImportGradeDialog";
 import { useEmpresaId } from "@/hooks/useEmpresaId";
@@ -105,8 +105,8 @@ export default function Pipeline() {
     refetch: refetchPipeline,
   } = useLicitacoesPipeline({ empresaId: empresaAtivaId ?? null });
 
-  // BLOCO_2A_FIX6: com empresa ativa, Pipeline NUNCA renderiza mock/fallback.
-  // Mock (licitacoesBase) só aparece como visão institucional quando não há empresa selecionada.
+  // BLOCO_2A_FIX6B: com empresa ativa, Pipeline NUNCA renderiza mock/fallback.
+  // Sem empresa ativa retorna [] (JSX exibe EmptyPipeline "Selecione uma empresa").
   const hasRealData = dataReal.length > 0;
   const usandoFonteTemporaria = false;
 
@@ -121,10 +121,7 @@ export default function Pipeline() {
   }
 
   const data = useMemo<Licitacao[]>(() => {
-    if (!empresaAtivaId) {
-      // Sem empresa ativa: visão institucional (mock) somente para leitura visual.
-      return licitacoesBase.map((l) => (overrides[l.id] ? { ...l, responsavel: overrides[l.id] } : l));
-    }
+    if (!empresaAtivaId) return [];
     if (pipelineError) return [];
     if (hasRealData) {
       return dataReal.map((l) => (overrides[l.id] ? { ...l, responsavel: overrides[l.id] } : l));
