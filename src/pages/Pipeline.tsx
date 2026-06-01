@@ -66,26 +66,30 @@ export default function Pipeline() {
   };
 
   const openComposicao = (licitacao: LicitacaoPipeline) => {
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.debug("[Pipeline/openComposicao]", {
-        id: licitacao.id,
-        licitacao_id: licitacao.licitacao_id,
-        numero: licitacao.numero,
-        orgao: licitacao.orgao,
-        abertura: licitacao.abertura ?? licitacao.prazo,
-        isUuidId: isUuid(licitacao.id),
-        isUuidLicitacaoId: isUuid(licitacao.licitacao_id),
-        hasRealData,
-        dataRealLength: dataReal.length,
-      });
-    }
+    // eslint-disable-next-line no-console
+    console.info("[Pipeline/openComposicao]", {
+      id: licitacao.id,
+      licitacao_id: licitacao.licitacao_id,
+      numero: licitacao.numero,
+      orgao: licitacao.orgao,
+      abertura: licitacao.abertura ?? licitacao.prazo,
+      isUuidId: isUuid(licitacao.id),
+      isUuidLicitacaoId: isUuid(licitacao.licitacao_id),
+      hasRealData,
+      dataRealLength: dataReal.length,
+    });
 
-    const resolveRealId = (item: LicitacaoPipeline): string | null => {
-      if (isUuid(item.licitacao_id)) return item.licitacao_id as string;
-      if (isUuid(item.id)) return item.id;
+    const resolveRealId = (
+      item: LicitacaoPipeline,
+    ): { id: string | null; matchesCount: number } => {
+      if (isUuid(item.licitacao_id)) {
+        return { id: item.licitacao_id as string, matchesCount: 0 };
+      }
+      if (isUuid(item.id)) {
+        return { id: item.id, matchesCount: 0 };
+      }
 
-      if (!hasRealData) return null;
+      if (!hasRealData) return { id: null, matchesCount: 0 };
 
       const itemNumero = String(item.numero ?? "").trim();
       const itemOrgao = String(item.orgao ?? "").trim().toUpperCase();
@@ -104,21 +108,46 @@ export default function Pipeline() {
         );
       });
 
+      // eslint-disable-next-line no-console
+      console.info("[Pipeline/resolveRealId]", {
+        itemNumero,
+        itemOrgao,
+        itemAbertura,
+        matchesCount: matches.length,
+        matchesSample: matches.slice(0, 3).map((m) => ({
+          id: m.id,
+          licitacao_id: m.licitacao_id,
+          numero: m.numero,
+          orgao: m.orgao,
+          abertura: m.abertura ?? m.prazo,
+        })),
+      });
+
       if (matches.length === 1) {
-        return (matches[0].licitacao_id ?? matches[0].id) as string;
+        return {
+          id: (matches[0].licitacao_id ?? matches[0].id) as string,
+          matchesCount: 1,
+        };
       }
 
-      return null;
+      return { id: null, matchesCount: matches.length };
     };
 
-    const id = resolveRealId(licitacao);
+    const { id, matchesCount } = resolveRealId(licitacao);
+
+    // eslint-disable-next-line no-console
+    console.info("[Pipeline/openComposicao:resolved]", {
+      resolvedId: id,
+      matchesCount,
+      willNavigateTo: id ? `/app/composicao?licitacao=${id}` : null,
+    });
 
     if (!id) {
       if (hasRealData) {
         toast({
           title: "Erro ao abrir Composição",
           description:
-            "O Pipeline está exibindo dados reais, mas não foi possível resolver o UUID da licitação clicada. Isso indica erro de mapeamento da linha.",
+            `Não foi possível resolver o UUID da linha. Debug: id=${licitacao.id} licitacao_id=${licitacao.licitacao_id ?? "—"} matches=${matchesCount}`,
           variant: "destructive",
         });
         return;
