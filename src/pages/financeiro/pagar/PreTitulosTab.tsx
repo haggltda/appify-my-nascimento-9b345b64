@@ -306,7 +306,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
   const { data: fornecedores = [] } = useQuery<any[]>({
     queryKey: ["fornecedores"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("fornecedor").select("id, razao_social").order("razao_social").limit(500);
+      const { data } = await (supabase as any).from("fornecedor").select("id, razao_social").order("razao_social").limit(10000);
       return data ?? [];
     },
   });
