@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Plus, Send, Check, X, ArrowRight, FileText, Paperclip, Download, Trash2,
   FileSpreadsheet, Receipt, Building2, Wallet, AlertCircle, Sparkles
