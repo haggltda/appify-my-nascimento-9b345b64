@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isUuid } from "@/utils/isUuid";
+
 
 export type LicitacaoStatus =
   | "rascunho"
@@ -30,9 +32,9 @@ export function useLicitacao(licitacaoId: string | null) {
 
   const query = useQuery<LicitacaoComposicao | null, Error>({
     queryKey: ["licitacao-composicao", licitacaoId],
-    enabled: !!licitacaoId,
+    enabled: !!licitacaoId && isUuid(licitacaoId),
     queryFn: async () => {
-      if (!licitacaoId) return null;
+      if (!licitacaoId || !isUuid(licitacaoId)) return null;
       const { data, error } = await supabase
         .from("licitacao")
         .select(COLS)
@@ -42,6 +44,7 @@ export function useLicitacao(licitacaoId: string | null) {
       return (data ?? null) as LicitacaoComposicao | null;
     },
   });
+
 
   const assumirLicitacao = useMutation<string, Error, void>({
     mutationFn: async () => {
