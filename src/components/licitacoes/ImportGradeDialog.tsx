@@ -179,7 +179,15 @@ export function ImportGradeDialog({
       setResultado(r);
       setEtapa("sucesso");
       toast({ title: "Grade importada com sucesso." });
-      onImported?.();
+      try {
+        await onImported?.();
+      } catch {
+        toast({
+          title: "Importação gravada, mas a atualização visual falhou.",
+          description: "Recarregue a página para ver os dados reais.",
+          variant: "destructive",
+        });
+      }
     } catch (e) {
       const msg = (e as Error).message;
       setErroFatal(msg);
