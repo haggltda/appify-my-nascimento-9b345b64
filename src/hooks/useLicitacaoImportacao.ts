@@ -127,6 +127,7 @@ export function useLicitacaoImportacao() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["licitacoes"] });
       qc.invalidateQueries({ queryKey: ["pipeline"] });
+      qc.invalidateQueries({ queryKey: ["licitacoes-pipeline"] });
     },
   });
 

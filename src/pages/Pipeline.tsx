@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
@@ -125,9 +126,13 @@ export default function Pipeline() {
     return [];
   }, [empresaAtivaId, dataReal, pipelineError, usandoFonteTemporaria, overrides]);
 
-  const handleRefreshPipeline = () => {
+  const queryClient = useQueryClient();
+  const handleRefreshPipeline = async () => {
     setOverrides(loadOverrides());
-    refetchPipeline();
+    await queryClient.invalidateQueries({
+      queryKey: ["licitacoes-pipeline", empresaAtivaId ?? null],
+    });
+    await refetchPipeline();
   };
 
   return (
