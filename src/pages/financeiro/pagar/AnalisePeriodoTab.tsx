@@ -282,33 +282,46 @@ export default function AnalisePeriodoTab() {
             </div>
             <div>
               <Label className="text-xs">Centro de Custo</Label>
-              <Select value={f.centroCustoId} onValueChange={(v) => setF({ ...f, centroCustoId: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {ccs.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={f.centroCustoId}
+                onChange={(v) => setF({ ...f, centroCustoId: v || "todos" })}
+                options={[
+                  { value: "todos", label: "Todos" },
+                  ...ccs.map((c: any) => ({ value: c.id, label: c.nome })),
+                ]}
+                placeholder="Todos"
+                searchPlaceholder="Buscar centro de custo..."
+              />
             </div>
             <div>
               <Label className="text-xs">Contrato</Label>
-              <Select value={f.contratoId} onValueChange={(v) => setF({ ...f, contratoId: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {contratosOpts.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.numero}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={f.contratoId}
+                onChange={(v) => setF({ ...f, contratoId: v || "todos" })}
+                options={[
+                  { value: "todos", label: "Todos" },
+                  ...contratosOpts.map((c: any) => ({ value: c.id, label: c.numero })),
+                ]}
+                placeholder="Todos"
+                searchPlaceholder="Buscar contrato..."
+              />
             </div>
             <div>
               <Label className="text-xs">Conta Bancária</Label>
-              <Select value={f.contaBancariaId} onValueChange={(v) => setF({ ...f, contaBancariaId: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todas</SelectItem>
-                  {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={f.contaBancariaId}
+                onChange={(v) => setF({ ...f, contaBancariaId: v || "todos" })}
+                options={[
+                  { value: "todos", label: "Todas" },
+                  ...contas.map((c: any) => ({
+                    value: c.id,
+                    label: `${c.banco_codigo} — ${c.banco_nome}`,
+                    hint: `Ag ${c.agencia} / Cc ${c.conta}`,
+                  })),
+                ]}
+                placeholder="Todas"
+                searchPlaceholder="Buscar conta..."
+              />
             </div>
             <div>
               <Label className="text-xs">Forma</Label>
