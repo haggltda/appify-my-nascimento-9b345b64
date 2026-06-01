@@ -17363,6 +17363,14 @@ export type Database = {
       }
     }
     Functions: {
+      _bdi_assert_responsavel: {
+        Args: { p_acao: string; p_licitacao_id: string }
+        Returns: {
+          empresa_id: string
+          responsavel_user_id: string
+          status: Database["public"]["Enums"]["licitacao_status"]
+        }[]
+      }
       _conta_contabil_de_banco: {
         Args: { p_conta_bancaria_id: string }
         Returns: string
@@ -17420,6 +17428,72 @@ export type Database = {
           grupo: string
           saldo: number
         }[]
+      }
+      bdi_atualizar_versao: {
+        Args: { p_payload: string; p_versao_id: string }
+        Returns: Json
+      }
+      bdi_cancelar: {
+        Args: { p_justificativa: string; p_versao_id: string }
+        Returns: Json
+      }
+      bdi_criar_versao: { Args: { p_licitacao_id: string }; Returns: Json }
+      bdi_excluir_item: { Args: { p_item_id: string }; Returns: Json }
+      bdi_excluir_posto: { Args: { p_posto_id: string }; Returns: Json }
+      bdi_excluir_verba: { Args: { p_verba_id: string }; Returns: Json }
+      bdi_obter_versao: { Args: { p_licitacao_id: string }; Returns: Json }
+      bdi_recalcular: { Args: { p_versao_id: string }; Returns: Json }
+      bdi_salvar_item: {
+        Args: {
+          p_campo_key: string
+          p_grupo: Database["public"]["Enums"]["bdi_item_grupo"]
+          p_item_id: string
+          p_label: string
+          p_observacao: string
+          p_ordem: number
+          p_produto_servico_id: string
+          p_quantidade: number
+          p_tipo: Database["public"]["Enums"]["bdi_item_tipo"]
+          p_unidade: string
+          p_valor: number
+          p_versao_id: string
+          p_vunit_est: number
+        }
+        Returns: Json
+      }
+      bdi_salvar_posto: {
+        Args: {
+          p_cargo: string
+          p_epis: number
+          p_insalub_pct: number
+          p_local: string
+          p_observacao: string
+          p_ordem: number
+          p_pericul_pct: number
+          p_posto_id: string
+          p_qtd: number
+          p_salario_base: number
+          p_uniformes: number
+          p_va: number
+          p_versao_id: string
+          p_vt: number
+        }
+        Returns: Json
+      }
+      bdi_salvar_verba: {
+        Args: {
+          p_observacao: string
+          p_ordem: number
+          p_percentual: number
+          p_rubrica: string
+          p_verba_id: string
+          p_versao_id: string
+        }
+        Returns: Json
+      }
+      bdi_submeter: {
+        Args: { p_justificativa: string; p_versao_id: string }
+        Returns: Json
       }
       can_access: {
         Args: {
