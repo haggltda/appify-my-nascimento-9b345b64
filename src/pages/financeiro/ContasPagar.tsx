@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -288,12 +289,17 @@ function AgendarDialog({ tituloId, onClose }: { tituloId: string; onClose: () =>
         <div className="space-y-3">
           <div>
             <Label>Conta bancária</Label>
-            <Select value={contaId} onValueChange={setContaId}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>
-                {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome} ag {c.agencia}/{c.conta}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={contaId}
+              onChange={setContaId}
+              options={contas.map((c: any) => ({
+                value: c.id,
+                label: `${c.banco_codigo} — ${c.banco_nome}`,
+                hint: `Ag ${c.agencia} / Cc ${c.conta}`,
+              }))}
+              placeholder="Selecione..."
+              searchPlaceholder="Buscar conta..."
+            />
           </div>
           <div><Label>Data prevista</Label><Input type="date" value={data} onChange={(e) => setData(e.target.value)} /></div>
           <div>
@@ -365,20 +371,20 @@ function RemessaDialog({ tituloIds, onClose }: { tituloIds: string[]; onClose: (
         <div className="space-y-3">
           <div>
             <Label>Conta bancária</Label>
-            <Select value={contaId} onValueChange={setContaId}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>
-                {contas.map((c) => (
-                  <SelectItem key={c.id} value={c.id} disabled={!c.cnab_convenio || !c.cnab_codigo_empresa}>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      {c.banco_codigo} — {c.banco_nome} ag {c.agencia}/{c.conta}
-                      {(!c.cnab_convenio || !c.cnab_codigo_empresa) && <span className="text-xs text-destructive">(CNAB não configurado)</span>}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={contaId}
+              onChange={setContaId}
+              options={contas
+                .filter((c: any) => c.cnab_convenio && c.cnab_codigo_empresa)
+                .map((c: any) => ({
+                  value: c.id,
+                  label: `${c.banco_codigo} — ${c.banco_nome}`,
+                  hint: `Ag ${c.agencia} / Cc ${c.conta}`,
+                }))}
+              placeholder="Selecione..."
+              searchPlaceholder="Buscar conta CNAB..."
+              emptyLabel="Nenhuma conta com CNAB configurado"
+            />
           </div>
           {conta && (
             <div className="text-xs text-muted-foreground bg-muted p-3 rounded-md">

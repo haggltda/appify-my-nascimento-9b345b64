@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -169,17 +170,28 @@ function NovoMaloteDialog({ onClose }: { onClose: (id?: string) => void }) {
         <div className="space-y-3">
           <div>
             <Label>Empresa</Label>
-            <Select value={empresaId} onValueChange={(v) => { setEmpresaId(v); setContaId(""); }}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>{empresas.map((e) => <SelectItem key={e.id} value={e.id}>{e.razao_social}</SelectItem>)}</SelectContent>
-            </Select>
+            <SearchableSelect
+              value={empresaId}
+              onChange={(v) => { setEmpresaId(v); setContaId(""); }}
+              options={empresas.map((e: any) => ({ value: e.id, label: e.razao_social }))}
+              placeholder="Selecione..."
+              searchPlaceholder="Buscar empresa..."
+            />
           </div>
           <div>
             <Label>Conta bancária</Label>
-            <Select value={contaId} onValueChange={setContaId} disabled={!empresaId}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>{contasFiltradas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome} {c.agencia}/{c.conta}</SelectItem>)}</SelectContent>
-            </Select>
+            <SearchableSelect
+              value={contaId}
+              onChange={setContaId}
+              disabled={!empresaId}
+              options={contasFiltradas.map((c: any) => ({
+                value: c.id,
+                label: `${c.banco_codigo} — ${c.banco_nome}`,
+                hint: `Ag ${c.agencia} / Cc ${c.conta}`,
+              }))}
+              placeholder="Selecione..."
+              searchPlaceholder="Buscar conta..."
+            />
           </div>
           <div><Label>Data de pagamento</Label><Input type="date" value={data} onChange={(e) => setData(e.target.value)} /></div>
           <div><Label>Descrição</Label><Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Opcional" /></div>
