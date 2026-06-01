@@ -54,8 +54,46 @@ export default function Pipeline() {
   const canExcluir = can("excluir", "licitacoes", "pipeline");
   const canAlterar = can("alterar", "licitacoes", "pipeline");
 
-  const openComposicao = (l: Licitacao) => {
-    if (!isUuid(l.id)) {
+  const openComposicao = (licitacao: Licitacao) => {
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.debug("[Pipeline/openComposicao]", {
+        id: licitacao.id,
+        numero: licitacao.numero,
+        orgao: licitacao.orgao,
+        abertura: licitacao.abertura,
+        isUuid: isUuid(licitacao.id),
+        hasRealData,
+      });
+    }
+
+    const resolveRealId = (item: Licitacao): string | null => {
+      if (isUuid(item.id)) return item.id;
+
+      if (!hasRealData) return null;
+
+      const matches = dataReal.filter(
+        (r) => r.orgao === item.orgao && r.numero === item.numero && r.abertura === item.abertura,
+      );
+
+      if (matches.length === 1 && isUuid(matches[0].id)) return matches[0].id;
+
+      return null;
+    };
+
+    const id = resolveRealId(licitacao);
+
+    if (!id) {
+      if (hasRealData) {
+        toast({
+          title: "Erro ao abrir Composição",
+          description:
+            "O Pipeline está exibindo dados reais, mas o ID recebido no clique não é um UUID. Isso indica erro de mapeamento da linha.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
         title: "Licitação ainda não está no banco",
         description:
@@ -64,8 +102,9 @@ export default function Pipeline() {
       });
       return;
     }
+
     // Filtro híbrido: licitacao= sempre; (futuro) contrato= se vinculado
-    navigate(`/app/composicao?licitacao=${encodeURIComponent(l.id)}`);
+    navigate(`/app/composicao?licitacao=${encodeURIComponent(id)}`);
   };
 
 
