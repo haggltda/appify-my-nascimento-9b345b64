@@ -578,25 +578,24 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-3">
             <div className="md:col-span-3 lg:col-span-4">
               <Label className="text-xs">Empresa *</Label>
-              <Select value={empresaId} onValueChange={handleEmpresaChange}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {empresas.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>{e.razao_social}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={empresaId}
+                onChange={handleEmpresaChange}
+                options={empresas.map((e: any) => ({ value: e.id, label: e.razao_social }))}
+                placeholder="Selecione..."
+                searchPlaceholder="Buscar empresa..."
+              />
             </div>
             <div className="md:col-span-3 lg:col-span-4">
               <Label className="text-xs">Fornecedor</Label>
-              <Select value={fornecedorId} onValueChange={setFornecedorId}>
-                <SelectTrigger><SelectValue placeholder="Opcional..." /></SelectTrigger>
-                <SelectContent>
-                  {fornecedores.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>{f.razao_social}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={fornecedorId}
+                onChange={setFornecedorId}
+                options={fornecedores.map((f: any) => ({ value: f.id, label: f.razao_social }))}
+                placeholder="Opcional..."
+                searchPlaceholder="Buscar fornecedor..."
+                allowClear
+              />
             </div>
             <div className="md:col-span-2 lg:col-span-2">
               <Label className="text-xs">Nº documento</Label>
@@ -624,14 +623,19 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div className="md:col-span-3 lg:col-span-6">
               <Label className="text-xs">Conta contábil (default)</Label>
-              <Select value={contaContabilId} onValueChange={setContaContabilId} disabled={!empresaId}>
-                <SelectTrigger><SelectValue placeholder={empresaId ? (contas.length ? "Opcional — usada quando a linha de rateio não tiver conta" : "Nenhuma conta de resultado para esta empresa") : "Selecione a empresa primeiro"} /></SelectTrigger>
-                <SelectContent>
-                  {contas.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={contaContabilId}
+                onChange={setContaContabilId}
+                disabled={!empresaId}
+                options={contas.map((c: any) => ({
+                  value: c.id,
+                  label: `${c.classificacao} — ${c.descricao}`,
+                  hint: c.classificacao,
+                }))}
+                placeholder={empresaId ? (contas.length ? "Opcional — usada quando a linha de rateio não tiver conta" : "Nenhuma conta de resultado para esta empresa") : "Selecione a empresa primeiro"}
+                searchPlaceholder="Buscar conta contábil..."
+                allowClear
+              />
             </div>
             <div className="md:col-span-6 lg:col-span-6">
               <Label className="text-xs">Observações</Label>
