@@ -126,9 +126,13 @@ export default function Pipeline() {
     return [];
   }, [empresaAtivaId, dataReal, pipelineError, usandoFonteTemporaria, overrides]);
 
-  const handleRefreshPipeline = () => {
+  const queryClient = useQueryClient();
+  const handleRefreshPipeline = async () => {
     setOverrides(loadOverrides());
-    refetchPipeline();
+    await queryClient.invalidateQueries({
+      queryKey: ["licitacoes-pipeline", empresaAtivaId ?? null],
+    });
+    await refetchPipeline();
   };
 
   return (
