@@ -5,6 +5,8 @@ import { LicitacaoAprovacaoBox } from "@/components/aprovacoes/LicitacaoAprovaca
 import { usePermissoes } from "@/context/PermissoesContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useLicitacao } from "@/hooks/useLicitacao";
+import { isUuid } from "@/utils/isUuid";
+
 import {
   useBdi,
   type BdiPosto,
@@ -685,6 +687,23 @@ export default function Composicao() {
       </div>
     );
   }
+
+  if (!isUuid(licitacaoIdParam)) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Composição de Custos & BDI"
+          breadcrumb={["Operação", "Composição & BDI"]}
+        />
+        <div className="card-elevated p-8 text-center text-sm text-muted-foreground">
+          Esta licitação ainda está na fonte temporária e não possui UUID real
+          no banco. Volte ao Pipeline, use “Importar Grade 2026”, valide e
+          confirme a importação antes de abrir a Composição & BDI.
+        </div>
+      </div>
+    );
+  }
+
 
   if (licitacao.isLoading) {
     return (

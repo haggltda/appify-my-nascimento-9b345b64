@@ -22,6 +22,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
+import { isUuid } from "@/utils/isUuid";
+
 
 const STORAGE_KEY = "pipeline_responsaveis_v1";
 
@@ -52,9 +54,19 @@ export default function Pipeline() {
   const canAlterar = can("alterar", "licitacoes", "pipeline");
 
   const openComposicao = (l: Licitacao) => {
+    if (!isUuid(l.id)) {
+      toast({
+        title: "Licitação ainda não está no banco",
+        description:
+          "Esta linha é da fonte temporária. Use “Importar Grade 2026”, valide e confirme a importação para gerar o ID real antes de abrir a Composição & BDI.",
+        variant: "destructive",
+      });
+      return;
+    }
     // Filtro híbrido: licitacao= sempre; (futuro) contrato= se vinculado
     navigate(`/app/composicao?licitacao=${encodeURIComponent(l.id)}`);
   };
+
 
   useEffect(() => {
     if (!user) return;
