@@ -789,24 +789,33 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                     return (
                       <TableRow key={i}>
                         <TableCell>
-                          <Select value={r.centro_custo_id} onValueChange={(v) => updateRateio(i, { centro_custo_id: v })} disabled={!empresaId}>
-                            <SelectTrigger><SelectValue placeholder={empresaId ? "CC..." : "Selecione a empresa"} /></SelectTrigger>
-                            <SelectContent>
-                              {ccs.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SearchableSelect
+                            value={r.centro_custo_id}
+                            onChange={(v) => updateRateio(i, { centro_custo_id: v })}
+                            disabled={!empresaId}
+                            options={ccs.map((c: any) => ({
+                              value: c.id,
+                              label: `${c.codigo} — ${c.nome}`,
+                              hint: c.codigo,
+                            }))}
+                            placeholder={empresaId ? "CC..." : "Selecione a empresa"}
+                            searchPlaceholder="Buscar CC..."
+                          />
                         </TableCell>
                         <TableCell>
-                          <Select value={r.conta_contabil_id ?? ""} onValueChange={(v) => updateRateio(i, { conta_contabil_id: v })} disabled={!empresaId}>
-                            <SelectTrigger><SelectValue placeholder={empresaId ? "Auto pelo CC..." : "Selecione a empresa"} /></SelectTrigger>
-                            <SelectContent>
-                              {contas.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SearchableSelect
+                            value={r.conta_contabil_id ?? ""}
+                            onChange={(v) => updateRateio(i, { conta_contabil_id: v })}
+                            disabled={!empresaId}
+                            options={contas.map((c: any) => ({
+                              value: c.id,
+                              label: `${c.classificacao} — ${c.descricao}`,
+                              hint: c.classificacao,
+                            }))}
+                            placeholder={empresaId ? "Auto pelo CC..." : "Selecione a empresa"}
+                            searchPlaceholder="Buscar conta..."
+                            allowClear
+                          />
                         </TableCell>
                         <TableCell>
                           <Input
