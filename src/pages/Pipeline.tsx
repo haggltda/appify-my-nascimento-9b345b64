@@ -108,7 +108,6 @@ export default function Pipeline() {
   // BLOCO_2A_FIX6B: com empresa ativa, Pipeline NUNCA renderiza mock/fallback.
   // Sem empresa ativa retorna [] (JSX exibe EmptyPipeline "Selecione uma empresa").
   const hasRealData = dataReal.length > 0;
-  const usandoFonteTemporaria = false;
 
   if (import.meta.env.DEV && typeof window !== "undefined") {
     // eslint-disable-next-line no-console
