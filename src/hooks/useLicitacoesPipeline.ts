@@ -2,12 +2,13 @@
 // Somente SELECT. Sem service_role. Filtrado por empresa_id.
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Licitacao } from "@/data/licitacoes";
 import {
   mapManyDbLicitacaoToPipeline,
   type DbLicitacaoRow,
+  type LicitacaoPipeline,
   type ResponsavelMap,
 } from "@/utils/licitacoes/mapDbLicitacaoToPipeline";
+
 
 export type UseLicitacoesPipelineInput = {
   empresaId: string | null;
