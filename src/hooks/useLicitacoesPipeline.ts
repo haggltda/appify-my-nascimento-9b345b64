@@ -31,6 +31,8 @@ async function fetchLicitacoes(empresaId: string): Promise<Licitacao[]> {
   const rows = (data ?? []) as DbLicitacaoRow[];
 
   // Resolver nomes dos responsáveis em 1 query.
+  // IMPORTANTE: falha aqui NÃO deve derrubar o dataReal das licitações.
+  // Se profiles falhar (RLS, etc.), seguimos com map vazio — o id UUID das licitações é preservado.
   const ids = Array.from(
     new Set(
       rows
@@ -40,21 +42,35 @@ async function fetchLicitacoes(empresaId: string): Promise<Licitacao[]> {
   );
   let responsaveis: ResponsavelMap = {};
   if (ids.length > 0) {
-    const { data: profs, error: errProf } = await supabase
-      .from("profiles")
-      .select("id, display_name, email")
-      .in("id", ids);
-    if (errProf) throw errProf;
-    responsaveis = Object.fromEntries(
-      (profs ?? []).map((p) => [
-        p.id as string,
-        {
-          nome: (p.display_name as string | null) ?? null,
-          email: (p.email as string | null) ?? null,
-        },
-      ]),
-    );
+    try {
+      const { data: profs, error: errProf } = await supabase
+        .from("profiles")
+        .select("id, display_name, email")
+        .in("id", ids);
+      if (errProf) {
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.warn("[useLicitacoesPipeline] profiles lookup falhou (ignorado):", errProf.message);
+        }
+      } else {
+        responsaveis = Object.fromEntries(
+          (profs ?? []).map((p) => [
+            p.id as string,
+            {
+              nome: (p.display_name as string | null) ?? null,
+              email: (p.email as string | null) ?? null,
+            },
+          ]),
+        );
+      }
+    } catch (e) {
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn("[useLicitacoesPipeline] profiles lookup throw (ignorado):", e);
+      }
+    }
   }
+
 
   return mapManyDbLicitacaoToPipeline(rows, responsaveis);
 }

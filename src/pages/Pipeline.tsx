@@ -105,26 +105,32 @@ export default function Pipeline() {
     refetch: refetchPipeline,
   } = useLicitacoesPipeline({ empresaId: empresaAtivaId ?? null });
 
-  // Fonte real = public.licitacao. Mock só aparece como FONTE_TEMPORARIA
-  // se houver empresa ativa, sem erro, banco vazio e mock disponível.
-  const usandoFonteTemporaria =
-    !!empresaAtivaId &&
-    !pipelineLoading &&
-    !pipelineError &&
-    dataReal.length === 0 &&
-    licitacoesBase.length > 0;
+  // BLOCO_2A_FIX6: com empresa ativa, Pipeline NUNCA renderiza mock/fallback.
+  // Mock (licitacoesBase) só aparece como visão institucional quando não há empresa selecionada.
+  const hasRealData = dataReal.length > 0;
+  const usandoFonteTemporaria = false;
+
+  if (import.meta.env.DEV && typeof window !== "undefined") {
+    // eslint-disable-next-line no-console
+    console.debug(
+      "[Pipeline] empresaAtivaId=", empresaAtivaId,
+      "dataReal.length=", dataReal.length,
+      "primeiro id=", dataReal[0]?.id,
+      "isUuid(primeiro)=", dataReal[0] ? isUuid(dataReal[0].id) : null,
+    );
+  }
 
   const data = useMemo<Licitacao[]>(() => {
-    if (!empresaAtivaId) return [];
-    if (pipelineError) return [];
-    if (dataReal.length > 0) {
-      return dataReal.map((l) => (overrides[l.id] ? { ...l, responsavel: overrides[l.id] } : l));
-    }
-    if (usandoFonteTemporaria) {
+    if (!empresaAtivaId) {
+      // Sem empresa ativa: visão institucional (mock) somente para leitura visual.
       return licitacoesBase.map((l) => (overrides[l.id] ? { ...l, responsavel: overrides[l.id] } : l));
     }
+    if (pipelineError) return [];
+    if (hasRealData) {
+      return dataReal.map((l) => (overrides[l.id] ? { ...l, responsavel: overrides[l.id] } : l));
+    }
     return [];
-  }, [empresaAtivaId, dataReal, pipelineError, usandoFonteTemporaria, overrides]);
+  }, [empresaAtivaId, dataReal, hasRealData, pipelineError, overrides]);
 
   const queryClient = useQueryClient();
   const handleRefreshPipeline = async () => {
@@ -134,6 +140,7 @@ export default function Pipeline() {
     });
     await refetchPipeline();
   };
+
 
   return (
     <div className="space-y-6">
@@ -208,18 +215,13 @@ export default function Pipeline() {
           message={pipelineError.message ?? "Falha ao consultar public.licitacao."}
           tone="error"
         />
-      ) : dataReal.length === 0 && !usandoFonteTemporaria ? (
+      ) : !hasRealData ? (
         <EmptyPipeline
           title="Nenhuma licitação importada"
           message="Nenhuma licitação importada para esta empresa. Use 'Importar Grade 2026' para carregar dados."
         />
       ) : (
         <>
-          {usandoFonteTemporaria && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-              Fonte temporária: o banco ainda não possui licitações para esta empresa. Exibindo grade local até a próxima importação.
-            </div>
-          )}
           {view === "kanban" ? (
             <KanbanView data={data} currentUser={displayName} onAssume={setTarget} onOpen={openComposicao} />
           ) : (
@@ -227,6 +229,7 @@ export default function Pipeline() {
           )}
         </>
       )}
+
 
       <AlertDialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
         <AlertDialogContent>
