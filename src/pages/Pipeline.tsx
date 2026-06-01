@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
-import { licitacoes as licitacoesBase, statusOrdem, statusLabel, formatBRL, formatDate, type StatusLicitacao, type Licitacao } from "@/data/licitacoes";
+import { formatBRL, formatDate, type StatusLicitacao, type Licitacao } from "@/data/licitacoes";
 import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical, UserCheck, Hand, Upload } from "lucide-react";
 import { ImportGradeDialog } from "@/components/licitacoes/ImportGradeDialog";
 import { useEmpresaId } from "@/hooks/useEmpresaId";
