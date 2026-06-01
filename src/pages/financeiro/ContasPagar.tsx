@@ -289,12 +289,17 @@ function AgendarDialog({ tituloId, onClose }: { tituloId: string; onClose: () =>
         <div className="space-y-3">
           <div>
             <Label>Conta bancária</Label>
-            <Select value={contaId} onValueChange={setContaId}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>
-                {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome} ag {c.agencia}/{c.conta}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={contaId}
+              onChange={setContaId}
+              options={contas.map((c: any) => ({
+                value: c.id,
+                label: `${c.banco_codigo} — ${c.banco_nome}`,
+                hint: `Ag ${c.agencia} / Cc ${c.conta}`,
+              }))}
+              placeholder="Selecione..."
+              searchPlaceholder="Buscar conta..."
+            />
           </div>
           <div><Label>Data prevista</Label><Input type="date" value={data} onChange={(e) => setData(e.target.value)} /></div>
           <div>
