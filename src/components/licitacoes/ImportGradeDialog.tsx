@@ -332,9 +332,8 @@ export function ImportGradeDialog({
               <li>Pendências de responsável: {resultado.pendencias_responsavel ?? 0}</li>
               <li>Erros: {resultado.erros ?? 0}</li>
             </ul>
-            <p className="rounded-md bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
-              Importação gravada no banco. A visualização atual do Pipeline ainda pode
-              usar fonte temporária e será atualizada no próximo bloco.
+            <p className="rounded-md bg-emerald-500/10 p-2 text-xs text-emerald-800 dark:text-emerald-300">
+              Importação gravada no banco. O Pipeline foi atualizado com os dados reais.
             </p>
           </div>
         )}
