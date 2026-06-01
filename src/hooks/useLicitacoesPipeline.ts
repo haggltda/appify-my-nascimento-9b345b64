@@ -19,7 +19,7 @@ const SELECT_COLUMNS =
 
 const HARD_LIMIT = 2000;
 
-async function fetchLicitacoes(empresaId: string): Promise<Licitacao[]> {
+async function fetchLicitacoes(empresaId: string): Promise<LicitacaoPipeline[]> {
   const { data, error } = await supabase
     .from("licitacao")
     .select(SELECT_COLUMNS)
