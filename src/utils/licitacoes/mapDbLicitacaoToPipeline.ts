@@ -16,6 +16,15 @@ export type ResponsavelInfo = {
 };
 export type ResponsavelMap = Record<string, ResponsavelInfo>;
 
+// Tipo estendido para uso no Pipeline. Preserva o tipo global Licitacao
+// e adiciona o UUID canônico do banco + metadados de origem.
+export type LicitacaoPipeline = Licitacao & {
+  licitacao_id?: string;
+  source?: "banco" | "temporaria";
+  isTemporaria?: boolean;
+};
+
+
 // STATUS_SEM_EQUIVALENTE_NO_BANCO — mapeamento conservador apenas para visual.
 // Enum DB atual: rascunho | oportunidade | em_andamento | vencida | perdida | cancelada.
 // Enum UI possui 11 valores (workflow). Mapeamento documentado no plano §3 (D-PIPE-2).
@@ -44,10 +53,13 @@ function fallbackResponsavel(
 export function mapDbLicitacaoToPipeline(
   row: DbLicitacaoRow,
   responsaveis: ResponsavelMap = {},
-): Licitacao {
+): LicitacaoPipeline {
   const abertura = row.abertura ?? "";
   return {
     id: row.id, // uuid real do banco, preservado
+    licitacao_id: row.id, // redundância defensiva para o duplo clique
+    source: "banco",
+    isTemporaria: false,
     numero: row.numero ?? "",
     objeto: row.objeto ?? "",
     orgao: row.orgao ?? "",
@@ -72,6 +84,7 @@ export function mapDbLicitacaoToPipeline(
 export function mapManyDbLicitacaoToPipeline(
   rows: DbLicitacaoRow[],
   responsaveis: ResponsavelMap = {},
-): Licitacao[] {
+): LicitacaoPipeline[] {
   return rows.map((r) => mapDbLicitacaoToPipeline(r, responsaveis));
 }
+

@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatusChip, CriticidadeChip } from "@/components/StatusChip";
 import { formatBRL, formatDate, type StatusLicitacao, type Licitacao } from "@/data/licitacoes";
+import type { LicitacaoPipeline } from "@/utils/licitacoes/mapDbLicitacaoToPipeline";
+
 import { LayoutGrid, List, Filter, Plus, Search, Calendar, Building, MoreVertical, UserCheck, Hand, Upload } from "lucide-react";
 import { ImportGradeDialog } from "@/components/licitacoes/ImportGradeDialog";
 import { useEmpresaId } from "@/hooks/useEmpresaId";
@@ -54,29 +56,57 @@ export default function Pipeline() {
   const canExcluir = can("excluir", "licitacoes", "pipeline");
   const canAlterar = can("alterar", "licitacoes", "pipeline");
 
-  const openComposicao = (licitacao: Licitacao) => {
+  const getAberturaKey = (value: unknown): string => {
+    const s = String(value ?? "").trim();
+    if (!s) return "";
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    return s;
+  };
+
+  const openComposicao = (licitacao: LicitacaoPipeline) => {
     if (import.meta.env.DEV) {
       // eslint-disable-next-line no-console
       console.debug("[Pipeline/openComposicao]", {
         id: licitacao.id,
+        licitacao_id: licitacao.licitacao_id,
         numero: licitacao.numero,
         orgao: licitacao.orgao,
-        abertura: licitacao.abertura,
-        isUuid: isUuid(licitacao.id),
+        abertura: licitacao.abertura ?? licitacao.prazo,
+        isUuidId: isUuid(licitacao.id),
+        isUuidLicitacaoId: isUuid(licitacao.licitacao_id),
         hasRealData,
+        dataRealLength: dataReal.length,
       });
     }
 
-    const resolveRealId = (item: Licitacao): string | null => {
+    const resolveRealId = (item: LicitacaoPipeline): string | null => {
+      if (isUuid(item.licitacao_id)) return item.licitacao_id as string;
       if (isUuid(item.id)) return item.id;
 
       if (!hasRealData) return null;
 
-      const matches = dataReal.filter(
-        (r) => r.orgao === item.orgao && r.numero === item.numero && r.abertura === item.abertura,
-      );
+      const itemNumero = String(item.numero ?? "").trim();
+      const itemOrgao = String(item.orgao ?? "").trim().toUpperCase();
+      const itemAbertura = getAberturaKey(item.abertura ?? item.prazo);
 
-      if (matches.length === 1 && isUuid(matches[0].id)) return matches[0].id;
+      const matches = dataReal.filter((r) => {
+        const rNumero = String(r.numero ?? "").trim();
+        const rOrgao = String(r.orgao ?? "").trim().toUpperCase();
+        const rAbertura = getAberturaKey(r.abertura ?? r.prazo);
+        const rId = r.licitacao_id ?? r.id;
+        return (
+          rNumero === itemNumero &&
+          rOrgao === itemOrgao &&
+          rAbertura === itemAbertura &&
+          isUuid(rId)
+        );
+      });
+
+      if (matches.length === 1) {
+        return (matches[0].licitacao_id ?? matches[0].id) as string;
+      }
 
       return null;
     };
@@ -88,7 +118,7 @@ export default function Pipeline() {
         toast({
           title: "Erro ao abrir Composição",
           description:
-            "O Pipeline está exibindo dados reais, mas o ID recebido no clique não é um UUID. Isso indica erro de mapeamento da linha.",
+            "O Pipeline está exibindo dados reais, mas não foi possível resolver o UUID da licitação clicada. Isso indica erro de mapeamento da linha.",
           variant: "destructive",
         });
         return;
@@ -103,9 +133,9 @@ export default function Pipeline() {
       return;
     }
 
-    // Filtro híbrido: licitacao= sempre; (futuro) contrato= se vinculado
     navigate(`/app/composicao?licitacao=${encodeURIComponent(id)}`);
   };
+
 
 
   useEffect(() => {
@@ -158,7 +188,7 @@ export default function Pipeline() {
     );
   }
 
-  const data = useMemo<Licitacao[]>(() => {
+  const data = useMemo<LicitacaoPipeline[]>(() => {
     if (!empresaAtivaId) return [];
     if (pipelineError) return [];
     if (hasRealData) {
@@ -378,10 +408,11 @@ function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
 }
 
 function KanbanView({ data, currentUser, onAssume, onOpen }: {
-  data: Licitacao[];
+  data: LicitacaoPipeline[];
   currentUser: string;
   onAssume: (l: Licitacao) => void;
-  onOpen: (l: Licitacao) => void;
+  onOpen: (l: LicitacaoPipeline) => void;
+
 }) {
   const cols: StatusLicitacao[] = ["oportunidade", "em_analise", "parecer_tecnico", "controladoria", "aprovacao_diretoria", "pregao", "vencida"];
   return (
@@ -437,10 +468,11 @@ function KanbanView({ data, currentUser, onAssume, onOpen }: {
 }
 
 function TableView({ data, currentUser, onAssume, onOpen }: {
-  data: Licitacao[];
+  data: LicitacaoPipeline[];
   currentUser: string;
   onAssume: (l: Licitacao) => void;
-  onOpen: (l: Licitacao) => void;
+  onOpen: (l: LicitacaoPipeline) => void;
+
 }) {
   return (
     <div className="card-elevated overflow-hidden">
