@@ -1,39 +1,82 @@
-# BLOCO 2A.1-PIPELINE-DB REV1 — execução aprovada condicionalmente
+# BLOCO_2A_FIX_GRADE_2026_RESOLUCAO_HUMANA_E_CARGA
 
-Plano REV1 aprovado. Clique em **Implement plan** para entrar em build mode e aplicar exatamente o que está abaixo.
+## 1. Análise das 5 duplicatas (decisão linha-a-linha)
 
-## Arquivos a criar
+Diagnóstico das duplicatas em `src/data/licitacoesGradeSeed.json` aplicando a regra do usuário: "manter L01/L1; analisar se a duplicada é continuação ou linha completa".
 
-1. `src/utils/licitacoes/mapDbLicitacaoToPipeline.ts` — mapper `public.licitacao → Licitacao` (UI). Mapeia enum DB (`rascunho|oportunidade|em_andamento|vencida|perdida|cancelada`) para enum UI; `criticidade="media"` (CRITICIDADE_NAO_LOCALIZADA_NO_BANCO); `empresa=""` (sigla pendente — D-PIPE-1); `prazo=abertura` (proxy); preserva `id` uuid e `responsavel_user_id`; resolve nome via `ResponsavelMap` com fallback `"—" → display_name → email → "Responsável vinculado"`.
-2. `src/hooks/useLicitacoesPipeline.ts` — `useQuery({ queryKey:["licitacoes-pipeline", empresaId], enabled:!!empresaId, staleTime:30s })`. SELECT em `public.licitacao` (17 colunas) filtrado por `empresa_id`, `order("abertura" asc nullsFirst:false).order("updated_at" desc).limit(2000)`. Segunda query opcional em `profiles.select("id,display_name,email").in("id", ids)` para resolver responsáveis. Sem `service_role`. Apenas SELECT.
+### Conflito #1 — PORTO ALEGRE · PE 9038/2026 — LINHAS COMPLETAS (lotes distintos)
+- Linha 88: `Empresa origem: Lote 1`, valor R$ 24.550.044, 279 pessoas, Pos 3.
+- Linha 89: `Empresa origem: Lote 2`, sem valor, Pos 4.
+- **Decisão**: regra "manter L01/L1" → **manter linha 88 (Lote 1), excluir linha 89 (Lote 2)**.
 
-## Arquivo a alterar
+### Conflito #2 — SÃO CARLOS · PE 9/2026 — CONTINUAÇÃO / linha complementar
+- Linha 121: "Vigia", 15 pessoas, 08h, observação "poucos postos", valor R$ 5.445.557,12.
+- Linha 125: "Vigilância patrimonial", 09h, observação "Não temos cadastro no licitações-e", **mesmo valor**.
+- Mesmo certame descrito 2x com complementos. Linha 121 é mais completa (tem Pos, Nº Pessoas, Resp).
+- **Decisão**: **manter linha 121, excluir linha 125** (continuação/complemento). Sem L01/L1 aqui.
 
-`src/pages/Pipeline.tsx` (3 edits cirúrgicos):
+### Conflito #3 — CURITIBA · PE 90001/2026 — ATUALIZAÇÃO posterior do mesmo certame
+- Linha 133: status SUSPENSO/cancelada, valor R$ 7.724.745,18 (versão antiga).
+- Linha 139: status em_andamento, valor R$ 8.538.893,74, Pos 25 (versão atualizada e mais completa).
+- **Decisão**: **manter linha 139 (atualização), excluir linha 133**. Sem L01/L1.
 
-- **linha 9**: adicionar `import { useLicitacoesPipeline } from "@/hooks/useLicitacoesPipeline";` após o import de `useEmpresaId`.
-- **linhas 70–93**: remover o `useMemo` que lia direto do `licitacoesBase` e o comentário/handleRefresh temporário. Em seu lugar: manter `handleConfirmAssume`, depois declarar `importOpen`, `empresaAtivaId`, chamar `useLicitacoesPipeline`, calcular `usandoFonteTemporaria` e o novo `data` (real > mock só com banner). `handleRefreshPipeline` passa a chamar `setOverrides(loadOverrides())` **e** `refetchPipeline()`.
-- **linhas 158–162**: envolver o `view === "kanban" ? KanbanView : TableView` em uma cadeia de estados: sem empresa → empty "Selecione uma empresa"; loading → empty "Carregando licitações…"; erro → empty tone error com `error.message`; banco vazio sem mock → empty "Nenhuma licitação importada"; senão → banner amarelo de fonte temporária (quando aplicável) + Kanban/Table.
-- Acrescentar componente auxiliar `EmptyPipeline({ title, message, tone? })` ao lado de `FilterPill`.
+### Conflito #4 — ASSIS CHATEAUBRIAND · PE 4/2026 — LINHAS COMPLETAS (lotes distintos)
+- Linha 201: `LOTE 01`, Pos 37.
+- Linha 202: `LOTE 02`, Pos 34.
+- **Decisão**: regra "manter L01" → **manter linha 201 (LOTE 01), excluir linha 202 (LOTE 02)**.
 
-ImportGradeDialog, botão "Importar Grade 2026" (linhas 122–129), `openComposicao` (duplo clique → `/app/composicao?licitacao=<uuid>`), filtros, `AssumirButton`, `KanbanView`, `TableView` — todos preservados byte-a-byte.
+### Conflito #5 — SANTA MARIA · PE 90048/2026 — LINHAS COMPLETAS (lotes distintos)
+- Linha 237: `LOTE 01`, Pos 3.
+- Linha 238: `LOTE 02`, Pos 2.
+- **Decisão**: regra "manter L01" → **manter linha 237 (LOTE 01), excluir linha 238 (LOTE 02)**.
 
-## Garantias pós-build
+**Resultado**: seed reduzido de 288 → 283 linhas, sem perda semântica de Lote 1/L01 e mantendo a versão mais completa nos conflitos #2 e #3.
 
-- `rg 'from\("licitacao"\)\.(delete|insert|update|upsert)' src/pages/Pipeline.tsx src/hooks/useLicitacoesPipeline.ts src/utils/licitacoes/mapDbLicitacaoToPipeline.ts` → 0.
-- `rg 'from\("licitacao"\)\.select' src/hooks/useLicitacoesPipeline.ts` → 1.
-- `rg "service_role" src/pages/Pipeline.tsx src/hooks/useLicitacoesPipeline.ts src/utils/licitacoes/mapDbLicitacaoToPipeline.ts` → 0.
-- Composicao.tsx, ImportGradeDialog.tsx, useLicitacaoImportacao.ts, mapGradeToImportRows.ts, useEmpresaId.ts, mocks/seeds, localStorage — intactos.
-- Backend, RPCs, `public.licitacao`, `stg_licitacoes`, enums e Edge Functions — intactos.
-- TypeScript compila; lint passa.
+> Observação: nos conflitos #1, #4 e #5 os Lotes 2 ficam fora desta carga porque a chave funcional do banco (`empresa_id + orgao + numero + abertura`) hoje não distingue lote. Isso preserva a regra atual sem mudar schema. Se for desejado importar também os Lotes 2 depois, exigirá decisão de produto para estender a chave (DH-DEDUP-FONTE-C), que **não** está no escopo deste bloco.
 
-## Rollback frontend
+## 2. Escopo de execução
 
-1. `rm src/hooks/useLicitacoesPipeline.ts`
-2. `rm src/utils/licitacoes/mapDbLicitacaoToPipeline.ts`
-3. Reverter os 3 edits em `Pipeline.tsx` via VCS.
-4. Banco e dados importados não são tocados.
+Apenas dois passos, atômicos, nessa ordem:
 
-## Conteúdo completo dos arquivos
+1. **Editar somente** `src/data/licitacoesGradeSeed.json`:
+   - Remover linhas 89, 125, 133, 202, 238 (decisões acima).
+   - Nenhuma outra alteração de conteúdo.
+2. **Importar a grade corrigida via pipeline existente** (sem novo código, sem nova RPC):
+   - Reaproveitar `useLicitacaoImportacao` (`criarLote → anexarLinhas → confirmarLote`) e o mapper `mapGradeToImportRows`.
+   - Executar a partir do botão "Importar Grade 2026" em `src/components/licitacoes/ImportGradeDialog.tsx`, autenticado como admin, contra `empresa_id = 5a61c769-21d8-4e61-b9bb-506b8db0bce8` (HAGG, já existente — confirmado no banco).
+   - Nenhum INSERT manual via SQL; nenhuma migration de dados; nenhum bypass de RLS.
 
-O conteúdo byte-a-byte de cada arquivo já foi entregue em **BLOCO_2A_1_PIPELINE_DB_PLAN_MODE_REV1** (§9.1, §9.2, §9.3) e será aplicado na execução.
+## 3. Proibições (mantidas)
+
+- NÃO alterar banco, RPCs, RLS, schema, triggers, types.
+- NÃO alterar Pipeline.tsx, Composicao.tsx, useLicitacao.ts, useBdi.ts, CustosBDI.tsx, ImportGradeDialog.tsx, mapper, hook de importação.
+- NÃO alterar Suprimentos/Financeiro/Fiscal/Contábil/DRE/Caixa.
+- NÃO escolher lote automaticamente diferente do definido acima.
+- NÃO criar `_v2.json`; editar o próprio seed (rastreabilidade via git).
+
+## 4. Critérios de aceite
+
+- `jq 'length' src/data/licitacoesGradeSeed.json` retorna **283**.
+- `jq '[.[] | {empresa_id,orgao,numero,abertura}] | group_by(.) | map(select(length>1)) | length'` retorna **0**.
+- Após a importação manual via UI:
+  - lote criado com `status=confirmado`,
+  - `inseridas = 283`, `atualizadas = 0`, `erros = 0`,
+  - Pipeline lista 283 licitações reais (UUID válido), abertura de Composição funcional para qualquer item (guard UUID já ativo).
+
+## 5. Rollback documentado (não executado)
+
+- Reverter o commit do seed (`git revert`) restaura as 5 linhas.
+- Reverter dados importados: marcar o lote como cancelado via `licitacao_importacao_cancelar(p_lote)` se o backend suportar pós-confirmação; caso contrário, apagar as licitações inseridas filtrando pelo `lote_id` no histórico de importação. **Não será executado neste bloco.**
+
+## 6. Matriz de conformidade
+
+| Requisito do usuário | Atendimento |
+|---|---|
+| Manter L01/L1 | Sim (Conflitos #1, #4, #5) |
+| Analisar continuação vs linha completa nas duplicadas | Sim (Conflito #2 = continuação; #3 = atualização; #1/#4/#5 = lotes distintos completos) |
+| Excluir uma das duplicadas | Sim (5 linhas removidas) |
+| Importar para os locais corretos no banco | Sim, via pipeline oficial (`licitacao_importacao_*`) — sem SQL manual |
+
+## 7. Próximo passo
+
+Aprovar este plano para entrar em build mode e executar **apenas** o passo 1 (editar o seed). O passo 2 (importação) é disparado pelo usuário no botão "Importar Grade 2026" da tela, autenticado como admin, para que a RLS valide a operação.
