@@ -188,7 +188,7 @@ export default function Pipeline() {
     );
   }
 
-  const data = useMemo<Licitacao[]>(() => {
+  const data = useMemo<LicitacaoPipeline[]>(() => {
     if (!empresaAtivaId) return [];
     if (pipelineError) return [];
     if (hasRealData) {
@@ -408,10 +408,11 @@ function AssumirButton({ licitacao, currentUser, onAssume, compact }: {
 }
 
 function KanbanView({ data, currentUser, onAssume, onOpen }: {
-  data: Licitacao[];
+  data: LicitacaoPipeline[];
   currentUser: string;
   onAssume: (l: Licitacao) => void;
-  onOpen: (l: Licitacao) => void;
+  onOpen: (l: LicitacaoPipeline) => void;
+
 }) {
   const cols: StatusLicitacao[] = ["oportunidade", "em_analise", "parecer_tecnico", "controladoria", "aprovacao_diretoria", "pregao", "vencida"];
   return (
@@ -467,10 +468,11 @@ function KanbanView({ data, currentUser, onAssume, onOpen }: {
 }
 
 function TableView({ data, currentUser, onAssume, onOpen }: {
-  data: Licitacao[];
+  data: LicitacaoPipeline[];
   currentUser: string;
   onAssume: (l: Licitacao) => void;
-  onOpen: (l: Licitacao) => void;
+  onOpen: (l: LicitacaoPipeline) => void;
+
 }) {
   return (
     <div className="card-elevated overflow-hidden">
