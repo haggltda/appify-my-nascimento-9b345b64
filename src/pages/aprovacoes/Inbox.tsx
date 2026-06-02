@@ -74,6 +74,152 @@ const ORIGEM_META: Record<Origem, { label: string; icon: any; chip: string }> = 
   contratos:  { label: "Contratos/Outros", icon: FolderOpen, chip: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300" },
 };
 
+// ----------------- Anexos de Pré-Título (frontend-only) -----------------
+function isRlsError(err: any): boolean {
+  if (!err) return false;
+  const code = String(err.code ?? "");
+  const msg = String(err.message ?? "").toLowerCase();
+  return code === "42501" || code === "PGRST301" || msg.includes("permission denied") || msg.includes("not authorized");
+}
+
+interface AnexoPreTitulo {
+  id: string;
+  pre_titulo_id: string;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  storage_path: string | null;
+  tipo: string | null;
+}
+
+function useAnexosDoMalote(programacaoId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["inbox-anexos-malote", programacaoId],
+    enabled: !!programacaoId,
+    queryFn: async (): Promise<AnexoPreTitulo[]> => {
+      const { data: mt, error: mtErr } = await supabase
+        .from("malote_titulo")
+        .select("titulo_pagar_id")
+        .eq("malote_id", programacaoId as string);
+      if (mtErr) throw mtErr;
+      const tituloIds = Array.from(new Set((mt ?? []).map((r: any) => r.titulo_pagar_id).filter(Boolean)));
+      if (tituloIds.length === 0) return [];
+
+      const { data: pt, error: ptErr } = await supabase
+        .from("pre_titulo_pagar")
+        .select("id, titulo_pagar_id, numero_documento")
+        .in("titulo_pagar_id", tituloIds as string[]);
+      if (ptErr) throw ptErr;
+      const preIds = Array.from(new Set((pt ?? []).map((r: any) => r.id).filter(Boolean)));
+      if (preIds.length === 0) return [];
+
+      const { data: anexos, error: anErr } = await supabase
+        .from("pre_titulo_anexo")
+        .select("id, pre_titulo_id, file_name, mime_type, size_bytes, storage_path, tipo")
+        .in("pre_titulo_id", preIds as string[])
+        .order("created_at", { ascending: false });
+      if (anErr) throw anErr;
+      return (anexos ?? []) as AnexoPreTitulo[];
+    },
+    retry: false,
+    staleTime: 30_000,
+  });
+}
+
+function formatBytes(n: number | null | undefined): string {
+  if (!n || n <= 0) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function AnexosPreTitulo({ programacaoId }: { programacaoId: string | null | undefined }) {
+  const { data: anexos, isLoading, error } = useAnexosDoMalote(programacaoId);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
+  async function abrir(a: AnexoPreTitulo) {
+    if (!a.storage_path) return;
+    try {
+      setOpeningId(a.id);
+      const { data, error: sErr } = await supabase
+        .storage
+        .from("pre-titulos-fiscal")
+        .createSignedUrl(a.storage_path, 60);
+      if (sErr || !data?.signedUrl) {
+        toast.error("Não foi possível abrir o anexo.");
+        return;
+      }
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Não foi possível abrir o anexo.");
+    } finally {
+      setOpeningId(null);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border border-dashed border-border p-6 text-center">
+        <p className="text-sm text-muted-foreground">Carregando anexos...</p>
+      </div>
+    );
+  }
+
+  if (error && isRlsError(error)) {
+    return (
+      <div className="rounded-lg border border-dashed border-border p-6 text-center">
+        <FileIcon className="mx-auto h-8 w-8 text-muted-foreground/50" />
+        <p className="mt-2 text-sm text-muted-foreground">Sem permissão para visualizar anexos deste pré-título.</p>
+      </div>
+    );
+  }
+
+  const list = anexos ?? [];
+  if (list.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border p-6 text-center">
+        <FileIcon className="mx-auto h-8 w-8 text-muted-foreground/50" />
+        <p className="mt-2 text-sm text-muted-foreground">Nenhum anexo localizado ou acessível para este item.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-end">
+        <span className="text-xs text-muted-foreground">{list.length} anexo(s)</span>
+      </div>
+      <ul className="divide-y divide-border rounded-lg border border-border">
+        {list.map((a) => (
+          <li key={a.id} className="flex items-center gap-3 p-3">
+            <FileIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{a.file_name ?? "(sem nome)"}</p>
+              <p className="text-xs text-muted-foreground">
+                {(a.tipo ?? "—")} · {formatBytes(a.size_bytes)}
+              </p>
+              {!a.storage_path && (
+                <p className="mt-1 text-xs text-amber-600">
+                  Anexo sem caminho de armazenamento. Solicite revisão do lançamento.
+                </p>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!a.storage_path || openingId === a.id}
+              onClick={() => abrir(a)}
+            >
+              {openingId === a.id ? "Abrindo..." : "Abrir"}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+// ----------------- Fim Anexos de Pré-Título -----------------
+
 export default function InboxAprovacoes() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -611,13 +757,15 @@ function DetailDrawer({ item, onClose, onDecidir, onVerDetalhes }: {
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-bold">Documentos anexados</h3>
-              <span className="text-xs text-muted-foreground">0 anexos</span>
             </div>
-            <div className="rounded-lg border border-dashed border-border p-6 text-center">
-              <FileIcon className="mx-auto h-8 w-8 text-muted-foreground/50" />
-              <p className="mt-2 text-sm text-muted-foreground">Nenhum anexo localizado</p>
-              <p className="text-xs text-muted-foreground/70">Documentos vinculados aparecerão aqui quando disponíveis.</p>
-            </div>
+            {item.origem === "financeiro" ? (
+              <AnexosPreTitulo programacaoId={item.ref_id} />
+            ) : (
+              <div className="rounded-lg border border-dashed border-border p-6 text-center">
+                <FileIcon className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                <p className="mt-2 text-sm text-muted-foreground">Nenhum anexo localizado ou acessível para este item.</p>
+              </div>
+            )}
           </section>
         </div>
 
