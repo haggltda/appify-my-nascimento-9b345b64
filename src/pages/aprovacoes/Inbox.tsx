@@ -757,13 +757,15 @@ function DetailDrawer({ item, onClose, onDecidir, onVerDetalhes }: {
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-bold">Documentos anexados</h3>
-              <span className="text-xs text-muted-foreground">0 anexos</span>
             </div>
-            <div className="rounded-lg border border-dashed border-border p-6 text-center">
-              <FileIcon className="mx-auto h-8 w-8 text-muted-foreground/50" />
-              <p className="mt-2 text-sm text-muted-foreground">Nenhum anexo localizado</p>
-              <p className="text-xs text-muted-foreground/70">Documentos vinculados aparecerão aqui quando disponíveis.</p>
-            </div>
+            {item.origem === "financeiro" ? (
+              <AnexosPreTitulo programacaoId={item.ref_id} />
+            ) : (
+              <div className="rounded-lg border border-dashed border-border p-6 text-center">
+                <FileIcon className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                <p className="mt-2 text-sm text-muted-foreground">Nenhum anexo localizado ou acessível para este item.</p>
+              </div>
+            )}
           </section>
         </div>
 
