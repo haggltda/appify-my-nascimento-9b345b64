@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissoes } from "@/context/PermissoesContext";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import type { PermissaoFlag } from "@/types/planoAcao";
 
 export interface PlanoAcaoPermissao {
@@ -25,12 +26,14 @@ const ALL: PlanoAcaoPermissao = {
 };
 
 export function usePlanoAcaoPermissao() {
-  const { roles, empresaId, loading } = usePermissoes();
+  const { roles, loading } = usePermissoes();
+  const { empresa, loading: loadingEmp } = useEmpresaAtiva();
+  const empresaId = empresa?.id ?? null;
   const isAdmin = roles.includes("admin");
 
   const q = useQuery({
     queryKey: ["plano_acao_permissao", empresaId, isAdmin],
-    enabled: !loading && !!empresaId && !isAdmin,
+    enabled: !loading && !loadingEmp && !!empresaId && !isAdmin,
     queryFn: async (): Promise<PlanoAcaoPermissao> => {
       const { data: userRes } = await supabase.auth.getUser();
       const uid = userRes.user?.id;
@@ -47,5 +50,5 @@ export function usePlanoAcaoPermissao() {
 
   const perms = isAdmin ? ALL : (q.data ?? NONE);
   const can = (p: PermissaoFlag) => perms[`pode_${p}` as keyof PlanoAcaoPermissao];
-  return { perms, can, loading: loading || q.isLoading, isAdmin };
+  return { perms, can, loading: loading || loadingEmp || q.isLoading, isAdmin };
 }

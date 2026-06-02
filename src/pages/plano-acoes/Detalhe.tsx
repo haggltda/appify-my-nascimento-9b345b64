@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { usePermissoes } from "@/context/PermissoesContext";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { STATUS_LABELS, STATUS_ORDEM, STATUS_COR, PRIORIDADES, PRIORIDADE_LABEL } from "@/types/planoAcao";
 import { ForbiddenCard } from "./Lista";
@@ -24,7 +24,8 @@ export default function PlanoAcaoDetalhe() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { empresaId } = usePermissoes();
+  const { empresa } = useEmpresaAtiva();
+  const empresaId = empresa?.id ?? null;
   const { can, loading: lp } = usePlanoAcaoPermissao();
 
   const [form, setForm] = useState<any>({

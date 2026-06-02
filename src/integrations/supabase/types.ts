@@ -17975,6 +17975,10 @@ export type Database = {
         Args: { _empresa: string; _payload: Json }
         Returns: Json
       }
+      plano_acao_visible_by_user: {
+        Args: { _plano_id: string; _user: string }
+        Returns: boolean
+      }
       pode_alterar_empresa_cc: { Args: { _cc_id: string }; Returns: string }
       pode_usar_copiloto: { Args: { _uid: string }; Returns: boolean }
       pre_titulo_aprovar: { Args: { _id: string }; Returns: undefined }
