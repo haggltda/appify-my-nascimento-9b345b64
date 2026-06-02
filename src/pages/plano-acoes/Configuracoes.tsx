@@ -5,14 +5,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
-import { usePermissoes } from "@/context/PermissoesContext";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
 import { PERMISSOES_FLAGS } from "@/types/planoAcao";
 
 export default function PlanoAcoesConfiguracoes() {
-  const { empresaId } = usePermissoes();
+  const { empresa } = useEmpresaAtiva();
+  const empresaId = empresa?.id ?? null;
   const { can, loading } = usePlanoAcaoPermissao();
   const { toast } = useToast();
   const [rows, setRows] = useState<any[]>([]);

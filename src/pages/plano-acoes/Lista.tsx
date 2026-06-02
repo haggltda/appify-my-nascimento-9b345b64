@@ -126,7 +126,13 @@ export default function PlanoAcoesLista() {
               {isLoading && (
                 <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Carregando...</td></tr>
               )}
-              {!isLoading && filtered.length === 0 && (
+              {!isLoading && filtered.length === 0 && rows.length === 0 && (
+                <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">
+                  Você ainda não tem planos de ação visíveis nesta empresa.<br />
+                  <span className="text-xs">A visibilidade segue a hierarquia: você vê os planos sob sua responsabilidade, da sua equipe (setor/área/comitê que lidera ou gerencia) ou de toda a empresa, conforme suas permissões. Solicite ao administrador (Erica, Yuri ou Helena) se faltar acesso.</span>
+                </td></tr>
+              )}
+              {!isLoading && filtered.length === 0 && rows.length > 0 && (
                 <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Nenhuma ação encontrada com os filtros atuais.</td></tr>
               )}
               {filtered.map(r => (

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { usePermissoes } from "@/context/PermissoesContext";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 
 export interface PlanoAcaoRow {
   id: string;
@@ -37,7 +37,8 @@ export interface PlanoAcaoRow {
 }
 
 export function usePlanoAcoes() {
-  const { empresaId, loading } = usePermissoes();
+  const { empresa, loading } = useEmpresaAtiva();
+  const empresaId = empresa?.id ?? null;
   return useQuery({
     queryKey: ["plano_acoes", empresaId],
     enabled: !loading && !!empresaId,

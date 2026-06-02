@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { usePermissoes } from "@/context/PermissoesContext";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +14,8 @@ import { PLANO_ACOES_SEED, PLANO_ACOES_SEED_TOTAL } from "@/data/planoAcoesSeed"
 import { Upload, CheckCircle2, AlertTriangle, Database } from "lucide-react";
 
 export default function PlanoAcoesImportar() {
-  const { empresaId } = usePermissoes();
+  const { empresa } = useEmpresaAtiva();
+  const empresaId = empresa?.id ?? null;
   const { can, loading } = usePlanoAcaoPermissao();
   const { toast } = useToast();
   const qc = useQueryClient();
