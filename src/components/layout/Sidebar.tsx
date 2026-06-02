@@ -48,8 +48,17 @@ import { GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 
-interface NavItem { label: string; to: string; icon: any; badge?: string }
-interface NavGroup { label: string; items: NavItem[]; defaultOpen?: boolean }
+interface NavItem {
+  label: string;
+  to: string;
+  icon: any;
+  badge?: string;
+}
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+  defaultOpen?: boolean;
+}
 interface ModuleDef {
   id: string;
   label: string;
@@ -79,17 +88,17 @@ const licitacoesModule: ModuleDef = {
         { label: "Pipeline", to: "/app/pipeline", icon: FolderKanban, badge: "32" },
       ],
     },
-      {
-        label: "Operação",
-        defaultOpen: true,
-        items: [
-          { label: "Cadastro de Editais", to: "/app/editais", icon: FileText },
-          { label: "Documentos", to: "/app/documentos", icon: ScrollText },
-          // B2: "Triagem & IA" removida do menu (rota /app/triagem segue existindo,
-          // mas controlada pelo RouteGuard + matriz de permissões do ERP).
-          { label: "Composição & BDI", to: "/app/composicao", icon: PieChart },
-        ],
-      },
+    {
+      label: "Operação",
+      defaultOpen: true,
+      items: [
+        { label: "Cadastro de Editais", to: "/app/editais", icon: FileText },
+        { label: "Documentos", to: "/app/documentos", icon: ScrollText },
+        // B2: "Triagem & IA" removida do menu (rota /app/triagem segue existindo,
+        // mas controlada pelo RouteGuard + matriz de permissões do ERP).
+        { label: "Composição & BDI", to: "/app/composicao", icon: PieChart },
+      ],
+    },
     {
       label: "Análise & Decisão",
       defaultOpen: true,
@@ -104,15 +113,15 @@ const licitacoesModule: ModuleDef = {
         { label: "Aprovações", to: "/app/aprovacoes", icon: CheckCircle2, badge: "7" },
       ],
     },
-      {
-        label: "Pregão & Encaminhamento",
-        items: [
-          // B2.1.c.1 — "Pregão & Lances" inutilizado: item removido do menu e app_menu.ativo=false.
-          //            Componente Pregao.tsx, rota /app/pregao e status "pregao" do fluxo preservados.
-          { label: "Resultado Final", to: "/app/resultado", icon: Trophy },
-          { label: "Prontas p/ Contrato", to: "/app/prontas-contrato", icon: PackageCheck },
-        ],
-      },
+    {
+      label: "Pregão & Encaminhamento",
+      items: [
+        // B2.1.c.1 — "Pregão & Lances" inutilizado: item removido do menu e app_menu.ativo=false.
+        //            Componente Pregao.tsx, rota /app/pregao e status "pregao" do fluxo preservados.
+        { label: "Resultado Final", to: "/app/resultado", icon: Trophy },
+        { label: "Prontas p/ Contrato", to: "/app/prontas-contrato", icon: PackageCheck },
+      ],
+    },
     {
       label: "Contratos",
       items: [
@@ -172,11 +181,16 @@ const controladoriaOrcModule: ModuleDef = {
 
 // Suprimentos
 const suprimentosModule: ModuleDef = {
-  id: "suprimentos", label: "Suprimentos", description: "Compras, estoque, requisições",
-  icon: ShoppingCart, basePath: "/app/suprimentos", status: "active",
+  id: "suprimentos",
+  label: "Suprimentos",
+  description: "Compras, estoque, requisições",
+  icon: ShoppingCart,
+  basePath: "/app/suprimentos",
+  status: "active",
   groups: [
     {
-      label: "Cadastros", defaultOpen: true,
+      label: "Cadastros",
+      defaultOpen: true,
       items: [
         { label: "Fornecedores", to: "/app/suprimentos/fornecedores", icon: Building2 },
         { label: "Catálogo de Produtos", to: "/app/suprimentos/produtos", icon: PackageCheck },
@@ -185,14 +199,16 @@ const suprimentosModule: ModuleDef = {
       ],
     },
     {
-      label: "Estoque", defaultOpen: true,
+      label: "Estoque",
+      defaultOpen: true,
       items: [
         { label: "Saldos & Alertas", to: "/app/suprimentos/estoque", icon: PackageCheck },
         { label: "Movimentações", to: "/app/suprimentos/movimentos", icon: History },
       ],
     },
     {
-      label: "Compras", defaultOpen: true,
+      label: "Compras",
+      defaultOpen: true,
       items: [
         { label: "Requisições", to: "/app/suprimentos/requisicoes", icon: ListChecks },
         { label: "Cotações (RFQ)", to: "/app/suprimentos/cotacoes", icon: Calculator },
@@ -207,101 +223,140 @@ const suprimentosModule: ModuleDef = {
 
 // Financeiro
 const financeiroModule: ModuleDef = {
-  id: "financeiro", label: "Financeiro", description: "Contas, movimentos bancários",
-  icon: Wallet, basePath: "/app/financeiro", status: "active",
-  groups: [{
-    label: "Operação Financeira", defaultOpen: true,
-    items: [
-      { label: "Contas Bancárias", to: "/app/financeiro/contas-bancarias", icon: Wallet },
-      { label: "Contas a Pagar", to: "/app/financeiro/contas-pagar", icon: TrendingUp },
-      { label: "Programação de Pagamentos", to: "/app/financeiro/programacao-pagamentos", icon: Wallet },
-      { label: "Validação Pós-Pagamento", to: "/app/financeiro/validacao-pos-pagamento", icon: Receipt },
-      { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
-      { label: "Fluxo de Caixa", to: "/app/financeiro/fluxo-caixa", icon: TrendingUp },
-      { label: "Fluxo de Caixa Diário", to: "/app/financeiro/fluxo-caixa-diario", icon: TrendingUp },
-      { label: "Conciliação Fluxo Caixa", to: "/app/financeiro/conciliacao-fluxo-caixa", icon: Receipt },
-      { label: "Análise de Capital de Giro", to: "/app/financeiro/capital-giro", icon: TrendingUp },
-      { label: "Movimentos Bancários", to: "/app/financeiro/movimentos", icon: Wallet },
-      { label: "Integração Bancária", to: "/app/financeiro/integracao-bancaria", icon: Wallet },
-    ],
-  }],
+  id: "financeiro",
+  label: "Financeiro",
+  description: "Contas, movimentos bancários",
+  icon: Wallet,
+  basePath: "/app/financeiro",
+  status: "active",
+  groups: [
+    {
+      label: "Operação Financeira",
+      defaultOpen: true,
+      items: [
+        { label: "Contas Bancárias", to: "/app/financeiro/contas-bancarias", icon: Wallet },
+        { label: "Contas a Pagar", to: "/app/financeiro/contas-pagar", icon: TrendingUp },
+        { label: "Programação de Pagamentos", to: "/app/financeiro/programacao-pagamentos", icon: Wallet },
+        { label: "Validação Pós-Pagamento", to: "/app/financeiro/validacao-pos-pagamento", icon: Receipt },
+        { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
+        { label: "Fluxo de Caixa", to: "/app/financeiro/fluxo-caixa", icon: TrendingUp },
+        { label: "Fluxo de Caixa Diário", to: "/app/financeiro/fluxo-caixa-diario", icon: TrendingUp },
+        { label: "Conciliação Fluxo Caixa", to: "/app/financeiro/conciliacao-fluxo-caixa", icon: Receipt },
+        { label: "Análise de Capital de Giro", to: "/app/financeiro/capital-giro", icon: TrendingUp },
+        { label: "Movimentos Bancários", to: "/app/financeiro/movimentos", icon: Wallet },
+        { label: "Integração Bancária", to: "/app/financeiro/integracao-bancaria", icon: Wallet },
+      ],
+    },
+  ],
 };
 
 // Contábil
 const contabilModule: ModuleDef = {
-  id: "contabil", label: "Contábil", description: "Lançamentos e partidas",
-  icon: BookOpen, basePath: "/app/contabil", status: "active",
-  groups: [{
-    label: "Escrituração", defaultOpen: true,
-    items: [
-      { label: "Lançamentos", to: "/app/contabil/lancamentos", icon: BookOpen },
-      { label: "Balancete", to: "/app/contabil/balancete", icon: BookOpen },
-      { label: "Razão", to: "/app/contabil/razao", icon: BookOpen },
-      { label: "Razão Detalhado", to: "/app/contabil/razao-detalhado", icon: BookOpen },
-      { label: "Plano de Contas", to: "/app/contabil/plano-contas", icon: BookOpen },
-      { label: "Contabilidade Avançada", to: "/app/contabil/avancada", icon: BookOpen },
-      { label: "Aprovação de Contas", to: "/app/contabil/aprovacao-contas", icon: ClipboardCheck },
-      { label: "DRE Gerencial (real)", to: "/app/contabil/dre-gerencial-real", icon: BookOpen },
-      { label: "Conciliação Eventos", to: "/app/contabil/conciliacao-eventos", icon: ClipboardCheck },
-    ],
-  }],
+  id: "contabil",
+  label: "Contábil",
+  description: "Lançamentos e partidas",
+  icon: BookOpen,
+  basePath: "/app/contabil",
+  status: "active",
+  groups: [
+    {
+      label: "Escrituração",
+      defaultOpen: true,
+      items: [
+        { label: "Lançamentos", to: "/app/contabil/lancamentos", icon: BookOpen },
+        { label: "Balancete", to: "/app/contabil/balancete", icon: BookOpen },
+        { label: "Razão", to: "/app/contabil/razao", icon: BookOpen },
+        { label: "Razão Detalhado", to: "/app/contabil/razao-detalhado", icon: BookOpen },
+        { label: "Plano de Contas", to: "/app/contabil/plano-contas", icon: BookOpen },
+        { label: "Contabilidade Avançada", to: "/app/contabil/avancada", icon: BookOpen },
+        { label: "Aprovação de Contas", to: "/app/contabil/aprovacao-contas", icon: ClipboardCheck },
+        { label: "DRE Gerencial (real)", to: "/app/contabil/dre-gerencial-real", icon: BookOpen },
+        { label: "Conciliação Eventos", to: "/app/contabil/conciliacao-eventos", icon: ClipboardCheck },
+      ],
+    },
+  ],
 };
 
 // Fiscal
 const fiscalModule: ModuleDef = {
-  id: "fiscal", label: "Fiscal & Tributário", description: "NFS-e, NF-e e apuração",
-  icon: Receipt, basePath: "/app/fiscal", status: "active",
-  groups: [{
-    label: "Emissão & Apuração", defaultOpen: true,
-    items: [
-      { label: "Notas / Apuração / Config", to: "/app/fiscal", icon: Receipt },
-    ],
-  }],
+  id: "fiscal",
+  label: "Fiscal & Tributário",
+  description: "NFS-e, NF-e e apuração",
+  icon: Receipt,
+  basePath: "/app/fiscal",
+  status: "active",
+  groups: [
+    {
+      label: "Emissão & Apuração",
+      defaultOpen: true,
+      items: [{ label: "Notas / Apuração / Config", to: "/app/fiscal", icon: Receipt }],
+    },
+  ],
 };
 
 // RH
 const rhModule: ModuleDef = {
-  id: "rh", label: "Recursos Humanos", description: "Colaboradores e alocações",
-  icon: Users2, basePath: "/app/rh", status: "active",
-  groups: [{
-    label: "Pessoas", defaultOpen: true,
-    items: [
-      { label: "Colaboradores", to: "/app/rh/colaboradores", icon: Users2 },
-      { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
-      { label: "Folha de Pagamento", to: "/app/rh/folha", icon: ListChecks },
-    ],
-  }],
+  id: "rh",
+  label: "Recursos Humanos",
+  description: "Colaboradores e alocações",
+  icon: Users2,
+  basePath: "/app/rh",
+  status: "active",
+  groups: [
+    {
+      label: "Pessoas",
+      defaultOpen: true,
+      items: [
+        { label: "Colaboradores", to: "/app/rh/colaboradores", icon: Users2 },
+        { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
+        { label: "Folha de Pagamento", to: "/app/rh/folha", icon: ListChecks },
+      ],
+    },
+  ],
 };
 
 // BI
 const biModule: ModuleDef = {
-  id: "bi", label: "BI & Analytics", description: "Dashboards consolidados",
-  icon: BarChart3, basePath: "/app/bi", status: "active",
-  groups: [{
-    label: "Painéis", defaultOpen: true,
-    items: [{ label: "Resumo do Grupo", to: "/app/bi", icon: BarChart3 }],
-  }],
+  id: "bi",
+  label: "BI & Analytics",
+  description: "Dashboards consolidados",
+  icon: BarChart3,
+  basePath: "/app/bi",
+  status: "active",
+  groups: [
+    {
+      label: "Painéis",
+      defaultOpen: true,
+      items: [{ label: "Resumo do Grupo", to: "/app/bi", icon: BarChart3 }],
+    },
+  ],
 };
 
 // Integração & Migração (somente admin)
 const integracaoModule: ModuleDef = {
-  id: "integracao", label: "Integração & Migração", description: "Lotes de planilhas → ERP",
-  icon: DatabaseZap, basePath: "/app/integracao", status: "active",
-  groups: [{
-    label: "Cargas", defaultOpen: true,
-    items: [
-      { label: "Lotes de Integração", to: "/app/integracao", icon: DatabaseZap },
-      { label: "Aliases (De/Para)", to: "/app/integracao/aliases", icon: ListChecks },
-      { label: "Migração DO ZERO", to: "/app/admin/migracao-zero", icon: DatabaseZap },
-    ],
-  }],
+  id: "integracao",
+  label: "Integração & Migração",
+  description: "Lotes de planilhas → ERP",
+  icon: DatabaseZap,
+  basePath: "/app/integracao",
+  status: "active",
+  groups: [
+    {
+      label: "Cargas",
+      defaultOpen: true,
+      items: [
+        { label: "Lotes de Integração", to: "/app/integracao", icon: DatabaseZap },
+        { label: "Aliases (De/Para)", to: "/app/integracao/aliases", icon: ListChecks },
+        { label: "Migração DO ZERO", to: "/app/admin/migracao-zero", icon: DatabaseZap },
+      ],
+    },
+  ],
 };
 
 // Consolidação: módulo "Configurações" removido do Sidebar.
 // Todo acesso à governança do ERP é feito pelo rodapé "Configurações do ERP" → /app/administracao.
 // Permissões (matriz), Visibilidade (overrides por usuário), Alçadas, Plano de Ações (ACL),
 // Parâmetros, Sessões, Logs, Auditoria e Identidade são abas de Administracao.tsx.
-
 
 function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
   const items: NavItem[] = [
@@ -317,8 +372,12 @@ function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
     items.splice(1, 0, { label: "Copiloto IA", to: "/app/plano-acoes/copiloto", icon: Sparkles, badge: "IA" });
   }
   return {
-    id: "plano-acoes", label: "Plano de Ações", description: "Gestão de ações e comitês",
-    icon: Target, basePath: "/app/plano-acoes", status: "active",
+    id: "plano-acoes",
+    label: "Plano de Ações",
+    description: "Gestão de ações e comitês",
+    icon: Target,
+    basePath: "/app/plano-acoes",
+    status: "active",
     groups: [{ label: "Plano de Ações", defaultOpen: true, items }],
   };
 }
@@ -355,7 +414,6 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
     ...(roles.includes("admin") ? [integracaoModule] : []),
   ];
 
-
   // Filter modules/groups/items based on screen access (admins see everything).
   // B2 — deny-by-default: itens sem menuCode somem para não-admin, exceto
   // rotas técnicas explícitas (mesmas listadas na allowlist do RouteGuard).
@@ -379,9 +437,12 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
       .filter((mod) => !mod.groups || mod.groups.length > 0);
   }, [allModules, access]);
 
-  const activeModuleId = visibleModules.find(
-    (m) => m.status === "active" && (location.pathname === m.basePath || location.pathname.startsWith(m.basePath))
-  )?.id ?? visibleModules[0]?.id ?? "licitacoes";
+  const activeModuleId =
+    visibleModules.find(
+      (m) => m.status === "active" && (location.pathname === m.basePath || location.pathname.startsWith(m.basePath)),
+    )?.id ??
+    visibleModules[0]?.id ??
+    "licitacoes";
   const [expandedModule, setExpandedModule] = useState<string | null>(activeModuleId);
 
   // No mobile a sidebar nunca aparece colapsada (sempre full); colapso é só desktop.
@@ -404,7 +465,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
         mobileOpen ? "translate-x-0" : "-translate-x-full",
         // Desktop: sticky, sem transform, larguras originais
         "lg:sticky lg:top-0 lg:z-30 lg:translate-x-0 lg:shadow-none lg:transition-all",
-        desktopCollapsed ? "lg:w-[72px]" : "lg:w-[268px]",
+        desktopCollapsed ? "lg:w-[172px]" : "lg:w-[268px]",
       )}
     >
       {/* Brand */}
@@ -471,7 +532,9 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
               <>
                 <span className="flex-1">Aguardando Aprovação</span>
                 {pendentes > 0 && (
-                  <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{pendentes}</span>
+                  <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {pendentes}
+                  </span>
                 )}
               </>
             )}
@@ -527,10 +590,19 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 }
 
 function ModuleEntry({
-  mod, collapsed, expanded, onToggle,
-}: { mod: ModuleDef; collapsed: boolean; expanded: boolean; onToggle: () => void }) {
+  mod,
+  collapsed,
+  expanded,
+  onToggle,
+}: {
+  mod: ModuleDef;
+  collapsed: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const location = useLocation();
-  const isActiveModule = mod.status === "active" && (location.pathname === mod.basePath || location.pathname.startsWith(mod.basePath));
+  const isActiveModule =
+    mod.status === "active" && (location.pathname === mod.basePath || location.pathname.startsWith(mod.basePath));
   const Icon = mod.icon;
   const disabled = mod.status === "soon";
 
@@ -567,7 +639,9 @@ function ModuleEntry({
               </span>
             )}
             {!disabled && mod.groups && (
-              <ChevronRight className={cn("h-3.5 w-3.5 text-sidebar-muted transition-transform", expanded && "rotate-90")} />
+              <ChevronRight
+                className={cn("h-3.5 w-3.5 text-sidebar-muted transition-transform", expanded && "rotate-90")}
+              />
             )}
           </>
         )}
@@ -587,7 +661,9 @@ function ModuleEntry({
 
 function SidebarGroup({ group }: { group: NavGroup }) {
   const location = useLocation();
-  const hasActive = group.items.some((i) => location.pathname === i.to || (i.to !== "/app" && location.pathname.startsWith(i.to)));
+  const hasActive = group.items.some(
+    (i) => location.pathname === i.to || (i.to !== "/app" && location.pathname.startsWith(i.to)),
+  );
   const [open, setOpen] = useState(group.defaultOpen ?? hasActive ?? false);
 
   return (
