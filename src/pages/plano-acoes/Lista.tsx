@@ -28,8 +28,22 @@ export default function PlanoAcoesLista() {
   const [fComite, setFComite] = useState<string>("__all");
   const [fArea, setFArea] = useState<string>("__all");
 
-  const comites = useMemo(() => Array.from(new Set(rows.map(r => r.comite).filter(Boolean))) as string[], [rows]);
-  const areas = useMemo(() => Array.from(new Set(rows.map(r => r.area).filter(Boolean))) as string[], [rows]);
+  const [fStatus, setFStatus] = useState<string>("__all");
+  const [fPrior, setFPrior] = useState<string>("__all");
+  const [fComite, setFComite] = useState<string>("__all");
+  const [fArea, setFArea] = useState<string>("__all");
+  const [fSetor, setFSetor] = useState<string>("__all");
+  const [fResp, setFResp] = useState<string>("__all");
+
+  const { comites, areas, setores, responsaveis } = usePlanoAcaoFilterOptions(rows);
+
+  // Limpa filtros que deixaram de existir após troca de empresa / mudança das rows.
+  useEffect(() => {
+    if (fComite !== "__all" && !comites.some(o => o.value === fComite)) setFComite("__all");
+    if (fArea !== "__all" && !areas.some(o => o.value === fArea)) setFArea("__all");
+    if (fSetor !== "__all" && !setores.some(o => o.value === fSetor)) setFSetor("__all");
+    if (fResp !== "__all" && !responsaveis.some(o => o.value === fResp)) setFResp("__all");
+  }, [comites, areas, setores, responsaveis, fComite, fArea, fSetor, fResp]);
 
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -38,11 +52,13 @@ export default function PlanoAcoesLista() {
       if (fPrior !== "__all" && r.prioridade_normalizada !== fPrior) return false;
       if (fComite !== "__all" && r.comite !== fComite) return false;
       if (fArea !== "__all" && r.area !== fArea) return false;
+      if (fSetor !== "__all" && r.setor !== fSetor) return false;
+      if (!matchResponsavel(r, fResp)) return false;
       if (!q) return true;
       return [r.titulo, r.problema, r.acao, r.responsavel_nome_origem, r.id_importacao]
         .filter(Boolean).some(s => (s as string).toLowerCase().includes(q));
     });
-  }, [rows, busca, fStatus, fPrior, fComite, fArea]);
+  }, [rows, busca, fStatus, fPrior, fComite, fArea, fSetor, fResp]);
 
   if (lp) return null;
   if (!can("visualizar")) return <ForbiddenCard />;
