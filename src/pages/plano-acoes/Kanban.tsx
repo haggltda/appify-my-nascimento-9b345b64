@@ -1,11 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { usePlanoAcoes, type PlanoAcaoRow } from "@/hooks/usePlanoAcoes";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
+import { usePlanoAcaoFilterOptions, matchResponsavel } from "@/hooks/usePlanoAcaoFilterOptions";
 import { STATUS_LABELS, STATUS_COR, STATUS_ORDEM, PRIORIDADE_COR, PRIORIDADE_LABEL } from "@/types/planoAcao";
 import { ForbiddenCard } from "./Lista";
 import { supabase } from "@/integrations/supabase/client";
