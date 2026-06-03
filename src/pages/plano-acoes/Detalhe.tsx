@@ -300,7 +300,30 @@ export default function PlanoAcaoDetalhe() {
                 <SelectContent>{PRIORIDADES.map(p => <SelectItem key={p} value={p}>{PRIORIDADE_LABEL[p]}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Responsável</Label><Input value={form.responsavel_nome_origem ?? ""} disabled={!podeEdit} onChange={e => set("responsavel_nome_origem", e.target.value)} /></div>
+            <div>
+              <Label>
+                Responsável {isNew && <span className="text-destructive">*</span>}
+              </Label>
+              <SearchableSelect
+                value={form.responsavel_profile_id ?? null}
+                onChange={(v) => set("responsavel_profile_id", v || null)}
+                options={usuariosOptions}
+                placeholder={rpcSemPermissao ? "Sem permissão para listar usuários" : "Selecione um usuário"}
+                disabled={!podeEdit || rpcSemPermissao}
+                allowClear={!isNew}
+                clearValue=""
+              />
+              {!form.responsavel_profile_id && form.responsavel_nome_origem && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Responsável pendente de vínculo · texto original: {form.responsavel_nome_origem}
+                </p>
+              )}
+              {rpcSemPermissao && (
+                <p className="mt-1 text-xs text-destructive">
+                  Sem permissão para listar usuários desta empresa.
+                </p>
+              )}
+            </div>
             <div>
               <Label>Líder do comitê <span className="text-xs text-muted-foreground">(automático)</span></Label>
               <Input value={form.lider_comite_nome_origem ?? ""} readOnly placeholder={form.comite ? "—" : "Selecione o comitê"} className="bg-muted/40" />
