@@ -100,9 +100,23 @@ export default function PlanoAcaoDetalhe() {
     }
   }, [form.area, areaAtual]);
 
+  const _podeEditPre = isNew ? can("criar") : can("editar");
+  const { data: usuarios = [], error: errUsuarios } = useUsuariosEmpresa({
+    enabled: !lp && can("visualizar") && (_podeEditPre || isNew),
+  });
+
   if (lp) return null;
   if (!can("visualizar")) return <ForbiddenCard />;
-  const podeEdit = isNew ? can("criar") : can("editar");
+  const podeEdit = _podeEditPre;
+  const usuariosOptions = usuarios.map((u) => ({
+    value: u.id,
+    label: u.display_name ?? "(sem nome)",
+    hint: u.email ?? undefined,
+  }));
+  const rpcSemPermissao =
+    !!errUsuarios &&
+    ((errUsuarios as any)?.code === "42501" ||
+      String((errUsuarios as any)?.message ?? "").includes("sem_permissao_para_listar_usuarios_empresa"));
 
   const salvar = async () => {
     if (!podeEdit || !empresaId) return;
