@@ -83,6 +83,15 @@ export default function PlanoAcoesKanban() {
         actions={<Link to="/app/plano-acoes" className="text-sm text-primary hover:underline">← Lista</Link>}
       />
       {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
+      <Card className="mb-4 p-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <SearchableSelect value={fComite === "__all" ? "" : fComite} onChange={v => setFComite(v || "__all")} options={comites} placeholder="Todos os comitês" searchPlaceholder="Buscar comitê..." allowClear />
+          <SearchableSelect value={fArea === "__all" ? "" : fArea} onChange={v => setFArea(v || "__all")} options={areas} placeholder="Todas as áreas" searchPlaceholder="Buscar área..." allowClear />
+          <SearchableSelect value={fSetor === "__all" ? "" : fSetor} onChange={v => setFSetor(v || "__all")} options={setores} placeholder="Todos os setores" searchPlaceholder="Buscar setor..." allowClear />
+          <SearchableSelect value={fResp === "__all" ? "" : fResp} onChange={v => setFResp(v || "__all")} options={responsaveis} placeholder="Todos os responsáveis" searchPlaceholder="Buscar responsável..." allowClear />
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">{filteredRows.length} de {rows.length} ações</p>
+      </Card>
       <div className="flex gap-3 overflow-x-auto pb-4">
         {COLUNAS.map(col => (
           <div
