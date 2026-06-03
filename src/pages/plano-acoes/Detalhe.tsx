@@ -17,6 +17,8 @@ import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2 } from "lucide-react";
 import { useComitesMap } from "@/hooks/useComitesMap";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
 
 export default function PlanoAcaoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +33,7 @@ export default function PlanoAcaoDetalhe() {
   const [form, setForm] = useState<any>({
     titulo: "", problema: "", acao: "", comite: "", area: "", setor: "",
     prioridade_normalizada: "media", status_normalizado: "a_definir",
+    responsavel_profile_id: null,
     responsavel_nome_origem: "", lider_comite_nome_origem: "",
     data_inicio_planejado_original: "", data_fim_planejado_original: "",
     comentarios: "", custo_previsto: 0,
@@ -97,15 +100,37 @@ export default function PlanoAcaoDetalhe() {
     }
   }, [form.area, areaAtual]);
 
+  const _podeEditPre = isNew ? can("criar") : can("editar");
+  const { data: usuarios = [], error: errUsuarios } = useUsuariosEmpresa({
+    enabled: !lp && can("visualizar") && (_podeEditPre || isNew),
+  });
+
   if (lp) return null;
   if (!can("visualizar")) return <ForbiddenCard />;
-  const podeEdit = isNew ? can("criar") : can("editar");
+  const podeEdit = _podeEditPre;
+  const usuariosOptions = usuarios.map((u) => ({
+    value: u.id,
+    label: u.display_name ?? "(sem nome)",
+    hint: u.email ?? undefined,
+  }));
+  const rpcSemPermissao =
+    !!errUsuarios &&
+    ((errUsuarios as any)?.code === "42501" ||
+      String((errUsuarios as any)?.message ?? "").includes("sem_permissao_para_listar_usuarios_empresa"));
 
   const salvar = async () => {
     if (!podeEdit || !empresaId) return;
+    if (isNew && !form.responsavel_profile_id) {
+      return toast({
+        title: "Responsável é obrigatório",
+        description: "Selecione um responsável para criar a ação.",
+        variant: "destructive",
+      });
+    }
     if (isNew) {
       const { data: ins, error } = await supabase.from("plano_acao").insert({
         empresa_id: empresaId, ...form, origem: "manual",
+        responsavel_profile_id: form.responsavel_profile_id ?? null,
       }).select("id").single();
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
       toast({ title: "Ação criada" });
@@ -117,6 +142,7 @@ export default function PlanoAcaoDetalhe() {
         comite: form.comite, area: form.area, setor: form.setor || null,
         prioridade_normalizada: form.prioridade_normalizada,
         status_normalizado: form.status_normalizado,
+        responsavel_profile_id: form.responsavel_profile_id ?? null,
         responsavel_nome_origem: form.responsavel_nome_origem,
         lider_comite_nome_origem: form.lider_comite_nome_origem,
         comentarios: form.comentarios,
@@ -174,7 +200,7 @@ export default function PlanoAcaoDetalhe() {
                 {can("aprovar") ? "Validar conclusão" : "Marcar como concluída"}
               </Button>
             )}
-            {podeEdit && <Button size="sm" onClick={salvar}>Salvar</Button>}
+            {podeEdit && <Button size="sm" onClick={salvar} disabled={isNew && !form.responsavel_profile_id}>Salvar</Button>}
             {!isNew && can("excluir") && (
               <Button size="sm" variant="destructive" onClick={excluir}><Trash2 className="mr-1 h-3.5 w-3.5" />Excluir</Button>
             )}
@@ -274,7 +300,30 @@ export default function PlanoAcaoDetalhe() {
                 <SelectContent>{PRIORIDADES.map(p => <SelectItem key={p} value={p}>{PRIORIDADE_LABEL[p]}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Responsável</Label><Input value={form.responsavel_nome_origem ?? ""} disabled={!podeEdit} onChange={e => set("responsavel_nome_origem", e.target.value)} /></div>
+            <div>
+              <Label>
+                Responsável {isNew && <span className="text-destructive">*</span>}
+              </Label>
+              <SearchableSelect
+                value={form.responsavel_profile_id ?? null}
+                onChange={(v) => set("responsavel_profile_id", v || null)}
+                options={usuariosOptions}
+                placeholder={rpcSemPermissao ? "Sem permissão para listar usuários" : "Selecione um usuário"}
+                disabled={!podeEdit || rpcSemPermissao}
+                allowClear={!isNew}
+                clearValue=""
+              />
+              {!form.responsavel_profile_id && form.responsavel_nome_origem && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Responsável pendente de vínculo · texto original: {form.responsavel_nome_origem}
+                </p>
+              )}
+              {rpcSemPermissao && (
+                <p className="mt-1 text-xs text-destructive">
+                  Sem permissão para listar usuários desta empresa.
+                </p>
+              )}
+            </div>
             <div>
               <Label>Líder do comitê <span className="text-xs text-muted-foreground">(automático)</span></Label>
               <Input value={form.lider_comite_nome_origem ?? ""} readOnly placeholder={form.comite ? "—" : "Selecione o comitê"} className="bg-muted/40" />
