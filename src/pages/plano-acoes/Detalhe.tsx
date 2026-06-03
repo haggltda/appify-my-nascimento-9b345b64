@@ -17,6 +17,8 @@ import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2 } from "lucide-react";
 import { useComitesMap } from "@/hooks/useComitesMap";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
 
 export default function PlanoAcaoDetalhe() {
   const { id } = useParams<{ id: string }>();
