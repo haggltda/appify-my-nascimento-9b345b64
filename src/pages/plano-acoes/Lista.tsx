@@ -23,10 +23,6 @@ export default function PlanoAcoesLista() {
   const { data: rows = [], isLoading } = usePlanoAcoes();
   const { can, loading: lp } = usePlanoAcaoPermissao();
   const [busca, setBusca] = useState("");
-  const [fStatus, setFStatus] = useState<string>("__all");
-  const [fPrior, setFPrior] = useState<string>("__all");
-  const [fComite, setFComite] = useState<string>("__all");
-  const [fArea, setFArea] = useState<string>("__all");
 
   const [fStatus, setFStatus] = useState<string>("__all");
   const [fPrior, setFPrior] = useState<string>("__all");
