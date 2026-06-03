@@ -17870,6 +17870,14 @@ export type Database = {
           menu_codigo: string
         }[]
       }
+      list_usuarios_empresa: {
+        Args: { _empresa_id: string }
+        Returns: {
+          display_name: string
+          email: string
+          id: string
+        }[]
+      }
       malote_adicionar_titulo: {
         Args: { _malote_id: string; _titulo_id: string }
         Returns: undefined
