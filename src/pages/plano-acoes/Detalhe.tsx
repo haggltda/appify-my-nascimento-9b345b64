@@ -120,9 +120,17 @@ export default function PlanoAcaoDetalhe() {
 
   const salvar = async () => {
     if (!podeEdit || !empresaId) return;
+    if (isNew && !form.responsavel_profile_id) {
+      return toast({
+        title: "Responsável é obrigatório",
+        description: "Selecione um responsável para criar a ação.",
+        variant: "destructive",
+      });
+    }
     if (isNew) {
       const { data: ins, error } = await supabase.from("plano_acao").insert({
         empresa_id: empresaId, ...form, origem: "manual",
+        responsavel_profile_id: form.responsavel_profile_id ?? null,
       }).select("id").single();
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
       toast({ title: "Ação criada" });
@@ -134,6 +142,7 @@ export default function PlanoAcaoDetalhe() {
         comite: form.comite, area: form.area, setor: form.setor || null,
         prioridade_normalizada: form.prioridade_normalizada,
         status_normalizado: form.status_normalizado,
+        responsavel_profile_id: form.responsavel_profile_id ?? null,
         responsavel_nome_origem: form.responsavel_nome_origem,
         lider_comite_nome_origem: form.lider_comite_nome_origem,
         comentarios: form.comentarios,
