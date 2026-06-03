@@ -12012,6 +12012,51 @@ export type Database = {
           },
         ]
       }
+      plano_acao_backfill_responsavel_audit: {
+        Row: {
+          empresa_id: string
+          executado_em: string
+          executado_por: string | null
+          id: number
+          lote: string
+          pendencia_responsavel_antes: boolean | null
+          pendencia_responsavel_depois: boolean | null
+          plano_id: string
+          responsavel_nome_origem: string | null
+          responsavel_profile_id_antes: string | null
+          responsavel_profile_id_depois: string | null
+          tipo_match: string
+        }
+        Insert: {
+          empresa_id: string
+          executado_em?: string
+          executado_por?: string | null
+          id?: number
+          lote: string
+          pendencia_responsavel_antes?: boolean | null
+          pendencia_responsavel_depois?: boolean | null
+          plano_id: string
+          responsavel_nome_origem?: string | null
+          responsavel_profile_id_antes?: string | null
+          responsavel_profile_id_depois?: string | null
+          tipo_match: string
+        }
+        Update: {
+          empresa_id?: string
+          executado_em?: string
+          executado_por?: string | null
+          id?: number
+          lote?: string
+          pendencia_responsavel_antes?: boolean | null
+          pendencia_responsavel_depois?: boolean | null
+          plano_id?: string
+          responsavel_nome_origem?: string | null
+          responsavel_profile_id_antes?: string | null
+          responsavel_profile_id_depois?: string | null
+          tipo_match?: string
+        }
+        Relationships: []
+      }
       plano_acao_comentario: {
         Row: {
           comentario: string
