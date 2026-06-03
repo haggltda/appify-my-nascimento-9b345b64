@@ -49,7 +49,7 @@ export default function PlanoAcoesDashboard() {
     const byComite = new Map<string, number>();
     const byResp = new Map<string, number>();
     let semResp = 0, semDatas = 0, pendEvid = 0, atrasadas = 0, validadas = 0, aguard = 0;
-    rows.forEach(r => {
+    filteredRows.forEach(r => {
       byStatus.set(r.status_normalizado, (byStatus.get(r.status_normalizado) ?? 0) + 1);
       const p = r.prioridade_normalizada ?? "nao_informada";
       byPrior.set(p, (byPrior.get(p) ?? 0) + 1);
@@ -65,12 +65,12 @@ export default function PlanoAcoesDashboard() {
       if (r.status_normalizado === "aguardando_validacao") aguard++;
     });
     return { byStatus, byPrior, byArea, byComite, byResp, semResp, semDatas, pendEvid, atrasadas, validadas, aguard };
-  }, [rows]);
+  }, [filteredRows]);
 
   if (loading) return null;
   if (!can("dashboard")) return <ForbiddenCard />;
 
-  const total = rows.length;
+  const total = filteredRows.length;
   const dataStatus = Array.from(stats.byStatus.entries()).map(([k, v]) => ({ name: STATUS_LABELS[k] ?? k, value: v, key: k }));
   const dataArea = Array.from(stats.byArea.entries()).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
   const dataComite = Array.from(stats.byComite.entries()).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
