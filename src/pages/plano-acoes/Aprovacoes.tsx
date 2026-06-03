@@ -96,6 +96,13 @@ export default function PlanoAcoesAprovacoes() {
         breadcrumb={["Aprovações"]}
         actions={<Button asChild variant="outline" size="sm"><Link to="/app/plano-acoes">← Lista</Link></Button>}
       />
+      <Card className="mb-4 p-3">
+        <div className="grid gap-2 sm:grid-cols-3">
+          <SearchableSelect value={fComite === "__all" ? "" : fComite} onChange={v => setFComite(v || "__all")} options={comites} placeholder="Todos os comitês" searchPlaceholder="Buscar comitê..." allowClear />
+          <SearchableSelect value={fArea === "__all" ? "" : fArea} onChange={v => setFArea(v || "__all")} options={areas} placeholder="Todas as áreas" searchPlaceholder="Buscar área..." allowClear />
+          <SearchableSelect value={fResp === "__all" ? "" : fResp} onChange={v => setFResp(v || "__all")} options={responsaveis} placeholder="Todos os responsáveis" searchPlaceholder="Buscar responsável..." allowClear />
+        </div>
+      </Card>
       <div className="grid gap-4 lg:grid-cols-2">
         {renderList(aguard, "Aguardando validação", true)}
         {renderList(pendEv, "Concluídas — pend. evidência (legado)", false)}
