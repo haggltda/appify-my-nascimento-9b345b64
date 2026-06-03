@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { usePlanoAcoes } from "@/hooks/usePlanoAcoes";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
+import { usePlanoAcaoFilterOptions, matchResponsavel } from "@/hooks/usePlanoAcaoFilterOptions";
 import { STATUS_LABELS, STATUS_COR, PRIORIDADE_LABEL, PRIORIDADE_COR, STATUS_ORDEM, PRIORIDADES } from "@/types/planoAcao";
 import { Plus, Search, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
 
@@ -21,13 +23,23 @@ export default function PlanoAcoesLista() {
   const { data: rows = [], isLoading } = usePlanoAcoes();
   const { can, loading: lp } = usePlanoAcaoPermissao();
   const [busca, setBusca] = useState("");
+
   const [fStatus, setFStatus] = useState<string>("__all");
   const [fPrior, setFPrior] = useState<string>("__all");
   const [fComite, setFComite] = useState<string>("__all");
   const [fArea, setFArea] = useState<string>("__all");
+  const [fSetor, setFSetor] = useState<string>("__all");
+  const [fResp, setFResp] = useState<string>("__all");
 
-  const comites = useMemo(() => Array.from(new Set(rows.map(r => r.comite).filter(Boolean))) as string[], [rows]);
-  const areas = useMemo(() => Array.from(new Set(rows.map(r => r.area).filter(Boolean))) as string[], [rows]);
+  const { comites, areas, setores, responsaveis } = usePlanoAcaoFilterOptions(rows);
+
+  // Limpa filtros que deixaram de existir após troca de empresa / mudança das rows.
+  useEffect(() => {
+    if (fComite !== "__all" && !comites.some(o => o.value === fComite)) setFComite("__all");
+    if (fArea !== "__all" && !areas.some(o => o.value === fArea)) setFArea("__all");
+    if (fSetor !== "__all" && !setores.some(o => o.value === fSetor)) setFSetor("__all");
+    if (fResp !== "__all" && !responsaveis.some(o => o.value === fResp)) setFResp("__all");
+  }, [comites, areas, setores, responsaveis, fComite, fArea, fSetor, fResp]);
 
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -36,11 +48,13 @@ export default function PlanoAcoesLista() {
       if (fPrior !== "__all" && r.prioridade_normalizada !== fPrior) return false;
       if (fComite !== "__all" && r.comite !== fComite) return false;
       if (fArea !== "__all" && r.area !== fArea) return false;
+      if (fSetor !== "__all" && r.setor !== fSetor) return false;
+      if (!matchResponsavel(r, fResp)) return false;
       if (!q) return true;
       return [r.titulo, r.problema, r.acao, r.responsavel_nome_origem, r.id_importacao]
         .filter(Boolean).some(s => (s as string).toLowerCase().includes(q));
     });
-  }, [rows, busca, fStatus, fPrior, fComite, fArea]);
+  }, [rows, busca, fStatus, fPrior, fComite, fArea, fSetor, fResp]);
 
   if (lp) return null;
   if (!can("visualizar")) return <ForbiddenCard />;
@@ -63,7 +77,7 @@ export default function PlanoAcoesLista() {
       />
 
       <Card className="mb-4 p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative lg:col-span-2">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8" placeholder="Buscar por título, problema, ação, responsável..." value={busca} onChange={e => setBusca(e.target.value)} />
@@ -82,20 +96,38 @@ export default function PlanoAcoesLista() {
               {PRIORIDADES.map(p => <SelectItem key={p} value={p}>{PRIORIDADE_LABEL[p]}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={fComite} onValueChange={setFComite}>
-            <SelectTrigger><SelectValue placeholder="Comitê" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all">Todos os comitês</SelectItem>
-              {comites.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={fArea} onValueChange={setFArea}>
-            <SelectTrigger><SelectValue placeholder="Área" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all">Todas as áreas</SelectItem>
-              {areas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={fComite === "__all" ? "" : fComite}
+            onChange={v => setFComite(v || "__all")}
+            options={comites}
+            placeholder="Todos os comitês"
+            searchPlaceholder="Buscar comitê..."
+            allowClear
+          />
+          <SearchableSelect
+            value={fArea === "__all" ? "" : fArea}
+            onChange={v => setFArea(v || "__all")}
+            options={areas}
+            placeholder="Todas as áreas"
+            searchPlaceholder="Buscar área..."
+            allowClear
+          />
+          <SearchableSelect
+            value={fSetor === "__all" ? "" : fSetor}
+            onChange={v => setFSetor(v || "__all")}
+            options={setores}
+            placeholder="Todos os setores"
+            searchPlaceholder="Buscar setor..."
+            allowClear
+          />
+          <SearchableSelect
+            value={fResp === "__all" ? "" : fResp}
+            onChange={v => setFResp(v || "__all")}
+            options={responsaveis}
+            placeholder="Todos os responsáveis"
+            searchPlaceholder="Buscar responsável..."
+            allowClear
+          />
         </div>
         <div className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>{filtered.length} de {rows.length} ações</span>

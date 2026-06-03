@@ -1,11 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { usePlanoAcoes, type PlanoAcaoRow } from "@/hooks/usePlanoAcoes";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
+import { usePlanoAcaoFilterOptions, matchResponsavel } from "@/hooks/usePlanoAcaoFilterOptions";
 import { STATUS_LABELS, STATUS_COR, STATUS_ORDEM, PRIORIDADE_COR, PRIORIDADE_LABEL } from "@/types/planoAcao";
 import { ForbiddenCard } from "./Lista";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,15 +21,36 @@ export default function PlanoAcoesKanban() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
+  const [fComite, setFComite] = useState<string>("__all");
+  const [fArea, setFArea] = useState<string>("__all");
+  const [fSetor, setFSetor] = useState<string>("__all");
+  const [fResp, setFResp] = useState<string>("__all");
+  const { comites, areas, setores, responsaveis } = usePlanoAcaoFilterOptions(rows);
+
+  useEffect(() => {
+    if (fComite !== "__all" && !comites.some(o => o.value === fComite)) setFComite("__all");
+    if (fArea !== "__all" && !areas.some(o => o.value === fArea)) setFArea("__all");
+    if (fSetor !== "__all" && !setores.some(o => o.value === fSetor)) setFSetor("__all");
+    if (fResp !== "__all" && !responsaveis.some(o => o.value === fResp)) setFResp("__all");
+  }, [comites, areas, setores, responsaveis, fComite, fArea, fSetor, fResp]);
+
+  const filteredRows = useMemo(() => rows.filter(r => {
+    if (fComite !== "__all" && r.comite !== fComite) return false;
+    if (fArea !== "__all" && r.area !== fArea) return false;
+    if (fSetor !== "__all" && r.setor !== fSetor) return false;
+    if (!matchResponsavel(r, fResp)) return false;
+    return true;
+  }), [rows, fComite, fArea, fSetor, fResp]);
+
   const grouped = useMemo(() => {
     const m = new Map<string, PlanoAcaoRow[]>();
     COLUNAS.forEach(c => m.set(c, []));
-    rows.forEach(r => {
+    filteredRows.forEach(r => {
       const k = m.has(r.status_normalizado) ? r.status_normalizado : "a_definir";
       m.get(k)!.push(r);
     });
     return m;
-  }, [rows]);
+  }, [filteredRows]);
 
   if (loading) return null;
   if (!can("visualizar")) return <ForbiddenCard />;
@@ -60,6 +83,15 @@ export default function PlanoAcoesKanban() {
         actions={<Link to="/app/plano-acoes" className="text-sm text-primary hover:underline">← Lista</Link>}
       />
       {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
+      <Card className="mb-4 p-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <SearchableSelect value={fComite === "__all" ? "" : fComite} onChange={v => setFComite(v || "__all")} options={comites} placeholder="Todos os comitês" searchPlaceholder="Buscar comitê..." allowClear />
+          <SearchableSelect value={fArea === "__all" ? "" : fArea} onChange={v => setFArea(v || "__all")} options={areas} placeholder="Todas as áreas" searchPlaceholder="Buscar área..." allowClear />
+          <SearchableSelect value={fSetor === "__all" ? "" : fSetor} onChange={v => setFSetor(v || "__all")} options={setores} placeholder="Todos os setores" searchPlaceholder="Buscar setor..." allowClear />
+          <SearchableSelect value={fResp === "__all" ? "" : fResp} onChange={v => setFResp(v || "__all")} options={responsaveis} placeholder="Todos os responsáveis" searchPlaceholder="Buscar responsável..." allowClear />
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">{filteredRows.length} de {rows.length} ações</p>
+      </Card>
       <div className="flex gap-3 overflow-x-auto pb-4">
         {COLUNAS.map(col => (
           <div

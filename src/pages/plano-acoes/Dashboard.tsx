@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { usePlanoAcoes } from "@/hooks/usePlanoAcoes";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
+import { usePlanoAcaoFilterOptions, matchResponsavel } from "@/hooks/usePlanoAcaoFilterOptions";
 import { STATUS_LABELS, STATUS_COR, PRIORIDADE_LABEL, PRIORIDADE_COR } from "@/types/planoAcao";
 import { ForbiddenCard } from "./Lista";
 import {
@@ -19,6 +21,27 @@ export default function PlanoAcoesDashboard() {
   const { data: rows = [], isLoading } = usePlanoAcoes();
   const { can, loading } = usePlanoAcaoPermissao();
 
+  const [fComite, setFComite] = useState<string>("__all");
+  const [fArea, setFArea] = useState<string>("__all");
+  const [fSetor, setFSetor] = useState<string>("__all");
+  const [fResp, setFResp] = useState<string>("__all");
+  const { comites, areas, setores, responsaveis } = usePlanoAcaoFilterOptions(rows);
+
+  useEffect(() => {
+    if (fComite !== "__all" && !comites.some(o => o.value === fComite)) setFComite("__all");
+    if (fArea !== "__all" && !areas.some(o => o.value === fArea)) setFArea("__all");
+    if (fSetor !== "__all" && !setores.some(o => o.value === fSetor)) setFSetor("__all");
+    if (fResp !== "__all" && !responsaveis.some(o => o.value === fResp)) setFResp("__all");
+  }, [comites, areas, setores, responsaveis, fComite, fArea, fSetor, fResp]);
+
+  const filteredRows = useMemo(() => rows.filter(r => {
+    if (fComite !== "__all" && r.comite !== fComite) return false;
+    if (fArea !== "__all" && r.area !== fArea) return false;
+    if (fSetor !== "__all" && r.setor !== fSetor) return false;
+    if (!matchResponsavel(r, fResp)) return false;
+    return true;
+  }), [rows, fComite, fArea, fSetor, fResp]);
+
   const stats = useMemo(() => {
     const byStatus = new Map<string, number>();
     const byPrior = new Map<string, number>();
@@ -26,7 +49,7 @@ export default function PlanoAcoesDashboard() {
     const byComite = new Map<string, number>();
     const byResp = new Map<string, number>();
     let semResp = 0, semDatas = 0, pendEvid = 0, atrasadas = 0, validadas = 0, aguard = 0;
-    rows.forEach(r => {
+    filteredRows.forEach(r => {
       byStatus.set(r.status_normalizado, (byStatus.get(r.status_normalizado) ?? 0) + 1);
       const p = r.prioridade_normalizada ?? "nao_informada";
       byPrior.set(p, (byPrior.get(p) ?? 0) + 1);
@@ -42,12 +65,12 @@ export default function PlanoAcoesDashboard() {
       if (r.status_normalizado === "aguardando_validacao") aguard++;
     });
     return { byStatus, byPrior, byArea, byComite, byResp, semResp, semDatas, pendEvid, atrasadas, validadas, aguard };
-  }, [rows]);
+  }, [filteredRows]);
 
   if (loading) return null;
   if (!can("dashboard")) return <ForbiddenCard />;
 
-  const total = rows.length;
+  const total = filteredRows.length;
   const dataStatus = Array.from(stats.byStatus.entries()).map(([k, v]) => ({ name: STATUS_LABELS[k] ?? k, value: v, key: k }));
   const dataArea = Array.from(stats.byArea.entries()).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
   const dataComite = Array.from(stats.byComite.entries()).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
@@ -63,6 +86,17 @@ export default function PlanoAcoesDashboard() {
         breadcrumb={["Dashboard"]}
         actions={<Link to="/app/plano-acoes" className="text-sm text-primary hover:underline">Ver lista completa →</Link>}
       />
+
+      <Card className="mb-4 p-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <SearchableSelect value={fComite === "__all" ? "" : fComite} onChange={v => setFComite(v || "__all")} options={comites} placeholder="Todos os comitês" searchPlaceholder="Buscar comitê..." allowClear />
+          <SearchableSelect value={fArea === "__all" ? "" : fArea} onChange={v => setFArea(v || "__all")} options={areas} placeholder="Todas as áreas" searchPlaceholder="Buscar área..." allowClear />
+          <SearchableSelect value={fSetor === "__all" ? "" : fSetor} onChange={v => setFSetor(v || "__all")} options={setores} placeholder="Todos os setores" searchPlaceholder="Buscar setor..." allowClear />
+          <SearchableSelect value={fResp === "__all" ? "" : fResp} onChange={v => setFResp(v || "__all")} options={responsaveis} placeholder="Todos os responsáveis" searchPlaceholder="Buscar responsável..." allowClear />
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">{filteredRows.length} de {rows.length} ações</p>
+      </Card>
+
 
       {/* KPIs */}
       <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
