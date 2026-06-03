@@ -200,7 +200,7 @@ export default function PlanoAcaoDetalhe() {
                 {can("aprovar") ? "Validar conclusão" : "Marcar como concluída"}
               </Button>
             )}
-            {podeEdit && <Button size="sm" onClick={salvar}>Salvar</Button>}
+            {podeEdit && <Button size="sm" onClick={salvar} disabled={isNew && !form.responsavel_profile_id}>Salvar</Button>}
             {!isNew && can("excluir") && (
               <Button size="sm" variant="destructive" onClick={excluir}><Trash2 className="mr-1 h-3.5 w-3.5" />Excluir</Button>
             )}
