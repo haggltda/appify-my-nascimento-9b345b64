@@ -21,15 +21,36 @@ export default function PlanoAcoesKanban() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
+  const [fComite, setFComite] = useState<string>("__all");
+  const [fArea, setFArea] = useState<string>("__all");
+  const [fSetor, setFSetor] = useState<string>("__all");
+  const [fResp, setFResp] = useState<string>("__all");
+  const { comites, areas, setores, responsaveis } = usePlanoAcaoFilterOptions(rows);
+
+  useEffect(() => {
+    if (fComite !== "__all" && !comites.some(o => o.value === fComite)) setFComite("__all");
+    if (fArea !== "__all" && !areas.some(o => o.value === fArea)) setFArea("__all");
+    if (fSetor !== "__all" && !setores.some(o => o.value === fSetor)) setFSetor("__all");
+    if (fResp !== "__all" && !responsaveis.some(o => o.value === fResp)) setFResp("__all");
+  }, [comites, areas, setores, responsaveis, fComite, fArea, fSetor, fResp]);
+
+  const filteredRows = useMemo(() => rows.filter(r => {
+    if (fComite !== "__all" && r.comite !== fComite) return false;
+    if (fArea !== "__all" && r.area !== fArea) return false;
+    if (fSetor !== "__all" && r.setor !== fSetor) return false;
+    if (!matchResponsavel(r, fResp)) return false;
+    return true;
+  }), [rows, fComite, fArea, fSetor, fResp]);
+
   const grouped = useMemo(() => {
     const m = new Map<string, PlanoAcaoRow[]>();
     COLUNAS.forEach(c => m.set(c, []));
-    rows.forEach(r => {
+    filteredRows.forEach(r => {
       const k = m.has(r.status_normalizado) ? r.status_normalizado : "a_definir";
       m.get(k)!.push(r);
     });
     return m;
-  }, [rows]);
+  }, [filteredRows]);
 
   if (loading) return null;
   if (!can("visualizar")) return <ForbiddenCard />;
