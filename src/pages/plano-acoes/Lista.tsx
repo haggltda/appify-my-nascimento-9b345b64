@@ -77,7 +77,7 @@ export default function PlanoAcoesLista() {
       />
 
       <Card className="mb-4 p-4">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative lg:col-span-2">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8" placeholder="Buscar por título, problema, ação, responsável..." value={busca} onChange={e => setBusca(e.target.value)} />
@@ -96,20 +96,38 @@ export default function PlanoAcoesLista() {
               {PRIORIDADES.map(p => <SelectItem key={p} value={p}>{PRIORIDADE_LABEL[p]}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={fComite} onValueChange={setFComite}>
-            <SelectTrigger><SelectValue placeholder="Comitê" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all">Todos os comitês</SelectItem>
-              {comites.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={fArea} onValueChange={setFArea}>
-            <SelectTrigger><SelectValue placeholder="Área" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all">Todas as áreas</SelectItem>
-              {areas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={fComite === "__all" ? "" : fComite}
+            onChange={v => setFComite(v || "__all")}
+            options={comites}
+            placeholder="Todos os comitês"
+            searchPlaceholder="Buscar comitê..."
+            allowClear
+          />
+          <SearchableSelect
+            value={fArea === "__all" ? "" : fArea}
+            onChange={v => setFArea(v || "__all")}
+            options={areas}
+            placeholder="Todas as áreas"
+            searchPlaceholder="Buscar área..."
+            allowClear
+          />
+          <SearchableSelect
+            value={fSetor === "__all" ? "" : fSetor}
+            onChange={v => setFSetor(v || "__all")}
+            options={setores}
+            placeholder="Todos os setores"
+            searchPlaceholder="Buscar setor..."
+            allowClear
+          />
+          <SearchableSelect
+            value={fResp === "__all" ? "" : fResp}
+            onChange={v => setFResp(v || "__all")}
+            options={responsaveis}
+            placeholder="Todos os responsáveis"
+            searchPlaceholder="Buscar responsável..."
+            allowClear
+          />
         </div>
         <div className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>{filtered.length} de {rows.length} ações</span>
