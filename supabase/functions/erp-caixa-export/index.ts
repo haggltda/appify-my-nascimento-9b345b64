@@ -18,21 +18,30 @@ Deno.serve(async (req) => {
 
   try {
     if (mode === "refs") {
+      async function pageAll(table: string, cols: string, filter?: (q: any) => any) {
+        const out: any[] = [];
+        let from = 0;
+        const step = 1000;
+        while (true) {
+          let q = sb.from(table).select(cols).order("id", { ascending: true }).range(from, from + step - 1);
+          if (filter) q = filter(q);
+          const { data, error } = await q;
+          if (error) throw new Error(`${table}: ${error.message}`);
+          if (!data || data.length === 0) break;
+          out.push(...data);
+          if (data.length < step) break;
+          from += step;
+        }
+        return out;
+      }
       const [empresas, contaBancaria, contaContabil, saldosIniciais, audPlano] = await Promise.all([
-        sb.from("empresas").select("id,codigo,razao_social,nome_fantasia,cnpj,ativa"),
-        sb.from("conta_bancaria").select("id,empresa_id,conta_contabil_id,banco_codigo,banco_nome,agencia,conta,digito,tipo,titular,ativa"),
-        sb.from("conta_contabil").select("id,empresa_id,conta_reduzida,classificacao,descricao,tipo,natureza,saldo_inicial,ativo").limit(20000),
-        sb.from("saldos_iniciais_caixa").select("*").limit(5000),
-        sb.from("aud_plano_contas_origem_diagnostico").select("conta_contabil_id,classificacao,descricao,categoria,tem_vinculo_real,pode_inativar_futuro,pode_zerar_saldo_futuro,trava_motivo,saldo_replicado_suspeito,banco_inferido,empresa_inferida_codigo,empresa_banco_inferida").eq("batch_id", "p3d-v33-lf-documentada").limit(20000),
+        pageAll("empresas", "id,codigo,razao_social,nome_fantasia,cnpj,ativa"),
+        pageAll("conta_bancaria", "id,empresa_id,conta_contabil_id,banco_codigo,banco_nome,agencia,conta,digito,tipo,titular,ativa"),
+        pageAll("conta_contabil", "id,empresa_id,conta_reduzida,classificacao,descricao,tipo,natureza,saldo_inicial,ativo"),
+        pageAll("saldos_iniciais_caixa", "*"),
+        pageAll("aud_plano_contas_origem_diagnostico", "conta_contabil_id,classificacao,descricao,categoria,tem_vinculo_real,pode_inativar_futuro,pode_zerar_saldo_futuro,trava_motivo,saldo_replicado_suspeito,banco_inferido,empresa_inferida_codigo,empresa_banco_inferida", (q) => q.eq("batch_id", "p3d-v33-lf-documentada")),
       ]);
-      return new Response(JSON.stringify({
-        empresas: empresas.data ?? [],
-        conta_bancaria: contaBancaria.data ?? [],
-        conta_contabil: contaContabil.data ?? [],
-        saldos_iniciais_caixa: saldosIniciais.data ?? [],
-        aud_plano: audPlano.data ?? [],
-        errors: { empresas: empresas.error?.message, contaBancaria: contaBancaria.error?.message, contaContabil: contaContabil.error?.message, saldosIniciais: saldosIniciais.error?.message, audPlano: audPlano.error?.message },
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ empresas, conta_bancaria: contaBancaria, conta_contabil: contaContabil, saldos_iniciais_caixa: saldosIniciais, aud_plano: audPlano }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // default: caixa pagination
