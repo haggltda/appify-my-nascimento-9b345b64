@@ -681,6 +681,174 @@ export type Database = {
           },
         ]
       }
+      aud_plano_contas_origem_diagnostico: {
+        Row: {
+          acao_futura_recomendada: string
+          aliases_detectados: string[] | null
+          ativo_atual: boolean | null
+          banco_inferido: string | null
+          batch_id: string
+          categoria: string
+          classificacao: string | null
+          conta_bancaria_especifica: boolean
+          conta_contabil_id: string
+          conta_titular_especifica: boolean
+          created_at: string
+          descricao: string | null
+          empresa_banco_inferida: string | null
+          empresa_codigo_atual: string | null
+          empresa_id_atual: string | null
+          empresa_inferida_cnpj: string | null
+          empresa_inferida_codigo: string | null
+          empresa_inferida_id: string | null
+          empresa_inferida_nome: string | null
+          estrutura_compartilhada_possivel: boolean
+          fonte_inferencia: string | null
+          id: string
+          motivo_classificacao: string | null
+          pode_inativar_futuro: boolean
+          pode_zerar_saldo_futuro: boolean
+          qtd_alias_integracao: number
+          qtd_conciliacao_regra: number
+          qtd_conta_bancaria: number
+          qtd_empresas_com_mesma_classificacao: number | null
+          qtd_fcr_sugestoes_pendencias: number
+          qtd_integration_map: number
+          qtd_lancamento_partida: number
+          qtd_orcamento_contrato_linha: number
+          qtd_parametro_fiscal: number
+          qtd_plano_contas_solicitacao: number
+          qtd_pre_titulo_pagar: number
+          qtd_pre_titulo_rateio: number
+          qtd_realizado_lancamentos: number
+          qtd_saldos_distintos: number | null
+          qtd_stg_bancos_detectadas: number
+          qtd_stg_fluxo_resolvida: number
+          qtd_stg_mapa_para_bancos: number
+          qtd_titulo_pagar: number
+          qtd_titulo_receber: number
+          risco_debito_credito: string
+          risco_relatorio_contabil: string
+          saldo_inicial: number | null
+          saldo_replicado_suspeito: boolean
+          score_confianca: number
+          tem_vinculo_real: boolean
+          tipo: string | null
+          tokens_detectados: string[] | null
+          trava_motivo: string | null
+        }
+        Insert: {
+          acao_futura_recomendada?: string
+          aliases_detectados?: string[] | null
+          ativo_atual?: boolean | null
+          banco_inferido?: string | null
+          batch_id: string
+          categoria: string
+          classificacao?: string | null
+          conta_bancaria_especifica?: boolean
+          conta_contabil_id: string
+          conta_titular_especifica?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_banco_inferida?: string | null
+          empresa_codigo_atual?: string | null
+          empresa_id_atual?: string | null
+          empresa_inferida_cnpj?: string | null
+          empresa_inferida_codigo?: string | null
+          empresa_inferida_id?: string | null
+          empresa_inferida_nome?: string | null
+          estrutura_compartilhada_possivel?: boolean
+          fonte_inferencia?: string | null
+          id?: string
+          motivo_classificacao?: string | null
+          pode_inativar_futuro?: boolean
+          pode_zerar_saldo_futuro?: boolean
+          qtd_alias_integracao?: number
+          qtd_conciliacao_regra?: number
+          qtd_conta_bancaria?: number
+          qtd_empresas_com_mesma_classificacao?: number | null
+          qtd_fcr_sugestoes_pendencias?: number
+          qtd_integration_map?: number
+          qtd_lancamento_partida?: number
+          qtd_orcamento_contrato_linha?: number
+          qtd_parametro_fiscal?: number
+          qtd_plano_contas_solicitacao?: number
+          qtd_pre_titulo_pagar?: number
+          qtd_pre_titulo_rateio?: number
+          qtd_realizado_lancamentos?: number
+          qtd_saldos_distintos?: number | null
+          qtd_stg_bancos_detectadas?: number
+          qtd_stg_fluxo_resolvida?: number
+          qtd_stg_mapa_para_bancos?: number
+          qtd_titulo_pagar?: number
+          qtd_titulo_receber?: number
+          risco_debito_credito?: string
+          risco_relatorio_contabil?: string
+          saldo_inicial?: number | null
+          saldo_replicado_suspeito?: boolean
+          score_confianca?: number
+          tem_vinculo_real?: boolean
+          tipo?: string | null
+          tokens_detectados?: string[] | null
+          trava_motivo?: string | null
+        }
+        Update: {
+          acao_futura_recomendada?: string
+          aliases_detectados?: string[] | null
+          ativo_atual?: boolean | null
+          banco_inferido?: string | null
+          batch_id?: string
+          categoria?: string
+          classificacao?: string | null
+          conta_bancaria_especifica?: boolean
+          conta_contabil_id?: string
+          conta_titular_especifica?: boolean
+          created_at?: string
+          descricao?: string | null
+          empresa_banco_inferida?: string | null
+          empresa_codigo_atual?: string | null
+          empresa_id_atual?: string | null
+          empresa_inferida_cnpj?: string | null
+          empresa_inferida_codigo?: string | null
+          empresa_inferida_id?: string | null
+          empresa_inferida_nome?: string | null
+          estrutura_compartilhada_possivel?: boolean
+          fonte_inferencia?: string | null
+          id?: string
+          motivo_classificacao?: string | null
+          pode_inativar_futuro?: boolean
+          pode_zerar_saldo_futuro?: boolean
+          qtd_alias_integracao?: number
+          qtd_conciliacao_regra?: number
+          qtd_conta_bancaria?: number
+          qtd_empresas_com_mesma_classificacao?: number | null
+          qtd_fcr_sugestoes_pendencias?: number
+          qtd_integration_map?: number
+          qtd_lancamento_partida?: number
+          qtd_orcamento_contrato_linha?: number
+          qtd_parametro_fiscal?: number
+          qtd_plano_contas_solicitacao?: number
+          qtd_pre_titulo_pagar?: number
+          qtd_pre_titulo_rateio?: number
+          qtd_realizado_lancamentos?: number
+          qtd_saldos_distintos?: number | null
+          qtd_stg_bancos_detectadas?: number
+          qtd_stg_fluxo_resolvida?: number
+          qtd_stg_mapa_para_bancos?: number
+          qtd_titulo_pagar?: number
+          qtd_titulo_receber?: number
+          risco_debito_credito?: string
+          risco_relatorio_contabil?: string
+          saldo_inicial?: number | null
+          saldo_replicado_suspeito?: boolean
+          score_confianca?: number
+          tem_vinculo_real?: boolean
+          tipo?: string | null
+          tokens_detectados?: string[] | null
+          trava_motivo?: string | null
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           diff: Json | null
@@ -17408,6 +17576,7 @@ export type Database = {
       }
     }
     Functions: {
+      _aud_normaliza_texto: { Args: { p_txt: string }; Returns: string }
       _bdi_assert_responsavel: {
         Args: { p_acao: string; p_licitacao_id: string }
         Returns: {
