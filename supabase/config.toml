@@ -23,3 +23,6 @@ verify_jwt = true
 
 [functions.dump-regras]
 verify_jwt = true
+
+[functions.erp-caixa-export]
+verify_jwt = true
