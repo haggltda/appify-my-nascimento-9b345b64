@@ -59,7 +59,9 @@ Deno.serve(async (req) => {
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    return new Response(JSON.stringify({ count, rows: data, next: (data?.length ?? 0) === limit ? offset + limit : null }), {
+    const got = data?.length ?? 0;
+    const hasMore = got > 0 && (got >= 1000 || got >= limit);
+    return new Response(JSON.stringify({ count, rows: data, next: hasMore ? offset + got : null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
