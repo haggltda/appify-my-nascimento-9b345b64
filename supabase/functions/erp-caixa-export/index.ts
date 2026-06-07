@@ -7,7 +7,14 @@
 // service_role só é instanciado depois da validação do JWT, e dados de negócio
 // só são consultados depois da autorização e resolução de escopo.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  createClient,
+  type SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+// deno-lint-ignore no-explicit-any
+type AnyQuery = any;
+type Row = Record<string, unknown>;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
