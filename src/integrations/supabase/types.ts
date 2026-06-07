@@ -681,6 +681,63 @@ export type Database = {
           },
         ]
       }
+      aud_p3h0_conta_bancaria_snapshot: {
+        Row: {
+          acao: string
+          ativa_anterior: boolean | null
+          ativa_nova: boolean | null
+          banco_codigo: string | null
+          banco_nome: string | null
+          batch_id: string
+          conta_bancaria_id: string
+          conta_contabil_id_anterior: string | null
+          conta_contabil_id_nova: string | null
+          created_at: string
+          empresa_id: string | null
+          id: string
+          motivo: string
+          observacao: string | null
+          rollback_aplicado: boolean
+          rollback_em: string | null
+        }
+        Insert: {
+          acao: string
+          ativa_anterior?: boolean | null
+          ativa_nova?: boolean | null
+          banco_codigo?: string | null
+          banco_nome?: string | null
+          batch_id: string
+          conta_bancaria_id: string
+          conta_contabil_id_anterior?: string | null
+          conta_contabil_id_nova?: string | null
+          created_at?: string
+          empresa_id?: string | null
+          id?: string
+          motivo: string
+          observacao?: string | null
+          rollback_aplicado?: boolean
+          rollback_em?: string | null
+        }
+        Update: {
+          acao?: string
+          ativa_anterior?: boolean | null
+          ativa_nova?: boolean | null
+          banco_codigo?: string | null
+          banco_nome?: string | null
+          batch_id?: string
+          conta_bancaria_id?: string
+          conta_contabil_id_anterior?: string | null
+          conta_contabil_id_nova?: string | null
+          created_at?: string
+          empresa_id?: string | null
+          id?: string
+          motivo?: string
+          observacao?: string | null
+          rollback_aplicado?: boolean
+          rollback_em?: string | null
+        }
+        Relationships: []
+      }
       aud_plano_contas_origem_diagnostico: {
         Row: {
           acao_futura_recomendada: string
