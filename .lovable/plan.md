@@ -1,140 +1,106 @@
-# P3.F v4.2 — Caixa Primeiro: Entradas e Saídas por Empresa (read-only)
+# P3.H0-D1B v2 — Normalização, consolidação e matriz final dos aliases SEM_MATCH (READ-ONLY)
 
 ## 0. Modo e proibições
 
-- **100% READ-ONLY / EXPORTAÇÃO.** Nenhuma alteração operacional.
-- **Proibido:** P3.E, migration, CREATE/ALTER, INSERT/UPDATE/DELETE em qualquer tabela operacional ou de diagnóstico, mexer em `conta_contabil`, `saldo_inicial`, `ativo`, lançamentos, títulos, pré-títulos, `conta_bancaria`, aliases, `public.empresas`, frontend, HERO, DRE, BI, RLS, policies, RPCs, triggers.
-- **Sem Razão, sem conciliação contábil, sem blocos contábeis nesta fase.** Apenas caixa em regime de caixa.
-- Permitido apenas: ler a planilha, `SELECT` no Postgres, gerar arquivos `.xlsx`/`.csv`/`.md`/`.json`/`.zip` em `/mnt/documents/p3f_v42/`.
+100% READ-ONLY / DIAGNÓSTICO / REFINAMENTO.
 
-## 1. Fonte principal
+Proibido: UPDATE, INSERT, DELETE, ALTER, CREATE, DROP, GRANT, REVOKE, migration, Edge Function, service_role, alteração em `conta_bancaria`, `conta_contabil`, `saldo_inicial`, `saldos_iniciais_caixa`, lançamentos, títulos, pré-títulos, frontend, HERO, BI, DRE.
 
-Planilha já anexada: `BD Fluxo de caixa - 2026 - VIGENTE - Oficial Grupo Nascimento.xlsx`.
+P3.E, P3.H, P3.H0-D1C e P3.H0-D2 continuam bloqueados. Nada de criação de conta, alias persistido ou SQL executável.
 
-- **Abas principais (obrigatórias):** `Entradas`, `Saídas`.
-- **Abas auxiliares (apoio apenas):** `Empresas`, `Conciliação`, `Ajustes`, `BD Conciliação`, `Base de dados`, `Base de dados.`, `Base de dados...`.
-- **Regra:** não substituir `Entradas`/`Saídas` por `BD Conciliação`. Divergências entre abas saem em `divergencia_entre_abas_planilha.csv`.
+## 1. Fontes
 
-## 2. Entregáveis
+- `/mnt/documents/p3h0_d1b/p3h0_d1b_matriz_aliases_hagg_sem_match.csv`
+- `/mnt/documents/p3h0_d1b/p3h0_d1b_contas_a_criar_preview.csv`
+- `/mnt/documents/p3h0_d1b/p3h0_d1b_queries.sql`
+- `/mnt/documents/p3g_pos_h0d1/` (em especial `p3g_pos_h0d1_movimentos_sem_conta_contabil.csv`)
+- SELECTs read-only em `public.conta_bancaria`, `public.conta_contabil`, `public.mz_40_fato_fluxo_caixa_realizado`, `public.aud_p3h0_conta_bancaria_snapshot` para descobrir os nomes reais de colunas e validar canônicas HAGG.
 
-### 2.1 Excel principais (obrigatórios)
+Travas:
+- Soma de `qtd_movimentos` consolidada deve ser exatamente **1.195** (±0). Senão `TRAVADO_POR_DIVERGENCIA_SEM_MATCH`.
+- 7 canônicas HAGG de referência: `CAIXA HAGG`, `BANRI HAGG`, `BB HAGG`, `SICREDI HAGG 155`, `MENTORE HAGG`, `SICREDI HAGG 119`, `BRADESCO HAGG`.
 
-`entradas_por_empresa.xlsx` e `saidas_por_empresa.xlsx`, cada um com as abas:
+## 2. Normalização e consolidação
+
+Criar coluna `alias_normalizado`:
+- `trim`, colapso de espaços, caixa alta;
+- normalização de hífens (`-`, `–`, `—` → `-`) e remoção de espaços ao redor;
+- remoção de acentos (NFKD);
+- preservar números de contrato (UFFS 041/2021, HUSM 020/2021, EMBRAPA 2021/93, FURG-HU 006/2023, FURG JARDINAGEM 049/2022, BENTO GONÇALVES ADM 002/2021, etc.) — **não** consolidar convênios diferentes.
+
+Consolidar uma linha por `alias_normalizado` com agregações (qtd, entradas, saídas, saldo líquido, primeira/última data) a partir dos movimentos `SEM_MATCH` em `p3g_pos_h0d1`.
+
+## 3. Reclassificação contra canônicas
+
+Para cada `alias_normalizado`, testar contra as 7 canônicas HAGG. Match exato pós-normalização (ex.: `BANRI HAGG`, `BB HAGG`, `MENTORE HAGG`, `SICREDI HAGG 119`, `BRADESCO HAGG`) → `ALIAS_DE_CONTA_CANONICA_EXISTENTE`, preencher `conta_bancaria_canonica_candidata` + `conta_contabil_canonica_candidata` a partir do snapshot P3.H0-D1.
+
+Nunca consolidar convênios (`UFFS`, `HUSM`, `EMBRAPA`, `FURG`, `HCPA`, `BENTO GONÇALVES`) nem aplicações (`APLICAÇÃO`, `CDB`, `POUPANÇA`) em `BB HAGG` / `CAIXA HAGG`.
+
+## 4. Categorias finais
+
+- `ALIAS_DE_CONTA_CANONICA_EXISTENTE`
+- `BANCO_DE_OUTRA_EMPRESA_EM_HAGG` — qualquer alias contendo token de outra empresa (`SN`, `NH`, `CANAA`, `AGPS`, `LF`) dentro do escopo HAGG. Recomendação: investigar intercompany / empresa errada / replicação.
+- `CRIAR_CONTA_CONTABIL_APLICACAO_FINANCEIRA` — `APLICAÇÃO`, `CDB`, `POUPANÇA`. Nunca `BANCOS CONTA MOVIMENTO`. Grupo contábil = `REGRA_DE_NEGOCIO_NAO_CONFIRMADA` se não confirmado.
+- `CONTA_VINCULADA_CONTRATO_CONVENIO` — contratos/convênios. Decisão humana obrigatória.
+- `MEIO_PAGAMENTO_NAO_BANCO` — `TICKET` e similares. Não criar conta bancária.
+- `REVISAR_HUMANO` — somente quando não couber em nenhuma categoria acima, com motivo explícito.
+- `BLOQUEAR` — quando há contradição estrutural.
+
+## 5. Valores e datas
+
+Por `alias_normalizado` preencher obrigatoriamente: `qtd_movimentos`, `total_entradas`, `total_saidas`, `saldo_liquido`, `primeira_data`, `ultima_data`. Se a fonte não permitir cálculo: `NAO_LOCALIZADO_NA_BASE_ATUAL` + explicação da fonte ausente no resumo.
+
+## 6. Queries SQL corrigidas
+
+Reescrever `p3h0_d1b_v2_queries.sql` usando apenas `SELECT` e nomes reais de colunas. Validar previamente via `information_schema.columns` para `conta_bancaria`, `conta_contabil`, `mz_40_fato_fluxo_caixa_realizado` (esperado: `banco_nome`, `banco_codigo`, `ativa`, `classificacao`, `descricao`, `data_caixa` — confirmar antes de escrever).
+
+## 7. Entregáveis em `/mnt/documents/p3h0_d1b_v2/`
 
 ```text
-GERAL | AGPS | CANAA | HAGG | LF | NH | SN | SEM_EMPRESA | RESUMO
-```
-
-Regras de cada aba:
-- **Todas** as linhas daquela empresa, **todas** as colunas originais da planilha, **mais** as colunas de diagnóstico (seção 4).
-- Nenhuma coluna original renomeada, removida, resumida ou reordenada. Colunas novas vão **depois** das originais.
-- `GERAL` = todas as linhas da aba origem.
-- `RESUMO` = totais por empresa, por banco, malformados, sem empresa, sem banco, sem classificação, saldos iniciais, transferências.
-
-### 2.2 CSVs/MDs auxiliares
-
-```text
-p3f_saldos_iniciais_por_empresa_banco.csv
-p3f_transferencias_bancarias.csv
-divergencias_caixa_p3d.csv
-banco_empresa_validacao.csv
-classificacao_planilha_para_conta_contabil.csv
-divergencia_entre_abas_planilha.csv
-RESUMO_P3F_CAIXA.md
+p3h0_d1b_v2_matriz_aliases_consolidados.csv
+p3h0_d1b_v2_aliases_canonicos_reclassificados.csv
+p3h0_d1b_v2_bancos_outras_empresas_em_hagg.csv
+p3h0_d1b_v2_contas_a_criar_preview_deduplicado.csv
+p3h0_d1b_v2_queries.sql
+RESUMO_P3H0_D1B_V2.md
+autocheck_p3h0_d1b_v2.json
 manifest.json
-README_IMPORTAR_EXCEL.md
+p3h0_d1b_v2.zip   (em /mnt/documents/)
 ```
 
-### 2.3 Pacote final
+Colunas da matriz consolidada (na ordem):
+`alias_normalizado`, `aliases_originais`, `empresa`, `qtd_movimentos`, `total_entradas`, `total_saidas`, `saldo_liquido`, `primeira_data`, `ultima_data`, `classificacao_final`, `conta_bancaria_canonica_candidata`, `conta_contabil_canonica_candidata`, `precisa_criar_alias`, `precisa_criar_conta_bancaria`, `precisa_criar_conta_contabil`, `tipo_conta_a_criar`, `grupo_contabil_sugerido`, `risco`, `impacto_se_nao_resolver`, `recomendacao_lovable`, `decisao_controladoria`, `observacao_controladoria`.
 
-`p3f_caixa_entradas_saidas_por_empresa.zip` em `/mnt/documents/`.
+CSVs: UTF-8 com BOM, separador `;`.
 
-## 3. Fallback obrigatório
+## 8. Autocheck (`autocheck_p3h0_d1b_v2.json`)
 
-Se algum `.xlsx` ficar pesado/travar ou estourar limite técnico, gerar **fallback CSV por empresa** em `01_entradas/por_empresa/` e `02_saidas/por_empresa/`, atualizar `README_IMPORTAR_EXCEL.md` explicando o motivo. Cada aba respeita o limite do Excel (1.048.576 linhas).
+```json
+{
+  "executou_update": false,
+  "executou_insert": false,
+  "executou_delete": false,
+  "executou_alter": false,
+  "criou_conta_bancaria": false,
+  "criou_conta_contabil": false,
+  "alterou_saldo": false,
+  "soma_movimentos_sem_match": 1195,
+  "p3h0_d2_bloqueado": true,
+  "p3h0_d1c_bloqueado": true
+}
+```
 
-## 4. Colunas adicionais (após originais)
+## 9. Resumo (`RESUMO_P3H0_D1B_V2.md`)
 
-### 4.1 Origem/parser
-`origem_aba`, `linha_excel`, `regime` (=`CAIXA`), `direcao` (`ENTRADA`/`SAIDA`), `valor_original`, `valor_normalizado`, `erro_valor`, `observacao_parser`.
-
-### 4.2 Empresa
-`empresa_planilha`, `empresa_normalizada`, `empresa_inferida_por_banco`, `empresa_inferida_por_historico`, `empresa_inferida_por_centro_custo`, `empresa_final_sugerida`, `empresa_status_confianca`.
-
-### 4.3 Banco
-`banco_planilha`, `banco_normalizado`, `banco_empresa_provavel`, `banco_candidato_erp_id`, `banco_candidato_erp_nome`, `conta_bancaria_candidata_id`, `conta_bancaria_empresa`, `banco_divergencia`.
-
-### 4.4 Conta contábil + P3.D (batch `p3d-v33-lf-documentada`, somente diagnóstico)
-`conta_contabil_candidata_id`, `conta_contabil_classificacao`, `conta_contabil_descricao`, `empresa_conta_contabil`, `categoria_p3d`, `acao_p3d`, `tem_vinculo_real_p3d`, `pode_inativar_futuro_p3d`, `pode_zerar_saldo_futuro_p3d`, `trava_motivo_p3d`, `saldo_replicado_suspeito_p3d`.
-
-### 4.5 Diagnóstico
-`tipo_match`, `score_match`, `evidencias_usadas`, `divergencia_detectada`, `tipo_divergencia`, `o_que_precisa_corrigir`, `por_que_precisa_corrigir`, `impacto_se_corrigir`, `impacto_se_nao_corrigir`, `risco_de_corrigir`, `risco_de_nao_corrigir`, `areas_impactadas`.
-
-### 4.6 Decisão humana (vazias)
-`decisao_controladoria`, `acao_aprovada`, `aprovado_por`, `data_aprovacao`, `observacao_controladoria`, `status_p3e`.
-
-## 5. Saldos iniciais
-
-Detector:
-- `Classificação` = `SALDO ANTERIOR`;
-- histórico contendo `saldo anterior|abertura|saldo inicial|ajuste de abertura`;
-- confirmação cruzada com aba `Ajustes`.
-
-Saída: `p3f_saldos_iniciais_por_empresa_banco.csv` (único por empresa + banco + conta bancária + data).
-
-Categorias: `SALDO_INICIAL_VALIDADO`, `SALDO_INICIAL_DUPLICADO_EM_OUTRA_EMPRESA`, `SALDO_INICIAL_SEM_BANCO_CORRESPONDENTE`, `SALDO_INICIAL_COM_CONTA_CONTABIL_ERRADA`, `SALDO_INICIAL_DIVERGENTE_VALOR`, `SALDO_INICIAL_REVISAR_HUMANO`.
-
-## 6. Transferências
-
-Detector:
-- `Classificação` = `TRANSF. ENTRE CONTAS`;
-- histórico contendo `TRANSF|TRANSFERENCIA|PARA|DE/PARA`;
-- pareamento saída↔entrada: `|valor| igual` + `|Δdata| ≤ 3 dias` + bancos distintos (passo 2: tolerância ±0,01).
-
-Saída: `p3f_transferencias_bancarias.csv`. Transferência **não é receita nem despesa**.
-
-Categorias: `TRANSFERENCIA_MESMA_EMPRESA_PAREADA`, `TRANSFERENCIA_INTERCOMPANY_PAREADA`, `TRANSFERENCIA_NAO_PAREADA`, `TRANSFERENCIA_COM_EMPRESA_DIVERGENTE`, `TRANSFERENCIA_COM_BANCO_NAO_IDENTIFICADO`, `TRANSFERENCIA_REVISAR_HUMANO`.
-
-## 7. Score de match (0–100)
-
-`+30` empresa bate · `+30` banco bate · `+20` conta/classificação bate · `+10` CC/contrato/histórico · `+10` transferência pareada · `−30` banco de outra empresa · `−30` conta de outra empresa · `−30` transferência não pareada · `−20` valor divergente.
-Faixas: `MATCH_FORTE` 90–100, `MATCH_PROVAVEL` 70–89, `MATCH_FRACO` 40–69, `REVISAO_HUMANA` 0–39.
-
-## 8. Validações reportadas
-
-Totais devolvidos no `RESUMO_P3F_CAIXA.md` e no `manifest.json`:
-- linhas de `Entradas` e `Saídas` na planilha;
-- linhas exportadas em cada Excel (deve bater 1:1 — senão `TRAVADO_POR_DIVERGENCIA_EXPORTACAO_CAIXA`);
-- totais por empresa e por banco (entradas e saídas);
-- malformados, sem empresa, sem banco, sem classificação;
-- saldos iniciais detectados;
-- transferências detectadas, pareadas e não pareadas.
-
-## 9. Autocheck
-
-- [ ] `Entradas`/`Saídas` foram fonte principal.
-- [ ] Todas as colunas originais preservadas (ordem e nome).
-- [ ] Todas as linhas exportadas (contagens batem).
-- [ ] Arquivos separados por empresa nas abas exigidas.
-- [ ] Saldos iniciais analisados por empresa+banco.
-- [ ] Transferências não tratadas como receita/despesa.
-- [ ] P3.D usado apenas como diagnóstico (sem escrita).
-- [ ] Nenhuma alteração operacional; P3.E bloqueado.
+Responder: (1) aliases originais, (2) aliases consolidados, (3) movimentos = 1.195, (4) mapeáveis a canônicas, (5) bancos de outras empresas em HAGG, (6) aplicações, (7) convênios, (8) Ticket/meio de pagamento, (9) revisão humana real, (10) P3.H0-D2 bloqueado.
 
 ## 10. Detalhes técnicos
 
-- Parser em `/tmp/p3f_v42_build.py` usando `python3` + `openpyxl` + `pandas`.
-- Escrita XLSX com `openpyxl` (write-only se aba > 50k linhas) + freeze pane na linha 1.
-- Tokens empresa (regex case-insensitive): `AGPS`, `CANAA|CANAÃ`, `HAGG`, `\bLF\b`, `\bNH\b`, `\bSN\b`.
-- SELECTs via `psql`: `conta_bancaria`, `empresas`, `conta_contabil`, `integration_alias_contas_contabeis`, `integration_map_classificacao_contabil`, snapshot de `aud_plano_contas_origem_diagnostico` (batch `p3d-v33-lf-documentada`).
-- CSV: UTF-8 com BOM, separador `;`, cabeçalho linha 1, nomes sem acento, compatível com Excel pt-BR.
-- `manifest.json`: batch_id `p3f-v42-caixa-entradas-saidas`, timestamp UTC, contagens, SHA-256 por arquivo.
-- Saída final: `/mnt/documents/p3f_caixa_entradas_saidas_por_empresa.zip` + artifact tag.
+- Script `/tmp/p3h0_d1b_v2_build.py` (`python` + `pandas` + `openpyxl`).
+- DB via `psql` somente `SELECT` (confirmar `test -n "$PGHOST"`); se indisponível, usar `supabase--read_query`.
+- `manifest.json` com `batch_id=p3h0-d1b-v2-normaliza-consolida`, timestamp UTC, contagens, SHA-256 por arquivo.
+- ZIP final + `<presentation-artifact>` para o usuário.
 
-## 11. Próximos passos (após aprovação humana)
+## 11. Próximo passo (não executar agora)
 
-1. Controladoria revisa os dois Excel por empresa.
-2. Confirma saldos iniciais reais por empresa+banco.
-3. Confirma transferências legítimas (mesma empresa / intercompany).
-4. Só então avaliamos Razão/contábil em uma fase P3.G separada.
-5. P3.E permanece bloqueado até decisão humana formal.
+Após aprovação humana da matriz consolidada → preparar P3.H0-D1C (SQL controlado de criação/vínculo dos aliases aprovados). Só depois P3.H0-D2 (saldos iniciais HAGG).
