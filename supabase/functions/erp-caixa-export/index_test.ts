@@ -3,7 +3,10 @@
 // usuários reais são ignorados se as variáveis TEST_* não estiverem definidas.
 
 import "https://deno.land/std@0.224.0/dotenv/load.ts";
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assert,
+  assertEquals,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 
 const SUPABASE_URL = Deno.env.get("VITE_SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY")!;
@@ -97,8 +100,12 @@ Deno.test({
     assertEquals(res.status, 200);
     assert(body.scope, "payload deve conter scope");
     assertEquals(body.scope.global, false);
-    assert(typeof body.scope.n_empresas === "number" && body.scope.n_empresas > 0);
-    const empresaIds = new Set((body.empresas ?? []).map((e: any) => e.id));
+    assert(
+      typeof body.scope.n_empresas === "number" && body.scope.n_empresas > 0,
+    );
+    const empresaIds = new Set(
+      (body.empresas ?? []).map((e: { id: string }) => e.id),
+    );
     for (const cb of body.conta_bancaria ?? []) {
       assert(empresaIds.has(cb.empresa_id), "conta_bancaria fora do escopo");
     }
