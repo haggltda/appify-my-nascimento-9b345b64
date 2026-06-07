@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
         return json({ error: "internal_error" }, 500);
       }
       const ids = new Set<string>();
-      for (const e of emps ?? []) {
+      for (const e of (emps ?? []) as Row[]) {
         if (e.codigo) ids.add(String(e.codigo));
         if (e.razao_social) ids.add(String(e.razao_social));
         if (e.nome_fantasia) ids.add(String(e.nome_fantasia));
