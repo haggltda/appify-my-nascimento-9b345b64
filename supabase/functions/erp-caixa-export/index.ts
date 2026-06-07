@@ -213,19 +213,31 @@ Deno.serve(async (req) => {
     // 4. Validação de role: admin OR controladoria OR presidencia.
     const roleChecks = await Promise.all(
       ALLOWED_ROLES.map((role) =>
-        admin.rpc("has_role", { _user_id: callerId, _role: role }),
+        admin.rpc("has_role", { _user_id: callerId, _role: role })
       ),
     );
     const roleErrs = roleChecks.find((r) => r.error);
     if (roleErrs?.error) {
-      safeLog({ ts: Date.now(), mode, callerId, status: 500, reason: "role_check_error" });
+      safeLog({
+        ts: Date.now(),
+        mode,
+        callerId,
+        status: 500,
+        reason: "role_check_error",
+      });
       return json({ error: "internal_error" }, 500);
     }
     const grantedRoles: AllowedRole[] = ALLOWED_ROLES.filter(
       (_, i) => roleChecks[i].data === true,
     );
     if (grantedRoles.length === 0) {
-      safeLog({ ts: Date.now(), mode, callerId, status: 403, reason: "no_role" });
+      safeLog({
+        ts: Date.now(),
+        mode,
+        callerId,
+        status: 403,
+        reason: "no_role",
+      });
       return json({ error: "forbidden" }, 403);
     }
     const isAdmin = grantedRoles.includes("admin");
@@ -254,8 +266,11 @@ Deno.serve(async (req) => {
 
     // 6. Dados — só após autorização e escopo resolvidos.
     if (mode === "refs") {
-      const empresas = await pageAll(admin, "empresas", COLS_EMPRESAS, (q) =>
-        scope.global ? q : q.in("id", scope.empresaIds),
+      const empresas = await pageAll(
+        admin,
+        "empresas",
+        COLS_EMPRESAS,
+        (q) => scope.global ? q : q.in("id", scope.empresaIds),
       );
       const codigosEmpresa = empresas
         .map((e: Row) => e.codigo)
@@ -265,14 +280,23 @@ Deno.serve(async (req) => {
 
       const [contaBancaria, contaContabil, saldosIniciais, audPlano] =
         await Promise.all([
-          pageAll(admin, "conta_bancaria", COLS_CONTA_BANCARIA, (q) =>
-            scope.global ? q : q.in("empresa_id", scope.empresaIds),
+          pageAll(
+            admin,
+            "conta_bancaria",
+            COLS_CONTA_BANCARIA,
+            (q) => scope.global ? q : q.in("empresa_id", scope.empresaIds),
           ),
-          pageAll(admin, "conta_contabil", COLS_CONTA_CONTABIL, (q) =>
-            scope.global ? q : q.in("empresa_id", scope.empresaIds),
+          pageAll(
+            admin,
+            "conta_contabil",
+            COLS_CONTA_CONTABIL,
+            (q) => scope.global ? q : q.in("empresa_id", scope.empresaIds),
           ),
-          pageAll(admin, "saldos_iniciais_caixa", COLS_SALDOS_INICIAIS, (q) =>
-            scope.global ? q : q.in("empresa_id", scope.empresaIds),
+          pageAll(
+            admin,
+            "saldos_iniciais_caixa",
+            COLS_SALDOS_INICIAIS,
+            (q) => scope.global ? q : q.in("empresa_id", scope.empresaIds),
           ),
           pageAll(
             admin,
@@ -298,21 +322,30 @@ Deno.serve(async (req) => {
         conta_contabil: contaContabil,
         saldos_iniciais_caixa: saldosIniciais,
         aud_plano: audPlano,
-        scope: { global: scope.global, n_empresas: scope.global ? null : scope.empresaIds.length },
+        scope: {
+          global: scope.global,
+          n_empresas: scope.global ? null : scope.empresaIds.length,
+        },
       });
     }
 
     // mode=caixa
-    const direcao = (url.searchParams.get("direcao") || "ENTRADA").toUpperCase();
-    const offset = Math.max(parseInt(url.searchParams.get("offset") || "0", 10) || 0, 0);
+    const direcao = (url.searchParams.get("direcao") || "ENTRADA")
+      .toUpperCase();
+    const offset = Math.max(
+      parseInt(url.searchParams.get("offset") || "0", 10) || 0,
+      0,
+    );
     const limit = Math.min(
-      Math.max(parseInt(url.searchParams.get("limit") || "5000", 10) || 5000, 1),
+      Math.max(
+        parseInt(url.searchParams.get("limit") || "5000", 10) || 5000,
+        1,
+      ),
       10000,
     );
-    const tipos =
-      direcao === "ENTRADA"
-        ? ["ENTRADA", "entrada"]
-        : ["SAÍDA", "saida", "SAIDA"];
+    const tipos = direcao === "ENTRADA"
+      ? ["ENTRADA", "entrada"]
+      : ["SAÍDA", "saida", "SAIDA"];
 
     // mz_40 não tem empresa_id — usa coluna texto "empresa". Para escopo
     // não-global, monta lista de identificadores (codigo, razao_social,
@@ -324,7 +357,13 @@ Deno.serve(async (req) => {
         .select("codigo,razao_social,nome_fantasia")
         .in("id", scope.empresaIds);
       if (empErr) {
-        safeLog({ ts: Date.now(), mode, callerId, status: 500, reason: "empresas_lookup_error" });
+        safeLog({
+          ts: Date.now(),
+          mode,
+          callerId,
+          status: 500,
+          reason: "empresas_lookup_error",
+        });
         return json({ error: "internal_error" }, 500);
       }
       const ids = new Set<string>();
@@ -350,7 +389,13 @@ Deno.serve(async (req) => {
 
     const { data, error, count } = await q;
     if (error) {
-      safeLog({ ts: Date.now(), mode, callerId, status: 500, reason: "caixa_query_error" });
+      safeLog({
+        ts: Date.now(),
+        mode,
+        callerId,
+        status: 500,
+        reason: "caixa_query_error",
+      });
       return json({ error: "internal_error" }, 500);
     }
     const got = data?.length ?? 0;
@@ -359,7 +404,10 @@ Deno.serve(async (req) => {
       count,
       rows: data,
       next: hasMore ? offset + got : null,
-      scope: { global: scope.global, n_empresas: scope.global ? null : scope.empresaIds.length },
+      scope: {
+        global: scope.global,
+        n_empresas: scope.global ? null : scope.empresaIds.length,
+      },
     });
   } catch (_e) {
     // Nunca expor stack/mensagem crua do PostgREST.
