@@ -258,8 +258,10 @@ Deno.serve(async (req) => {
         scope.global ? q : q.in("id", scope.empresaIds),
       );
       const codigosEmpresa = empresas
-        .map((e: any) => e.codigo)
-        .filter((c: unknown): c is string => typeof c === "string" && c.length > 0);
+        .map((e: Row) => e.codigo)
+        .filter((c: unknown): c is string =>
+          typeof c === "string" && c.length > 0
+        );
 
       const [contaBancaria, contaContabil, saldosIniciais, audPlano] =
         await Promise.all([
