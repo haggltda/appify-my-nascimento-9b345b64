@@ -98,7 +98,9 @@ Deno.test({
     assert(body.scope, "payload deve conter scope");
     assertEquals(body.scope.global, false);
     assert(typeof body.scope.n_empresas === "number" && body.scope.n_empresas > 0);
-    const empresaIds = new Set((body.empresas ?? []).map((e: any) => e.id));
+    const empresaIds = new Set(
+      (body.empresas ?? []).map((e: { id: string }) => e.id),
+    );
     for (const cb of body.conta_bancaria ?? []) {
       assert(empresaIds.has(cb.empresa_id), "conta_bancaria fora do escopo");
     }
