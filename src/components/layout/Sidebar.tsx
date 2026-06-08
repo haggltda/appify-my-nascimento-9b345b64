@@ -463,8 +463,8 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
         "fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-300 ease-out",
         "w-[268px]",
         mobileOpen ? "translate-x-0" : "-translate-x-full",
-        // Desktop: sticky, sem transform, larguras originais
-        "lg:sticky lg:top-0 lg:z-30 lg:translate-x-0 lg:shadow-none lg:transition-all",
+        // Desktop: sticky travado no topo (self-start evita o stretch do flex que quebra o sticky)
+        "lg:sticky lg:top-0 lg:self-start lg:z-30 lg:translate-x-0 lg:shadow-none lg:transition-all",
         desktopCollapsed ? "lg:w-[172px]" : "lg:w-[268px]",
       )}
     >
