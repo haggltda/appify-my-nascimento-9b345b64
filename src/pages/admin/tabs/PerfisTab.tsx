@@ -14,10 +14,19 @@ type Role = Database["public"]["Enums"]["app_role"];
 
 interface Meta {
   role: Role;
+  nome: string | null;
   descricao: string | null;
   icone: string | null;
   cor: string | null;
 }
+
+const fallbackNome = (role: Role) =>
+  String(role ?? "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+const displayNome = (m: Pick<Meta, "role" | "nome">) =>
+  m.nome && m.nome.trim().length > 0 ? m.nome : fallbackNome(m.role);
 
 export function PerfisTab() {
   const qc = useQueryClient();
@@ -46,7 +55,7 @@ export function PerfisTab() {
         <div>
           <h2 className="font-display text-sm font-bold">Perfis de acesso</h2>
           <p className="text-xs text-muted-foreground">
-            Os perfis (roles) são fixos do sistema. Aqui você ajusta descrição, ícone e cor de cada um.
+            Os perfis (roles) são fixos do sistema. Aqui você ajusta o nome de exibição, descrição, ícone e cor de cada um.
           </p>
         </div>
       </header>
@@ -63,7 +72,10 @@ export function PerfisTab() {
                   <ShieldCheck className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="font-display text-sm font-bold capitalize">{p.role.replace(/_/g, " ")}</h3>
+                  <h3 className="font-display text-sm font-bold">{displayNome(p)}</h3>
+                  <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                    chave: <code className="font-mono">{p.role}</code>
+                  </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{p.descricao ?? "—"}</p>
                 </div>
               </div>
@@ -83,6 +95,7 @@ export function PerfisTab() {
 
 function EditarPerfilDialog({ perfil, onSaved }: { perfil: Meta; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
+  const [nome, setNome] = useState(perfil.nome ?? fallbackNome(perfil.role));
   const [descricao, setDescricao] = useState(perfil.descricao ?? "");
   const [icone, setIcone] = useState(perfil.icone ?? "");
   const [cor, setCor] = useState(perfil.cor ?? "#1e3a8a");
@@ -91,9 +104,15 @@ function EditarPerfilDialog({ perfil, onSaved }: { perfil: Meta; onSaved: () => 
   const salvar = async () => {
     setSaving(true);
     try {
+      const nomeTrim = nome.trim();
       const { error } = await supabase
         .from("perfil_metadata")
-        .update({ descricao: descricao || null, icone: icone || null, cor: cor || null })
+        .update({
+          nome: nomeTrim.length > 0 ? nomeTrim : null,
+          descricao: descricao || null,
+          icone: icone || null,
+          cor: cor || null,
+        })
         .eq("role", perfil.role);
       if (error) throw error;
       toast({ title: "Perfil atualizado" });
@@ -111,9 +130,25 @@ function EditarPerfilDialog({ perfil, onSaved }: { perfil: Meta; onSaved: () => 
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Perfil: <span className="capitalize">{perfil.role.replace(/_/g, " ")}</span></DialogTitle>
+          <DialogTitle>
+            Perfil: <span>{displayNome(perfil)}</span>
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground">
+            Chave técnica imutável: <code className="font-mono">{perfil.role}</code>
+          </p>
         </DialogHeader>
         <div className="space-y-3">
+          <div>
+            <Label>Nome do perfil</Label>
+            <Input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex.: Diretor Administrativo"
+            />
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Nome de exibição em telas, menus e listas. Não altera permissões.
+            </p>
+          </div>
           <div>
             <Label>Descrição</Label>
             <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
