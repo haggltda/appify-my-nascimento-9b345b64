@@ -1,106 +1,42 @@
-# P3.H0-D1B v2 — Normalização, consolidação e matriz final dos aliases SEM_MATCH (READ-ONLY)
+## Hotfix único — Presidência Caixa + CNPJ Empresas
 
-## 0. Modo e proibições
+Aplicar exatamente o pacote `hotfix-pres-caixa-cnpj-20260607` enviado, em uma única migration, sem tocar em frontend, saldos, estrutura contábil ou Edge Functions.
 
-100% READ-ONLY / DIAGNÓSTICO / REFINAMENTO.
+### Etapas
 
-Proibido: UPDATE, INSERT, DELETE, ALTER, CREATE, DROP, GRANT, REVOKE, migration, Edge Function, service_role, alteração em `conta_bancaria`, `conta_contabil`, `saldo_inicial`, `saldos_iniciais_caixa`, lançamentos, títulos, pré-títulos, frontend, HERO, BI, DRE.
+1. **Criar migration única** com o SQL fornecido (seção 3), contendo:
+   - Pré-checks de estrutura (funções `has_role`, `user_pode_atuar_empresa`, `can_access`; enums `app_role`, `app_acao`; colunas de `profiles`, `empresas`, `mz_40_fato_fluxo_caixa_realizado`).
+   - Tabela de auditoria `public.aud_empresas_cnpj_snapshot` com RLS + GRANTs (SELECT para `authenticated` via `has_role` admin/controladoria/presidencia; ALL para `service_role`).
+   - Snapshot + UPDATE cirúrgico de `razao_social` e `cnpj` em `public.empresas` para os 6 códigos AGPS, CANAA, HAGG, NH, SN, LF.
+   - Recriar `public.parse_mz40_valor(text)`.
+   - Recriar `public.normaliza_alias_banco(text)`.
+   - Recriar `public.pres_caixa_status()` como `SECURITY INVOKER`, preservando admin/presidência/`acessa_todas_empresas`/`user_pode_atuar_empresa`.
+   - Smoke de compilação tolerando `42501`.
+   - Pós-check final de CNPJ.
 
-P3.E, P3.H, P3.H0-D1C e P3.H0-D2 continuam bloqueados. Nada de criação de conta, alias persistido ou SQL executável.
+2. **Aguardar aprovação** do usuário da migration (Lovable mostra diff antes de aplicar).
 
-## 1. Fontes
+3. **Pós-execução (read-only)**:
+   - `SELECT codigo, razao_social, nome_fantasia, cnpj, regime, ativa FROM public.empresas ORDER BY codigo;`
+   - Confirmar `pres_caixa_status` recriada via `pg_proc`.
+   - Confirmar `aud_empresas_cnpj_snapshot` com 6 linhas no batch.
+   - Confirmar que `conta_bancaria`, `conta_contabil`, `saldo_inicial`, `saldos_iniciais_caixa`, `mz_40_fato_fluxo_caixa_realizado` não foram modificados (não há DDL/DML sobre eles na migration).
+   - Confirmar que `src/pages/Presidencia.tsx` e Edge Functions não foram tocados.
 
-- `/mnt/documents/p3h0_d1b/p3h0_d1b_matriz_aliases_hagg_sem_match.csv`
-- `/mnt/documents/p3h0_d1b/p3h0_d1b_contas_a_criar_preview.csv`
-- `/mnt/documents/p3h0_d1b/p3h0_d1b_queries.sql`
-- `/mnt/documents/p3g_pos_h0d1/` (em especial `p3g_pos_h0d1_movimentos_sem_conta_contabil.csv`)
-- SELECTs read-only em `public.conta_bancaria`, `public.conta_contabil`, `public.mz_40_fato_fluxo_caixa_realizado`, `public.aud_p3h0_conta_bancaria_snapshot` para descobrir os nomes reais de colunas e validar canônicas HAGG.
+4. **Atualizar preview** para usuário verificar header de empresa, cadastro de Empresas do Grupo e Painel da Presidência.
 
-Travas:
-- Soma de `qtd_movimentos` consolidada deve ser exatamente **1.195** (±0). Senão `TRAVADO_POR_DIVERGENCIA_SEM_MATCH`.
-- 7 canônicas HAGG de referência: `CAIXA HAGG`, `BANRI HAGG`, `BB HAGG`, `SICREDI HAGG 155`, `MENTORE HAGG`, `SICREDI HAGG 119`, `BRADESCO HAGG`.
+### Proibições respeitadas
 
-## 2. Normalização e consolidação
+- Sem alterar frontend (`Presidencia.tsx` e demais).
+- Sem alterar `conta_bancaria`, `conta_contabil`, `saldo_inicial`, `saldos_iniciais_caixa`, `mz_40_*`, lançamentos, títulos, pré-títulos, aliases, RLS/policies existentes, Edge Functions, HERO, BI, DRE.
+- Sem executar P3.E, P3.H, P3.H0-D2.
+- Sem rollback do superbloco anterior.
+- Sem criar conta contábil/bancária nem alterar saldo.
 
-Criar coluna `alias_normalizado`:
-- `trim`, colapso de espaços, caixa alta;
-- normalização de hífens (`-`, `–`, `—` → `-`) e remoção de espaços ao redor;
-- remoção de acentos (NFKD);
-- preservar números de contrato (UFFS 041/2021, HUSM 020/2021, EMBRAPA 2021/93, FURG-HU 006/2023, FURG JARDINAGEM 049/2022, BENTO GONÇALVES ADM 002/2021, etc.) — **não** consolidar convênios diferentes.
+### Rollback
 
-Consolidar uma linha por `alias_normalizado` com agregações (qtd, entradas, saídas, saldo líquido, primeira/última data) a partir dos movimentos `SEM_MATCH` em `p3g_pos_h0d1`.
+Script de rollback (seção 4 do comando) fica documentado; execução só sob comando explícito posterior.
 
-## 3. Reclassificação contra canônicas
+### Retorno após execução
 
-Para cada `alias_normalizado`, testar contra as 7 canônicas HAGG. Match exato pós-normalização (ex.: `BANRI HAGG`, `BB HAGG`, `MENTORE HAGG`, `SICREDI HAGG 119`, `BRADESCO HAGG`) → `ALIAS_DE_CONTA_CANONICA_EXISTENTE`, preencher `conta_bancaria_canonica_candidata` + `conta_contabil_canonica_candidata` a partir do snapshot P3.H0-D1.
-
-Nunca consolidar convênios (`UFFS`, `HUSM`, `EMBRAPA`, `FURG`, `HCPA`, `BENTO GONÇALVES`) nem aplicações (`APLICAÇÃO`, `CDB`, `POUPANÇA`) em `BB HAGG` / `CAIXA HAGG`.
-
-## 4. Categorias finais
-
-- `ALIAS_DE_CONTA_CANONICA_EXISTENTE`
-- `BANCO_DE_OUTRA_EMPRESA_EM_HAGG` — qualquer alias contendo token de outra empresa (`SN`, `NH`, `CANAA`, `AGPS`, `LF`) dentro do escopo HAGG. Recomendação: investigar intercompany / empresa errada / replicação.
-- `CRIAR_CONTA_CONTABIL_APLICACAO_FINANCEIRA` — `APLICAÇÃO`, `CDB`, `POUPANÇA`. Nunca `BANCOS CONTA MOVIMENTO`. Grupo contábil = `REGRA_DE_NEGOCIO_NAO_CONFIRMADA` se não confirmado.
-- `CONTA_VINCULADA_CONTRATO_CONVENIO` — contratos/convênios. Decisão humana obrigatória.
-- `MEIO_PAGAMENTO_NAO_BANCO` — `TICKET` e similares. Não criar conta bancária.
-- `REVISAR_HUMANO` — somente quando não couber em nenhuma categoria acima, com motivo explícito.
-- `BLOQUEAR` — quando há contradição estrutural.
-
-## 5. Valores e datas
-
-Por `alias_normalizado` preencher obrigatoriamente: `qtd_movimentos`, `total_entradas`, `total_saidas`, `saldo_liquido`, `primeira_data`, `ultima_data`. Se a fonte não permitir cálculo: `NAO_LOCALIZADO_NA_BASE_ATUAL` + explicação da fonte ausente no resumo.
-
-## 6. Queries SQL corrigidas
-
-Reescrever `p3h0_d1b_v2_queries.sql` usando apenas `SELECT` e nomes reais de colunas. Validar previamente via `information_schema.columns` para `conta_bancaria`, `conta_contabil`, `mz_40_fato_fluxo_caixa_realizado` (esperado: `banco_nome`, `banco_codigo`, `ativa`, `classificacao`, `descricao`, `data_caixa` — confirmar antes de escrever).
-
-## 7. Entregáveis em `/mnt/documents/p3h0_d1b_v2/`
-
-```text
-p3h0_d1b_v2_matriz_aliases_consolidados.csv
-p3h0_d1b_v2_aliases_canonicos_reclassificados.csv
-p3h0_d1b_v2_bancos_outras_empresas_em_hagg.csv
-p3h0_d1b_v2_contas_a_criar_preview_deduplicado.csv
-p3h0_d1b_v2_queries.sql
-RESUMO_P3H0_D1B_V2.md
-autocheck_p3h0_d1b_v2.json
-manifest.json
-p3h0_d1b_v2.zip   (em /mnt/documents/)
-```
-
-Colunas da matriz consolidada (na ordem):
-`alias_normalizado`, `aliases_originais`, `empresa`, `qtd_movimentos`, `total_entradas`, `total_saidas`, `saldo_liquido`, `primeira_data`, `ultima_data`, `classificacao_final`, `conta_bancaria_canonica_candidata`, `conta_contabil_canonica_candidata`, `precisa_criar_alias`, `precisa_criar_conta_bancaria`, `precisa_criar_conta_contabil`, `tipo_conta_a_criar`, `grupo_contabil_sugerido`, `risco`, `impacto_se_nao_resolver`, `recomendacao_lovable`, `decisao_controladoria`, `observacao_controladoria`.
-
-CSVs: UTF-8 com BOM, separador `;`.
-
-## 8. Autocheck (`autocheck_p3h0_d1b_v2.json`)
-
-```json
-{
-  "executou_update": false,
-  "executou_insert": false,
-  "executou_delete": false,
-  "executou_alter": false,
-  "criou_conta_bancaria": false,
-  "criou_conta_contabil": false,
-  "alterou_saldo": false,
-  "soma_movimentos_sem_match": 1195,
-  "p3h0_d2_bloqueado": true,
-  "p3h0_d1c_bloqueado": true
-}
-```
-
-## 9. Resumo (`RESUMO_P3H0_D1B_V2.md`)
-
-Responder: (1) aliases originais, (2) aliases consolidados, (3) movimentos = 1.195, (4) mapeáveis a canônicas, (5) bancos de outras empresas em HAGG, (6) aplicações, (7) convênios, (8) Ticket/meio de pagamento, (9) revisão humana real, (10) P3.H0-D2 bloqueado.
-
-## 10. Detalhes técnicos
-
-- Script `/tmp/p3h0_d1b_v2_build.py` (`python` + `pandas` + `openpyxl`).
-- DB via `psql` somente `SELECT` (confirmar `test -n "$PGHOST"`); se indisponível, usar `supabase--read_query`.
-- `manifest.json` com `batch_id=p3h0-d1b-v2-normaliza-consolida`, timestamp UTC, contagens, SHA-256 por arquivo.
-- ZIP final + `<presentation-artifact>` para o usuário.
-
-## 11. Próximo passo (não executar agora)
-
-Após aprovação humana da matriz consolidada → preparar P3.H0-D1C (SQL controlado de criação/vínculo dos aliases aprovados). Só depois P3.H0-D2 (saldos iniciais HAGG).
+Lista exata pedida na seção 5: status da migration, snapshot=6, updates=6, SELECTs de verificação, confirmação de recriação de `pres_caixa_status()`, confirmação de não-alteração das tabelas/arquivos protegidos, e P3.E/P3.H/P3.H0-D2 seguem bloqueados.
