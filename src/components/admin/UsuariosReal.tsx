@@ -15,22 +15,30 @@ import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound
 
 const FALLBACK_ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","presidencia","usuario","visitante","comprador","almoxarife","gestor_cc","fiscal_recebedor","financeiro","fiscal"];
 
+function humanizeRole(r: Role) {
+  return String(r ?? "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 function usePerfisDisponiveis() {
   const q = useQuery({
     queryKey: ["perfil_metadata_dropdown"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("perfil_metadata")
-        .select("role, descricao")
+        .select("role, nome, descricao")
         .order("role");
       if (error) throw error;
-      return (data ?? []) as { role: Role; descricao: string | null }[];
+      return (data ?? []) as { role: Role; nome: string | null; descricao: string | null }[];
     },
   });
   const perfis = (q.data && q.data.length > 0)
     ? q.data
-    : FALLBACK_ROLES.map((r) => ({ role: r, descricao: null }));
-  return perfis;
+    : FALLBACK_ROLES.map((r) => ({ role: r, nome: null, descricao: null }));
+  return perfis.map((p) => ({
+    ...p,
+    displayNome: p.nome && p.nome.trim().length > 0 ? p.nome : humanizeRole(p.role),
+  }));
 }
 
 const ROLES: Role[] = FALLBACK_ROLES;
@@ -405,11 +413,11 @@ function EditarUsuarioDialog({
             <Label>Perfis (roles)</Label>
             <p className="text-[11px] text-muted-foreground mb-2">Marque um ou mais perfis. Acessos finos por tela serão configurados em Configurações › Acessos & Permissões.</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              {perfis.map(({ role: r, descricao }) => (
+              {perfis.map(({ role: r, descricao, displayNome }) => (
                 <label key={r} title={descricao ?? ""} className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
                   <Checkbox className="mt-0.5" checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
                   <span className="flex flex-col">
-                    <span className="font-medium">{r}</span>
+                    <span className="font-medium">{displayNome}</span>
                     {descricao && <span className="text-[10px] text-muted-foreground leading-tight">{descricao}</span>}
                   </span>
                 </label>
@@ -686,11 +694,11 @@ function NovoUsuarioDialog({
               <Label>Perfis (roles)</Label>
               <p className="text-[11px] text-muted-foreground mb-2">Marque um ou mais perfis. Acessos finos por tela serão configurados em Configurações › Acessos & Permissões.</p>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {perfis.map(({ role: r, descricao }) => (
+                {perfis.map(({ role: r, descricao, displayNome }) => (
                   <label key={r} title={descricao ?? ""} className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
                     <Checkbox className="mt-0.5" checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
                     <span className="flex flex-col">
-                      <span className="font-medium">{r}</span>
+                      <span className="font-medium">{displayNome}</span>
                       {descricao && <span className="text-[10px] text-muted-foreground leading-tight">{descricao}</span>}
                     </span>
                   </label>

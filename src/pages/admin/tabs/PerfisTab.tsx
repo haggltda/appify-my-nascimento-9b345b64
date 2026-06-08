@@ -83,7 +83,11 @@ export function PerfisTab() {
                 <Badge variant="secondary" className="text-[10px]">
                   {usersByRoleQ.data?.[p.role] ?? 0} usuário(s)
                 </Badge>
-                <EditarPerfilDialog perfil={p} onSaved={() => qc.invalidateQueries({ queryKey: ["perfil_metadata"] })} />
+                <EditarPerfilDialog perfil={p} onSaved={() => {
+                  qc.invalidateQueries({ queryKey: ["perfil_metadata"] });
+                  qc.invalidateQueries({ queryKey: ["perfil_metadata_dropdown"] });
+                }} />
+
               </div>
             </div>
           </div>
