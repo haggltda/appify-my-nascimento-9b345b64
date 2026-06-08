@@ -11952,6 +11952,7 @@ export type Database = {
           cor: string | null
           descricao: string | null
           icone: string | null
+          nome: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
           updated_by: string | null
@@ -11960,6 +11961,7 @@ export type Database = {
           cor?: string | null
           descricao?: string | null
           icone?: string | null
+          nome?: string | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           updated_by?: string | null
@@ -11968,6 +11970,7 @@ export type Database = {
           cor?: string | null
           descricao?: string | null
           icone?: string | null
+          nome?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           updated_by?: string | null
