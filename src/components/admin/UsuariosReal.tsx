@@ -15,22 +15,30 @@ import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound
 
 const FALLBACK_ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","presidencia","usuario","visitante","comprador","almoxarife","gestor_cc","fiscal_recebedor","financeiro","fiscal"];
 
+function humanizeRole(r: Role) {
+  return String(r ?? "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 function usePerfisDisponiveis() {
   const q = useQuery({
     queryKey: ["perfil_metadata_dropdown"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("perfil_metadata")
-        .select("role, descricao")
+        .select("role, nome, descricao")
         .order("role");
       if (error) throw error;
-      return (data ?? []) as { role: Role; descricao: string | null }[];
+      return (data ?? []) as { role: Role; nome: string | null; descricao: string | null }[];
     },
   });
   const perfis = (q.data && q.data.length > 0)
     ? q.data
-    : FALLBACK_ROLES.map((r) => ({ role: r, descricao: null }));
-  return perfis;
+    : FALLBACK_ROLES.map((r) => ({ role: r, nome: null, descricao: null }));
+  return perfis.map((p) => ({
+    ...p,
+    displayNome: p.nome && p.nome.trim().length > 0 ? p.nome : humanizeRole(p.role),
+  }));
 }
 
 const ROLES: Role[] = FALLBACK_ROLES;
