@@ -6,17 +6,49 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Banknote, Wallet, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2,
   Clock, Briefcase, Crown, ArrowUpRight, FileSignature, Users, Building2,
-  Activity, Flame, ListChecks, Target,
+  Activity, Flame, ListChecks, Target, ShieldAlert, Info,
 } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ComposedChart, Line,
 } from "recharts";
 
-const PALETTE = ["hsl(var(--primary))", "hsl(var(--accent))", "#16a34a", "#f59e0b", "#ef4444", "#6366f1", "#06b6d4", "#a855f7"];
+const PALETTE = [
+  "hsl(var(--primary))",
+  "hsl(var(--accent))",
+  "hsl(var(--success))",
+  "hsl(var(--warning))",
+  "hsl(var(--destructive))",
+  "hsl(var(--info))",
+  "hsl(var(--primary-glow))",
+  "hsl(var(--accent-hover))",
+];
+
+type CaixaRow = {
+  empresa_id: string;
+  empresa_codigo: string;
+  saldo_inicial: number;
+  total_entradas: number;
+  total_saidas: number;
+  saldo_liquido: number;
+  qtd_movimentos_com_alias: number;
+  qtd_movimentos_sem_match: number;
+  qtd_valores_invalidos: number;
+  qtd_pendencias_alias: number;
+  pendencias_por_categoria?: Record<string, number>;
+  status_confiabilidade: "VALIDADO" | "INFERIDO" | "PENDENTE" | "BLOQUEADO";
+};
+
+const statusMeta: Record<CaixaRow["status_confiabilidade"], { label: string; cls: string }> = {
+  VALIDADO:  { label: "Validado",  cls: "bg-success-soft text-success border-success/30" },
+  INFERIDO:  { label: "Inferido",  cls: "bg-info-soft text-info border-info/30" },
+  PENDENTE:  { label: "Pendente",  cls: "bg-warning-soft text-warning border-warning/30" },
+  BLOQUEADO: { label: "Bloqueado", cls: "bg-destructive-soft text-destructive border-destructive/30" },
+};
 
 const fmtBRL = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -37,26 +69,39 @@ export default function Presidencia() {
   const [periodo, setPeriodo] = useState<7 | 15 | 30 | 60 | 90>(30);
   const limiteData = isoAdd(periodo);
 
-  // Caixa consolidado: soma de saldo_inicial das contas de Disponibilidades em todas empresas
+  // Caixa via RPC pres_caixa_status (SECURITY INVOKER, com chip de confiabilidade)
   const caixaQ = useQuery({
-    queryKey: ["pres-caixa"],
+    queryKey: ["pres-caixa-rpc"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("conta_contabil")
-        .select("empresa_id, saldo_inicial, classificacao")
-        .like("classificacao", "01.1.1%")
-        .eq("tipo", "analitica");
-      const rows = (data ?? []) as Array<{ empresa_id: string; saldo_inicial: number; classificacao: string }>;
-      const porEmpresa: Record<string, number> = {};
-      let total = 0;
-      rows.forEach((r) => {
-        const v = Number(r.saldo_inicial || 0);
-        porEmpresa[r.empresa_id] = (porEmpresa[r.empresa_id] ?? 0) + v;
-        total += v;
-      });
-      return { total, porEmpresa };
+      const { data, error } = await (supabase as any).rpc("pres_caixa_status");
+      if (error) throw error;
+      return (data ?? []) as CaixaRow[];
     },
+    retry: false,
   });
+
+  const caixaRows: CaixaRow[] = caixaQ.data ?? [];
+  const caixaErr = caixaQ.error as { code?: string; message?: string } | null;
+  const isUnauthorized =
+    !!caixaErr && (caixaErr.code === "42501" || /SEM_PERMISSAO|NAO_AUTENTICADO/i.test(caixaErr.message ?? ""));
+
+  const caixaTotal = useMemo(
+    () => caixaRows.reduce((s, r) => s + Number(r.saldo_liquido || 0), 0),
+    [caixaRows]
+  );
+  const totalPendencias = useMemo(
+    () => caixaRows.reduce((s, r) => s + (r.qtd_pendencias_alias || 0), 0),
+    [caixaRows]
+  );
+  const totalSemMatch = useMemo(
+    () => caixaRows.reduce((s, r) => s + (r.qtd_movimentos_sem_match || 0), 0),
+    [caixaRows]
+  );
+  const totalInvalidos = useMemo(
+    () => caixaRows.reduce((s, r) => s + (r.qtd_valores_invalidos || 0), 0),
+    [caixaRows]
+  );
+  const haggRow = caixaRows.find((r) => r.empresa_codigo === "HAGG");
 
   const empresasQ = useQuery({
     queryKey: ["pres-empresas"],
@@ -129,7 +174,6 @@ export default function Presidencia() {
     },
   });
 
-  // Plano de ações para gráficos e tabela crítica
   const planoQ = useQuery({
     queryKey: ["pres-plano-acoes"],
     queryFn: async () => {
@@ -169,7 +213,6 @@ export default function Presidencia() {
     (t) => new Date(t.data_vencimento) < hoje
   ).length;
 
-  // Agregações Plano de Ações
   const planoStats = useMemo(() => {
     const rows = planoQ.data ?? [];
     const byStatus: Record<string, number> = {};
@@ -184,11 +227,8 @@ export default function Presidencia() {
     });
     return {
       statusData: Object.entries(byStatus).map(([name, value]) => ({ name, value })),
-      prioData: Object.entries(byPrio).map(([name, value]) => ({ name, value })),
-      areaData: Object.entries(byArea)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 8),
+      prioData:   Object.entries(byPrio).map(([name, value]) => ({ name, value })),
+      areaData:   Object.entries(byArea).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8),
       total: rows.length,
     };
   }, [planoQ.data]);
@@ -196,12 +236,7 @@ export default function Presidencia() {
   const acoesCriticas = useMemo(() => {
     const rows = planoQ.data ?? [];
     return rows
-      .filter(
-        (r: any) =>
-          r.status_normalizado === "atrasada" ||
-          r.prioridade_normalizada === "emergencial" ||
-          r.prioridade_normalizada === "alta"
-      )
+      .filter((r: any) => r.status_normalizado === "atrasada" || r.prioridade_normalizada === "emergencial" || r.prioridade_normalizada === "alta")
       .sort((a: any, b: any) => {
         const order = ["emergencial", "alta", "media", "baixa"];
         return order.indexOf(a.prioridade_normalizada ?? "z") - order.indexOf(b.prioridade_normalizada ?? "z");
@@ -209,13 +244,9 @@ export default function Presidencia() {
       .slice(0, 12);
   }, [planoQ.data]);
 
-  // Fluxo de caixa: realizado (mes -2..0) + projetado (+1..+3) por mês
   const fluxoChart = useMemo(() => {
     const meses = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date();
-      d.setDate(1);
-      d.setMonth(d.getMonth() - 2 + i);
-      return d;
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 2 + i); return d;
     });
     return meses.map((d, i) => {
       const ini = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -233,12 +264,11 @@ export default function Presidencia() {
       return {
         mes: mes.charAt(0).toUpperCase() + mes.slice(1, 3),
         realizadoEntrada: isProj ? 0 : ent,
-        realizadoSaida: isProj ? 0 : -sai,
+        realizadoSaida:   isProj ? 0 : -sai,
         projetadoLiquido: ent - sai,
       };
     });
   }, [titulosPagarQ.data, titulosReceberQ.data]);
-
 
   return (
     <div className="space-y-6">
@@ -248,29 +278,67 @@ export default function Presidencia() {
         title="Painel da Presidência"
         subtitle="Visão consolidada do grupo: caixa, aprovações estratégicas, malotes e indicadores executivos."
         actions={
-          <Button
-            onClick={() => navigate("/app/financeiro/contas-pagar")}
-            className="gap-2"
-          >
+          <Button onClick={() => navigate("/app/financeiro/contas-pagar")} className="gap-2">
             <FileSignature className="h-4 w-4" /> Aprovar pagamentos
           </Button>
         }
       />
 
+      {/* Alerta de autorização */}
+      {isUnauthorized && (
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Acesso ao caixa restrito</AlertTitle>
+          <AlertDescription>
+            Você não tem permissão para visualizar o caixa consolidado pela RPC pres_caixa_status (42501).
+            Solicite acesso ao perfil de Presidência ou Administração.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Empty state */}
+      {!caixaQ.isLoading && !isUnauthorized && caixaRows.length === 0 && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Sem dados de caixa no escopo atual</AlertTitle>
+          <AlertDescription>
+            Nenhuma empresa retornada por pres_caixa_status. Verifique vínculos de empresa do usuário.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Banner de pendências */}
+      {!isUnauthorized && (totalPendencias > 0 || totalSemMatch > 0 || totalInvalidos > 0) && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Confiabilidade do caixa</AlertTitle>
+          <AlertDescription className="flex flex-wrap gap-4 text-xs">
+            <span>{totalPendencias} aliases pendentes</span>
+            <span>{totalSemMatch} movimentos sem match</span>
+            <span>{totalInvalidos} valores inválidos</span>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* HERO de caixa consolidado */}
       <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary via-primary to-primary/70 p-8 text-primary-foreground shadow-2xl">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_white_0%,_transparent_60%)] opacity-10" />
+        <div className="absolute inset-0 opacity-10" style={{ background: "radial-gradient(circle at top right, hsl(var(--primary-foreground) / 0.28) 0%, transparent 60%)" }} />
         <div className="relative grid gap-6 md:grid-cols-3">
           <div>
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] opacity-80">
               <Crown className="h-3.5 w-3.5" /> Caixa Consolidado do Grupo
             </div>
             <p className="mt-3 font-display text-5xl font-black tabular-nums">
-              {fmtBRL(caixaQ.data?.total ?? 0)}
+              {fmtBRL(caixaTotal)}
             </p>
             <p className="mt-2 text-sm opacity-90">
-              Disponibilidades em {empresasQ.data?.length ?? 0} empresas controladas
+              Disponibilidades em {caixaRows.length} empresas controladas
             </p>
+            {haggRow && (
+              <p className="mt-2 inline-flex items-center gap-2 rounded border border-primary-foreground/20 bg-primary-foreground/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider">
+                HAGG: {statusMeta[haggRow.status_confiabilidade].label}
+              </p>
+            )}
           </div>
           <div className="flex flex-col justify-center gap-1.5 text-sm">
             <div className="mb-1 flex items-center gap-1">
@@ -279,7 +347,7 @@ export default function Presidencia() {
                 <button
                   key={p}
                   onClick={() => setPeriodo(p as 7 | 15 | 30 | 60 | 90)}
-                  className={`rounded px-2 py-0.5 text-[10px] font-bold transition ${periodo === p ? "bg-white text-primary" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                  className={`rounded px-2 py-0.5 text-[10px] font-bold transition ${periodo === p ? "bg-primary-foreground text-primary" : "bg-primary-foreground/10 text-primary-foreground/80 hover:bg-primary-foreground/20"}`}
                 >
                   {p}d
                 </button>
@@ -293,7 +361,7 @@ export default function Presidencia() {
               <span className="opacity-80">A Pagar ({periodo}d)</span>
               <strong className="tabular-nums">{fmtBRL(totalAPagar)}</strong>
             </div>
-            <div className="my-1 h-px bg-white/20" />
+            <div className="my-1 h-px bg-primary-foreground/20" />
             <div className="flex items-center justify-between text-base">
               <span className="opacity-90">Resultado projetado</span>
               <strong className="tabular-nums">{fmtBRL(totalAReceber - totalAPagar)}</strong>
@@ -313,13 +381,18 @@ export default function Presidencia() {
           <Building2 className="h-4 w-4 text-primary" /> Caixa por Empresa
         </h2>
         <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-          {(empresasQ.data ?? []).map((e) => {
-            const v = caixaQ.data?.porEmpresa?.[e.id] ?? 0;
+          {caixaRows.map((r) => {
+            const m = statusMeta[r.status_confiabilidade];
             return (
-              <Card key={e.id} className="p-4 transition hover:border-primary/40 hover:shadow-md">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{e.codigo}</p>
-                <p className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">{e.razao_social}</p>
-                <p className="mt-3 font-display text-xl font-bold tabular-nums">{fmtBRL(v)}</p>
+              <Card key={r.empresa_id} className="p-4 transition hover:border-primary/40 hover:shadow-md">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{r.empresa_codigo}</p>
+                  <span className={`inline-flex rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase ${m.cls}`}>{m.label}</span>
+                </div>
+                <p className="mt-3 font-display text-xl font-bold tabular-nums">{fmtBRL(r.saldo_liquido)}</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {r.qtd_movimentos_com_alias} ok · {r.qtd_movimentos_sem_match} s/match
+                </p>
               </Card>
             );
           })}
@@ -327,7 +400,7 @@ export default function Presidencia() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Malotes para liberação */}
+        {/* Malotes */}
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-3">
             <div className="flex items-center gap-2">
@@ -389,9 +462,7 @@ export default function Presidencia() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{a.descricao}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {a.tipo} · {fmtDate(a.criado_em)}
-                  </p>
+                  <p className="text-[11px] text-muted-foreground">{a.tipo} · {fmtDate(a.criado_em)}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-sm font-bold">{fmtBRL(a.valor)}</p>
@@ -403,7 +474,6 @@ export default function Presidencia() {
         </Card>
       </div>
 
-      {/* ============== RESUMO GRÁFICO – PLANO DE AÇÕES & FLUXO ============== */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-display text-lg font-bold">
@@ -413,7 +483,6 @@ export default function Presidencia() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
-          {/* Status */}
           <Card className="relative overflow-hidden border-primary/10 bg-gradient-to-br from-card via-card to-primary/5 p-4 shadow-lg backdrop-blur-sm">
             <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative">
@@ -436,7 +505,6 @@ export default function Presidencia() {
             </div>
           </Card>
 
-          {/* Prioridade */}
           <Card className="relative overflow-hidden border-accent/20 bg-gradient-to-br from-card via-card to-accent/10 p-4 shadow-lg">
             <div className="absolute -left-8 -bottom-8 h-32 w-32 rounded-full bg-accent/15 blur-3xl" />
             <div className="relative">
@@ -461,7 +529,6 @@ export default function Presidencia() {
             </div>
           </Card>
 
-          {/* Áreas */}
           <Card className="relative overflow-hidden border-primary/10 bg-gradient-to-br from-card via-card to-primary/5 p-4 shadow-lg">
             <div className="absolute -right-8 -bottom-8 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative">
@@ -487,7 +554,6 @@ export default function Presidencia() {
           </Card>
         </div>
 
-        {/* Fluxo de caixa projetado vs realizado */}
         <Card className="relative overflow-hidden border-primary/10 bg-gradient-to-br from-card via-card to-primary/5 p-4 shadow-lg">
           <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
           <div className="relative">
@@ -496,8 +562,8 @@ export default function Presidencia() {
                 <TrendingUp className="h-3.5 w-3.5 text-primary" /> Fluxo de Caixa — Realizado x Projetado (6 meses)
               </div>
               <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-500" /> Entradas</span>
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-rose-500" /> Saídas</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-success" /> Entradas</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-destructive" /> Saídas</span>
                 <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-primary" /> Líquido projetado</span>
               </div>
             </div>
@@ -511,8 +577,8 @@ export default function Presidencia() {
                     contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
                     formatter={(v: any) => fmtBRL(Number(v))}
                   />
-                  <Bar dataKey="realizadoEntrada" name="Entradas (realizado)" fill="#16a34a" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="realizadoSaida" name="Saídas (realizado)" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="realizadoEntrada" name="Entradas (realizado)" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="realizadoSaida"  name="Saídas (realizado)"   fill="hsl(var(--destructive))" radius={[6, 6, 0, 0]} />
                   <Line type="monotone" dataKey="projetadoLiquido" name="Líquido projetado" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4 }} />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -520,11 +586,10 @@ export default function Presidencia() {
           </div>
         </Card>
 
-        {/* Ações mais críticas */}
-        <Card className="overflow-hidden border-rose-500/20 shadow-xl">
-          <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-rose-500/10 via-amber-500/5 to-transparent px-4 py-3">
+        <Card className="overflow-hidden border-destructive/20 shadow-xl">
+          <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-destructive/10 via-warning/5 to-transparent px-4 py-3">
             <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-rose-500" />
+              <Flame className="h-4 w-4 text-destructive" />
               <h3 className="font-display font-bold">Ações mais críticas — atenção da Presidência</h3>
             </div>
             <Button size="sm" variant="ghost" onClick={() => navigate("/app/plano-acoes/dashboard")}>
@@ -550,13 +615,13 @@ export default function Presidencia() {
                 {acoesCriticas.map((a: any) => {
                   const prio = a.prioridade_normalizada ?? "—";
                   const prioColor =
-                    prio === "emergencial" ? "bg-rose-500/15 text-rose-600 border-rose-500/30" :
-                    prio === "alta" ? "bg-amber-500/15 text-amber-700 border-amber-500/30" :
+                    prio === "emergencial" ? "bg-destructive-soft text-destructive border-destructive/30" :
+                    prio === "alta"        ? "bg-warning-soft text-warning border-warning/30" :
                     "bg-muted text-muted-foreground";
                   const status = a.status_normalizado ?? "—";
                   const stColor =
-                    status === "atrasada" ? "bg-rose-500/15 text-rose-600 border-rose-500/30" :
-                    status === "concluida" ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" :
+                    status === "atrasada"  ? "bg-destructive-soft text-destructive border-destructive/30" :
+                    status === "concluida" ? "bg-success-soft text-success border-success/30" :
                     "bg-muted text-muted-foreground";
                   return (
                     <tr key={a.id} className="hover:bg-muted/30">
@@ -579,16 +644,15 @@ export default function Presidencia() {
         </Card>
       </div>
 
-      {/* Atalhos executivos */}
       <div>
         <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold">
           <TrendingUp className="h-4 w-4 text-primary" /> Atalhos executivos
         </h2>
         <div className="grid gap-3 md:grid-cols-4">
-          <ShortcutCard icon={<Wallet />} title="Fluxo de Caixa" desc="Posição diária consolidada" onClick={() => navigate("/app/financeiro/fluxo-caixa")} />
-          <ShortcutCard icon={<TrendingDown />} title="DRE Gerencial" desc="Resultado por empresa" onClick={() => navigate("/app/controladoria/dre-gerencial")} />
-          <ShortcutCard icon={<Users />} title="Plano de Ações" desc="Iniciativas em curso" onClick={() => navigate("/app/plano-acoes/dashboard")} />
-          <ShortcutCard icon={<Clock />} title="Pipeline Comercial" desc="Oportunidades ativas" onClick={() => navigate("/app/pipeline")} />
+          <ShortcutCard icon={<Wallet />}        title="Fluxo de Caixa"     desc="Posição diária consolidada" onClick={() => navigate("/app/financeiro/fluxo-caixa")} />
+          <ShortcutCard icon={<TrendingDown />}  title="DRE Gerencial"      desc="Resultado por empresa"      onClick={() => navigate("/app/controladoria/dre-gerencial")} />
+          <ShortcutCard icon={<Users />}         title="Plano de Ações"     desc="Iniciativas em curso"       onClick={() => navigate("/app/plano-acoes/dashboard")} />
+          <ShortcutCard icon={<Clock />}         title="Pipeline Comercial" desc="Oportunidades ativas"       onClick={() => navigate("/app/pipeline")} />
         </div>
       </div>
     </div>
@@ -599,7 +663,8 @@ function KpiHero({
   icon, label, valor, sub, tone,
 }: { icon: React.ReactNode; label: string; valor: string; sub: string; tone?: "warn" }) {
   return (
-    <div className={`rounded-lg border border-white/15 bg-white/5 p-3 backdrop-blur ${tone === "warn" ? "ring-1 ring-amber-300/40" : ""}`}>
+    <div className={`rounded-lg border border-primary-foreground/15 bg-primary-foreground/5 p-3 backdrop-blur ${tone === "warn" ? "ring-1 ring-warning/40" : ""}`}>
+
       <div className="flex items-center justify-between text-[10px] uppercase tracking-wider opacity-90">
         <span className="flex items-center gap-1.5">{icon}{label}</span>
       </div>
