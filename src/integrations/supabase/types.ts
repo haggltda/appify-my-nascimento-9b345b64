@@ -681,6 +681,45 @@ export type Database = {
           },
         ]
       }
+      aud_alias_bancario_snapshot: {
+        Row: {
+          acao: string
+          after_row: Json | null
+          alias: string
+          before_row: Json | null
+          empresa_id: string
+          executado_em: string
+          executado_por: string | null
+          id: string
+          motivo: string | null
+          superbloco: string
+        }
+        Insert: {
+          acao: string
+          after_row?: Json | null
+          alias: string
+          before_row?: Json | null
+          empresa_id: string
+          executado_em?: string
+          executado_por?: string | null
+          id?: string
+          motivo?: string | null
+          superbloco: string
+        }
+        Update: {
+          acao?: string
+          after_row?: Json | null
+          alias?: string
+          before_row?: Json | null
+          empresa_id?: string
+          executado_em?: string
+          executado_por?: string | null
+          id?: string
+          motivo?: string | null
+          superbloco?: string
+        }
+        Relationships: []
+      }
       aud_p3h0_conta_bancaria_snapshot: {
         Row: {
           acao: string
@@ -18175,6 +18214,7 @@ export type Database = {
       mz_parse_num: { Args: { p: string }; Returns: number }
       nf_gerar_titulos: { Args: { _nf_id: string }; Returns: Json }
       nf_lancar_estoque: { Args: { _nf_id: string }; Returns: Json }
+      normaliza_alias_banco: { Args: { _v: string }; Returns: string }
       nota_fiscal_autorizar: {
         Args: {
           _link_pdf?: string
@@ -18246,6 +18286,7 @@ export type Database = {
         Args: { p_ano: number; p_empresa_id: string; p_nome: string }
         Returns: string
       }
+      parse_mz40_valor: { Args: { _v: string }; Returns: number }
       plano_acao_can_access: {
         Args: { p_empresa_id: string; p_permission: string; p_user_id: string }
         Returns: boolean
@@ -18267,6 +18308,22 @@ export type Database = {
         Returns: undefined
       }
       pre_titulo_submeter: { Args: { _id: string }; Returns: undefined }
+      pres_caixa_status: {
+        Args: never
+        Returns: {
+          empresa_codigo: string
+          empresa_id: string
+          qtd_movimentos_com_alias: number
+          qtd_movimentos_sem_match: number
+          qtd_pendencias_alias: number
+          qtd_valores_invalidos: number
+          saldo_inicial: number
+          saldo_liquido: number
+          status_confiabilidade: string
+          total_entradas: number
+          total_saidas: number
+        }[]
+      }
       programacao_decidir: {
         Args: {
           p_decisao: Database["public"]["Enums"]["aprov_decisao"]
