@@ -720,6 +720,51 @@ export type Database = {
         }
         Relationships: []
       }
+      aud_empresas_cnpj_snapshot: {
+        Row: {
+          batch_id: string
+          cnpj_anterior: string | null
+          cnpj_novo: string | null
+          codigo: string
+          created_at: string
+          empresa_id: string
+          id: string
+          observacao: string | null
+          razao_social_anterior: string | null
+          razao_social_nova: string | null
+          rollback_aplicado: boolean
+          rollback_em: string | null
+        }
+        Insert: {
+          batch_id: string
+          cnpj_anterior?: string | null
+          cnpj_novo?: string | null
+          codigo: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          observacao?: string | null
+          razao_social_anterior?: string | null
+          razao_social_nova?: string | null
+          rollback_aplicado?: boolean
+          rollback_em?: string | null
+        }
+        Update: {
+          batch_id?: string
+          cnpj_anterior?: string | null
+          cnpj_novo?: string | null
+          codigo?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          observacao?: string | null
+          razao_social_anterior?: string | null
+          razao_social_nova?: string | null
+          rollback_aplicado?: boolean
+          rollback_em?: string | null
+        }
+        Relationships: []
+      }
       aud_p3h0_conta_bancaria_snapshot: {
         Row: {
           acao: string
@@ -18214,7 +18259,7 @@ export type Database = {
       mz_parse_num: { Args: { p: string }; Returns: number }
       nf_gerar_titulos: { Args: { _nf_id: string }; Returns: Json }
       nf_lancar_estoque: { Args: { _nf_id: string }; Returns: Json }
-      normaliza_alias_banco: { Args: { _v: string }; Returns: string }
+      normaliza_alias_banco: { Args: { _in: string }; Returns: string }
       nota_fiscal_autorizar: {
         Args: {
           _link_pdf?: string
@@ -18286,7 +18331,7 @@ export type Database = {
         Args: { p_ano: number; p_empresa_id: string; p_nome: string }
         Returns: string
       }
-      parse_mz40_valor: { Args: { _v: string }; Returns: number }
+      parse_mz40_valor: { Args: { _in: string }; Returns: number }
       plano_acao_can_access: {
         Args: { p_empresa_id: string; p_permission: string; p_user_id: string }
         Returns: boolean
@@ -18311,17 +18356,22 @@ export type Database = {
       pres_caixa_status: {
         Args: never
         Returns: {
+          eh_hagg: boolean
           empresa_codigo: string
           empresa_id: string
-          qtd_movimentos_com_alias: number
-          qtd_movimentos_sem_match: number
-          qtd_pendencias_alias: number
+          entradas: number
+          mov_com_alias: number
+          mov_sem_match: number
+          pend_aplicacao: number
+          pend_convenio: number
+          pend_meio_pagamento: number
+          pend_outra_empresa: number
+          pend_revisar_humano: number
           qtd_valores_invalidos: number
+          saidas: number
           saldo_inicial: number
           saldo_liquido: number
           status_confiabilidade: string
-          total_entradas: number
-          total_saidas: number
         }[]
       }
       programacao_decidir: {
