@@ -39,7 +39,9 @@ export function AppShell() {
 
       <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
 
-      <div className={`flex min-w-0 flex-1 flex-col overflow-x-hidden transition-[margin] duration-300 lg:${collapsed ? "ml-[172px]" : "ml-[268px]"}`}>
+      <div
+        className={`flex min-w-0 flex-1 flex-col overflow-x-hidden transition-[margin] duration-300 ${collapsed ? "lg:ml-[172px]" : "lg:ml-[268px]"}`}
+      >
         <DemoBanner />
         <Topbar onToggleSidebar={() => setCollapsed((c) => !c)} onOpenMobile={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8 animate-fade-in min-w-0">
