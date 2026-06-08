@@ -10,9 +10,7 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const desktopSidebarSpace = collapsed
-    ? "lg:ml-[172px] lg:w-[calc(100%-172px)]"
-    : "lg:ml-[268px] lg:w-[calc(100%-268px)]";
+  const desktopSidebarWidth = collapsed ? "172px" : "268px";
 
   // Fecha drawer mobile ao mudar de rota
   useEffect(() => {
@@ -43,7 +41,8 @@ export function AppShell() {
       <Sidebar collapsed={collapsed} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
 
       <div
-        className={`flex min-w-0 flex-1 flex-col overflow-x-hidden transition-[margin,width] duration-300 lg:flex-none ${desktopSidebarSpace}`}
+        style={{ "--desktop-sidebar-width": desktopSidebarWidth } as React.CSSProperties}
+        className="flex min-w-0 flex-1 flex-col overflow-x-hidden transition-[margin,width] duration-300 lg:ml-[var(--desktop-sidebar-width)] lg:w-[calc(100%_-_var(--desktop-sidebar-width))] lg:flex-none"
       >
         <DemoBanner />
         <Topbar onToggleSidebar={() => setCollapsed((c) => !c)} onOpenMobile={() => setMobileOpen(true)} />
