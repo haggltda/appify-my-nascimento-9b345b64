@@ -18650,6 +18650,9 @@ export type Database = {
         | "fiscal"
         | "presidencia"
         | "usuario"
+        | "rh"
+        | "sistemas"
+        | "treinamentos"
       aprov_decisao: "pendente" | "aprovado" | "rejeitado" | "devolvido"
       apuracao_status: "aberta" | "calculada" | "fechada" | "pago" | "atrasado"
       banco_layout_tipo:

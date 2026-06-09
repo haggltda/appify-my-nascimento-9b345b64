@@ -25,7 +25,10 @@ export type Role =
   | "gestor_cc"
   | "fiscal_recebedor"
   | "financeiro"
-  | "fiscal";
+  | "fiscal"
+  | "rh"
+  | "sistemas"
+  | "treinamentos";
 
 export type Acao =
   | "visualizar"
