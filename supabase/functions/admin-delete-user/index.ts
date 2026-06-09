@@ -93,8 +93,11 @@ Deno.serve(async (req) => {
     if (e3) return jsonResponse({ error: `Erro ao remover perfil: ${e3.message}` }, 500);
 
     // 4) Remove da autenticação (auth.users) — requer service_role
+    // "User not found" = perfil órfão sem conta auth, não é erro — dados já foram limpos acima
     const { error: e4 } = await admin.auth.admin.deleteUser(targetId);
-    if (e4) return jsonResponse({ error: `Erro ao remover autenticação: ${e4.message}` }, 500);
+    if (e4 && !/not.found/i.test(e4.message)) {
+      return jsonResponse({ error: `Erro ao remover autenticação: ${e4.message}` }, 500);
+    }
 
     return jsonResponse({ ok: true });
   } catch (e) {
