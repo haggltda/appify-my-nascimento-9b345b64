@@ -15,30 +15,22 @@ import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound
 
 const FALLBACK_ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","presidencia","usuario","visitante","comprador","almoxarife","gestor_cc","fiscal_recebedor","financeiro","fiscal"];
 
-function humanizeRole(r: Role) {
-  return String(r ?? "")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
 function usePerfisDisponiveis() {
   const q = useQuery({
     queryKey: ["perfil_metadata_dropdown"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("perfil_metadata")
-        .select("role, nome, descricao")
+        .select("role, descricao")
         .order("role");
       if (error) throw error;
-      return (data ?? []) as { role: Role; nome: string | null; descricao: string | null }[];
+      return (data ?? []) as { role: Role; descricao: string | null }[];
     },
   });
   const perfis = (q.data && q.data.length > 0)
     ? q.data
-    : FALLBACK_ROLES.map((r) => ({ role: r, nome: null, descricao: null }));
-  return perfis.map((p) => ({
-    ...p,
-    displayNome: p.nome && p.nome.trim().length > 0 ? p.nome : humanizeRole(p.role),
-  }));
+    : FALLBACK_ROLES.map((r) => ({ role: r, descricao: null }));
+  return perfis;
 }
 
 const ROLES: Role[] = FALLBACK_ROLES;
@@ -240,6 +232,8 @@ function EditarUsuarioDialog({
   const [acessaTodas, setAcessaTodas] = useState<boolean>(false);
   const [empresasAtua, setEmpresasAtua] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [deletando, setDeletando] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const perfis = usePerfisDisponiveis();
 
   // Carrega flag acessa_todas_empresas e vínculos user_empresa quando o dialog abre.
@@ -346,6 +340,24 @@ function EditarUsuarioDialog({
     }
   };
 
+  const deletar = async () => {
+    setDeletando(true);
+    try {
+      await supabase.from("user_roles").delete().eq("user_id", profile.id);
+      await supabase.from("user_empresa").delete().eq("user_id", profile.id);
+      const { error } = await supabase.from("profiles").delete().eq("id", profile.id);
+      if (error) throw error;
+      toast({ title: "Usuário excluído" });
+      setOpen(false);
+      onSaved();
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
+    } finally {
+      setDeletando(false);
+      setConfirmDelete(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -413,11 +425,11 @@ function EditarUsuarioDialog({
             <Label>Perfis (roles)</Label>
             <p className="text-[11px] text-muted-foreground mb-2">Marque um ou mais perfis. Acessos finos por tela serão configurados em Configurações › Acessos & Permissões.</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              {perfis.map(({ role: r, descricao, displayNome }) => (
+              {perfis.map(({ role: r, descricao }) => (
                 <label key={r} title={descricao ?? ""} className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
                   <Checkbox className="mt-0.5" checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
                   <span className="flex flex-col">
-                    <span className="font-medium">{displayNome}</span>
+                    <span className="font-medium">{r}</span>
                     {descricao && <span className="text-[10px] text-muted-foreground leading-tight">{descricao}</span>}
                   </span>
                 </label>
@@ -429,9 +441,33 @@ function EditarUsuarioDialog({
             <ResetSenhaSection userId={profile.id} email={profile.email ?? ""} />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button onClick={salvar} disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {!confirmDelete ? (
+            <Button
+              variant="ghost"
+              className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setConfirmDelete(true)}
+              disabled={saving || deletando}
+            >
+              <Trash2 className="h-4 w-4" /> Excluir usuário
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-destructive flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Confirma exclusão?
+              </span>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)} disabled={deletando}>
+                Não
+              </Button>
+              <Button size="sm" variant="destructive" onClick={deletar} disabled={deletando}>
+                {deletando ? "Excluindo…" : "Sim, excluir"}
+              </Button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving || deletando}>Cancelar</Button>
+            <Button onClick={salvar} disabled={saving || deletando}>{saving ? "Salvando…" : "Salvar"}</Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -694,11 +730,11 @@ function NovoUsuarioDialog({
               <Label>Perfis (roles)</Label>
               <p className="text-[11px] text-muted-foreground mb-2">Marque um ou mais perfis. Acessos finos por tela serão configurados em Configurações › Acessos & Permissões.</p>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {perfis.map(({ role: r, descricao, displayNome }) => (
+                {perfis.map(({ role: r, descricao }) => (
                   <label key={r} title={descricao ?? ""} className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
                     <Checkbox className="mt-0.5" checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
                     <span className="flex flex-col">
-                      <span className="font-medium">{displayNome}</span>
+                      <span className="font-medium">{r}</span>
                       {descricao && <span className="text-[10px] text-muted-foreground leading-tight">{descricao}</span>}
                     </span>
                   </label>
