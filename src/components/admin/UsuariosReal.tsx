@@ -341,22 +341,33 @@ function EditarUsuarioDialog({
   };
 
   const deletar = async () => {
-    setDeletando(true);
-    try {
-      await supabase.from("user_roles").delete().eq("user_id", profile.id);
-      await supabase.from("user_empresa").delete().eq("user_id", profile.id);
-      const { error } = await supabase.from("profiles").delete().eq("id", profile.id);
-      if (error) throw error;
-      toast({ title: "Usuário excluído" });
-      setOpen(false);
-      onSaved();
-    } catch (e: any) {
-      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
-    } finally {
-      setDeletando(false);
-      setConfirmDelete(false);
+  setDeletando(true);
+  try {
+    const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+      body: { user_id: profile.id },
+    });
+    if (error) {
+      const ctx = (error as any).context;
+      let msg = error.message;
+      try {
+        if (ctx && typeof ctx.json === "function") {
+          const j = await ctx.json();
+          if (j?.error) msg = j.error;
+        }
+      } catch { /* */ }
+      throw new Error(msg);
     }
-  };
+    if ((data as any)?.error) throw new Error((data as any).error);
+    toast({ title: "Usuário excluído" });
+    setOpen(false);
+    onSaved();
+  } catch (e: any) {
+    toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
+  } finally {
+    setDeletando(false);
+    setConfirmDelete(false);
+  }
+};
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
