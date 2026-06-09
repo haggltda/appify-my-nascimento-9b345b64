@@ -1,8 +1,11 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Inicio() {
   const { user } = useAuth();
   const [displayName, setDisplayName] = useState("");
+
   useEffect(() => {
     if (!user?.id) return;
     supabase
