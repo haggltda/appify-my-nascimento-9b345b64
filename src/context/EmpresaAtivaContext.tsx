@@ -40,6 +40,7 @@ export function EmpresaAtivaProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
+      console.log('[EmpresaAtivaContext] load() iniciado', new Date().toISOString());
       // Modo demo (sem usuário): mantém o mock.
       if (!user) {
         if (!cancelled) {

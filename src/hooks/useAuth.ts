@@ -10,6 +10,7 @@ export function useAuth() {
   useEffect(() => {
     // 1) Listener primeiro (evita perder eventos)
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log('[useAuth] authStateChange:', _event, new Date().toISOString());
       setSession(newSession);
       // Preserva a referência se o usuário é o mesmo — evita re-renders em contextos
       // que dependem de `user` (PermissoesContext, EmpresaAtivaContext) a cada token refresh.

@@ -142,6 +142,7 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const load = async () => {
+      console.log('[PermissoesContext] load() iniciado', new Date().toISOString());
       setLoading(true);
 
       if (!user) {
