@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login.tsx";
 import TrocarSenha from "./pages/TrocarSenha.tsx";
+import EsqueciSenha from "./pages/EsqueciSenha.tsx";
+import RedefinirSenha from "./pages/RedefinirSenha.tsx";
 import { AppShell } from "./components/layout/AppShell";
 import { DemoModeProvider } from "./context/DemoModeContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -125,6 +127,8 @@ const App = () => (
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/trocar-senha" element={<TrocarSenha />} />
+          <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<Inicio />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />

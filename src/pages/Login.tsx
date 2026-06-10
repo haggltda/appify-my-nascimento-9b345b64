@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
-import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff, Briefcase, Wallet, BookOpen, ShoppingCart, Users2, Calculator } from "lucide-react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff, Briefcase, Wallet, BookOpen, ShoppingCart, Users2, Calculator, CheckCircle2 } from "lucide-react";
 import logoGN from "@/assets/logo-grupo-nascimento.png";
 import { useDemoMode } from "@/context/DemoModeContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +13,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const successMsg = (location.state as { successMsg?: string } | null)?.successMsg ?? null;
   const { disableDemo } = useDemoMode();
   const { user, loading: authLoading } = useAuth();
 
@@ -124,6 +126,13 @@ export default function Login() {
             Novos acessos são criados pelo administrador do sistema.
           </p>
 
+          {successMsg && (
+            <div className="mt-5 flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2.5 text-sm text-foreground">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+              <p>{successMsg}</p>
+            </div>
+          )}
+
           {error && (
             <div className="mt-5 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive-soft px-3 py-2.5 text-sm text-destructive">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -170,6 +179,15 @@ export default function Login() {
               {loading ? "Aguarde…" : "Entrar na plataforma"}
               {!loading && <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
             </button>
+
+            <div className="text-center">
+              <Link
+                to="/esqueci-senha"
+                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
           </form>
 
           <div className="my-6 divider-soft" />
