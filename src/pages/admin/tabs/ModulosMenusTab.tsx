@@ -315,12 +315,12 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
         await supabase.from("screen_permission_user").delete()
           .eq("user_id", selectedUserId).eq("menu_codigo", codigo)
           .eq("acao", "visualizar").is("empresa_id", null);
-        if (allow) {
-          const { error } = await supabase.from("screen_permission_user").insert({
-            user_id: selectedUserId, menu_codigo: codigo, acao: "visualizar", allow: true, empresa_id: null,
-          });
-          if (error) throw error;
-        }
+        // Sempre insere override explícito (true OU false) para que allow=false bloqueie
+        // o fallback de role na RPC list_accessible_menus — sem registro, o fallback libera.
+        const { error } = await supabase.from("screen_permission_user").insert({
+          user_id: selectedUserId, menu_codigo: codigo, acao: "visualizar", allow, empresa_id: null,
+        });
+        if (error) throw error;
       }
       await qc.invalidateQueries({ queryKey: ["screen_permission_user", selectedUserId] });
       setPending(new Map());
