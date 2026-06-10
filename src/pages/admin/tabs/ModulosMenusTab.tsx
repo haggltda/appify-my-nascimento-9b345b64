@@ -1,12 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -246,7 +246,9 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
 function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulos: Modulo[]; menus: Menu[] }) {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [saving, setSaving] = useState<Set<string>>(new Set());
+  // Map of menu_codigo → desired allow value (staged, not yet saved)
+  const [pending, setPending] = useState<Map<string, boolean>>(new Map());
+  const [isSaving, setIsSaving] = useState(false);
   const qc = useQueryClient();
 
   const profilesQ = useQuery({
@@ -275,67 +277,58 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
     },
   });
 
-  const hasAccess = (codigo: string) => {
-    return (permsQ.data ?? []).some((p) => p.menu_codigo === codigo && p.allow === true);
+  // Clear pending changes when user is switched
+  useEffect(() => { setPending(new Map()); }, [selectedUserId]);
+
+  const dbHasAccess = (codigo: string) =>
+    (permsQ.data ?? []).some((p) => p.menu_codigo === codigo && p.allow === true);
+
+  // Show pending value if staged, otherwise DB value
+  const hasAccess = (codigo: string) =>
+    pending.has(codigo) ? pending.get(codigo)! : dbHasAccess(codigo);
+
+  const stageChange = (codigo: string, newValue: boolean) => {
+    setPending((prev) => {
+      const next = new Map(prev);
+      // If new value matches DB, no change needed — remove from pending
+      if (newValue === dbHasAccess(codigo)) { next.delete(codigo); } else { next.set(codigo, newValue); }
+      return next;
+    });
   };
 
-  const toggleAccess = async (codigo: string, currentValue: boolean) => {
-    if (!selectedUserId || !isAdmin) return;
-    setSaving((s) => new Set(s).add(codigo));
-    try {
-      // Delete first — avoids conflict with nullable empresa_id in the unique constraint
-      await supabase
-        .from("screen_permission_user")
-        .delete()
-        .eq("user_id", selectedUserId)
-        .eq("menu_codigo", codigo)
-        .eq("acao", "visualizar")
-        .is("empresa_id", null);
-      if (!currentValue) {
-        const { error } = await supabase.from("screen_permission_user").insert({
-          user_id: selectedUserId, menu_codigo: codigo, acao: "visualizar", allow: true, empresa_id: null,
-        });
-        if (error) throw error;
-      }
-      qc.invalidateQueries({ queryKey: ["screen_permission_user", selectedUserId] });
-    } catch (e: any) {
-      toast({ title: "Erro ao salvar permissão", description: e.message, variant: "destructive" });
-    } finally {
-      setSaving((s) => { const n = new Set(s); n.delete(codigo); return n; });
-    }
+  const stageAll = (modMenus: Menu[], allHaveAccess: boolean) => {
+    const newValue = !allHaveAccess;
+    setPending((prev) => {
+      const next = new Map(prev);
+      modMenus.forEach((mn) => {
+        if (newValue === dbHasAccess(mn.codigo)) { next.delete(mn.codigo); } else { next.set(mn.codigo, newValue); }
+      });
+      return next;
+    });
   };
 
-  const toggleAllMenus = async (modMenus: Menu[], allHaveAccess: boolean) => {
-    if (!selectedUserId || !isAdmin) return;
-    const codigos = modMenus.map((mn) => mn.codigo);
-    codigos.forEach((c) => setSaving((s) => new Set(s).add(c)));
+  const handleSave = async () => {
+    if (!selectedUserId || !isAdmin || pending.size === 0) return;
+    setIsSaving(true);
     try {
-      // Delete all existing rows first for these menus
-      await Promise.all(
-        codigos.map((codigo) =>
-          supabase.from("screen_permission_user").delete()
-            .eq("user_id", selectedUserId)
-            .eq("menu_codigo", codigo)
-            .eq("acao", "visualizar")
-            .is("empresa_id", null)
-        )
-      );
-      if (!allHaveAccess) {
-        const rows = codigos.map((codigo) => ({
-          user_id: selectedUserId,
-          menu_codigo: codigo,
-          acao: "visualizar" as const,
-          allow: true,
-          empresa_id: null,
-        }));
-        const { error } = await supabase.from("screen_permission_user").insert(rows);
-        if (error) throw error;
+      for (const [codigo, allow] of pending) {
+        await supabase.from("screen_permission_user").delete()
+          .eq("user_id", selectedUserId).eq("menu_codigo", codigo)
+          .eq("acao", "visualizar").is("empresa_id", null);
+        if (allow) {
+          const { error } = await supabase.from("screen_permission_user").insert({
+            user_id: selectedUserId, menu_codigo: codigo, acao: "visualizar", allow: true, empresa_id: null,
+          });
+          if (error) throw error;
+        }
       }
-      qc.invalidateQueries({ queryKey: ["screen_permission_user", selectedUserId] });
+      await qc.invalidateQueries({ queryKey: ["screen_permission_user", selectedUserId] });
+      setPending(new Map());
+      toast({ title: "Permissões salvas com sucesso" });
     } catch (e: any) {
       toast({ title: "Erro ao salvar permissões", description: e.message, variant: "destructive" });
     } finally {
-      codigos.forEach((c) => setSaving((s) => { const n = new Set(s); n.delete(c); return n; }));
+      setIsSaving(false);
     }
   };
 
@@ -344,6 +337,8 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
     s.has(id) ? s.delete(id) : s.add(id);
     setExpanded(s);
   };
+
+  const hasPending = pending.size > 0;
 
   return (
     <div>
@@ -362,6 +357,19 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
               ))}
             </SelectContent>
           </Select>
+
+          {hasPending && (
+            <Button
+              size="sm"
+              className="ml-auto gap-1.5"
+              disabled={isSaving}
+              onClick={handleSave}
+            >
+              <Save className="h-3.5 w-3.5" />
+              {isSaving ? "Salvando…" : `Salvar ${pending.size} alteraç${pending.size === 1 ? "ão" : "ões"}`}
+            </Button>
+          )}
+
           {!isAdmin && (
             <p className="text-xs text-muted-foreground">Apenas administradores podem alterar permissões.</p>
           )}
@@ -384,10 +392,8 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
             const modMenus = menus.filter((x) => x.modulo_id === m.id);
             const open = expanded.has(m.id);
             const moduloAccess = hasAccess(m.codigo);
-            const moduloSaving = saving.has(m.codigo);
             const liberados = modMenus.filter((mn) => hasAccess(mn.codigo)).length;
             const allHaveAccess = modMenus.length > 0 && liberados === modMenus.length;
-            const anyMenuSaving = modMenus.some((mn) => saving.has(mn.codigo));
 
             return (
               <div key={m.id}>
@@ -407,8 +413,8 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
                     {modMenus.length === 0 && (
                       <Switch
                         checked={moduloAccess}
-                        disabled={!isAdmin || moduloSaving}
-                        onCheckedChange={() => toggleAccess(m.codigo, moduloAccess)}
+                        disabled={!isAdmin}
+                        onCheckedChange={() => stageChange(m.codigo, !moduloAccess)}
                         aria-label={`Acesso ao módulo ${m.nome}`}
                       />
                     )}
@@ -428,8 +434,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
                           size="sm"
                           variant="ghost"
                           className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                          disabled={anyMenuSaving}
-                          onClick={() => toggleAllMenus(modMenus, allHaveAccess)}
+                          onClick={() => stageAll(modMenus, allHaveAccess)}
                         >
                           <CheckSquare className="h-3.5 w-3.5" />
                           {allHaveAccess ? "Remover todos" : "Selecionar todos"}
@@ -438,17 +443,17 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
                     )}
                     {modMenus.map((mn) => {
                       const menuAccess = hasAccess(mn.codigo);
-                      const menuSaving = saving.has(mn.codigo);
+                      const isPending = pending.has(mn.codigo);
                       return (
-                        <div key={mn.id} className="flex items-center gap-2 px-12 py-2.5 hover:bg-muted/40">
+                        <div key={mn.id} className={cn("flex items-center gap-2 px-12 py-2.5 hover:bg-muted/40", isPending && "bg-amber-50/50 dark:bg-amber-950/20")}>
                           <div className="flex-1">
                             <p className="text-sm">{mn.nome}</p>
                             <p className="text-[11px] font-mono text-muted-foreground">{mn.codigo}{mn.rota ? ` · ${mn.rota}` : ""}</p>
                           </div>
                           <Switch
                             checked={menuAccess}
-                            disabled={!isAdmin || menuSaving}
-                            onCheckedChange={() => toggleAccess(mn.codigo, menuAccess)}
+                            disabled={!isAdmin}
+                            onCheckedChange={() => stageChange(mn.codigo, !menuAccess)}
                             aria-label={`Acesso ao menu ${mn.nome}`}
                           />
                         </div>
