@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -22,6 +22,7 @@ export function ModulosMenusTab() {
   const { roles } = usePermissoes();
   const isAdmin = roles.includes("admin");
   const [view, setView] = useState<View>("catalogo");
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const modulosQ = useQuery({
     queryKey: ["app_modulo"],
@@ -43,14 +44,27 @@ export function ModulosMenusTab() {
 
   return (
     <section className="card-elevated">
-      <header className="flex items-center justify-between border-b border-border px-5 py-3.5">
-        <div>
+      <header className="flex items-center gap-3 border-b border-border px-5 py-3.5">
+        <div className="flex-1">
           <h2 className="font-display text-sm font-bold">Módulos & Menus</h2>
           <p className="text-xs text-muted-foreground">Catálogo do ERP e controle de acesso por usuário.</p>
         </div>
+
+        {isAdmin && view === "catalogo" && (
+          <Button
+            size="sm"
+            variant={showAddForm ? "secondary" : "default"}
+            className="gap-1.5"
+            onClick={() => setShowAddForm((v) => !v)}
+          >
+            {showAddForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+            {showAddForm ? "Cancelar" : "Adicionar módulo"}
+          </Button>
+        )}
+
         <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1">
           <button
-            onClick={() => setView("catalogo")}
+            onClick={() => { setView("catalogo"); setShowAddForm(false); }}
             className={cn(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
               view === "catalogo" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
@@ -60,7 +74,7 @@ export function ModulosMenusTab() {
             Catálogo
           </button>
           <button
-            onClick={() => setView("acesso")}
+            onClick={() => { setView("acesso"); setShowAddForm(false); }}
             className={cn(
               "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
               view === "acesso" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
@@ -77,6 +91,8 @@ export function ModulosMenusTab() {
           isAdmin={isAdmin}
           modulosQ={modulosQ}
           menusQ={menusQ}
+          showAddForm={showAddForm}
+          onAddFormClose={() => setShowAddForm(false)}
           onModuloChange={() => { qc.invalidateQueries({ queryKey: ["app_modulo"] }); qc.invalidateQueries({ queryKey: ["app_menu"] }); }}
           onMenuChange={() => qc.invalidateQueries({ queryKey: ["app_menu"] })}
         />
@@ -95,10 +111,12 @@ export function ModulosMenusTab() {
 
 // ─── View: Catálogo ────────────────────────────────────────────────────────────
 
-function CatalogoView({ isAdmin, modulosQ, menusQ, onModuloChange, onMenuChange }: {
+function CatalogoView({ isAdmin, modulosQ, menusQ, showAddForm, onAddFormClose, onModuloChange, onMenuChange }: {
   isAdmin: boolean;
   modulosQ: any;
   menusQ: any;
+  showAddForm: boolean;
+  onAddFormClose: () => void;
   onModuloChange: () => void;
   onMenuChange: () => void;
 }) {
@@ -116,6 +134,7 @@ function CatalogoView({ isAdmin, modulosQ, menusQ, onModuloChange, onMenuChange 
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     setNovoModulo({ codigo: "", nome: "", icone: "" });
     onModuloChange();
+    onAddFormClose();
     toast({ title: "Módulo criado" });
   };
 
@@ -134,12 +153,12 @@ function CatalogoView({ isAdmin, modulosQ, menusQ, onModuloChange, onMenuChange 
 
   return (
     <>
-      {isAdmin && (
+      {isAdmin && showAddForm && (
         <div className="grid gap-2 border-b border-border bg-muted/30 px-5 py-3 sm:grid-cols-[1fr_1fr_180px_auto]">
           <Input placeholder="Código (ex: financeiro)" value={novoModulo.codigo} onChange={(e) => setNovoModulo({ ...novoModulo, codigo: e.target.value })} />
           <Input placeholder="Nome" value={novoModulo.nome} onChange={(e) => setNovoModulo({ ...novoModulo, nome: e.target.value })} />
           <Input placeholder="Ícone (opcional)" value={novoModulo.icone} onChange={(e) => setNovoModulo({ ...novoModulo, icone: e.target.value })} />
-          <Button onClick={addModulo} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Adicionar módulo</Button>
+          <Button onClick={addModulo} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Salvar módulo</Button>
         </div>
       )}
       <div className="divide-y divide-border">
@@ -262,8 +281,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
 
   const toggleAccess = async (codigo: string, currentValue: boolean) => {
     if (!selectedUserId || !isAdmin) return;
-    const key = codigo;
-    setSaving((s) => new Set(s).add(key));
+    setSaving((s) => new Set(s).add(codigo));
     try {
       if (!currentValue) {
         const { error } = await supabase.from("screen_permission_user").upsert(
@@ -284,7 +302,42 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
     } catch (e: any) {
       toast({ title: "Erro ao salvar permissão", description: e.message, variant: "destructive" });
     } finally {
-      setSaving((s) => { const n = new Set(s); n.delete(key); return n; });
+      setSaving((s) => { const n = new Set(s); n.delete(codigo); return n; });
+    }
+  };
+
+  const toggleAllMenus = async (modMenus: Menu[], allHaveAccess: boolean) => {
+    if (!selectedUserId || !isAdmin) return;
+    const codigos = modMenus.map((mn) => mn.codigo);
+    codigos.forEach((c) => setSaving((s) => new Set(s).add(c)));
+    try {
+      if (!allHaveAccess) {
+        const rows = codigos.map((codigo) => ({
+          user_id: selectedUserId,
+          menu_codigo: codigo,
+          acao: "visualizar" as const,
+          allow: true,
+          empresa_id: null,
+        }));
+        const { error } = await supabase.from("screen_permission_user").upsert(rows, { onConflict: "user_id,menu_codigo,acao" });
+        if (error) throw error;
+      } else {
+        await Promise.all(
+          codigos.map((codigo) =>
+            supabase
+              .from("screen_permission_user")
+              .delete()
+              .eq("user_id", selectedUserId)
+              .eq("menu_codigo", codigo)
+              .eq("acao", "visualizar")
+          )
+        );
+      }
+      qc.invalidateQueries({ queryKey: ["screen_permission_user", selectedUserId] });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar permissões", description: e.message, variant: "destructive" });
+    } finally {
+      codigos.forEach((c) => setSaving((s) => { const n = new Set(s); n.delete(c); return n; }));
     }
   };
 
@@ -334,6 +387,9 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
             const open = expanded.has(m.id);
             const moduloAccess = hasAccess(m.codigo);
             const moduloSaving = saving.has(m.codigo);
+            const liberados = modMenus.filter((mn) => hasAccess(mn.codigo)).length;
+            const allHaveAccess = modMenus.length > 0 && liberados === modMenus.length;
+            const anyMenuSaving = modMenus.some((mn) => saving.has(mn.codigo));
 
             return (
               <div key={m.id}>
@@ -360,7 +416,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
                     )}
                     {modMenus.length > 0 && (
                       <span className="text-xs text-muted-foreground">
-                        {modMenus.filter((mn) => hasAccess(mn.codigo)).length}/{modMenus.length} menus liberados
+                        {liberados}/{modMenus.length} menus liberados
                       </span>
                     )}
                   </div>
@@ -368,6 +424,20 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
 
                 {open && modMenus.length > 0 && (
                   <div className="bg-muted/20 divide-y divide-border/60">
+                    {isAdmin && (
+                      <div className="flex items-center justify-end px-12 py-1.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                          disabled={anyMenuSaving}
+                          onClick={() => toggleAllMenus(modMenus, allHaveAccess)}
+                        >
+                          <CheckSquare className="h-3.5 w-3.5" />
+                          {allHaveAccess ? "Remover todos" : "Selecionar todos"}
+                        </Button>
+                      </div>
+                    )}
                     {modMenus.map((mn) => {
                       const menuAccess = hasAccess(mn.codigo);
                       const menuSaving = saving.has(mn.codigo);
