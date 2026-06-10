@@ -361,12 +361,7 @@ const integracaoModule: ModuleDef = {
 function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
   const items: NavItem[] = [
     { label: "Lista", to: "/app/plano-acoes", icon: ListChecks },
-    { label: "Dashboard", to: "/app/plano-acoes/dashboard", icon: BarChart3 },
-    { label: "Kanban", to: "/app/plano-acoes/kanban", icon: FolderKanban },
     { label: "Aprovações", to: "/app/plano-acoes/aprovacoes", icon: ClipboardCheck },
-    { label: "Importar", to: "/app/plano-acoes/importar", icon: DatabaseZap },
-    // Consolidação: "Configurações" do Plano de Ações virou aba em Configurações do ERP
-    // (/app/administracao?tab=plano-acoes-acl).
   ];
   if (podeCopiloto) {
     items.splice(1, 0, { label: "Copiloto IA", to: "/app/plano-acoes/copiloto", icon: Sparkles, badge: "IA" });

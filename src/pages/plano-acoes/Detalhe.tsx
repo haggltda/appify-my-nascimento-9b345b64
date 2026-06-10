@@ -15,7 +15,7 @@ import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { STATUS_LABELS, STATUS_ORDEM, STATUS_COR, PRIORIDADES, PRIORIDADE_LABEL } from "@/types/planoAcao";
 import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2 } from "lucide-react";
+import { Trash2, Paperclip, Download } from "lucide-react";
 import { useComitesMap } from "@/hooks/useComitesMap";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
@@ -35,12 +35,16 @@ export default function PlanoAcaoDetalhe() {
     prioridade_normalizada: "media", status_normalizado: "a_definir",
     responsavel_profile_id: null,
     responsavel_nome_origem: "", lider_comite_nome_origem: "",
-    data_inicio_planejado_original: "", data_fim_planejado_original: "",
-    comentarios: "", custo_previsto: 0,
+    data_inicio_planejado: null,
+    data_fim_planejado: null,
+    comentarios: "",
   });
   const [historico, setHistorico] = useState<any[]>([]);
   const [comentarios, setComentarios] = useState<any[]>([]);
   const [novoComent, setNovoComent] = useState("");
+  const [anexos, setAnexos] = useState<any[]>([]);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["plano_acao_one", id],
@@ -52,13 +56,31 @@ export default function PlanoAcaoDetalhe() {
     },
   });
 
+  const loadExtras = async (planId: string) => {
+    const [csRes, hsRes, axRes] = await Promise.all([
+      supabase.from("plano_acao_comentario")
+        .select("*, autor:profiles(display_name)")
+        .eq("plano_acao_id", planId)
+        .order("created_at", { ascending: false }),
+      supabase.from("plano_acao_historico")
+        .select("*, autor:profiles(display_name)")
+        .eq("plano_acao_id", planId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase.from("plano_acao_anexo")
+        .select("*")
+        .eq("plano_acao_id", planId)
+        .order("created_at", { ascending: false }),
+    ]);
+    setComentarios(csRes.data ?? []);
+    setHistorico(hsRes.data ?? []);
+    setAnexos(axRes.data ?? []);
+  };
+
   useEffect(() => {
-    if (data) setForm(data);
-    if (data?.id) {
-      supabase.from("plano_acao_historico").select("*").eq("plano_acao_id", data.id).order("created_at", { ascending: false }).limit(50)
-        .then(r => setHistorico(r.data ?? []));
-      supabase.from("plano_acao_comentario").select("*").eq("plano_acao_id", data.id).order("created_at", { ascending: false })
-        .then(r => setComentarios(r.data ?? []));
+    if (data) {
+      setForm(data);
+      loadExtras(data.id);
     }
   }, [data]);
 
@@ -74,9 +96,7 @@ export default function PlanoAcaoDetalhe() {
     () => areasDoComite.find((a: any) => a.nome === form.area) || null,
     [areasDoComite, form.area]
   );
-  const setoresDaArea: string[] = areaAtual?.setores ?? [];
 
-  // Auto-preenche líder do comitê e ajusta área quando comitê muda
   useEffect(() => {
     if (!form.comite) return;
     const info = comitesMap[form.comite];
@@ -89,14 +109,10 @@ export default function PlanoAcaoDetalhe() {
     });
   }, [form.comite, comitesMap]);
 
-  // Auto-preenche responsável com o gestor da área e zera setor quando área muda
   useEffect(() => {
     if (!form.area) return;
     if (areaAtual?.gestor) {
       setForm((f: any) => ({ ...f, responsavel_nome_origem: areaAtual.gestor || f.responsavel_nome_origem }));
-    }
-    if (form.setor && !setoresDaArea.includes(form.setor)) {
-      setForm((f: any) => ({ ...f, setor: "" }));
     }
   }, [form.area, areaAtual]);
 
@@ -118,6 +134,40 @@ export default function PlanoAcaoDetalhe() {
     ((errUsuarios as any)?.code === "42501" ||
       String((errUsuarios as any)?.message ?? "").includes("sem_permissao_para_listar_usuarios_empresa"));
 
+  const uploadFile = async (file: File, planId: string) => {
+    const { data: u } = await supabase.auth.getUser();
+    const timestamp = Date.now();
+    const path = `${empresaId}/${planId}/${timestamp}_${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("anexos").upload(path, file);
+    if (uploadError) throw uploadError;
+    const { error: dbErr } = await supabase.from("plano_acao_anexo").insert({
+      empresa_id: empresaId,
+      plano_acao_id: planId,
+      bucket: "anexos",
+      storage_path: path,
+      nome_arquivo: file.name,
+      tipo_mime: file.type || "application/octet-stream",
+      tamanho_bytes: file.size,
+      criado_por: u.user?.id,
+    });
+    if (dbErr) throw dbErr;
+  };
+
+  const handleAnexar = async () => {
+    if (!pendingFile || isNew || !id || !empresaId) return;
+    setUploading(true);
+    try {
+      await uploadFile(pendingFile, id);
+      setPendingFile(null);
+      await loadExtras(id);
+      toast({ title: "Arquivo anexado com sucesso" });
+    } catch (e: any) {
+      toast({ title: "Erro ao anexar", description: e.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const salvar = async () => {
     if (!podeEdit || !empresaId) return;
     if (isNew && !form.responsavel_profile_id) {
@@ -131,8 +181,14 @@ export default function PlanoAcaoDetalhe() {
       const { data: ins, error } = await supabase.from("plano_acao").insert({
         empresa_id: empresaId, ...form, origem: "manual",
         responsavel_profile_id: form.responsavel_profile_id ?? null,
+        data_inicio_planejado: form.data_inicio_planejado || null,
+        data_fim_planejado: form.data_fim_planejado || null,
       }).select("id").single();
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+      if (pendingFile) {
+        try { await uploadFile(pendingFile, ins.id); } catch {}
+        setPendingFile(null);
+      }
       toast({ title: "Ação criada" });
       qc.invalidateQueries({ queryKey: ["plano_acoes"] });
       nav(`/app/plano-acoes/${ins.id}`);
@@ -146,7 +202,8 @@ export default function PlanoAcaoDetalhe() {
         responsavel_nome_origem: form.responsavel_nome_origem,
         lider_comite_nome_origem: form.lider_comite_nome_origem,
         comentarios: form.comentarios,
-        custo_previsto: form.custo_previsto,
+        data_inicio_planejado: form.data_inicio_planejado || null,
+        data_fim_planejado: form.data_fim_planejado || null,
       }).eq("id", id!);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
       toast({ title: "Ação atualizada" });
@@ -178,12 +235,10 @@ export default function PlanoAcaoDetalhe() {
       empresa_id: empresaId, plano_acao_id: id!, comentario: novoComent.trim(), criado_por: u.user?.id,
     });
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-    else {
-      setNovoComent("");
-      const { data: cs } = await supabase.from("plano_acao_comentario").select("*").eq("plano_acao_id", id!).order("created_at", { ascending: false });
-      setComentarios(cs ?? []);
-    }
+    else { setNovoComent(""); await loadExtras(id!); }
   };
+
+  const getPublicUrl = (path: string) => supabase.storage.from("anexos").getPublicUrl(path).data.publicUrl;
 
   return (
     <div>
@@ -226,18 +281,12 @@ export default function PlanoAcaoDetalhe() {
             <div>
               <Label>Comitê</Label>
               {comitesList.length > 0 ? (
-                <Select
-                  value={form.comite || "__none"}
-                  disabled={!podeEdit}
-                  onValueChange={v => set("comite", v === "__none" ? "" : v)}
-                >
+                <Select value={form.comite || "__none"} disabled={!podeEdit} onValueChange={v => set("comite", v === "__none" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione o comitê" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">—</SelectItem>
                     {comitesList.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    {form.comite && !comitesList.includes(form.comite) && (
-                      <SelectItem value={form.comite}>{form.comite}</SelectItem>
-                    )}
+                    {form.comite && !comitesList.includes(form.comite) && <SelectItem value={form.comite}>{form.comite}</SelectItem>}
                   </SelectContent>
                 </Select>
               ) : (
@@ -245,45 +294,18 @@ export default function PlanoAcaoDetalhe() {
               )}
             </div>
             <div>
-              <Label>Área</Label>
+              <Label>Setor</Label>
               {areasDoComite.length > 0 ? (
-                <Select
-                  value={form.area || "__none"}
-                  disabled={!podeEdit || !form.comite}
-                  onValueChange={v => set("area", v === "__none" ? "" : v)}
-                >
-                  <SelectTrigger><SelectValue placeholder={form.comite ? "Selecione a área" : "Escolha o comitê primeiro"} /></SelectTrigger>
+                <Select value={form.area || "__none"} disabled={!podeEdit || !form.comite} onValueChange={v => set("area", v === "__none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder={form.comite ? "Selecione o setor" : "Escolha o comitê primeiro"} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">—</SelectItem>
                     {areasDoComite.map((a: any) => <SelectItem key={a.nome} value={a.nome}>{a.nome}</SelectItem>)}
-                    {form.area && !areasDoComite.some((a: any) => a.nome === form.area) && (
-                      <SelectItem value={form.area}>{form.area}</SelectItem>
-                    )}
+                    {form.area && !areasDoComite.some((a: any) => a.nome === form.area) && <SelectItem value={form.area}>{form.area}</SelectItem>}
                   </SelectContent>
                 </Select>
               ) : (
-                <Input value={form.area ?? ""} disabled={!podeEdit} onChange={e => set("area", e.target.value)} placeholder={form.comite ? "Digite a área" : "Escolha o comitê primeiro"} />
-              )}
-            </div>
-            <div>
-              <Label>Setor</Label>
-              {setoresDaArea.length > 0 ? (
-                <Select
-                  value={form.setor || "__none"}
-                  disabled={!podeEdit || !form.area}
-                  onValueChange={v => set("setor", v === "__none" ? "" : v)}
-                >
-                  <SelectTrigger><SelectValue placeholder={form.area ? "Selecione o setor" : "Escolha a área primeiro"} /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
-                    {setoresDaArea.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    {form.setor && !setoresDaArea.includes(form.setor) && (
-                      <SelectItem value={form.setor}>{form.setor}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input value={form.setor ?? ""} disabled={!podeEdit || !form.area} onChange={e => set("setor", e.target.value)} placeholder={form.area ? "Sem setores cadastrados" : "Escolha a área primeiro"} />
+                <Input value={form.area ?? ""} disabled={!podeEdit} onChange={e => set("area", e.target.value)} placeholder={form.comite ? "Digite o setor" : "Escolha o comitê primeiro"} />
               )}
             </div>
             <div>
@@ -301,9 +323,25 @@ export default function PlanoAcaoDetalhe() {
               </Select>
             </div>
             <div>
-              <Label>
-                Responsável {isNew && <span className="text-destructive">*</span>}
-              </Label>
+              <Label>Data de início</Label>
+              <Input
+                type="date"
+                value={form.data_inicio_planejado ?? ""}
+                disabled={!podeEdit}
+                onChange={e => set("data_inicio_planejado", e.target.value || null)}
+              />
+            </div>
+            <div>
+              <Label>Data de conclusão</Label>
+              <Input
+                type="date"
+                value={form.data_fim_planejado ?? ""}
+                disabled={!podeEdit}
+                onChange={e => set("data_fim_planejado", e.target.value || null)}
+              />
+            </div>
+            <div>
+              <Label>Responsável {isNew && <span className="text-destructive">*</span>}</Label>
               <SearchableSelect
                 value={form.responsavel_profile_id ?? null}
                 onChange={(v) => set("responsavel_profile_id", v || null)}
@@ -314,24 +352,37 @@ export default function PlanoAcaoDetalhe() {
                 clearValue=""
               />
               {!form.responsavel_profile_id && form.responsavel_nome_origem && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Responsável pendente de vínculo · texto original: {form.responsavel_nome_origem}
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Responsável pendente de vínculo · texto original: {form.responsavel_nome_origem}</p>
               )}
-              {rpcSemPermissao && (
-                <p className="mt-1 text-xs text-destructive">
-                  Sem permissão para listar usuários desta empresa.
-                </p>
-              )}
+              {rpcSemPermissao && <p className="mt-1 text-xs text-destructive">Sem permissão para listar usuários desta empresa.</p>}
             </div>
             <div>
               <Label>Líder do comitê <span className="text-xs text-muted-foreground">(automático)</span></Label>
               <Input value={form.lider_comite_nome_origem ?? ""} readOnly placeholder={form.comite ? "—" : "Selecione o comitê"} className="bg-muted/40" />
             </div>
-            <div><Label>Custo previsto</Label><Input type="number" step="0.01" value={form.custo_previsto ?? 0} disabled={!podeEdit} onChange={e => set("custo_previsto", parseFloat(e.target.value) || 0)} /></div>
             <div className="sm:col-span-2">
               <Label>Comentários</Label>
               <Textarea rows={3} value={form.comentarios ?? ""} disabled={!podeEdit} onChange={e => set("comentarios", e.target.value)} />
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Anexar arquivo</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  disabled={!podeEdit}
+                  onChange={e => setPendingFile(e.target.files?.[0] ?? null)}
+                  className="flex-1 cursor-pointer"
+                />
+                {!isNew && pendingFile && (
+                  <Button size="sm" onClick={handleAnexar} disabled={uploading}>
+                    <Paperclip className="mr-1 h-4 w-4" />
+                    {uploading ? "Enviando…" : "Anexar"}
+                  </Button>
+                )}
+              </div>
+              {isNew && pendingFile && (
+                <p className="mt-1 text-xs text-muted-foreground">O arquivo será enviado ao salvar a ação.</p>
+              )}
             </div>
           </div>
         </Card>
@@ -350,16 +401,32 @@ export default function PlanoAcaoDetalhe() {
               <div><span className="text-muted-foreground">ID importação:</span> <span className="font-mono">{form.id_importacao ?? "—"}</span></div>
               <div><span className="text-muted-foreground">Linha CSV:</span> {form.linha_csv ?? "—"}</div>
               <div><span className="text-muted-foreground">Status original:</span> {form.status_original ?? "—"}</div>
-              <div><span className="text-muted-foreground">Datas (originais):</span> {form.data_inicio_planejado_original ?? "—"} → {form.data_fim_planejado_original ?? "—"}</div>
             </div>
           </Card>
+
+          {!isNew && (
+            <Card className="p-4">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Anexos</h3>
+              <div className="space-y-1">
+                {anexos.map(ax => (
+                  <div key={ax.id} className="flex items-center justify-between rounded border border-border px-2 py-1.5 text-xs">
+                    <span className="truncate max-w-[160px]" title={ax.nome_arquivo}>{ax.nome_arquivo}</span>
+                    <a href={getPublicUrl(ax.storage_path)} target="_blank" rel="noopener noreferrer" className="ml-2 shrink-0 text-primary hover:underline">
+                      <Download className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
+                ))}
+                {anexos.length === 0 && <p className="text-xs text-muted-foreground">Sem anexos.</p>}
+              </div>
+            </Card>
+          )}
 
           {!isNew && (
             <Card className="p-4">
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comentários</h3>
               {can("editar") && (
                 <div className="mb-2 flex gap-2">
-                  <Input placeholder="Novo comentário..." value={novoComent} onChange={e => setNovoComent(e.target.value)} />
+                  <Input placeholder="Novo comentário..." value={novoComent} onChange={e => setNovoComent(e.target.value)} onKeyDown={e => e.key === "Enter" && addComentario()} />
                   <Button size="sm" onClick={addComentario}>Add</Button>
                 </div>
               )}
@@ -367,7 +434,10 @@ export default function PlanoAcaoDetalhe() {
                 {comentarios.map(c => (
                   <div key={c.id} className="rounded border border-border p-2 text-xs">
                     <p>{c.comentario}</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">{new Date(c.created_at).toLocaleString("pt-BR")}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      <span className="font-medium">{(c.autor as any)?.display_name ?? "Usuário"}</span>
+                      {" · "}{new Date(c.created_at).toLocaleString("pt-BR")}
+                    </p>
                   </div>
                 ))}
                 {comentarios.length === 0 && <p className="text-xs text-muted-foreground">Sem comentários ainda.</p>}
@@ -383,7 +453,10 @@ export default function PlanoAcaoDetalhe() {
                   <div key={h.id} className="border-l-2 border-primary/40 pl-2">
                     <p className="font-medium">{h.evento}</p>
                     <p className="text-muted-foreground">{h.campo}: {h.valor_anterior ?? "∅"} → {h.valor_novo ?? "∅"}</p>
-                    <p className="text-[10px] text-muted-foreground">{new Date(h.created_at).toLocaleString("pt-BR")}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      <span className="font-medium">{(h.autor as any)?.display_name ?? "Sistema"}</span>
+                      {" · "}{new Date(h.created_at).toLocaleString("pt-BR")}
+                    </p>
                   </div>
                 ))}
                 {historico.length === 0 && <p className="text-muted-foreground">Sem alterações registradas.</p>}

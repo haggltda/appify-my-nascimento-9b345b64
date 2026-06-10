@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,33 +22,44 @@ const fmtDate = (s: string | null) => {
 export default function PlanoAcoesLista() {
   const { data: rows = [], isLoading } = usePlanoAcoes();
   const { can, loading: lp } = usePlanoAcaoPermissao();
-  const [busca, setBusca] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [fStatus, setFStatus] = useState<string>("__all");
-  const [fPrior, setFPrior] = useState<string>("__all");
-  const [fComite, setFComite] = useState<string>("__all");
-  const [fArea, setFArea] = useState<string>("__all");
-  const [fSetor, setFSetor] = useState<string>("__all");
-  const [fResp, setFResp] = useState<string>("__all");
+  // Filtros persistidos na URL — sobrevivem à navegação via botão Voltar do browser
+  const busca   = searchParams.get("q")      ?? "";
+  const fStatus = searchParams.get("status") ?? "__all";
+  const fPrior  = searchParams.get("prior")  ?? "__all";
+  const fComite = searchParams.get("comite") ?? "__all";
+  const fArea   = searchParams.get("area")   ?? "__all";
+  const fSetor  = searchParams.get("setor")  ?? "__all";
+  const fResp   = searchParams.get("resp")   ?? "__all";
+
+  const setFilter = (key: string, value: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (value && value !== "__all") next.set(key, value);
+      else next.delete(key);
+      return next;
+    }, { replace: true });
+  };
 
   const { comites, areas, setores, responsaveis } = usePlanoAcaoFilterOptions(rows);
 
-  // Limpa filtros que deixaram de existir após troca de empresa / mudança das rows.
+  // Reseta filtros cujos valores deixaram de existir (troca de empresa, etc.)
   useEffect(() => {
-    if (fComite !== "__all" && !comites.some(o => o.value === fComite)) setFComite("__all");
-    if (fArea !== "__all" && !areas.some(o => o.value === fArea)) setFArea("__all");
-    if (fSetor !== "__all" && !setores.some(o => o.value === fSetor)) setFSetor("__all");
-    if (fResp !== "__all" && !responsaveis.some(o => o.value === fResp)) setFResp("__all");
-  }, [comites, areas, setores, responsaveis, fComite, fArea, fSetor, fResp]);
+    if (fComite !== "__all" && !comites.some(o => o.value === fComite)) setFilter("comite", "__all");
+    if (fArea   !== "__all" && !areas.some(o => o.value === fArea))     setFilter("area",   "__all");
+    if (fSetor  !== "__all" && !setores.some(o => o.value === fSetor))  setFilter("setor",  "__all");
+    if (fResp   !== "__all" && !responsaveis.some(o => o.value === fResp)) setFilter("resp", "__all");
+  }, [comites, areas, setores, responsaveis]);
 
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return rows.filter(r => {
       if (fStatus !== "__all" && r.status_normalizado !== fStatus) return false;
-      if (fPrior !== "__all" && r.prioridade_normalizada !== fPrior) return false;
+      if (fPrior  !== "__all" && r.prioridade_normalizada !== fPrior) return false;
       if (fComite !== "__all" && r.comite !== fComite) return false;
-      if (fArea !== "__all" && r.area !== fArea) return false;
-      if (fSetor !== "__all" && r.setor !== fSetor) return false;
+      if (fArea   !== "__all" && r.area !== fArea) return false;
+      if (fSetor  !== "__all" && r.setor !== fSetor) return false;
       if (!matchResponsavel(r, fResp)) return false;
       if (!q) return true;
       return [r.titulo, r.problema, r.acao, r.responsavel_nome_origem, r.id_importacao]
@@ -80,54 +91,31 @@ export default function PlanoAcoesLista() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative lg:col-span-2">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8" placeholder="Buscar por título, problema, ação, responsável..." value={busca} onChange={e => setBusca(e.target.value)} />
+            <Input
+              className="pl-8"
+              placeholder="Buscar por título, problema, ação, responsável..."
+              value={busca}
+              onChange={e => setFilter("q", e.target.value)}
+            />
           </div>
-          <Select value={fStatus} onValueChange={setFStatus}>
+          <Select value={fStatus} onValueChange={v => setFilter("status", v)}>
             <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all">Todos os status</SelectItem>
               {STATUS_ORDEM.map(s => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={fPrior} onValueChange={setFPrior}>
+          <Select value={fPrior} onValueChange={v => setFilter("prior", v)}>
             <SelectTrigger><SelectValue placeholder="Prioridade" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__all">Todas as prioridades</SelectItem>
               {PRIORIDADES.map(p => <SelectItem key={p} value={p}>{PRIORIDADE_LABEL[p]}</SelectItem>)}
             </SelectContent>
           </Select>
-          <SearchableSelect
-            value={fComite === "__all" ? "" : fComite}
-            onChange={v => setFComite(v || "__all")}
-            options={comites}
-            placeholder="Todos os comitês"
-            searchPlaceholder="Buscar comitê..."
-            allowClear
-          />
-          <SearchableSelect
-            value={fArea === "__all" ? "" : fArea}
-            onChange={v => setFArea(v || "__all")}
-            options={areas}
-            placeholder="Todas as áreas"
-            searchPlaceholder="Buscar área..."
-            allowClear
-          />
-          <SearchableSelect
-            value={fSetor === "__all" ? "" : fSetor}
-            onChange={v => setFSetor(v || "__all")}
-            options={setores}
-            placeholder="Todos os setores"
-            searchPlaceholder="Buscar setor..."
-            allowClear
-          />
-          <SearchableSelect
-            value={fResp === "__all" ? "" : fResp}
-            onChange={v => setFResp(v || "__all")}
-            options={responsaveis}
-            placeholder="Todos os responsáveis"
-            searchPlaceholder="Buscar responsável..."
-            allowClear
-          />
+          <SearchableSelect value={fComite === "__all" ? "" : fComite} onChange={v => setFilter("comite", v || "__all")} options={comites} placeholder="Todos os comitês" searchPlaceholder="Buscar comitê..." allowClear />
+          <SearchableSelect value={fArea === "__all" ? "" : fArea}     onChange={v => setFilter("area",   v || "__all")} options={areas}   placeholder="Todas as áreas"    searchPlaceholder="Buscar área..."   allowClear />
+          <SearchableSelect value={fSetor === "__all" ? "" : fSetor}   onChange={v => setFilter("setor",  v || "__all")} options={setores} placeholder="Todos os setores"  searchPlaceholder="Buscar setor..."  allowClear />
+          <SearchableSelect value={fResp  === "__all" ? "" : fResp}    onChange={v => setFilter("resp",   v || "__all")} options={responsaveis} placeholder="Todos os responsáveis" searchPlaceholder="Buscar responsável..." allowClear />
         </div>
         <div className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>{filtered.length} de {rows.length} ações</span>
@@ -145,7 +133,7 @@ export default function PlanoAcoesLista() {
             <thead className="sticky top-0 z-10 bg-muted/50 backdrop-blur">
               <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <th className="p-2 px-3">ID</th>
-                <th className="p-2">Comitê / Área</th>
+                <th className="p-2">Comitê / Setor</th>
                 <th className="p-2">Título / Problema</th>
                 <th className="p-2">Responsável</th>
                 <th className="p-2">Prior.</th>
