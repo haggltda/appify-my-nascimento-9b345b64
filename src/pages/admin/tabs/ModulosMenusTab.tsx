@@ -283,19 +283,18 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
     if (!selectedUserId || !isAdmin) return;
     setSaving((s) => new Set(s).add(codigo));
     try {
+      // Delete first — avoids conflict with nullable empresa_id in the unique constraint
+      await supabase
+        .from("screen_permission_user")
+        .delete()
+        .eq("user_id", selectedUserId)
+        .eq("menu_codigo", codigo)
+        .eq("acao", "visualizar")
+        .is("empresa_id", null);
       if (!currentValue) {
-        const { error } = await supabase.from("screen_permission_user").upsert(
-          { user_id: selectedUserId, menu_codigo: codigo, acao: "visualizar", allow: true, empresa_id: null },
-          { onConflict: "user_id,menu_codigo,acao" }
-        );
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("screen_permission_user")
-          .delete()
-          .eq("user_id", selectedUserId)
-          .eq("menu_codigo", codigo)
-          .eq("acao", "visualizar");
+        const { error } = await supabase.from("screen_permission_user").insert({
+          user_id: selectedUserId, menu_codigo: codigo, acao: "visualizar", allow: true, empresa_id: null,
+        });
         if (error) throw error;
       }
       qc.invalidateQueries({ queryKey: ["screen_permission_user", selectedUserId] });
@@ -311,6 +310,16 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
     const codigos = modMenus.map((mn) => mn.codigo);
     codigos.forEach((c) => setSaving((s) => new Set(s).add(c)));
     try {
+      // Delete all existing rows first for these menus
+      await Promise.all(
+        codigos.map((codigo) =>
+          supabase.from("screen_permission_user").delete()
+            .eq("user_id", selectedUserId)
+            .eq("menu_codigo", codigo)
+            .eq("acao", "visualizar")
+            .is("empresa_id", null)
+        )
+      );
       if (!allHaveAccess) {
         const rows = codigos.map((codigo) => ({
           user_id: selectedUserId,
@@ -319,19 +328,8 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
           allow: true,
           empresa_id: null,
         }));
-        const { error } = await supabase.from("screen_permission_user").upsert(rows, { onConflict: "user_id,menu_codigo,acao" });
+        const { error } = await supabase.from("screen_permission_user").insert(rows);
         if (error) throw error;
-      } else {
-        await Promise.all(
-          codigos.map((codigo) =>
-            supabase
-              .from("screen_permission_user")
-              .delete()
-              .eq("user_id", selectedUserId)
-              .eq("menu_codigo", codigo)
-              .eq("acao", "visualizar")
-          )
-        );
       }
       qc.invalidateQueries({ queryKey: ["screen_permission_user", selectedUserId] });
     } catch (e: any) {
