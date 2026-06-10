@@ -15,23 +15,33 @@ export default function RedefinirSenha() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Ouvir o evento PASSWORD_RECOVERY antes de verificar a sessão
+    let resolved = false;
+
+    const resolve = (state: PageState) => {
+      if (!resolved) {
+        resolved = true;
+        setPageState(state);
+      }
+    };
+
+    // 1) Listener para o evento PASSWORD_RECOVERY disparado pelo Supabase ao processar o hash da URL
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setPageState("form");
-      }
+      if (event === "PASSWORD_RECOVERY") resolve("form");
     });
 
-    // Verificar sessão já existente (caso o evento já tenha disparado antes do listener)
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setPageState((prev) => prev === "loading" ? "form" : prev);
-      } else {
-        setPageState((prev) => prev === "loading" ? "invalid" : prev);
-      }
+    // 2) Sessão já existente: Supabase pode ter processado o hash antes deste componente montar
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) resolve("form");
+      // Se null: NÃO declarar inválido aqui — o evento PASSWORD_RECOVERY ainda pode chegar
     });
 
-    return () => subscription.unsubscribe();
+    // 3) Timeout de segurança: se nenhum dos dois acima resolver em 6s, o link é realmente inválido
+    const timeout = setTimeout(() => resolve("invalid"), 6000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   // Redirecionar se token inválido/expirado após breve delay para o usuário ver a mensagem
