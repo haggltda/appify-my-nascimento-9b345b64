@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,7 @@ export default function PlanoAcoesLista() {
   const { data: rows = [], isLoading } = usePlanoAcoes();
   const { can, loading: lp } = usePlanoAcaoPermissao();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
 
   // Filtros persistidos na URL — sobrevivem à navegação via botão Voltar do browser
   const busca   = searchParams.get("q")      ?? "";
@@ -45,12 +46,14 @@ export default function PlanoAcoesLista() {
   const { comites, areas, setores, responsaveis } = usePlanoAcaoFilterOptions(rows);
 
   // Reseta filtros cujos valores deixaram de existir (troca de empresa, etc.)
+  // Só executa após os dados estarem carregados para não limpar filtros válidos
   useEffect(() => {
+    if (isLoading || rows.length === 0) return;
     if (fComite !== "__all" && !comites.some(o => o.value === fComite)) setFilter("comite", "__all");
     if (fArea   !== "__all" && !areas.some(o => o.value === fArea))     setFilter("area",   "__all");
     if (fSetor  !== "__all" && !setores.some(o => o.value === fSetor))  setFilter("setor",  "__all");
     if (fResp   !== "__all" && !responsaveis.some(o => o.value === fResp)) setFilter("resp", "__all");
-  }, [comites, areas, setores, responsaveis]);
+  }, [comites, areas, setores, responsaveis, isLoading, rows.length]);
 
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -163,7 +166,11 @@ export default function PlanoAcoesLista() {
                     <div className="text-[11px] text-muted-foreground">{r.area ?? "—"}</div>
                   </td>
                   <td className="p-2 max-w-[420px]">
-                    <Link to={`/app/plano-acoes/${r.id}`} className="line-clamp-2 text-foreground hover:text-primary">
+                    <Link
+                      to={`/app/plano-acoes/${r.id}`}
+                      state={{ listSearch: location.search }}
+                      className="line-clamp-2 text-foreground hover:text-primary"
+                    >
                       {r.titulo || r.problema || "(sem título)"}
                     </Link>
                   </td>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -24,6 +24,9 @@ export default function PlanoAcaoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const isNew = !id || id === "nova";
   const nav = useNavigate();
+  const location = useLocation();
+  const listSearch = (location.state as any)?.listSearch ?? "";
+  const backUrl = `/app/plano-acoes${listSearch}`;
   const qc = useQueryClient();
   const { toast } = useToast();
   const { empresa } = useEmpresaAtiva();
@@ -266,7 +269,7 @@ export default function PlanoAcaoDetalhe() {
         breadcrumb={[isNew ? "Nova" : "Detalhe"]}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => nav(-1)}>← Lista</Button>
+            <Button variant="outline" size="sm" onClick={() => nav(backUrl)}>← Lista</Button>
             {!isNew && can("editar") && form.status_normalizado !== "concluida_validada" && (
               <Button size="sm" variant="secondary" onClick={concluir}>
                 {can("aprovar") ? "Validar conclusão" : "Marcar como concluída"}
