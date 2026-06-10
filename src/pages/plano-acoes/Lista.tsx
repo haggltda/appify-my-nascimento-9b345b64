@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -24,6 +24,7 @@ export default function PlanoAcoesLista() {
   const { can, loading: lp } = usePlanoAcaoPermissao();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const firstRenderRef = useRef(true);
 
   // Filtros persistidos na URL — sobrevivem à navegação via botão Voltar do browser
   const busca   = searchParams.get("q")      ?? "";
@@ -44,6 +45,21 @@ export default function PlanoAcoesLista() {
   };
 
   const { comites, areas, setores, responsaveis } = usePlanoAcaoFilterOptions(rows);
+
+  // Na montagem: se a URL não tem filtros, tenta restaurar do sessionStorage
+  // Isso garante persistência mesmo ao navegar pelo Sidebar (que não passa params)
+  useEffect(() => {
+    if (!searchParams.toString()) {
+      const saved = sessionStorage.getItem("planoAcoesFilters");
+      if (saved) setSearchParams(new URLSearchParams(saved), { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Salva filtros no sessionStorage quando mudam (pula apenas o primeiro render)
+  useEffect(() => {
+    if (firstRenderRef.current) { firstRenderRef.current = false; return; }
+    sessionStorage.setItem("planoAcoesFilters", searchParams.toString());
+  }, [searchParams]);
 
   // Reseta filtros cujos valores deixaram de existir (troca de empresa, etc.)
   // Só executa após os dados estarem carregados para não limpar filtros válidos
