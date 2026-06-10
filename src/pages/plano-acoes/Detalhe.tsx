@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -266,7 +266,7 @@ export default function PlanoAcaoDetalhe() {
         breadcrumb={[isNew ? "Nova" : "Detalhe"]}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild><Link to="/app/plano-acoes">← Lista</Link></Button>
+            <Button variant="outline" size="sm" onClick={() => nav(-1)}>← Lista</Button>
             {!isNew && can("editar") && form.status_normalizado !== "concluida_validada" && (
               <Button size="sm" variant="secondary" onClick={concluir}>
                 {can("aprovar") ? "Validar conclusão" : "Marcar como concluída"}
