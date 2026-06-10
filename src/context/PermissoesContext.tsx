@@ -222,7 +222,8 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user, isDemo, demoRole]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, isDemo, demoRole]);
 
   const value = useMemo<PermissoesCtx>(() => ({
     role: roles[0] ?? "usuario",

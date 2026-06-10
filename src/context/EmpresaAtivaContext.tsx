@@ -110,7 +110,8 @@ export function EmpresaAtivaProvider({ children }: { children: ReactNode }) {
 
     if (!authLoading) load();
     return () => { cancelled = true; };
-  }, [user, authLoading]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading]);
 
   const setEmpresa = useCallback((id: string) => {
     setEmpresaId(id);
