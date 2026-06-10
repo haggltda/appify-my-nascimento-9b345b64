@@ -59,11 +59,11 @@ export default function PlanoAcaoDetalhe() {
   const loadExtras = async (planId: string) => {
     const [csRes, hsRes, axRes] = await Promise.all([
       supabase.from("plano_acao_comentario")
-        .select("*, autor:profiles(display_name)")
+        .select("*")
         .eq("plano_acao_id", planId)
         .order("created_at", { ascending: false }),
       supabase.from("plano_acao_historico")
-        .select("*, autor:profiles(display_name)")
+        .select("*")
         .eq("plano_acao_id", planId)
         .order("created_at", { ascending: false })
         .limit(50),
@@ -72,8 +72,25 @@ export default function PlanoAcaoDetalhe() {
         .eq("plano_acao_id", planId)
         .order("created_at", { ascending: false }),
     ]);
-    setComentarios(csRes.data ?? []);
-    setHistorico(hsRes.data ?? []);
+
+    // Busca nomes dos autores em lote
+    const allItems = [...(csRes.data ?? []), ...(hsRes.data ?? [])];
+    const ids = [...new Set(allItems.map((x: any) => x.criado_por).filter(Boolean))];
+    const profileMap: Record<string, string> = {};
+    if (ids.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", ids);
+      (profs ?? []).forEach((p: any) => { profileMap[p.id] = p.display_name ?? "Usuário"; });
+    }
+
+    setComentarios((csRes.data ?? []).map((c: any) => ({
+      ...c, autor: { display_name: profileMap[c.criado_por] ?? "Usuário" },
+    })));
+    setHistorico((hsRes.data ?? []).map((h: any) => ({
+      ...h, autor: { display_name: profileMap[h.criado_por] ?? "Sistema" },
+    })));
     setAnexos(axRes.data ?? []);
   };
 
