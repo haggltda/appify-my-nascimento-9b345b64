@@ -212,13 +212,25 @@ export default function PlanoAcaoDetalhe() {
       });
     }
     if (isNew) {
-      const { data: ins, error } = await supabase.from("plano_acao").insert({
-        empresa_id: empresaId, ...form, origem: "manual",
-        responsavel_profile_id: form.responsavel_profile_id ?? null,
-        data_inicio_planejado: form.data_inicio_planejado || null,
-        data_fim_planejado: form.data_fim_planejado || null,
-      }).select("id").single();
+      const { data: novoId, error } = await supabase.rpc("criar_plano_acao", {
+        _empresa_id: empresaId,
+        _titulo: form.titulo,
+        _problema: form.problema || null,
+        _acao: form.acao || null,
+        _comite: form.comite || null,
+        _area: form.area || null,
+        _setor: form.setor || null,
+        _prioridade_normalizada: form.prioridade_normalizada,
+        _status_normalizado: form.status_normalizado,
+        _responsavel_profile_id: form.responsavel_profile_id ?? null,
+        _responsavel_nome_origem: form.responsavel_nome_origem || null,
+        _lider_comite_nome_origem: form.lider_comite_nome_origem || null,
+        _data_inicio_planejado: form.data_inicio_planejado || null,
+        _data_fim_planejado: form.data_fim_planejado || null,
+        _comentarios: form.comentarios || null,
+      });
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+      const ins = { id: novoId as string };
       if (pendingFile) {
         try { await uploadFile(pendingFile, ins.id); } catch {}
         setPendingFile(null);
