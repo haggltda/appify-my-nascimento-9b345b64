@@ -206,27 +206,33 @@ export default function PlanoAcoesImportar() {
     setImporting(true);
     let ok = 0; let erros = 0;
     const BATCH = 50;
+    const lastErrors: string[] = [];
 
     for (let i = 0; i < records.length; i += BATCH) {
-      const chunk = records.slice(i, i + BATCH).map(r => ({
-        empresa_id: empresaId,
-        origem: "manual",
-        titulo:                   r.titulo ?? null,
-        problema:                 r.problema ?? null,
-        acao:                     r.acao ?? null,
-        comite:                   r.comite ?? null,
-        area:                     r.area ?? null,
-        responsavel_nome_origem:  r.responsavel_nome_origem ?? null,
-        lider_comite_nome_origem: r.lider_comite_nome_origem ?? null,
-        comentarios:              r.comentarios ?? null,
-        status_normalizado:       r.status_normalizado ?? "a_definir",
-        prioridade_normalizada:   r.prioridade_normalizada ?? "nao_informada",
-      }));
+      const chunk = records.slice(i, i + BATCH).map(r => {
+        // Registros importados nunca têm anexo de evidência ainda — o trigger do banco
+        // bloqueia INSERT com concluida_validada sem evidência, então rebaixamos.
+        const status = r.status_normalizado ?? "a_definir";
+        return {
+          empresa_id: empresaId,
+          origem: "manual",
+          titulo:                   r.titulo ?? null,
+          problema:                 r.problema ?? null,
+          acao:                     r.acao ?? null,
+          comite:                   r.comite ?? null,
+          area:                     r.area ?? null,
+          responsavel_nome_origem:  r.responsavel_nome_origem ?? null,
+          lider_comite_nome_origem: r.lider_comite_nome_origem ?? null,
+          comentarios:              r.comentarios ?? null,
+          status_normalizado:       status === "concluida_validada" ? "concluida_pendente_evidencia" : status,
+          prioridade_normalizada:   r.prioridade_normalizada ?? "nao_informada",
+        };
+      });
 
       const { error } = await supabase.from("plano_acao").insert(chunk);
       if (error) {
         erros += chunk.length;
-        console.error("Import chunk error", error);
+        lastErrors.push(error.message);
       } else {
         ok += chunk.length;
       }
@@ -235,8 +241,10 @@ export default function PlanoAcoesImportar() {
     setImportResult({ ok, erros });
     if (ok > 0) qc.invalidateQueries({ queryKey: ["plano_acoes"] });
     toast({
-      title: erros === 0 ? "Importação concluída" : "Importação parcial",
-      description: `${ok} criadas${erros > 0 ? `, ${erros} com erro` : ""}`,
+      title: erros === 0 ? "Importação concluída" : erros === records.length ? "Falha na importação" : "Importação parcial",
+      description: erros === 0
+        ? `${ok} planos criados`
+        : `${ok} criados · ${erros} com erro${lastErrors[0] ? `: ${lastErrors[0]}` : ""}`,
       variant: erros > 0 ? "destructive" : "default",
     });
     setImporting(false);
