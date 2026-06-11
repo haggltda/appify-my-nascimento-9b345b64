@@ -9,7 +9,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { mustChange, loading: mcLoading } = useMustChangePassword(user?.id);
   const location = useLocation();
 
-  if (loading || (user && !isDemo && mcLoading)) {
+  // Only block on the very first auth check (loading=true once at startup).
+  // mcLoading (must-change-password) must NOT unmount children — auth events fire on
+  // every navigation and briefly set mcLoading=true, which would reset Lista filters.
+  // The mustChange redirect below fires as soon as the check resolves (< 1 frame).
+  if (loading) {
     return (
       <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">
         Carregando sessão…
