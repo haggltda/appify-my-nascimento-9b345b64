@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -32,6 +33,7 @@ export default function PlanoAcaoDetalhe() {
   const { empresa } = useEmpresaAtiva();
   const empresaId = empresa?.id ?? null;
   const { can, loading: lp } = usePlanoAcaoPermissao();
+  const { user } = useAuth();
 
   const [form, setForm] = useState<any>({
     titulo: "", problema: "", acao: "", comite: "", area: "", setor: "",
@@ -76,9 +78,13 @@ export default function PlanoAcaoDetalhe() {
         .order("created_at", { ascending: false }),
     ]);
 
-    // Busca nomes dos autores em lote
+    // Busca nomes dos autores e responsáveis referenciados no histórico em lote
     const allItems = [...(csRes.data ?? []), ...(hsRes.data ?? [])];
-    const ids = [...new Set(allItems.map((x: any) => x.criado_por).filter(Boolean))];
+    const authorIds = allItems.map((x: any) => x.criado_por).filter(Boolean);
+    const responsavelIds = (hsRes.data ?? [])
+      .filter((h: any) => h.campo === "responsavel_profile_id")
+      .flatMap((h: any) => [h.valor_anterior, h.valor_novo].filter(Boolean));
+    const ids = [...new Set([...authorIds, ...responsavelIds])];
     const profileMap: Record<string, string> = {};
     if (ids.length > 0) {
       const { data: profs } = await supabase
@@ -91,9 +97,17 @@ export default function PlanoAcaoDetalhe() {
     setComentarios((csRes.data ?? []).map((c: any) => ({
       ...c, autor: { display_name: profileMap[c.criado_por] ?? "Usuário" },
     })));
-    setHistorico((hsRes.data ?? []).map((h: any) => ({
-      ...h, autor: { display_name: profileMap[h.criado_por] ?? "Sistema" },
-    })));
+    setHistorico((hsRes.data ?? []).map((h: any) => {
+      const resolveVal = (uuid: string | null) =>
+        uuid ? (profileMap[uuid] ?? uuid) : null;
+      const isResp = h.campo === "responsavel_profile_id";
+      return {
+        ...h,
+        autor: { display_name: profileMap[h.criado_por] ?? "Sistema" },
+        _valor_anterior: isResp ? resolveVal(h.valor_anterior) : h.valor_anterior,
+        _valor_novo: isResp ? resolveVal(h.valor_novo) : h.valor_novo,
+      };
+    }));
     setAnexos(axRes.data ?? []);
   };
 
@@ -224,6 +238,7 @@ export default function PlanoAcaoDetalhe() {
         comentarios: form.comentarios,
         data_inicio_planejado: form.data_inicio_planejado || null,
         data_fim_planejado: form.data_fim_planejado || null,
+        atualizado_por: user?.id ?? null,
       }).eq("id", id!);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
       toast({ title: "Ação atualizada" });
@@ -235,7 +250,7 @@ export default function PlanoAcaoDetalhe() {
   const concluir = async () => {
     if (!can("editar") || isNew) return;
     const novo = can("aprovar") ? "concluida_validada" : "aguardando_validacao";
-    const { error } = await supabase.from("plano_acao").update({ status_normalizado: novo }).eq("id", id!);
+    const { error } = await supabase.from("plano_acao").update({ status_normalizado: novo, atualizado_por: user?.id ?? null }).eq("id", id!);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else { toast({ title: STATUS_LABELS[novo] }); qc.invalidateQueries({ queryKey: ["plano_acao_one", id] }); }
   };
@@ -243,7 +258,7 @@ export default function PlanoAcaoDetalhe() {
   const excluir = async () => {
     if (!can("excluir") || isNew) return;
     if (!confirm("Excluir logicamente esta ação?")) return;
-    const { error } = await supabase.from("plano_acao").update({ deleted_at: new Date().toISOString() }).eq("id", id!);
+    const { error } = await supabase.from("plano_acao").update({ deleted_at: new Date().toISOString(), atualizado_por: user?.id ?? null }).eq("id", id!);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else { toast({ title: "Excluída" }); nav("/app/plano-acoes"); }
   };
@@ -472,7 +487,7 @@ export default function PlanoAcaoDetalhe() {
                 {historico.map(h => (
                   <div key={h.id} className="border-l-2 border-primary/40 pl-2">
                     <p className="font-medium">{h.evento}</p>
-                    <p className="text-muted-foreground">{h.campo}: {h.valor_anterior ?? "∅"} → {h.valor_novo ?? "∅"}</p>
+                    <p className="text-muted-foreground">{h.campo}: {h._valor_anterior ?? "∅"} → {h._valor_novo ?? "∅"}</p>
                     <p className="text-[10px] text-muted-foreground">
                       <span className="font-medium">{(h.autor as any)?.display_name ?? "Sistema"}</span>
                       {" · "}{new Date(h.created_at).toLocaleString("pt-BR")}

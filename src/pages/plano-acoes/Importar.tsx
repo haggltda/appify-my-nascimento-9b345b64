@@ -61,6 +61,7 @@ const HEADER_MAP: Record<string, string> = {
   "lider comite":       "lider_comite_nome_origem",
   "comentarios":        "comentarios",
   "comentario":         "comentarios",
+  "id":                 "id_importacao",
 };
 
 function mapHeaders(raw: unknown[]): Record<number, string> {
@@ -72,13 +73,18 @@ function mapHeaders(raw: unknown[]): Record<number, string> {
   return result;
 }
 
-function rowToRecord(cells: unknown[], colMap: Record<number, string>): Record<string, any> | null {
-  const record: Record<string, any> = {};
+function rowToRecord(cells: unknown[], colMap: Record<number, string>, linhaNum: number): Record<string, any> | null {
+  const record: Record<string, any> = { linha_csv: linhaNum };
   Object.entries(colMap).forEach(([idx, field]) => {
     const val = String(cells[Number(idx)] ?? "").trim();
-    if (field === "_status") record.status_normalizado = normalizeStatus(val);
-    else if (field === "_prioridade") record.prioridade_normalizada = normalizePrioridade(val);
-    else record[field] = val || null;
+    if (field === "_status") {
+      record.status_normalizado = normalizeStatus(val);
+      record.status_original = val || null;
+    } else if (field === "_prioridade") {
+      record.prioridade_normalizada = normalizePrioridade(val);
+    } else {
+      record[field] = val || null;
+    }
   });
   // Deve ter ao menos título, problema ou ação não vazio
   const hasContent = !!(record.titulo || record.problema || record.acao);
@@ -173,8 +179,10 @@ export default function PlanoAcoesImportar() {
 
         const dataRows = matrix.slice(headerRowIdx + 1);
         const parsed: Record<string, any>[] = [];
-        dataRows.forEach(row => {
-          const rec = rowToRecord(row as unknown[], colMap);
+        dataRows.forEach((row, rowIdx) => {
+          // linhaNum: 1-based row number in the original file (header = headerRowIdx+1)
+          const linhaNum = headerRowIdx + rowIdx + 2;
+          const rec = rowToRecord(row as unknown[], colMap, linhaNum);
           if (rec) parsed.push(rec);
         });
 
@@ -226,6 +234,9 @@ export default function PlanoAcoesImportar() {
           comentarios:              r.comentarios ?? null,
           status_normalizado:       status === "concluida_validada" ? "concluida_pendente_evidencia" : status,
           prioridade_normalizada:   r.prioridade_normalizada ?? "nao_informada",
+          status_original:          r.status_original ?? null,
+          linha_csv:                r.linha_csv ?? null,
+          id_importacao:            r.id_importacao ?? null,
         };
       });
 
