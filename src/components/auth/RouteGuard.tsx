@@ -121,7 +121,9 @@ export function RouteGuard({ children }: { children: ReactNode }) {
     })();
   }, [isLoading, allowed, pathname, menuCode]);
 
-  if (isLoading) return null;
+  // Só bloqueia na primeira carga (sem dados). Com dados em cache (mesmo query key
+  // diferente), mantém o children montado para não perder estado da Lista.
+  if (!data) return null;
   if (allowed) return <>{children}</>;
 
   return (

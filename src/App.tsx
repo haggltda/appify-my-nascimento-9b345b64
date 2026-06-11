@@ -46,6 +46,7 @@ import Encerramentos from "./pages/contratos/Encerramentos";
 import ContratoDetalhe from "./pages/contratos/ContratoDetalhe";
 import { EmpresaAtivaProvider } from "./context/EmpresaAtivaContext";
 import { PermissoesProvider } from "./context/PermissoesContext";
+import { AuthProvider } from "./hooks/useAuth";
 import Empresas from "./pages/controladoria/Empresas";
 import CentrosCusto from "./pages/controladoria/CentrosCusto";
 import EstruturaOrganizacional from "./pages/controladoria/EstruturaOrganizacional";
@@ -120,6 +121,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AuthProvider>
         <DemoModeProvider>
         <PermissoesProvider>
         <EmpresaAtivaProvider>
@@ -245,6 +247,7 @@ const App = () => (
         </EmpresaAtivaProvider>
         </PermissoesProvider>
         </DemoModeProvider>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

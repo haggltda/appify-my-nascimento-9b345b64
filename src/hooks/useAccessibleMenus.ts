@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 
@@ -17,6 +17,7 @@ export function useAccessibleMenus(acao: string = "visualizar") {
   return useQuery({
     queryKey: ["accessible-menus", acao, empresaId],
     staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return { codes: new Set<string>(), routes: new Map<string, string>(), isAdmin: false };
