@@ -432,11 +432,13 @@ export default function PlanoAcaoDetalhe() {
               {form.pendencia_evidencia && <p>• Aguardando evidência</p>}
               {(form.pendencias_iniciais ?? []).map((p: string) => <p key={p} className="font-mono">• {p}</p>)}
             </div>
-            <div className="mt-3 grid gap-2 text-xs">
-              <div><span className="text-muted-foreground">ID importação:</span> <span className="font-mono">{form.id_importacao ?? "—"}</span></div>
-              <div><span className="text-muted-foreground">Linha CSV:</span> {form.linha_csv ?? "—"}</div>
-              <div><span className="text-muted-foreground">Status original:</span> {form.status_original ?? "—"}</div>
-            </div>
+            {(form.origem === "importacao_excel" || form.id_importacao || form.linha_csv) && (
+              <div className="mt-3 grid gap-2 text-xs">
+                <div><span className="text-muted-foreground">ID importação:</span> <span className="font-mono">{form.id_importacao ?? "—"}</span></div>
+                <div><span className="text-muted-foreground">Linha CSV:</span> {form.linha_csv ?? "—"}</div>
+                <div><span className="text-muted-foreground">Status original:</span> {form.status_original ?? "—"}</div>
+              </div>
+            )}
           </Card>
 
           {!isNew && (
