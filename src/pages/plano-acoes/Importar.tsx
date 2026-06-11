@@ -215,7 +215,7 @@ export default function PlanoAcoesImportar() {
         const status = r.status_normalizado ?? "a_definir";
         return {
           empresa_id: empresaId,
-          origem: "manual",
+          origem: "importacao_excel",
           titulo:                   r.titulo ?? null,
           problema:                 r.problema ?? null,
           acao:                     r.acao ?? null,
