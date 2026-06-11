@@ -10,9 +10,13 @@ import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
  * per-empresa overrides in `screen_permission_user` are honored
  * by the menu/route layer (parity with `useScreenAccess`).
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function useAccessibleMenus(acao: string = "visualizar") {
   const { empresa } = useEmpresaAtiva();
-  const empresaId = empresa?.id ?? null;
+  // Só passa pro banco se for um UUID real — mock IDs como "HAGG" causam erro 400.
+  const rawId = empresa?.id ?? null;
+  const empresaId = rawId && UUID_RE.test(rawId) ? rawId : null;
 
   return useQuery({
     queryKey: ["accessible-menus", acao, empresaId],
