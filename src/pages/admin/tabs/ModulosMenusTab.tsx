@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface Modulo { id: string; codigo: string; nome: string; ordem: number; ativo: boolean; icone: string | null }
 interface Menu { id: string; modulo_id: string; codigo: string; nome: string; rota: string | null; ordem: number; ativo: boolean }
 interface ProfileRow { id: string; display_name: string | null; email: string | null }
-interface ScreenPerm { menu_codigo: string; acao: string; allow: boolean }
 
 type View = "catalogo" | "acesso";
 
@@ -263,25 +262,32 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
     },
   });
 
-  const permsQ = useQuery({
-    queryKey: ["screen_permission_user", selectedUserId],
+  // Acesso efetivo real do usuário via RPC (combina role + overrides individuais).
+  // É isso que deve ser exibido nos switches — não apenas os registros explícitos.
+  const effectiveQ = useQuery({
+    queryKey: ["effective-menus-for-user", selectedUserId],
     enabled: !!selectedUserId,
+    staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("screen_permission_user")
-        .select("menu_codigo,acao,allow")
-        .eq("user_id", selectedUserId)
-        .eq("acao", "visualizar");
-      if (error) throw error;
-      return (data ?? []) as ScreenPerm[];
+      const { data, error } = await supabase.rpc("list_accessible_menus", {
+        _user: selectedUserId as string,
+        _acao: "visualizar",
+        _empresa: null,
+      });
+      if (error) {
+        console.warn("effective menus admin panel error", error);
+        return new Set<string>();
+      }
+      return new Set<string>((data ?? []).map((r: any) => r.menu_codigo));
     },
   });
 
   // Clear pending changes when user is switched
   useEffect(() => { setPending(new Map()); }, [selectedUserId]);
 
+  // Acesso efetivo atual (role + overrides). Base para os switches e para detectar mudança real.
   const dbHasAccess = (codigo: string) =>
-    (permsQ.data ?? []).some((p) => p.menu_codigo === codigo && p.allow === true);
+    effectiveQ.data?.has(codigo) ?? false;
 
   // Show pending value if staged, otherwise DB value
   const hasAccess = (codigo: string) =>
@@ -322,7 +328,8 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
         });
         if (error) throw error;
       }
-      await qc.invalidateQueries({ queryKey: ["screen_permission_user", selectedUserId] });
+      await qc.invalidateQueries({ queryKey: ["effective-menus-for-user", selectedUserId] });
+      await qc.invalidateQueries({ queryKey: ["accessible-menus"] });
       setPending(new Map());
       toast({ title: "Permissões salvas com sucesso" });
     } catch (e: any) {
@@ -382,11 +389,11 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
         </p>
       )}
 
-      {selectedUserId && permsQ.isLoading && (
+      {selectedUserId && effectiveQ.isLoading && (
         <p className="px-5 py-6 text-center text-sm text-muted-foreground">Carregando permissões…</p>
       )}
 
-      {selectedUserId && !permsQ.isLoading && (
+      {selectedUserId && !effectiveQ.isLoading && (
         <div className="divide-y divide-border">
           {modulos.map((m) => {
             const modMenus = menus.filter((x) => x.modulo_id === m.id);
