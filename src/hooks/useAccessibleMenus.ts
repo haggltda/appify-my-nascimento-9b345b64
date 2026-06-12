@@ -20,7 +20,7 @@ export function useAccessibleMenus(acao: string = "visualizar") {
 
   return useQuery({
     queryKey: ["accessible-menus", acao, empresaId],
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30_000,
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data: u } = await supabase.auth.getUser();
