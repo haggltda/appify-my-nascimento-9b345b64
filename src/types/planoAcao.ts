@@ -53,8 +53,17 @@ export const PRIORIDADE_COR: Record<string, string> = {
 };
 
 export const PERMISSOES_FLAGS = [
-  "visualizar","dashboard","criar","editar","excluir","importar","aprovar","administrar",
+  "visualizar","dashboard","criar","editar","excluir","importar","aprovar","administrar","ver_todas",
 ] as const;
 export type PermissaoFlag = (typeof PERMISSOES_FLAGS)[number];
+
+export const VISIBILIDADE_OPTIONS = ["privado", "publico", "especifico"] as const;
+export type VisibilidadeType = (typeof VISIBILIDADE_OPTIONS)[number];
+
+export const VISIBILIDADE_LABEL: Record<VisibilidadeType, string> = {
+  privado: "Somente o responsável / criador",
+  publico: "Todos podem ver",
+  especifico: "Pessoas específicas",
+};
 
 export const EMPRESA_HAGG_ID = "5a61c769-21d8-4e61-b9bb-506b8db0bce8";

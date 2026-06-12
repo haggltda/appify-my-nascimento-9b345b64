@@ -13,16 +13,19 @@ export interface PlanoAcaoPermissao {
   pode_importar: boolean;
   pode_aprovar: boolean;
   pode_administrar: boolean;
+  pode_ver_todas: boolean;
 }
 
 const NONE: PlanoAcaoPermissao = {
   pode_visualizar: false, pode_dashboard: false, pode_criar: false, pode_editar: false,
   pode_excluir: false, pode_importar: false, pode_aprovar: false, pode_administrar: false,
+  pode_ver_todas: false,
 };
 
 const ALL: PlanoAcaoPermissao = {
   pode_visualizar: true, pode_dashboard: true, pode_criar: true, pode_editar: true,
   pode_excluir: true, pode_importar: true, pode_aprovar: true, pode_administrar: true,
+  pode_ver_todas: true,
 };
 
 export function usePlanoAcaoPermissao() {
@@ -40,7 +43,7 @@ export function usePlanoAcaoPermissao() {
       if (!uid) return NONE;
       const { data } = await supabase
         .from("plano_acao_usuario_permissao")
-        .select("pode_visualizar,pode_dashboard,pode_criar,pode_editar,pode_excluir,pode_importar,pode_aprovar,pode_administrar")
+        .select("pode_visualizar,pode_dashboard,pode_criar,pode_editar,pode_excluir,pode_importar,pode_aprovar,pode_administrar,pode_ver_todas")
         .eq("empresa_id", empresaId!)
         .eq("profile_id", uid)
         .maybeSingle();

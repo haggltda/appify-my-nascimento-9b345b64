@@ -13,12 +13,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
-import { STATUS_LABELS, STATUS_ORDEM, STATUS_COR, PRIORIDADES, PRIORIDADE_LABEL } from "@/types/planoAcao";
+import { STATUS_LABELS, STATUS_ORDEM, STATUS_COR, PRIORIDADES, PRIORIDADE_LABEL, VISIBILIDADE_OPTIONS, VISIBILIDADE_LABEL, type VisibilidadeType } from "@/types/planoAcao";
 import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Paperclip, Download } from "lucide-react";
 import { useComitesMap } from "@/hooks/useComitesMap";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
 
 export default function PlanoAcaoDetalhe() {
@@ -43,7 +44,9 @@ export default function PlanoAcaoDetalhe() {
     data_inicio_planejado: null,
     data_fim_planejado: null,
     comentarios: "",
+    visibilidade: "privado",
   });
+  const [usuariosVisibilidade, setUsuariosVisibilidade] = useState<string[]>([]);
   const [historico, setHistorico] = useState<any[]>([]);
   const [comentarios, setComentarios] = useState<any[]>([]);
   const [novoComent, setNovoComent] = useState("");
@@ -62,7 +65,7 @@ export default function PlanoAcaoDetalhe() {
   });
 
   const loadExtras = async (planId: string) => {
-    const [csRes, hsRes, axRes] = await Promise.all([
+    const [csRes, hsRes, axRes, visRes] = await Promise.all([
       supabase.from("plano_acao_comentario")
         .select("*")
         .eq("plano_acao_id", planId)
@@ -76,7 +79,14 @@ export default function PlanoAcaoDetalhe() {
         .select("*")
         .eq("plano_acao_id", planId)
         .order("created_at", { ascending: false }),
+      (supabase as any).from("plano_acao_visibilidade_usuario")
+        .select("profile_id")
+        .eq("plano_acao_id", planId),
     ]);
+
+    setUsuariosVisibilidade(
+      ((visRes as any)?.data ?? []).map((r: any) => r.profile_id as string)
+    );
 
     // Busca nomes dos autores e responsáveis referenciados no histórico em lote
     const allItems = [...(csRes.data ?? []), ...(hsRes.data ?? [])];
@@ -228,7 +238,11 @@ export default function PlanoAcaoDetalhe() {
         _data_inicio_planejado: form.data_inicio_planejado || null,
         _data_fim_planejado: form.data_fim_planejado || null,
         _comentarios: form.comentarios || null,
-      });
+        _visibilidade: form.visibilidade ?? "privado",
+        _usuarios_visibilidade: form.visibilidade === "especifico" && usuariosVisibilidade.length > 0
+          ? usuariosVisibilidade
+          : null,
+      } as any);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
       const ins = { id: novoId as string };
       if (pendingFile) {
@@ -250,9 +264,23 @@ export default function PlanoAcaoDetalhe() {
         comentarios: form.comentarios,
         data_inicio_planejado: form.data_inicio_planejado || null,
         data_fim_planejado: form.data_fim_planejado || null,
+        visibilidade: form.visibilidade ?? "privado",
         atualizado_por: user?.id ?? null,
-      }).eq("id", id!);
+      } as any).eq("id", id!);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+
+      // Sincroniza usuários de visibilidade específica
+      await (supabase as any).from("plano_acao_visibilidade_usuario").delete().eq("plano_acao_id", id!);
+      if (form.visibilidade === "especifico" && usuariosVisibilidade.length > 0) {
+        await (supabase as any).from("plano_acao_visibilidade_usuario").insert(
+          usuariosVisibilidade.map((uid) => ({
+            plano_acao_id: id!,
+            empresa_id: empresaId,
+            profile_id: uid,
+          }))
+        );
+      }
+
       toast({ title: "Ação atualizada" });
       qc.invalidateQueries({ queryKey: ["plano_acoes"] });
       qc.invalidateQueries({ queryKey: ["plano_acao_one", id] });
@@ -406,6 +434,33 @@ export default function PlanoAcaoDetalhe() {
             <div>
               <Label>Líder do comitê <span className="text-xs text-muted-foreground">(automático)</span></Label>
               <Input value={form.lider_comite_nome_origem ?? ""} readOnly placeholder={form.comite ? "—" : "Selecione o comitê"} className="bg-muted/40" />
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Visibilidade</Label>
+              <Select
+                value={(form.visibilidade ?? "privado") as VisibilidadeType}
+                disabled={!podeEdit}
+                onValueChange={v => set("visibilidade", v)}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {VISIBILIDADE_OPTIONS.map(v => (
+                    <SelectItem key={v} value={v}>{VISIBILIDADE_LABEL[v]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {(form.visibilidade ?? "privado") === "especifico" && (
+                <div className="mt-2 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Pessoas que podem ver esta ação</Label>
+                  <SearchableMultiSelect
+                    value={usuariosVisibilidade}
+                    onChange={setUsuariosVisibilidade}
+                    options={usuariosOptions}
+                    placeholder="Adicionar pessoas..."
+                    disabled={!podeEdit || rpcSemPermissao}
+                  />
+                </div>
+              )}
             </div>
             <div className="sm:col-span-2">
               <Label>Comentários</Label>
