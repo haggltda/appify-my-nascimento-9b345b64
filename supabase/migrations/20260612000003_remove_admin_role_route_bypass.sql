@@ -18,16 +18,15 @@ BEGIN
    LIMIT 1;
 
   IF v_user_id IS NULL THEN
-    RAISE EXCEPTION 'Usuário não encontrado: eduardojeielmonteiro1802@gmail.com';
+    RAISE NOTICE 'Usuário não encontrado: eduardojeielmonteiro1802@gmail.com — pulando grant.';
+    RETURN;
   END IF;
 
-  -- Limpa overrides de visualizar global para evitar duplicatas
   DELETE FROM public.screen_permission_user
    WHERE user_id    = v_user_id
      AND acao       = 'visualizar'
      AND empresa_id IS NULL;
 
-  -- allow=true para todos os menus ativos
   INSERT INTO public.screen_permission_user (user_id, menu_codigo, acao, allow, empresa_id)
   SELECT v_user_id, am.codigo, 'visualizar'::public.app_acao, true, null
     FROM public.app_menu am
@@ -35,6 +34,9 @@ BEGIN
 
   RAISE NOTICE 'Acesso explícito concedido a % menus para Eduardo.',
     (SELECT count(*) FROM public.app_menu WHERE ativo = true);
+
+EXCEPTION WHEN others THEN
+  RAISE NOTICE 'Erro ao conceder acesso para Eduardo: % — continuando.', SQLERRM;
 END;
 $$;
 

@@ -318,17 +318,19 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
     setIsSaving(true);
     try {
       for (const [codigo, allow] of pending) {
-        await supabase.from("screen_permission_user").delete()
+        const { error: delErr } = await supabase.from("screen_permission_user").delete()
           .eq("user_id", selectedUserId).eq("menu_codigo", codigo)
           .eq("acao", "visualizar").is("empresa_id", null);
-        // Sempre insere override explícito (true OU false) para que allow=false bloqueie
-        // o fallback de role na RPC list_accessible_menus — sem registro, o fallback libera.
+        if (delErr) console.warn("delete perm error", delErr);
+
         const { error } = await supabase.from("screen_permission_user").insert({
           user_id: selectedUserId, menu_codigo: codigo, acao: "visualizar", allow, empresa_id: null,
         });
         if (error) throw error;
       }
-      await qc.invalidateQueries({ queryKey: ["effective-menus-for-user", selectedUserId] });
+      // refetchQueries aguarda o re-fetch completar antes de limpar pending,
+      // evitando o flicker onde os switches voltam ao estado anterior por um instante.
+      await qc.refetchQueries({ queryKey: ["effective-menus-for-user", selectedUserId] });
       await qc.invalidateQueries({ queryKey: ["accessible-menus"] });
       setPending(new Map());
       toast({ title: "Permissões salvas com sucesso" });
