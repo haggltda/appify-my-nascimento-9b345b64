@@ -409,12 +409,11 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
     ...(roles.includes("admin") ? [integracaoModule] : []),
   ];
 
-  // Filter modules/groups/items based on screen access (admins see everything).
-  // B2 — deny-by-default: itens sem menuCode somem para não-admin, exceto
-  // rotas técnicas explícitas (mesmas listadas na allowlist do RouteGuard).
+  // Sidebar filtra itens com base nos menus acessíveis do usuário.
+  // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
   const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil"];
   const visibleModules = useMemo(() => {
-    if (!access || access.isAdmin) return allModules;
+    if (!access) return allModules;
     const canSee = (to: string) => {
       const code = matchMenuCode(to, access.routes);
       if (code) return access.codes.has(code);

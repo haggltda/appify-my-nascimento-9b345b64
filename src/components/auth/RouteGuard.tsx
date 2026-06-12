@@ -85,21 +85,16 @@ export function RouteGuard({ children }: { children: ReactNode }) {
   const privilegedBypass = isPrivilegedRoute && hasPrivilegedRole;
   const roleRestricted = checkRoleRestricted(pathname, roles);
 
-  // B2 — deny-by-default: rota sem menuCode e fora da allowlist é negada.
-  // V3 — flag soberana de fase prevalece sobre qualquer bypass.
-  // Regra de bloqueio global: para rotas com menuCode registrado, a checagem em
-  // data.codes é soberana — mesmo admins respeitam allow=false de screen_permission_user
-  // (a RPC list_accessible_menus já exclui menus explicitamente negados para admins).
-  // data.isAdmin só libera rotas SEM menuCode (técnicas/não cadastradas em app_menu).
+  // Acesso determinado exclusivamente pelo painel de usuários em /app/administracao?tab=modulos.
+  // Cargo/role não concede nenhum bypass — a RPC list_accessible_menus retorna apenas
+  // menus com allow=true explícito para TODOS os usuários (incluindo admin).
   const allowed =
     phaseFlagEnabled &&
     (!data ||
       privilegedBypass ||
       (roleRestricted !== null
         ? roleRestricted
-        : (menuCode
-            ? data.codes.has(menuCode)
-            : (inAllowlist(pathname) || data.isAdmin))));
+        : (menuCode ? data.codes.has(menuCode) : inAllowlist(pathname))));
 
 
 
