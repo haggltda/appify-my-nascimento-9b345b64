@@ -310,6 +310,7 @@ const rhModule: ModuleDef = {
         { label: "Colaboradores", to: "/app/rh/colaboradores", icon: Users2 },
         { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
         { label: "Folha de Pagamento", to: "/app/rh/folha", icon: ListChecks },
+        { label: "Recrutamento e Seleção", to: "/app/rh/recrutamento", icon: UserCog },
       ],
     },
   ],
@@ -411,7 +412,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento"];
   const visibleModules = useMemo(() => {
     if (!access) return allModules;
     const canSee = (to: string) => {
