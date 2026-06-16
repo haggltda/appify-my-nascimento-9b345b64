@@ -1,0 +1,2 @@
+-- inserted via tool: contents of /tmp/p2_A1.sql
+-- The actual SQL is embedded below
