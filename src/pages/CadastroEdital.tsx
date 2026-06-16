@@ -1,222 +1,687 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Save, Send, Paperclip, Building2, FileText, AlertCircle, CalendarDays, FileCheck2, ShieldCheck } from "lucide-react";
+import { useEmpresaId } from "@/hooks/useEmpresaId";
 import { usePermissoes } from "@/context/PermissoesContext";
+import { cn } from "@/lib/utils";
+import {
+  useCapaEdital,
+  useCapaInsert,
+  useCapaUpdate,
+  useCapaDelete,
+  useCapaPromover,
+} from "@/hooks/useCapaEdital";
+import type { CapaEdital, CapaStatus } from "@/hooks/useCapaEdital";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Pencil, Trash2, Eye, History, FileText, AlertCircle } from "lucide-react";
 
-type DocsTab = "edital" | "empresa";
+// ── Constantes ─────────────────────────────────────────────────────────────
+
+const STATUS_COLOR: Record<CapaStatus, string> = {
+  "Em andamento": "bg-amber-500/15 text-amber-700 border-amber-300/50",
+  "Ganhamos":     "bg-emerald-500/15 text-emerald-700 border-emerald-300/50",
+  "Perdemos":     "bg-red-400/15 text-red-700 border-red-300/50",
+};
+
+// Alerta de 48h: só exibe se ganhou há menos de 48h E ainda não tem reuniao_alinhamento
+function needs48hAlert(capa: CapaEdital): boolean {
+  if (capa.status !== "Ganhamos") return false;
+  if (capa.reuniao_alinhamento) return false;
+  if (!capa.data_homologacao) return false;
+  const homol = new Date(capa.data_homologacao).getTime();
+  const diff = Date.now() - homol;
+  return diff < 48 * 60 * 60 * 1000;
+}
+
+// ── Componente principal ───────────────────────────────────────────────────
 
 export default function CadastroEdital() {
-  const [docsTab, setDocsTab] = useState<DocsTab>("edital");
+  const { data: empresaAtivaId } = useEmpresaId();
   const { can } = usePermissoes();
-  // B2.1.a — Fase 1 (CadastroEdital): permissões finas
+
   const canIncluir = can("incluir", "licitacoes", "editais");
-  const canAprovar = can("aprovar", "licitacoes", "editais");
+  const canAlterar = can("alterar", "licitacoes", "editais");
+  const canExcluir = can("excluir", "licitacoes", "editais");
+
+  const { data: capas = [], isLoading, error } = useCapaEdital(empresaAtivaId ?? null);
+  const insert = useCapaInsert(empresaAtivaId ?? "");
+  const update = useCapaUpdate(empresaAtivaId ?? "");
+  const remove = useCapaDelete(empresaAtivaId ?? "");
+  const promover = useCapaPromover(empresaAtivaId ?? "");
+
+  const [statusFiltro, setStatusFiltro] = useState<CapaStatus | "Todas">("Todas");
+  const [busca, setBusca] = useState("");
+
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editing, setEditing] = useState<CapaEdital | null>(null);
+  const [viewItem, setViewItem] = useState<CapaEdital | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CapaEdital | null>(null);
+  const [promoverTarget, setPromoverTarget] = useState<CapaEdital | null>(null);
+  const [reuniaoModal, setReuniaoModal] = useState<CapaEdital | null>(null);
+
+  const stats = useMemo(() => {
+    const m: Record<CapaStatus, number> = { "Em andamento": 0, "Ganhamos": 0, "Perdemos": 0 };
+    capas.forEach((c) => { if (c.status in m) m[c.status]++; });
+    return m;
+  }, [capas]);
+
+  const filtered = useMemo(() => {
+    let list = [...capas];
+    if (statusFiltro !== "Todas") list = list.filter((c) => c.status === statusFiltro);
+    if (busca.trim()) {
+      const q = busca.toLowerCase();
+      list = list.filter(
+        (c) =>
+          c.cidade?.toLowerCase().includes(q) ||
+          c.objeto?.toLowerCase().includes(q) ||
+          c.modalidade?.toLowerCase().includes(q) ||
+          c.escritorio?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [capas, statusFiltro, busca]);
+
+  const alertas = capas.filter(needs48hAlert);
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Cadastro de Edital"
-        breadcrumb={["Cadastro de Editais", "Novo"]}
-        subtitle="Registre as informações estruturais do edital. Campos obrigatórios são validados ao salvar."
+        title="Capa de Edital Licitações"
+        breadcrumb={["Capa de Edital Licitações"]}
+        subtitle="Detalhamento completo das licitações — do preenchimento à homologação."
         actions={
-          <>
-            {canIncluir && (
-              <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
-                <Save className="h-3.5 w-3.5" /> Salvar rascunho
-              </button>
-            )}
-            <button
-              disabled={!canAprovar}
-              title={canAprovar ? undefined : "Sem permissão para enviar editais para triagem"}
-              className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Send className="h-3.5 w-3.5" /> Enviar para triagem
-            </button>
-          </>
+          canIncluir ? (
+            <Button size="sm" onClick={() => { setEditing(null); setSheetOpen(true); }} className="gap-2">
+              <Plus className="h-4 w-4" /> Nova Licitação
+            </Button>
+          ) : null
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-        <form className="space-y-5">
-          <Section title="Identificação" icon={<FileText className="h-4 w-4" />}>
-            <Grid>
-              <Input label="Número do edital *" placeholder="PE 142/2025" />
-              <Input label="Modalidade *" placeholder="Pregão Eletrônico" />
-              <Input label="Data de abertura *" type="date" />
-              <Input label="Prazo limite *" type="date" />
-              <Input label="Empresa responsável *" placeholder="NEN — Nascimento Engenharia" />
-              <Input label="Centro de custo" placeholder="CC-104 · Operações Sudeste" />
-            </Grid>
-            <Textarea label="Objeto da contratação *" rows={3}
-              placeholder="Descrição completa do objeto licitado, escopo e particularidades técnicas relevantes." />
-          </Section>
-
-          <Section title="Órgão / Cliente" icon={<Building2 className="h-4 w-4" />}>
-            <Grid>
-              <Input label="Órgão licitante *" placeholder="SABESP — Companhia de Saneamento" />
-              <Input label="UF / Município" placeholder="SP / São Paulo" />
-              <Input label="Setor" placeholder="Saneamento básico" />
-              <Input label="Portal de divulgação" placeholder="ComprasNet · BEC · Licitações-e" />
-            </Grid>
-            <Textarea
-              label="Local real da prestação de serviço"
-              rows={2}
-              name="local_prestacao"
-              placeholder="Ex.: ETE Barueri — Av. das Nações 1.200, galpão 3, turnos A e B. Inclui coleta nos setores 12, 14 e 18 da zona oeste."
-            />
-          </Section>
-
-          <Section title="Datas e prazos" icon={<CalendarDays className="h-4 w-4" />}>
-            <Grid>
-              <Input label="Publicação" type="date" />
-              <Input label="Impugnação" type="date" />
-              <Input label="Esclarecimentos" type="date" />
-              <Input label="Sessão pública" type="datetime-local" />
-            </Grid>
-          </Section>
-
-          <Section title="Anexos & observações" icon={<Paperclip className="h-4 w-4" />}>
-            <div className="flex gap-1 rounded-lg border border-border bg-surface-sunken p-1">
-              <TabBtn active={docsTab === "edital"} onClick={() => setDocsTab("edital")} icon={<FileCheck2 className="h-3.5 w-3.5" />}>
-                Documentos do Edital
-              </TabBtn>
-              <TabBtn active={docsTab === "empresa"} onClick={() => setDocsTab("empresa")} icon={<ShieldCheck className="h-3.5 w-3.5" />}>
-                Documentos da Empresa
-              </TabBtn>
+      {/* Alerta 48h */}
+      {alertas.length > 0 && (
+        <div className="rounded-lg border border-amber-400/50 bg-amber-500/10 p-3">
+          <div className="flex items-start gap-2 text-amber-700">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="text-xs">
+              <span className="font-bold">Atenção — Reunião de alinhamento pendente!</span>
+              {alertas.map((a) => (
+                <p key={a.id} className="mt-0.5">
+                  <strong>{a.objeto || a.cidade || "Licitação"}</strong> ganhou há menos de 48h e ainda não tem reunião agendada.{" "}
+                  <button
+                    className="underline font-semibold"
+                    onClick={() => setReuniaoModal(a)}
+                  >
+                    Agendar agora
+                  </button>
+                </p>
+              ))}
             </div>
+          </div>
+        </div>
+      )}
 
-            {docsTab === "edital" ? (
-              <DocsZone
-                title="Edital, anexos e ementas"
-                subtitle="Edital base, termo de referência, planilhas de quantitativos, minuta de contrato, esclarecimentos."
-                hints={["Edital integral (PDF)", "Termo de Referência", "Planilha de quantitativos", "Minuta de contrato", "Anexos técnicos / impugnações"]}
-              />
-            ) : (
-              <DocsZone
-                title="Habilitação da empresa"
-                subtitle="Documentação corporativa exigida para participação: jurídica, fiscal, técnica e econômico-financeira."
-                hints={[
-                  "Contrato social consolidado",
-                  "Certidões negativas (Federal · Estadual · Municipal · FGTS · Trabalhista)",
-                  "Atestados de capacidade técnica",
-                  "Balanço patrimonial e DRE assinados",
-                  "ART/RRT e registro CREA/CAU",
-                  "Declarações (ME/EPP, menor, idoneidade)",
-                ]}
-              />
+      {/* Tabs de status */}
+      <div className="flex flex-wrap gap-2">
+        {(["Todas", "Em andamento", "Ganhamos", "Perdemos"] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFiltro(s)}
+            className={cn(
+              "rounded-lg border px-3 py-2 text-xs font-medium transition",
+              statusFiltro === s
+                ? s === "Todas"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : STATUS_COLOR[s as CapaStatus]
+                : "border-border bg-card text-muted-foreground hover:bg-secondary"
             )}
-            <Textarea label="Observações" rows={3} placeholder="Informações relevantes para a equipe de análise." />
-          </Section>
-        </form>
-
-        <aside className="space-y-4">
-          <div className="card-elevated p-4">
-            <h3 className="font-display text-sm font-bold">Status do registro</h3>
-            <div className="mt-3 space-y-2.5 text-xs">
-              <Row label="Situação" value={<span className="chip border bg-info-soft text-info border-info/30">Rascunho</span>} />
-              <Row label="Última edição" value="agora" />
-              <Row label="Versão" value="0.1" />
-            </div>
-          </div>
-          <div className="card-elevated p-4">
-            <h3 className="font-display text-sm font-bold">Validação</h3>
-            <ul className="mt-3 space-y-2 text-xs text-muted-foreground">
-              <li className="flex items-start gap-2"><AlertCircle className="mt-0.5 h-3.5 w-3.5 text-warning" /> 4 campos obrigatórios pendentes</li>
-              <li className="flex items-start gap-2"><AlertCircle className="mt-0.5 h-3.5 w-3.5 text-warning" /> Anexar pelo menos o edital base</li>
-            </ul>
-          </div>
-          <div className="card-elevated p-4">
-            <h3 className="font-display text-sm font-bold">Próximas etapas</h3>
-            <ol className="mt-3 space-y-1.5 text-xs text-muted-foreground">
-              <li>1. Triagem & Análise por IA</li>
-              <li>2. Parecer técnico</li>
-              <li>3. Parecer gerencial</li>
-              <li>4. Revisão controladoria</li>
-            </ol>
-          </div>
-        </aside>
+          >
+            {s}
+            {s !== "Todas" && (
+              <span className="ml-2 font-bold">{stats[s as CapaStatus]}</span>
+            )}
+            {s === "Todas" && (
+              <span className="ml-2 font-bold">{capas.length}</span>
+            )}
+          </button>
+        ))}
       </div>
+
+      {/* Busca */}
+      <div className="card-elevated p-3">
+        <Input
+          placeholder="Buscar por cidade, objeto, modalidade…"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          className="h-9 max-w-sm"
+        />
+      </div>
+
+      {/* Conteúdo */}
+      {!empresaAtivaId ? (
+        <Empty title="Selecione uma empresa" message="Escolha uma empresa para ver as licitações." />
+      ) : isLoading ? (
+        <Empty title="Carregando…" message="Buscando licitações." />
+      ) : error ? (
+        <Empty title="Erro" message={(error as Error).message} tone="error" />
+      ) : filtered.length === 0 ? (
+        <Empty
+          title="Nenhuma licitação encontrada"
+          message={canIncluir ? 'Clique em "Nova Licitação" ou promova da Grade.' : "Nenhum registro ainda."}
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((capa) => (
+            <CapaCard
+              key={capa.id}
+              capa={capa}
+              canAlterar={canAlterar}
+              canExcluir={canExcluir}
+              onEdit={() => { setEditing(capa); setSheetOpen(true); }}
+              onView={() => setViewItem(capa)}
+              onDelete={() => setDeleteTarget(capa)}
+              onPromover={() => {
+                if (!capa.reuniao_alinhamento) {
+                  setReuniaoModal(capa);
+                } else {
+                  setPromoverTarget(capa);
+                }
+              }}
+              onStatusChange={(status) =>
+                update.mutate({ id: capa.id, changes: { status }, current: capa })
+              }
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Sheet criar/editar */}
+      <CapaSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        editing={editing}
+        onSave={(payload) => {
+          if (editing) {
+            update.mutate(
+              { id: editing.id, changes: payload, current: editing },
+              { onSuccess: () => setSheetOpen(false) }
+            );
+          } else {
+            insert.mutate(payload, { onSuccess: () => setSheetOpen(false) });
+          }
+        }}
+        isSaving={insert.isPending || update.isPending}
+      />
+
+      {/* Modal visualizar */}
+      {viewItem && <ViewModal capa={viewItem} onClose={() => setViewItem(null)} />}
+
+      {/* Modal reunião de alinhamento */}
+      {reuniaoModal && (
+        <ReuniaoModal
+          capa={reuniaoModal}
+          onClose={() => setReuniaoModal(null)}
+          onConfirm={(data) => {
+            update.mutate(
+              { id: reuniaoModal.id, changes: { reuniao_alinhamento: data }, current: reuniaoModal },
+              {
+                onSuccess: () => {
+                  setReuniaoModal(null);
+                  // Se veio do fluxo de criar contrato, abre confirmação de promoção
+                  if (reuniaoModal.status === "Ganhamos" && !reuniaoModal.contrato_id) {
+                    setPromoverTarget({ ...reuniaoModal, reuniao_alinhamento: data });
+                  }
+                },
+              }
+            );
+          }}
+        />
+      )}
+
+      {/* Confirmar exclusão */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir licitação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é irreversível. A licitação <strong>{deleteTarget?.objeto || deleteTarget?.cidade}</strong> será removida.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteTarget) remove.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) });
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmar criação de contrato */}
+      <AlertDialog open={!!promoverTarget} onOpenChange={(o) => !o && setPromoverTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Criar contrato de implantação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Um contrato será criado para{" "}
+              <strong>{promoverTarget?.objeto || promoverTarget?.cidade || "esta licitação"}</strong> e ficará disponível
+              no módulo <strong>Implantação de Contratos</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (promoverTarget)
+                  promover.mutate(
+                    { capa: promoverTarget, reuniaoAlinhamento: promoverTarget.reuniao_alinhamento ?? "" },
+                    { onSuccess: () => setPromoverTarget(null) }
+                  );
+              }}
+            >
+              Criar Contrato
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+// ── Card ──────────────────────────────────────────────────────────────────
+
+function CapaCard({
+  capa, canAlterar, canExcluir, onEdit, onView, onDelete, onPromover, onStatusChange,
+}: {
+  capa: CapaEdital;
+  canAlterar: boolean;
+  canExcluir: boolean;
+  onEdit: () => void;
+  onView: () => void;
+  onDelete: () => void;
+  onPromover: () => void;
+  onStatusChange: (s: CapaStatus) => void;
+}) {
+  const alert48 = needs48hAlert(capa);
+
   return (
-    <section className="card-elevated">
-      <header className="flex items-center gap-2 border-b border-border px-5 py-3">
-        <span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 text-primary">{icon}</span>
-        <h2 className="font-display text-sm font-bold">{title}</h2>
-      </header>
-      <div className="space-y-4 p-5">{children}</div>
-    </section>
+    <article className={cn("card-floating space-y-3 p-4", alert48 && "border-amber-400/60")}>
+      {alert48 && (
+        <div className="flex items-center gap-1.5 rounded bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-700">
+          <AlertCircle className="h-3 w-3" /> Reunião de alinhamento pendente — 48h
+        </div>
+      )}
+
+      <div className="flex items-start justify-between gap-2">
+        <p className="line-clamp-2 flex-1 text-sm font-semibold leading-snug">{capa.objeto || "Sem objeto"}</p>
+        <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold", STATUS_COLOR[capa.status])}>
+          {capa.status}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+        <span><span className="font-medium text-foreground">Cidade:</span> {capa.cidade || "—"}</span>
+        <span><span className="font-medium text-foreground">Modalidade:</span> {capa.modalidade || "—"}</span>
+        <span><span className="font-medium text-foreground">Abertura:</span> {capa.abertura || "—"}</span>
+        <span><span className="font-medium text-foreground">Postos:</span> {capa.qtd_postos ?? "—"}</span>
+        {capa.valor_estimado && (
+          <span className="col-span-2"><span className="font-medium text-foreground">Valor:</span> {capa.valor_estimado}</span>
+        )}
+        {capa.escritorio && (
+          <span className="col-span-2"><span className="font-medium text-foreground">Escritório:</span> {capa.escritorio}</span>
+        )}
+      </div>
+
+      {/* Alterar status */}
+      {canAlterar && capa.status === "Em andamento" && (
+        <div className="flex gap-2 border-t border-border pt-2.5">
+          <Button
+            size="sm" variant="outline"
+            className="h-7 flex-1 text-[11px] border-emerald-400/50 text-emerald-700 hover:bg-emerald-50"
+            onClick={() => onStatusChange("Ganhamos")}
+          >
+            Ganhamos
+          </Button>
+          <Button
+            size="sm" variant="outline"
+            className="h-7 flex-1 text-[11px] border-red-400/50 text-red-700 hover:bg-red-50"
+            onClick={() => onStatusChange("Perdemos")}
+          >
+            Perdemos
+          </Button>
+        </div>
+      )}
+
+      {/* Ações */}
+      <div className="flex items-center justify-between border-t border-border pt-2.5">
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onView} title="Visualizar">
+            <Eye className="h-3.5 w-3.5" />
+          </Button>
+          {canAlterar && (
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit} title="Editar">
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {canExcluir && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={onDelete} title="Excluir">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+
+        {canAlterar && capa.status === "Ganhamos" && !capa.contrato_id && (
+          <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-[11px]" onClick={onPromover}>
+            <FileText className="h-3 w-3" /> Criar Contrato
+          </Button>
+        )}
+        {capa.contrato_id && (
+          <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+            Contrato criado
+          </span>
+        )}
+      </div>
+    </article>
   );
 }
-function Grid({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-4 sm:grid-cols-2">{children}</div>;
-}
-function Input({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
+
+// ── Sheet form ─────────────────────────────────────────────────────────────
+
+const EMPTY: Partial<CapaEdital> = {
+  cidade: "", objeto: "", modalidade: "", local: "", forma_julgamento: "",
+  atestado_cap_tecnica: "", escritorio: "", abertura: "", prazo_impugnacao: "",
+  prazo_recurso: "", validade_proposta: "", prazo_contrato: "", visita_tecnica: "",
+  data_inicio: "", qtd_postos: null, carga_horaria: "", valor_estimado: "",
+  issqn: "", vale_transporte_valor: "", garantia: "", material: "", material_tipo: "",
+  diluir_verbas: "", conta_vinculada: "", conta_vinculada_quem_abre: "",
+  trabalho_escolar: "", observacoes: "",
+};
+
+function CapaSheet({
+  open, onOpenChange, editing, onSave, isSaving,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  editing: CapaEdital | null;
+  onSave: (p: Partial<CapaEdital>) => void;
+  isSaving: boolean;
+}) {
+  const [f, setF] = useState<Partial<CapaEdital>>({ ...EMPTY });
+
+  useEffect(() => {
+    if (!open) return;
+    setF(editing ? { ...editing } : { ...EMPTY });
+  }, [open, editing?.id]);
+
+  const txt = (key: keyof CapaEdital) => (
+    <Input
+      value={(f[key] as string) ?? ""}
+      onChange={(e) => setF((p) => ({ ...p, [key]: e.target.value }))}
+      className="h-9"
+    />
+  );
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    onSave(f);
+  }
+
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold">{label}</span>
-      <input {...props} className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30" />
-    </label>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full max-w-2xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{editing ? "Editar Licitação" : "Nova Licitação"}</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+
+          <Secao title="Identificação">
+            <Grid2>
+              <F label="Cidade">{txt("cidade")}</F>
+              <F label="Modalidade">{txt("modalidade")}</F>
+              <F label="Forma de julgamento">{txt("forma_julgamento")}</F>
+              <F label="Escritório">{txt("escritorio")}</F>
+              <F label="Local">{txt("local")}</F>
+              <F label="Atestado cap. técnica">{txt("atestado_cap_tecnica")}</F>
+            </Grid2>
+            <F label="Objeto">
+              <Textarea value={(f.objeto as string) ?? ""} onChange={(e) => setF((p) => ({ ...p, objeto: e.target.value }))} rows={2} />
+            </F>
+          </Secao>
+
+          <Secao title="Datas e Prazos">
+            <Grid2>
+              <F label="Abertura">{txt("abertura")}</F>
+              <F label="Prazo impugnação">{txt("prazo_impugnacao")}</F>
+              <F label="Prazo recurso">{txt("prazo_recurso")}</F>
+              <F label="Validade proposta">{txt("validade_proposta")}</F>
+              <F label="Prazo contrato">{txt("prazo_contrato")}</F>
+              <F label="Visita técnica">{txt("visita_tecnica")}</F>
+              <F label="Data início">
+                <Input
+                  type="date"
+                  value={(f.data_inicio as string) ?? ""}
+                  onChange={(e) => setF((p) => ({ ...p, data_inicio: e.target.value }))}
+                  className="h-9"
+                />
+              </F>
+            </Grid2>
+          </Secao>
+
+          <Secao title="Dimensionamento">
+            <Grid2>
+              <F label="Qtd. postos">
+                <Input
+                  type="number"
+                  value={f.qtd_postos !== null && f.qtd_postos !== undefined ? String(f.qtd_postos) : ""}
+                  onChange={(e) => setF((p) => ({ ...p, qtd_postos: e.target.value ? Number(e.target.value) : null }))}
+                  className="h-9"
+                />
+              </F>
+              <F label="Carga horária">{txt("carga_horaria")}</F>
+              <F label="Valor estimado">{txt("valor_estimado")}</F>
+              <F label="ISSQN">{txt("issqn")}</F>
+              <F label="Vale transporte (valor)">{txt("vale_transporte_valor")}</F>
+              <F label="Garantia">{txt("garantia")}</F>
+              <F label="Material">{txt("material")}</F>
+              <F label="Material (tipo)">{txt("material_tipo")}</F>
+            </Grid2>
+          </Secao>
+
+          <Secao title="Condições Operacionais">
+            <Grid2>
+              <F label="Diluir verbas">{txt("diluir_verbas")}</F>
+              <F label="Conta vinculada">{txt("conta_vinculada")}</F>
+              <F label="Conta vinculada — quem abre">{txt("conta_vinculada_quem_abre")}</F>
+              <F label="Trabalho escolar">{txt("trabalho_escolar")}</F>
+            </Grid2>
+          </Secao>
+
+          <Secao title="Observações">
+            <Textarea
+              value={(f.observacoes as string) ?? ""}
+              onChange={(e) => setF((p) => ({ ...p, observacoes: e.target.value }))}
+              rows={4}
+              placeholder="Informações relevantes para a equipe…"
+            />
+          </Secao>
+
+          <SheetFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={isSaving}>{isSaving ? "Salvando…" : editing ? "Salvar" : "Criar"}</Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }
-function Textarea({ label, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) {
+
+// ── Modal de visualização ─────────────────────────────────────────────────
+
+function ViewModal({ capa, onClose }: { capa: CapaEdital; onClose: () => void }) {
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold">{label}</span>
-      <textarea {...props} className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30" />
-    </label>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-semibold", STATUS_COLOR[capa.status])}>
+              {capa.status}
+            </span>
+            {capa.objeto || capa.cidade || "Licitação"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="mt-2 space-y-4 text-sm">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {[
+              ["Cidade", capa.cidade],
+              ["Modalidade", capa.modalidade],
+              ["Abertura", capa.abertura],
+              ["Data início", capa.data_inicio],
+              ["Prazo contrato", capa.prazo_contrato],
+              ["Qtd. postos", capa.qtd_postos !== null ? String(capa.qtd_postos) : null],
+              ["Valor estimado", capa.valor_estimado],
+              ["ISSQN", capa.issqn],
+              ["Garantia", capa.garantia],
+              ["Material", capa.material],
+              ["Conta vinculada", capa.conta_vinculada],
+              ["Escritório", capa.escritorio],
+              ["Reunião alinhamento", capa.reuniao_alinhamento],
+              ["Homologação", capa.data_homologacao],
+            ].map(([l, v]) => (
+              <div key={String(l)} className="flex gap-2">
+                <span className="w-36 shrink-0 text-xs font-medium text-muted-foreground">{l}</span>
+                <span className="text-xs">{v || "—"}</span>
+              </div>
+            ))}
+          </div>
+
+          {capa.observacoes && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs">{capa.observacoes}</div>
+          )}
+
+          {capa.historico.length > 0 && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <History className="h-3.5 w-3.5" /> Histórico
+              </p>
+              <div className="space-y-1.5">
+                {capa.historico.map((h, i) => (
+                  <div key={i} className="text-[11px] text-muted-foreground">
+                    <span className="font-medium text-foreground">{h.campo}</span>: {h.de} → {h.para}
+                    <span className="ml-2 text-[10px] opacity-60">{h.ts}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
-function TabBtn({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon: React.ReactNode; children: React.ReactNode }) {
+
+// ── Modal reunião de alinhamento ──────────────────────────────────────────
+
+function ReuniaoModal({ capa, onClose, onConfirm }: {
+  capa: CapaEdital;
+  onClose: () => void;
+  onConfirm: (data: string) => void;
+}) {
+  const [data, setData] = useState(capa.reuniao_alinhamento ?? "");
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
-        active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-      }`}
-    >
-      {icon}
-      {children}
-    </button>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Agendar Reunião de Alinhamento</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <p className="text-xs text-muted-foreground">
+            <strong>{capa.objeto || capa.cidade}</strong> — informe a data da reunião de alinhamento antes de criar o contrato.
+          </p>
+          <div className="space-y-1">
+            <Label className="text-xs">Data da reunião</Label>
+            <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="h-9" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button disabled={!data} onClick={() => onConfirm(data)}>Confirmar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
-function DocsZone({ title, subtitle, hints }: { title: string; subtitle: string; hints: string[] }) {
+
+// ── Helpers de layout ─────────────────────────────────────────────────────
+
+function Secao({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <div>
-        <p className="text-sm font-semibold">{title}</p>
-        <p className="text-xs text-muted-foreground">{subtitle}</p>
-      </div>
-      <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 p-6 text-center">
-        <Paperclip className="mx-auto h-6 w-6 text-muted-foreground" />
-        <p className="mt-2 text-sm font-semibold">Arraste arquivos ou clique para enviar</p>
-        <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX, XLSX, ZIP — máx. 50MB por arquivo</p>
-        <button type="button" className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">
-          Selecionar arquivos
-        </button>
-      </div>
-      <div className="rounded-md border border-border bg-card/60 p-3">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Sugestões de itens esperados</p>
-        <ul className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-          {hints.map((h) => (
-            <li key={h} className="flex items-start gap-1.5">
-              <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/60" />
-              {h}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      {children}
     </div>
   );
 }
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+
+function Grid2({ children }: { children: React.ReactNode }) {
+  return <div className="grid grid-cols-2 gap-3">{children}</div>;
+}
+
+function F({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function Empty({ title, message, tone = "muted" }: { title: string; message: string; tone?: "muted" | "error" }) {
+  return (
+    <div className={cn(
+      "rounded-lg border px-4 py-12 text-center text-sm",
+      tone === "error" ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-border bg-muted/30 text-muted-foreground"
+    )}>
+      <p className="text-base font-semibold">{title}</p>
+      <p className="mt-1 text-xs">{message}</p>
     </div>
   );
 }
