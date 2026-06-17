@@ -13,12 +13,36 @@ function badgeStatusCls(st: string) {
   const m: Record<string, string> = {
     "Aguardando Aprovação": "bg-yellow-100 text-yellow-800 border-yellow-200",
     "Aguardando Treinamentos": "bg-purple-100 text-purple-700 border-purple-200",
+    Pendente: "bg-yellow-100 text-yellow-800 border-yellow-200",
     Aprovada: "bg-green-100 text-green-700 border-green-200",
     Reprovada: "bg-red-100 text-red-700 border-red-200",
+    Cancelada: "bg-slate-100 text-slate-600 border-slate-200",
     Contratado: "bg-emerald-100 text-emerald-700 border-emerald-200",
   };
   return m[st] ?? "bg-blue-100 text-blue-700 border-blue-200";
 }
+
+// DD/MM/YYYY -> YYYY-MM-DD (ou null)
+function brToISO(d?: string): string | null {
+  const m = String(d ?? "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+function addDaysISO(iso: string, days: number): string {
+  const dt = new Date(iso + "T12:00:00");
+  dt.setDate(dt.getDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+function hojeMaisDias(days: number): string {
+  const dt = new Date();
+  dt.setDate(dt.getDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+const FERIAS_RESET = {
+  colaborador_id: null as number | null, colaborador_nome: "", colaborador_cpf: "",
+  colaborador_cargo: "", colaborador_filial: "", colaborador_admissao: "",
+  data_saida: "", dias_ferias: "30", dias_vendidos: "0", observacoes: "",
+};
 
 const VAGA_RESET = {
   motivo_vaga: "", nome_substituido: "", contrato: "", cargo: "",
@@ -56,6 +80,16 @@ export default function Inicio() {
   const [empSearch, setEmpSearch] = useState("");
   const [showEmpDrop, setShowEmpDrop] = useState(false);
   const [loadingEmps, setLoadingEmps] = useState(false);
+
+  // ── Modal férias ──────────────────────────────────────────────────
+  const [modalFerias, setModalFerias] = useState(false);
+  const [ferias, setFerias] = useState({ ...FERIAS_RESET });
+
+  // ── Modal bonificação ─────────────────────────────────────────────
+  const [modalBonif, setModalBonif] = useState(false);
+  const [bonifColabs, setBonifColabs] = useState<any[]>([]);
+  const [bonifMes, setBonifMes] = useState("");
+  const [bonifDesc, setBonifDesc] = useState("");
 
   // ── Minhas solicitações de vaga ───────────────────────────────────
   const [minhasSols, setMinhasSols] = useState<any[]>([]);
@@ -103,22 +137,25 @@ export default function Inicio() {
       .order('"NOME CONTRATO"');
     if (data) {
       setContratosFull(data);
-      setContratos(data.map((c: any) => c["NOME CONTRATO"] ?? "").filter(Boolean));
+      // dedup de nomes — há contratos com mesmo NOME CONTRATO em filiais diferentes
+      const nomes = Array.from(new Set(data.map((c: any) => c["NOME CONTRATO"] ?? "").filter(Boolean)));
+      setContratos(nomes as string[]);
     }
   };
 
   // ── Empregados ────────────────────────────────────────────────────
-  const carregarEmpregados = async () => {
-    if (empregados.length || loadingEmps) return;
+  const buscarEmpregados = async (term: string) => {
     setLoadingEmps(true);
     const { data, error } = await (supabase as any)
       .from("EMPREGADOS")
-      .select('"Nome", "Filial", "Nome Filial", "Título do Cargo", "Valor Salário", "% Insalubridade"')
+      .select('"ID", "Nome", "CPF", "Filial", "Nome Filial", "Título do Cargo", "Valor Salário", "% Insalubridade", "Admissão"')
       .eq("Situação", "Trabalhando")
-      .order('"Nome"');
+      .ilike("Nome", `%${term}%`)
+      .order('"Nome"')
+      .limit(50);
     setLoadingEmps(false);
     if (error) console.error("[EMPREGADOS] erro:", error.message, error.code);
-    if (data?.length) setEmpregados(data);
+    setEmpregados(data ?? []);
   };
 
   const selecionarEmpregado = (emp: any) => {
@@ -180,6 +217,118 @@ export default function Inicio() {
     setEmpSearch("");
     setShowEmpDrop(false);
     carregarMinhasSols();
+  };
+
+  // ── Férias ────────────────────────────────────────────────────────
+  const selecionarColabFerias = (emp: any) => {
+    setFerias(f => ({
+      ...f,
+      colaborador_id: emp.ID ?? null,
+      colaborador_nome: emp.Nome ?? "",
+      colaborador_cpf: emp.CPF ?? "",
+      colaborador_cargo: emp["Título do Cargo"] ?? "",
+      colaborador_filial: emp["Nome Filial"] ?? "",
+      colaborador_admissao: emp["Admissão"] ?? "",
+    }));
+    setEmpSearch(emp.Nome ?? "");
+    setShowEmpDrop(false);
+  };
+
+  const abrirModalFerias = () => {
+    setModalFerias(true);
+    setFerias({ ...FERIAS_RESET });
+    setEmpSearch("");
+    setShowEmpDrop(false);
+    setEmpregados([]);
+  };
+
+  const submitFerias = async () => {
+    if (!ferias.colaborador_id) { toast("Selecione o colaborador.", "err"); return; }
+    if (!ferias.data_saida) { toast("Informe a data de saída.", "err"); return; }
+    if (ferias.data_saida < hojeMaisDias(30)) { toast("A saída precisa de no mínimo 30 dias de antecedência.", "err"); return; }
+    const dias = parseInt(ferias.dias_ferias) || 30;
+    const vend = parseInt(ferias.dias_vendidos) || 0;
+    if (dias < 1 || dias > 30) { toast("Dias de férias deve ser entre 1 e 30.", "err"); return; }
+    if (vend < 0 || vend > 10) { toast("Abono (dias vendidos) deve ser entre 0 e 10.", "err"); return; }
+
+    const payload = {
+      solicitante_nome: displayName || user?.email || "",
+      solicitante_email: user?.email ?? "",
+      colaborador_id: ferias.colaborador_id,
+      colaborador_nome: ferias.colaborador_nome,
+      colaborador_cpf: ferias.colaborador_cpf,
+      colaborador_cargo: ferias.colaborador_cargo,
+      colaborador_filial: ferias.colaborador_filial,
+      colaborador_admissao: brToISO(ferias.colaborador_admissao),
+      data_saida: ferias.data_saida,
+      data_retorno: addDaysISO(ferias.data_saida, dias),
+      dias_ferias: dias,
+      dias_vendidos: vend,
+      observacoes: ferias.observacoes.trim() || null,
+      status: "Pendente",
+    };
+    const { error, data } = await (supabase as any)
+      .from("SISTEMA_SOLICITACOES_FERIAS").insert(payload).select("id").single();
+    if (error) { toast("Erro ao solicitar férias: " + error.message, "err"); return; }
+    toast(`Férias solicitadas para ${ferias.colaborador_nome}! (#${data?.id})`, "ok");
+    setModalFerias(false);
+    setFerias({ ...FERIAS_RESET });
+    setEmpSearch("");
+  };
+
+  // ── Bonificação ───────────────────────────────────────────────────
+  const abrirModalBonif = () => {
+    setModalBonif(true);
+    setBonifColabs([]);
+    setBonifMes("");
+    setBonifDesc("");
+    setEmpSearch("");
+    setShowEmpDrop(false);
+    setEmpregados([]);
+  };
+
+  const adicionarColabBonif = (emp: any) => {
+    setBonifColabs(prev => prev.some(c => c.colaborador_id === emp.ID)
+      ? prev
+      : [...prev, {
+          colaborador_id: emp.ID ?? null,
+          colaborador_nome: emp.Nome ?? "",
+          colaborador_cpf: emp.CPF ?? "",
+          colaborador_cargo: emp["Título do Cargo"] ?? "",
+          colaborador_filial: emp["Nome Filial"] ?? "",
+        }]);
+    setEmpSearch("");
+    setShowEmpDrop(false);
+    setEmpregados([]);
+  };
+
+  const removerColabBonif = (id: number | null) =>
+    setBonifColabs(prev => prev.filter(c => c.colaborador_id !== id));
+
+  const submitBonif = async () => {
+    if (bonifColabs.length === 0) { toast("Selecione ao menos um colaborador.", "err"); return; }
+    if (!bonifMes) { toast("Selecione o mês de pagamento.", "err"); return; }
+    const header = {
+      solicitante_nome: displayName || user?.email || "",
+      solicitante_email: user?.email ?? "",
+      mes_pagamento: bonifMes,
+      descricao: bonifDesc.trim() || null,
+      total_colaboradores: bonifColabs.length,
+      status: "Pendente",
+    };
+    const { data, error } = await (supabase as any)
+      .from("SISTEMA_SOLICITACOES_BONIFICACAO").insert(header).select("id").single();
+    if (error) { toast("Erro ao solicitar bonificação: " + error.message, "err"); return; }
+    const solId = data?.id;
+    const itens = bonifColabs.map(c => ({ ...c, solicitacao_id: solId }));
+    const { error: itErr } = await (supabase as any).from("SISTEMA_BONIFICACAO_ITENS").insert(itens);
+    if (itErr) { toast("Pedido criado, mas falhou ao salvar colaboradores: " + itErr.message, "err"); return; }
+    toast(`Bonificação solicitada para ${bonifColabs.length} colaborador(es)! (#${solId})`, "ok");
+    setModalBonif(false);
+    setBonifColabs([]);
+    setBonifMes("");
+    setBonifDesc("");
+    setEmpSearch("");
   };
 
   const firstName = displayName.split(" ")[0] || "bem-vindo";
@@ -282,9 +431,13 @@ export default function Inicio() {
               <span className="icon">🎯</span>
               <span>Solicitar Vaga</span>
             </button>
-            <button className="ini-sol-create" style={{ opacity: .5, cursor: "not-allowed" }} disabled title="Disponível no sistema legado">
+            <button onClick={abrirModalFerias} className="ini-sol-create">
               <span className="icon">📅</span>
               <span>Solicitar Férias</span>
+            </button>
+            <button onClick={abrirModalBonif} className="ini-sol-create">
+              <span className="icon">🎁</span>
+              <span>Solicitar Bonificação</span>
             </button>
             <button className="ini-sol-create" style={{ opacity: .5, cursor: "not-allowed" }} disabled title="Disponível no sistema legado">
               <span className="icon">⚠️</span>
@@ -358,8 +511,8 @@ export default function Inicio() {
                       const v = e.target.value;
                       setEmpSearch(v);
                       setVaga(prev => ({ ...prev, nome_substituido: v }));
-                      if (v.length >= 2) { setShowEmpDrop(true); carregarEmpregados(); }
-                      else setShowEmpDrop(false);
+                      if (v.length >= 2) { setShowEmpDrop(true); buscarEmpregados(v); }
+                      else { setShowEmpDrop(false); setEmpregados([]); }
                     }} />
                   {showEmpDrop && empSearch.length >= 2 && (
                     <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(15,23,42,.14)", maxHeight: 220, overflowY: "auto", marginTop: 2 }}>
@@ -473,6 +626,163 @@ export default function Inicio() {
                   <button onClick={submitVaga} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Solicitar Vaga</button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Solicitar Férias ── */}
+      {modalFerias && (
+        <div className="ini-modal-ov">
+          <div className="ini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <button onClick={() => setModalFerias(false)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>📅 Solicitar Férias</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Antecedência mínima de 30 dias · abono (venda) de até 10 dias.</div>
+
+            {/* Colaborador */}
+            <div className="ini-fg" style={{ position: "relative" }} onBlur={() => setTimeout(() => setShowEmpDrop(false), 150)}>
+              <label>Colaborador *</label>
+              <input className="ini-fi" placeholder="Digite o nome do colaborador..." value={empSearch} autoComplete="off"
+                onChange={e => {
+                  const v = e.target.value;
+                  setEmpSearch(v);
+                  setFerias(f => ({ ...f, colaborador_id: null }));
+                  if (v.length >= 2) { setShowEmpDrop(true); buscarEmpregados(v); }
+                  else { setShowEmpDrop(false); setEmpregados([]); }
+                }} />
+              {showEmpDrop && empSearch.length >= 2 && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(15,23,42,.14)", maxHeight: 220, overflowY: "auto", marginTop: 2 }}>
+                  {loadingEmps ? (
+                    <div style={{ padding: "12px", fontSize: 12, color: "#94a3b8", textAlign: "center" }}>Buscando...</div>
+                  ) : (() => {
+                    const filtrados = empregados.filter(e => e.Nome?.toLowerCase().includes(empSearch.toLowerCase())).slice(0, 40);
+                    return filtrados.length === 0
+                      ? <div style={{ padding: "12px", fontSize: 12, color: "#94a3b8", textAlign: "center" }}>Nenhum colaborador encontrado.</div>
+                      : filtrados.map((emp, i) => (
+                        <div key={i} onMouseDown={() => selecionarColabFerias(emp)}
+                          style={{ padding: "8px 12px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid #f1f5f9", color: "#0f172a" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#f0f4ff")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
+                          <div style={{ fontWeight: 600 }}>{emp.Nome}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8" }}>{emp["Título do Cargo"]}{emp["Nome Filial"] ? ` · ${emp["Nome Filial"]}` : ""}</div>
+                        </div>
+                      ));
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {ferias.colaborador_id && (
+              <div style={{ margin: "-6px 0 14px", padding: "8px 12px", borderRadius: 10, background: "#f0f4ff", border: "1px solid #dbe4f0", fontSize: 12, color: "#475569" }}>
+                <strong style={{ color: "#0f172a" }}>{ferias.colaborador_nome}</strong>
+                {ferias.colaborador_cargo ? ` · ${ferias.colaborador_cargo}` : ""}{ferias.colaborador_filial ? ` · ${ferias.colaborador_filial}` : ""}
+                {ferias.colaborador_admissao ? ` · admissão ${ferias.colaborador_admissao}` : ""}
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="ini-fg"><label>Data de Saída *</label><input className="ini-fi" type="date" min={hojeMaisDias(30)} value={ferias.data_saida} onChange={e => setFerias(f => ({ ...f, data_saida: e.target.value }))} /></div>
+              <div className="ini-fg">
+                <label>Dias de Férias</label>
+                <select className="ini-fi" value={ferias.dias_ferias} onChange={e => setFerias(f => ({ ...f, dias_ferias: e.target.value }))}>
+                  {["30", "20", "15", "10"].map(o => <option key={o} value={o}>{o} dias</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="ini-fg">
+                <label>Abono (vender dias)</label>
+                <select className="ini-fi" value={ferias.dias_vendidos} onChange={e => setFerias(f => ({ ...f, dias_vendidos: e.target.value }))}>
+                  {["0", "5", "10"].map(o => <option key={o} value={o}>{o} dias</option>)}
+                </select>
+              </div>
+              <div className="ini-fg">
+                <label>Retorno (previsto)</label>
+                <input className="ini-fi" readOnly value={ferias.data_saida ? fmtDt(addDaysISO(ferias.data_saida, parseInt(ferias.dias_ferias) || 30)) : "—"} style={{ background: "#f8fafc", color: "#475569" }} />
+              </div>
+            </div>
+            <div className="ini-fg"><label>Observações</label><textarea className="ini-fi" rows={2} value={ferias.observacoes} onChange={e => setFerias(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional..." /></div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, paddingTop: 14, borderTop: "1px solid #e2e8f0" }}>
+              <button onClick={() => setModalFerias(false)} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={submitFerias} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Solicitar Férias</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Solicitar Bonificação ── */}
+      {modalBonif && (
+        <div className="ini-modal-ov">
+          <div className="ini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <button onClick={() => setModalBonif(false)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>🎁 Solicitar Bonificação</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Selecione os colaboradores, o mês de pagamento e (opcional) uma descrição.</div>
+
+            {/* Busca colaborador */}
+            <div className="ini-fg" style={{ position: "relative" }} onBlur={() => setTimeout(() => setShowEmpDrop(false), 150)}>
+              <label>Adicionar Colaborador</label>
+              <input className="ini-fi" placeholder="Digite o nome do colaborador..." value={empSearch} autoComplete="off"
+                onChange={e => {
+                  const v = e.target.value;
+                  setEmpSearch(v);
+                  if (v.length >= 2) { setShowEmpDrop(true); buscarEmpregados(v); }
+                  else { setShowEmpDrop(false); setEmpregados([]); }
+                }} />
+              {showEmpDrop && empSearch.length >= 2 && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(15,23,42,.14)", maxHeight: 220, overflowY: "auto", marginTop: 2 }}>
+                  {loadingEmps ? (
+                    <div style={{ padding: "12px", fontSize: 12, color: "#94a3b8", textAlign: "center" }}>Buscando...</div>
+                  ) : (() => {
+                    const filtrados = empregados
+                      .filter(e => e.Nome?.toLowerCase().includes(empSearch.toLowerCase()))
+                      .filter(e => !bonifColabs.some(c => c.colaborador_id === e.ID))
+                      .slice(0, 40);
+                    return filtrados.length === 0
+                      ? <div style={{ padding: "12px", fontSize: 12, color: "#94a3b8", textAlign: "center" }}>Nenhum colaborador encontrado.</div>
+                      : filtrados.map((emp, i) => (
+                        <div key={i} onMouseDown={() => adicionarColabBonif(emp)}
+                          style={{ padding: "8px 12px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid #f1f5f9", color: "#0f172a" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#f0f4ff")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
+                          <div style={{ fontWeight: 600 }}>{emp.Nome}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8" }}>{emp["Título do Cargo"]}{emp["Nome Filial"] ? ` · ${emp["Nome Filial"]}` : ""}</div>
+                        </div>
+                      ));
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Selecionados */}
+            <div className="ini-fg">
+              <label>Colaboradores Selecionados ({bonifColabs.length})</label>
+              {bonifColabs.length === 0 ? (
+                <div style={{ fontSize: 12, color: "#94a3b8", padding: "6px 0" }}>Nenhum colaborador adicionado ainda.</div>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 140, overflowY: "auto" }}>
+                  {bonifColabs.map(c => (
+                    <span key={c.colaborador_id} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 10px", borderRadius: 20, background: "#eef4ff", border: "1px solid #dbe4f0", fontSize: 12, color: "#0f172a" }}>
+                      {c.colaborador_nome}
+                      <button onClick={() => removerColabBonif(c.colaborador_id)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0 }}>✕</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="ini-fg" style={{ maxWidth: 240 }}>
+              <label>Mês de Pagamento *</label>
+              <input className="ini-fi" type="month" value={bonifMes} onChange={e => setBonifMes(e.target.value)} />
+            </div>
+            <div className="ini-fg">
+              <label>Descrição (opcional)</label>
+              <textarea className="ini-fi" rows={3} value={bonifDesc} onChange={e => setBonifDesc(e.target.value)} placeholder="Motivo da bonificação, valor de referência, observações..." />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, paddingTop: 14, borderTop: "1px solid #e2e8f0" }}>
+              <button onClick={() => setModalBonif(false)} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={submitBonif} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Solicitar Bonificação</button>
             </div>
           </div>
         </div>

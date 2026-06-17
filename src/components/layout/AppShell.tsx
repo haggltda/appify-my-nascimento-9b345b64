@@ -5,6 +5,7 @@ import { Topbar } from "./Topbar";
 import { DemoBanner } from "./DemoBanner";
 import { HelpFab } from "@/components/ajuda/HelpFab";
 import { RouteGuard } from "@/components/auth/RouteGuard";
+import { VinculoGate } from "@/components/auth/VinculoEmpregado";
 
 export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
@@ -53,6 +54,7 @@ export function AppShell() {
         </main>
       </div>
       <HelpFab />
+      <VinculoGate />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login.tsx";
+import CriarAcesso from "./pages/CriarAcesso";
 import TrocarSenha from "./pages/TrocarSenha.tsx";
 import EsqueciSenha from "./pages/EsqueciSenha.tsx";
 import RedefinirSenha from "./pages/RedefinirSenha.tsx";
@@ -95,6 +96,8 @@ import Contabilidade from "./pages/Contabilidade";
 import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
 import Recrutamento from "./pages/rh/Recrutamento";
+import Ferias from "./pages/rh/Ferias";
+import Bonificacoes from "./pages/rh/Bonificacoes";
 import BIDashboard from "./pages/bi/Dashboard";
 import Fiscal from "./pages/Fiscal";
 import IntegracaoBatches from "./pages/integracao/Batches";
@@ -129,6 +132,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/criar-acesso" element={<CriarAcesso />} />
           <Route path="/trocar-senha" element={<TrocarSenha />} />
           <Route path="/esqueci-senha" element={<EsqueciSenha />} />
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
@@ -221,6 +225,8 @@ const App = () => (
             <Route path="rh/colaboradores" element={<Colaboradores />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             <Route path="rh/folha" element={<Folha />} />
+            <Route path="rh/ferias" element={<Ferias />} />
+            <Route path="rh/bonificacoes" element={<Bonificacoes />} />
             <Route path="rh/recrutamento" element={<Recrutamento />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />

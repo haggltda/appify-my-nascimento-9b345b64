@@ -504,21 +504,24 @@ export default function Recrutamento() {
       .order('"NOME CONTRATO"');
     if (data) {
       setContratosFull(data);
-      setContratos(data.map((c: any) => c["NOME CONTRATO"] ?? "").filter(Boolean));
+      // dedup de nomes — há contratos com mesmo NOME CONTRATO em filiais diferentes
+      const nomes = Array.from(new Set(data.map((c: any) => c["NOME CONTRATO"] ?? "").filter(Boolean)));
+      setContratos(nomes as string[]);
     }
   };
 
-  const carregarEmpregados = async () => {
-    if (empregados.length || loadingEmps) return;
+  const buscarEmpregados = async (term: string) => {
     setLoadingEmps(true);
     const { data, error } = await (supabase as any)
       .from("EMPREGADOS")
       .select('"Nome", "Filial", "Nome Filial", "Título do Cargo", "Valor Salário", "% Insalubridade"')
       .eq("Situação", "Trabalhando")
-      .order('"Nome"');
+      .ilike("Nome", `%${term}%`)
+      .order('"Nome"')
+      .limit(50);
     setLoadingEmps(false);
-    if (error) console.error("[EMPREGADOS] erro:", error.message, error.code);
-    if (data?.length) setEmpregados(data);
+    if (error) { toast("EMPREGADOS: " + error.message + " (" + (error.code ?? "?") + ")", "err"); return; }
+    setEmpregados(data ?? []);
   };
 
   const selecionarEmpregado = (emp: any) => {
@@ -1147,8 +1150,8 @@ export default function Recrutamento() {
                       const v = e.target.value;
                       setEmpSearch(v);
                       setVaga(prev => ({ ...prev, nome_substituido: v }));
-                      if (v.length >= 2) { setShowEmpDrop(true); carregarEmpregados(); }
-                      else setShowEmpDrop(false);
+                      if (v.length >= 2) { setShowEmpDrop(true); buscarEmpregados(v); }
+                      else { setShowEmpDrop(false); setEmpregados([]); }
                     }}
                   />
                   {showEmpDrop && empSearch.length >= 2 && (
