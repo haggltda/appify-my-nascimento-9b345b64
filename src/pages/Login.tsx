@@ -1,14 +1,24 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff, Briefcase, Wallet, BookOpen, ShoppingCart, Users2, Calculator, CheckCircle2 } from "lucide-react";
+import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight, Eye, EyeOff, Briefcase, Wallet, BookOpen, ShoppingCart, Users2, Calculator, CheckCircle2, IdCard } from "lucide-react";
 import logoGN from "@/assets/logo-grupo-nascimento.png";
 import { useDemoMode } from "@/context/DemoModeContext";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
+function maskCpf(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length > 9) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, "$1.$2.$3-$4");
+  if (d.length > 6) return d.replace(/(\d{3})(\d{3})(\d{0,3})/, "$1.$2.$3");
+  if (d.length > 3) return d.replace(/(\d{3})(\d{0,3})/, "$1.$2");
+  return d;
+}
+
 export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
+  const [mode, setMode] = useState<"email" | "cpf">("email");
   const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,14 +37,32 @@ export default function Login() {
     setError(null);
     setLoading(true);
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) throw signInError;
+      if (mode === "email") {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
+      } else {
+        // Login por CPF: a Edge Function verifica a senha (SHA-256 legado) e
+        // devolve um token de magic-link; o front estabelece a sessão Supabase real.
+        const { data, error: fnErr } = await supabase.functions.invoke("auth-cpf-login", {
+          body: { cpf, password },
+        });
+        let res = (data as { ok?: boolean; token_hash?: string; error?: string } | null) ?? null;
+        if (fnErr) {
+          try {
+            res = await (fnErr as { context?: { json?: () => Promise<typeof res> } }).context?.json?.() ?? null;
+          } catch { /* mantém erro genérico */ }
+          if (!res?.token_hash) throw new Error(res?.error || fnErr.message);
+        }
+        if (!res?.token_hash) throw new Error(res?.error || "Não foi possível entrar.");
+        const { error: otpErr } = await supabase.auth.verifyOtp({ token_hash: res.token_hash, type: "magiclink" });
+        if (otpErr) throw otpErr;
+      }
       disableDemo();
       navigate("/app");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
       if (msg.includes("Invalid login credentials")) {
-        setError("E-mail ou senha incorretos.");
+        setError(mode === "email" ? "E-mail ou senha incorretos." : "CPF ou senha incorretos.");
       } else {
         setError(msg);
       }
@@ -141,16 +169,48 @@ export default function Login() {
           )}
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <Field label="E-mail corporativo" icon={<Mail className="h-4 w-4" />}>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="nome.sobrenome@gruponascimento.com.br"
-                className="h-11 w-full rounded-lg border border-border bg-card pl-10 pr-3 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
-              />
-            </Field>
+            {/* Toggle Email | CPF */}
+            <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+              {(["email", "cpf"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => { setMode(m); setError(null); }}
+                  className={
+                    "flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-semibold transition-colors " +
+                    (mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {m === "email" ? <><Mail className="h-3.5 w-3.5" /> E-mail</> : <><IdCard className="h-3.5 w-3.5" /> CPF</>}
+                </button>
+              ))}
+            </div>
+
+            {mode === "email" ? (
+              <Field label="E-mail corporativo" icon={<Mail className="h-4 w-4" />}>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nome.sobrenome@gruponascimento.com.br"
+                  className="h-11 w-full rounded-lg border border-border bg-card pl-10 pr-3 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
+                />
+              </Field>
+            ) : (
+              <Field label="CPF" icon={<IdCard className="h-4 w-4" />}>
+                <input
+                  type="text"
+                  required
+                  inputMode="numeric"
+                  maxLength={14}
+                  value={cpf}
+                  onChange={(e) => setCpf(maskCpf(e.target.value))}
+                  placeholder="000.000.000-00"
+                  className="h-11 w-full rounded-lg border border-border bg-card pl-10 pr-3 text-sm shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
+                />
+              </Field>
+            )}
 
             <Field label="Senha" icon={<Lock className="h-4 w-4" />}>
               <input
@@ -180,7 +240,14 @@ export default function Login() {
               {!loading && <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
             </button>
 
-            <div className="text-center">
+            <div className="flex items-center justify-center gap-3 text-center">
+              <Link
+                to="/criar-acesso"
+                className="text-xs font-semibold text-accent hover:underline underline-offset-2 transition-colors"
+              >
+                Criar acesso
+              </Link>
+              <span className="text-xs text-border">·</span>
               <Link
                 to="/esqueci-senha"
                 className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"

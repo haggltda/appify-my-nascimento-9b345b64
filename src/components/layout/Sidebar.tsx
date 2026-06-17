@@ -46,7 +46,7 @@ import { Inbox } from "lucide-react";
 import { Target } from "lucide-react";
 import { GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface NavItem {
   label: string;
@@ -310,7 +310,27 @@ const rhModule: ModuleDef = {
         { label: "Colaboradores", to: "/app/rh/colaboradores", icon: Users2 },
         { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
         { label: "Folha de Pagamento", to: "/app/rh/folha", icon: ListChecks },
-        { label: "Recrutamento e Seleção", to: "/app/rh/recrutamento", icon: UserCog },
+        { label: "Gestão de Férias", to: "/app/rh/ferias", icon: CalendarRange },
+        { label: "Gestão Bonificações", to: "/app/rh/bonificacoes", icon: Trophy },
+      ],
+    },
+  ],
+};
+
+// Recrutamento e Seleção
+const recrutamentoModule: ModuleDef = {
+  id: "recrutamento",
+  label: "Recrutamento e Seleção",
+  description: "Vagas, candidatos e contratações",
+  icon: UserCog,
+  basePath: "/app/rh/recrutamento",
+  status: "active",
+  groups: [
+    {
+      label: "Gestão",
+      defaultOpen: true,
+      items: [
+        { label: "Gestão Recrutamento", to: "/app/rh/recrutamento", icon: UserCog },
       ],
     },
   ],
@@ -386,6 +406,7 @@ const erpModules: ModuleDef[] = [
   fiscalModule,
   contabilModule,
   rhModule,
+  recrutamentoModule,
   biModule,
 ];
 
@@ -412,7 +433,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/rh/bonificacoes"];
   const visibleModules = useMemo(() => {
     if (!access) return allModules;
     const canSee = (to: string) => {
@@ -432,13 +453,35 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
       .filter((mod) => !mod.groups || mod.groups.length > 0);
   }, [allModules, access]);
 
-  const activeModuleId =
-    visibleModules.find(
-      (m) => m.status === "active" && (location.pathname === m.basePath || location.pathname.startsWith(m.basePath)),
-    )?.id ??
-    visibleModules[0]?.id ??
-    "licitacoes";
+  // Módulo ativo = aquele cujo ITEM (link real) casa com a rota atual.
+  // Detecção por basePath não serve porque o Licitações usa basePath "/app"
+  // (colide com a página Início) e outros módulos se aninham (/app/rh ⊃ /app/rh/recrutamento).
+  // Vence o item de caminho mais específico (mais longo). null = nenhum módulo (ex.: Início).
+  const activeModuleId = useMemo(() => {
+    let bestId: string | null = null;
+    let bestLen = -1;
+    for (const m of visibleModules) {
+      if (m.status !== "active" || !m.groups) continue;
+      for (const g of m.groups) {
+        for (const item of g.items) {
+          if (item.to === "/app") continue; // Início é página própria, não ativa nenhum módulo
+          const matches =
+            location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+          if (matches && item.to.length > bestLen) {
+            bestLen = item.to.length;
+            bestId = m.id;
+          }
+        }
+      }
+    }
+    return bestId;
+  }, [visibleModules, location.pathname]);
+
   const [expandedModule, setExpandedModule] = useState<string | null>(activeModuleId);
+  // Expande automaticamente o módulo da rota atual ao navegar.
+  useEffect(() => {
+    if (activeModuleId) setExpandedModule(activeModuleId);
+  }, [activeModuleId]);
 
   // No mobile a sidebar nunca aparece colapsada (sempre full); colapso é só desktop.
   const desktopCollapsed = collapsed;
@@ -488,8 +531,12 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
             )
           }
         >
-          <Home className="h-4 w-4 shrink-0" />
-          {!collapsed && <span>Início</span>}
+          {({ isActive }) => (
+            <>
+              <Home className={cn("h-4 w-4 shrink-0", isActive && "text-accent")} />
+              {!collapsed && <span>Início</span>}
+            </>
+          )}
         </NavLink>
 
         <NavLink
@@ -549,6 +596,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
             key={mod.id}
             mod={mod}
             collapsed={collapsed}
+            active={mod.id === activeModuleId}
             expanded={expandedModule === mod.id}
             onToggle={() => setExpandedModule((cur) => (cur === mod.id ? null : mod.id))}
           />
@@ -586,17 +634,17 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 function ModuleEntry({
   mod,
   collapsed,
+  active,
   expanded,
   onToggle,
 }: {
   mod: ModuleDef;
   collapsed: boolean;
+  active: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const location = useLocation();
-  const isActiveModule =
-    mod.status === "active" && (location.pathname === mod.basePath || location.pathname.startsWith(mod.basePath));
+  const isActiveModule = active;
   const Icon = mod.icon;
   const disabled = mod.status === "soon";
 
@@ -623,7 +671,7 @@ function ModuleEntry({
           <>
             <span className="flex-1 truncate">{mod.label}</span>
             {mod.badge && !disabled && (
-              <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+              <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-sidebar-foreground/70">
                 {mod.badge}
               </span>
             )}
@@ -691,7 +739,7 @@ function SidebarGroup({ group }: { group: NavGroup }) {
                     <item.icon className={cn("h-3.5 w-3.5 shrink-0", isActive ? "text-accent" : "")} />
                     <span className="flex-1 truncate">{item.label}</span>
                     {item.badge && (
-                      <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                      <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-sidebar-foreground/70">
                         {item.badge}
                       </span>
                     )}

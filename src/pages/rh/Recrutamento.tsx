@@ -197,6 +197,11 @@ export default function Recrutamento() {
     motivos_saida: "", recomendacao: "", observacao_importante: "",
   });
   const [contratos, setContratos] = useState<string[]>([]);
+  const [contratosFull, setContratosFull] = useState<any[]>([]);
+  const [empregados, setEmpregados] = useState<any[]>([]);
+  const [empSearch, setEmpSearch] = useState("");
+  const [showEmpDrop, setShowEmpDrop] = useState(false);
+  const [loadingEmps, setLoadingEmps] = useState(false);
 
   // Toast
   const [toasts, setToasts] = useState<{ id: number; msg: string; type: string }[]>([]);
@@ -493,15 +498,53 @@ export default function Recrutamento() {
   // ── Solicitar Vaga ────────────────────────────────────────────
   const carregarContratos = async () => {
     const { data } = await (supabase as any)
-      .from("contratos_ativos")
-      .select("nome_contrato")
-      .order("nome_contrato");
-    if (data) setContratos(data.map((c: any) => c.nome_contrato ?? c.nome ?? "").filter(Boolean));
+      .from("CONTRATOS")
+      .select('"NOME CONTRATO", Filial')
+      .eq("ATIVO", "SIM")
+      .order('"NOME CONTRATO"');
+    if (data) {
+      setContratosFull(data);
+      // dedup de nomes — há contratos com mesmo NOME CONTRATO em filiais diferentes
+      const nomes = Array.from(new Set(data.map((c: any) => c["NOME CONTRATO"] ?? "").filter(Boolean)));
+      setContratos(nomes as string[]);
+    }
+  };
+
+  const buscarEmpregados = async (term: string) => {
+    setLoadingEmps(true);
+    const { data, error } = await (supabase as any)
+      .from("EMPREGADOS")
+      .select('"Nome", "Filial", "Nome Filial", "Título do Cargo", "Valor Salário", "% Insalubridade"')
+      .eq("Situação", "Trabalhando")
+      .ilike("Nome", `%${term}%`)
+      .order('"Nome"')
+      .limit(50);
+    setLoadingEmps(false);
+    if (error) { toast("EMPREGADOS: " + error.message + " (" + (error.code ?? "?") + ")", "err"); return; }
+    setEmpregados(data ?? []);
+  };
+
+  const selecionarEmpregado = (emp: any) => {
+    const contratoMatch = contratosFull.find((c: any) => c.Filial === emp.Filial);
+    const insal = parseFloat(String(emp["% Insalubridade"] ?? "0").replace(",", ".")) || 0;
+    setVaga(v => ({
+      ...v,
+      nome_substituido: emp.Nome,
+      cargo: emp["Título do Cargo"] ?? "",
+      salario: emp["Valor Salário"] ? `R$ ${String(emp["Valor Salário"]).replace(".", ",")}` : "",
+      insalubridade_recebe: insal > 0 ? "Sim" : "Não",
+      insalubridade_quanto: insal > 0 ? `${emp["% Insalubridade"]}%` : "",
+      contrato: contratoMatch ? contratoMatch["NOME CONTRATO"] : v.contrato,
+    }));
+    setEmpSearch(emp.Nome);
+    setShowEmpDrop(false);
   };
 
   const abrirModalVaga = () => {
     setModalVaga(true);
     setVagaStep(1);
+    setEmpSearch("");
+    setShowEmpDrop(false);
     if (!contratos.length) carregarContratos();
   };
 
@@ -536,6 +579,8 @@ export default function Recrutamento() {
       grau_urgencia:"",alta_rotatividade:"Não",req_obrigatorios:"",req_desejaveis:"",
       exp_minima:"Não",exp_minima_qual:"",motivos_saida:"",recomendacao:"",observacao_importante:"" });
     setVagaStep(1);
+    setEmpSearch("");
+    setShowEmpDrop(false);
     loadStats();
     loadLista();
   };
@@ -1093,7 +1138,43 @@ export default function Recrutamento() {
                 </select>
               </div>
               {vaga.motivo_vaga === "Substituição" && (
-                <div className="rec-fg"><label>Colaborador a Substituir</label><input className="rec-fi" placeholder="Nome do colaborador..." value={vaga.nome_substituido} onChange={e => setVaga(v => ({ ...v, nome_substituido: e.target.value }))} /></div>
+                <div className="rec-fg" style={{ position: "relative" }}
+                  onBlur={() => setTimeout(() => setShowEmpDrop(false), 150)}>
+                  <label>Colaborador a Substituir</label>
+                  <input
+                    className="rec-fi"
+                    placeholder="Buscar colaborador..."
+                    value={empSearch}
+                    autoComplete="off"
+                    onChange={e => {
+                      const v = e.target.value;
+                      setEmpSearch(v);
+                      setVaga(prev => ({ ...prev, nome_substituido: v }));
+                      if (v.length >= 2) { setShowEmpDrop(true); buscarEmpregados(v); }
+                      else { setShowEmpDrop(false); setEmpregados([]); }
+                    }}
+                  />
+                  {showEmpDrop && empSearch.length >= 2 && (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(15,23,42,.14)", maxHeight: 220, overflowY: "auto", marginTop: 2 }}>
+                      {loadingEmps ? (
+                        <div style={{ padding: "12px", fontSize: 12, color: "#94a3b8", textAlign: "center" }}>Buscando...</div>
+                      ) : (() => {
+                        const filtrados = empregados.filter(e => e.Nome?.toLowerCase().includes(empSearch.toLowerCase())).slice(0, 40);
+                        return filtrados.length === 0 ? (
+                          <div style={{ padding: "12px", fontSize: 12, color: "#94a3b8", textAlign: "center" }}>Nenhum colaborador encontrado.</div>
+                        ) : filtrados.map((emp, i) => (
+                          <div key={i} onMouseDown={() => selecionarEmpregado(emp)}
+                            style={{ padding: "8px 12px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid #f1f5f9", color: "#0f172a" }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "#f0f4ff")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
+                            <div style={{ fontWeight: 600 }}>{emp.Nome}</div>
+                            <div style={{ fontSize: 11, color: "#94a3b8" }}>{emp["Título do Cargo"]}{emp["Nome Filial"] ? ` · ${emp["Nome Filial"]}` : ""}</div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  )}
+                </div>
               )}
               <div className="rec-fg">
                 <label>Contrato *</label>
