@@ -239,6 +239,11 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
       }
     },
     can: (acao, modulo, menu) => {
+<<<<<<< HEAD
+=======
+      if (roles.includes("admin")) return true;
+
+>>>>>>> d8769230573772fd4a4c14d334af721a471b0f8a
       if (!user && isDemo) {
         if (demoRole === "admin") return true;
         if (demoRole === "usuario" || demoRole === "visitante") return acao === "visualizar";

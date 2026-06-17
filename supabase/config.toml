@@ -1,0 +1,28 @@
+project_id = "fwmzeaztjxrxxzxzxmgc"
+
+[functions.nf-import-xml]
+verify_jwt = true
+
+[functions.nf-consultar-sefaz]
+verify_jwt = true
+
+[functions.copiloto-acoes-chat]
+verify_jwt = true
+
+[functions.copiloto-acoes-transcrever]
+verify_jwt = true
+
+[functions.copiloto-acoes-criar]
+verify_jwt = true
+
+[functions.copiloto-acoes-analise]
+verify_jwt = true
+
+[functions.fcr-load]
+verify_jwt = true
+
+[functions.dump-regras]
+verify_jwt = true
+
+[functions.erp-caixa-export]
+verify_jwt = true

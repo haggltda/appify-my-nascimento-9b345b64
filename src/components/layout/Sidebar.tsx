@@ -38,6 +38,10 @@ import {
   ClipboardCheck,
   DatabaseZap,
 } from "lucide-react";
+<<<<<<< HEAD
+=======
+import { usePermissoes } from "@/context/PermissoesContext";
+>>>>>>> d8769230573772fd4a4c14d334af721a471b0f8a
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
@@ -395,6 +399,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: SidebarProps) {
   const location = useLocation();
+<<<<<<< HEAD
   const { perms } = usePlanoAcaoPermissao();
   const { temAlcada, pendentes } = useTemAlcada();
   const { data: access } = useAccessibleMenus("visualizar");
@@ -403,6 +408,19 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
     ...erpModules,
     ...(perms.pode_visualizar ? [buildPlanoAcoesModule(false)] : []),
     integracaoModule,
+=======
+  const { roles } = usePermissoes();
+  const { perms, isAdmin } = usePlanoAcaoPermissao();
+  const { temAlcada, pendentes } = useTemAlcada();
+  const { data: access } = useAccessibleMenus("visualizar");
+  const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
+  const podeCopiloto = roles.includes("admin") || roles.includes("presidencia");
+
+  const allModules = [
+    ...erpModules,
+    ...(podeVerPlanoAcoes ? [buildPlanoAcoesModule(podeCopiloto)] : []),
+    ...(roles.includes("admin") ? [integracaoModule] : []),
+>>>>>>> d8769230573772fd4a4c14d334af721a471b0f8a
   ];
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.

@@ -1,0 +1,1 @@
+ALTER TABLE public.licitacao ALTER COLUMN valor_estimado DROP NOT NULL;

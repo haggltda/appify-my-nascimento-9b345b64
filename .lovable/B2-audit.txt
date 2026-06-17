@@ -1,0 +1,106 @@
+Rota App.tsx                                            menuCode (matchMenuCode)         Status / Decisão
+----------------------------------------------------------------------------------------------------------------------------------
+/app                                                    -                                ALLOWLIST (Inicio)
+/app/admin/migracao-zero                                migracao-zero                    OK — coberta
+/app/admin/permissoes                                   acessos-permissoes               OK — coberta
+/app/admin/smoke-helena                                 -                                ROLE-CHECK admin (não criar app_menu)
+/app/administracao                                      administracao                    OK — coberta
+/app/ajuda                                              ajuda                            OK — coberta
+/app/ajuda/:modulo/:slug                                ajuda                            OK — coberta
+/app/aprovacoes                                         aprovacoes                       OK — coberta
+/app/aprovacoes/inbox                                   aprovacoes-inbox                 OK — coberta
+/app/bi                                                 principal                        OK — coberta
+/app/co/centros-custo                                   cc                               OK — coberta
+/app/co/classificadores                                 classificadores                  OK — coberta
+/app/co/dre                                             dre                              OK — coberta
+/app/co/dre-gerencial                                   dre-gerencial                    OK — coberta
+/app/co/empresas                                        empresas                         OK — coberta
+/app/co/estrutura-organizacional                        estrutura-organizacional         OK — coberta
+/app/co/obz                                             obz                              OK — coberta
+/app/co/obz-versoes                                     obz-versoes                      OK — coberta
+/app/co/orcamento-completo                              -                                FALTA cadastrar app_menu (futuro PLAN)
+/app/composicao                                         composicao                       OK — coberta
+/app/contabil/aprovacao-contas                          aprovacao-contas                 OK — coberta
+/app/contabil/avancada                                  avancada                         OK — coberta
+/app/contabil/balancete                                 balancete                        OK — coberta
+/app/contabil/conciliacao-eventos                       conciliacao-eventos              OK — coberta
+/app/contabil/dre-gerencial-real                        dre-gerencial-real               OK — coberta
+/app/contabil/lancamentos                               lancamentos                      OK — coberta
+/app/contabil/plano-contas                              plano-contas                     OK — coberta
+/app/contabil/razao                                     razao                            OK — coberta
+/app/contabil/razao-detalhado                           -                                FALTA cadastrar app_menu (futuro PLAN)
+/app/contratos/:id                                      -                                DINÂMICA — precisa herdar do pai
+/app/contratos/ativos                                   ativos                           OK — coberta
+/app/contratos/empenhos                                 empenhos                         OK — coberta
+/app/contratos/encerramentos                            encerramentos                    OK — coberta
+/app/contratos/faturamento                              faturamento                      OK — coberta
+/app/contratos/implantacao                              implantacao                      OK — coberta
+/app/contratos/medicoes                                 medicoes                         OK — coberta
+/app/contratos/postos                                   postos                           OK — coberta
+/app/contratos/reajustes                                reajustes                        OK — coberta
+/app/controladoria                                      controladoria-licit              OK — coberta
+/app/custos-bdi                                         custos-bdi                       OK — coberta
+/app/documentos                                         documentos                       OK — coberta
+/app/editais                                            editais                          OK — coberta
+/app/financeiro/capital-giro                            capital-giro                     OK — coberta
+/app/financeiro/conciliacao-fluxo-caixa                 conciliacao-fluxo                OK — coberta
+/app/financeiro/contas-bancarias                        contas-bancarias                 OK — coberta
+/app/financeiro/contas-pagar                            contas-pagar                     OK — coberta
+/app/financeiro/contas-receber                          contas-receber                   OK — coberta
+/app/financeiro/fluxo-caixa                             fluxo                            OK — coberta
+/app/financeiro/fluxo-caixa-diario                      fluxo-caixa-diario               OK — coberta
+/app/financeiro/integracao-bancaria                     integracao-bancaria              OK — coberta
+/app/financeiro/integracao-bancaria/builder/:contaId    integracao-bancaria              OK — coberta
+/app/financeiro/movimentos                              movimentos-bancarios             OK — coberta
+/app/financeiro/programacao-pagamentos                  programacao                      OK — coberta
+/app/financeiro/validacao-pos-pagamento                 validacao                        OK — coberta
+/app/fiscal                                             principal                        OK — coberta
+/app/historico                                          historico                        OK — coberta
+/app/integracao                                         integracao                       OK — coberta
+/app/integracao/:id                                     integracao                       OK — coberta
+/app/integracao/aliases                                 integracao-aliases               OK — coberta
+/app/meu-perfil                                         -                                ALLOWLIST (perfil próprio)
+/app/orcamento                                          orcamento                        OK — coberta
+/app/painel-executivo                                   painel-executivo                 OK — coberta
+/app/parecer-controladoria                              parecer-controladoria            OK — coberta
+/app/parecer-dir-administrativo                         parecer-dir-administrativo       OK — coberta
+/app/parecer-dir-operacional                            parecer-dir-operacional          OK — coberta
+/app/parecer-gerencial                                  parecer-gerencial                OK — coberta
+/app/parecer-juridico                                   parecer-juridico                 OK — coberta
+/app/parecer-sst                                        parecer-sst                      OK — coberta
+/app/parecer-tecnico                                    parecer-tecnico                  OK — coberta
+/app/pipeline                                           pipeline                         OK — coberta
+/app/plano-acoes                                        plano_acoes_lista                OK — coberta
+/app/plano-acoes/:id                                    plano_acoes_lista                OK — coberta
+/app/plano-acoes/aprovacoes                             plano_acoes_aprovacoes           OK — coberta
+/app/plano-acoes/configuracoes                          plano_acoes_configuracoes        OK — coberta
+/app/plano-acoes/copiloto                               copiloto_ia                      OK — coberta
+/app/plano-acoes/dashboard                              plano_acoes_dashboard            OK — coberta
+/app/plano-acoes/importar                               plano_acoes_importar             OK — coberta
+/app/plano-acoes/kanban                                 plano_acoes_kanban               OK — coberta
+/app/pregao                                             pregao                           OK — coberta
+/app/presidencia                                        presidencia                      OK — coberta
+/app/prontas-contrato                                   prontas-contrato                 OK — coberta
+/app/resultado                                          resultado                        OK — coberta
+/app/rh/alocacoes                                       alocacoes                        OK — coberta
+/app/rh/colaboradores                                   colaboradores                    OK — coberta
+/app/rh/folha                                           folha                            OK — coberta
+/app/suprimentos/almoxarifados                          almoxarifados                    OK — coberta
+/app/suprimentos/aprovacoes                             aprovacoes                       OK — coberta
+/app/suprimentos/categorias                             categorias                       OK — coberta
+/app/suprimentos/cotacoes                               cotacoes                         OK — coberta
+/app/suprimentos/estoque                                estoque                          OK — coberta
+/app/suprimentos/fornecedores                           fornecedores                     OK — coberta
+/app/suprimentos/movimentos                             movimentos                       OK — coberta
+/app/suprimentos/nf-entrada                             nf-entrada                       OK — coberta
+/app/suprimentos/pedidos                                pedidos                          OK — coberta
+/app/suprimentos/produtos                               produtos                         OK — coberta
+/app/suprimentos/produtos-servicos                      produtos-servicos                OK — coberta
+/app/suprimentos/recebimentos                           recebimentos                     OK — coberta
+/app/suprimentos/requisicoes                            requisicoes                      OK — coberta
+/app/triagem                                            triagem                          OK — coberta
+
+=== Sumário ===
+Total rotas /app em App.tsx: 99
+  Com menuCode (longest-prefix atual): 93
+  SEM menuCode: 6
