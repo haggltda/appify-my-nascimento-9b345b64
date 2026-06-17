@@ -310,7 +310,25 @@ const rhModule: ModuleDef = {
         { label: "Colaboradores", to: "/app/rh/colaboradores", icon: Users2 },
         { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
         { label: "Folha de Pagamento", to: "/app/rh/folha", icon: ListChecks },
-        { label: "Recrutamento e Seleção", to: "/app/rh/recrutamento", icon: UserCog },
+      ],
+    },
+  ],
+};
+
+// Recrutamento e Seleção
+const recrutamentoModule: ModuleDef = {
+  id: "recrutamento",
+  label: "Recrutamento e Seleção",
+  description: "Vagas, candidatos e contratações",
+  icon: UserCog,
+  basePath: "/app/rh/recrutamento",
+  status: "active",
+  groups: [
+    {
+      label: "Gestão",
+      defaultOpen: true,
+      items: [
+        { label: "Gestão Recrutamento", to: "/app/rh/recrutamento", icon: UserCog },
       ],
     },
   ],
@@ -386,6 +404,7 @@ const erpModules: ModuleDef[] = [
   fiscalModule,
   contabilModule,
   rhModule,
+  recrutamentoModule,
   biModule,
 ];
 
