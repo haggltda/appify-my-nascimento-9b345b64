@@ -22,7 +22,6 @@ const NONE: PlanoAcaoPermissao = {
   pode_ver_todas: false,
 };
 
-<<<<<<< HEAD
 export function usePlanoAcaoPermissao() {
   const { loading } = usePermissoes();
   const { empresa, loading: loadingEmp } = useEmpresaAtiva();
@@ -31,23 +30,6 @@ export function usePlanoAcaoPermissao() {
   const q = useQuery({
     queryKey: ["plano_acao_permissao", empresaId],
     enabled: !loading && !loadingEmp && !!empresaId,
-=======
-const ALL: PlanoAcaoPermissao = {
-  pode_visualizar: true, pode_dashboard: true, pode_criar: true, pode_editar: true,
-  pode_excluir: true, pode_importar: true, pode_aprovar: true, pode_administrar: true,
-  pode_ver_todas: true,
-};
-
-export function usePlanoAcaoPermissao() {
-  const { roles, loading } = usePermissoes();
-  const { empresa, loading: loadingEmp } = useEmpresaAtiva();
-  const empresaId = empresa?.id ?? null;
-  const isAdmin = roles.includes("admin");
-
-  const q = useQuery({
-    queryKey: ["plano_acao_permissao", empresaId, isAdmin],
-    enabled: !loading && !loadingEmp && !!empresaId && !isAdmin,
->>>>>>> d8769230573772fd4a4c14d334af721a471b0f8a
     queryFn: async (): Promise<PlanoAcaoPermissao> => {
       const { data: userRes } = await supabase.auth.getUser();
       const uid = userRes.user?.id;
@@ -62,13 +44,7 @@ export function usePlanoAcaoPermissao() {
     },
   });
 
-<<<<<<< HEAD
   const perms = q.data ?? NONE;
   const can = (p: PermissaoFlag) => perms[`pode_${p}` as keyof PlanoAcaoPermissao];
   return { perms, can, loading: loading || loadingEmp || q.isLoading };
-=======
-  const perms = isAdmin ? ALL : (q.data ?? NONE);
-  const can = (p: PermissaoFlag) => perms[`pode_${p}` as keyof PlanoAcaoPermissao];
-  return { perms, can, loading: loading || loadingEmp || q.isLoading, isAdmin };
->>>>>>> d8769230573772fd4a4c14d334af721a471b0f8a
 }
