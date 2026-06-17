@@ -222,6 +222,12 @@ export default function PlanoAcaoDetalhe() {
       });
     }
     if (isNew) {
+      // Para visibilidade específica garante que o criador está na lista,
+      // caso contrário ele mesmo perderá acesso ao plano após salvar.
+      const usuariosParaRPC = form.visibilidade === "especifico"
+        ? Array.from(new Set([...(user?.id ? [user.id] : []), ...usuariosVisibilidade]))
+        : null;
+
       const { data: novoId, error } = await supabase.rpc("criar_plano_acao", {
         _empresa_id: empresaId,
         _titulo: form.titulo,
@@ -239,9 +245,7 @@ export default function PlanoAcaoDetalhe() {
         _data_fim_planejado: form.data_fim_planejado || null,
         _comentarios: form.comentarios || null,
         _visibilidade: form.visibilidade ?? "privado",
-        _usuarios_visibilidade: form.visibilidade === "especifico" && usuariosVisibilidade.length > 0
-          ? usuariosVisibilidade
-          : null,
+        _usuarios_visibilidade: usuariosParaRPC,
       } as any);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
       const ins = { id: novoId as string };
@@ -269,16 +273,24 @@ export default function PlanoAcaoDetalhe() {
       } as any).eq("id", id!);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
 
-      // Sincroniza usuários de visibilidade específica
+      // Sincroniza usuários de visibilidade específica.
+      // O criador (user.id) é sempre mantido na lista para que ele não perca
+      // acesso ao próprio plano ao editar — a política RLS não tem bypass de criador
+      // para visibilidade='especifico'.
       await (supabase as any).from("plano_acao_visibilidade_usuario").delete().eq("plano_acao_id", id!);
-      if (form.visibilidade === "especifico" && usuariosVisibilidade.length > 0) {
-        await (supabase as any).from("plano_acao_visibilidade_usuario").insert(
-          usuariosVisibilidade.map((uid) => ({
-            plano_acao_id: id!,
-            empresa_id: empresaId,
-            profile_id: uid,
-          }))
+      if (form.visibilidade === "especifico") {
+        const usuariosComCriador = Array.from(
+          new Set([...(user?.id ? [user.id] : []), ...usuariosVisibilidade])
         );
+        if (usuariosComCriador.length > 0) {
+          await (supabase as any).from("plano_acao_visibilidade_usuario").insert(
+            usuariosComCriador.map((uid) => ({
+              plano_acao_id: id!,
+              empresa_id: empresaId,
+              profile_id: uid,
+            }))
+          );
+        }
       }
 
       toast({ title: "Ação atualizada" });
