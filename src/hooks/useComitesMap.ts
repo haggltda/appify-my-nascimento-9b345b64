@@ -76,13 +76,12 @@ export function useComitesMap() {
 
       if (Object.keys(out).length > 0) return out;
 
-      // Fallback legado a partir do histórico
-      const { data, error } = await supabase
-        .from("plano_acao")
-        .select("comite, area, lider_comite_nome_origem")
-        .eq("empresa_id", empresaId!)
-        .is("deleted_at", null)
-        .not("comite", "is", null);
+      // Fallback legado: usa RPC SECURITY DEFINER para contornar a RLS de
+      // visibilidade do plano_acao — retorna apenas nomes de comitê/área.
+      const { data, error } = await (supabase as any).rpc(
+        "plano_acao_comites_lista",
+        { _empresa_id: empresaId! },
+      );
       if (error) throw error;
 
       const map: Record<string, { areas: Map<string, number>; lideres: Map<string, number> }> = {};

@@ -31,16 +31,12 @@ export function usePlanoAcaoPermissao() {
     queryKey: ["plano_acao_permissao", empresaId],
     enabled: !loading && !loadingEmp && !!empresaId,
     queryFn: async (): Promise<PlanoAcaoPermissao> => {
-      const { data: userRes } = await supabase.auth.getUser();
-      const uid = userRes.user?.id;
-      if (!uid) return NONE;
-      const { data } = await supabase
-        .from("plano_acao_usuario_permissao")
-        .select("pode_visualizar,pode_dashboard,pode_criar,pode_editar,pode_excluir,pode_importar,pode_aprovar,pode_administrar,pode_ver_todas")
-        .eq("empresa_id", empresaId!)
-        .eq("profile_id", uid)
-        .maybeSingle();
-      return (data as PlanoAcaoPermissao) ?? NONE;
+      const { data, error } = await (supabase as any).rpc(
+        "minha_permissao_plano_acao",
+        { _empresa_id: empresaId! },
+      );
+      if (error || !data) return NONE;
+      return data as PlanoAcaoPermissao;
     },
   });
 

@@ -11,7 +11,7 @@ import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
 import { PERMISSOES_FLAGS } from "@/types/planoAcao";
 
-export default function PlanoAcoesConfiguracoes() {
+export default function PlanoAcoesConfiguracoes({ bypassGuard }: { bypassGuard?: boolean } = {}) {
   const { empresa } = useEmpresaAtiva();
   const empresaId = empresa?.id ?? null;
   const { can, loading } = usePlanoAcaoPermissao();
@@ -31,7 +31,7 @@ export default function PlanoAcoesConfiguracoes() {
   useEffect(() => { reload(); }, [empresaId]);
 
   if (loading) return null;
-  if (!can("administrar")) return <ForbiddenCard />;
+  if (!bypassGuard && !can("administrar")) return <ForbiddenCard />;
 
   const togglePerm = async (profile_id: string, flag: string, value: boolean) => {
     if (!empresaId) return;
