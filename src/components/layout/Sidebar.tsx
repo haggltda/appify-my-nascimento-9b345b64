@@ -42,6 +42,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
+import { useIsEncarregado } from "@/hooks/useVinculoEmpregado";
 import { Inbox } from "lucide-react";
 import { Target } from "lucide-react";
 import { GitBranch } from "lucide-react";
@@ -422,6 +423,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const { perms, isAdmin } = usePlanoAcaoPermissao();
   const { temAlcada, pendentes } = useTemAlcada();
   const { data: access } = useAccessibleMenus("visualizar");
+  const { isEncarregado } = useIsEncarregado(); // encarregado só vê o Início
   const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
   const podeCopiloto = roles.includes("admin") || roles.includes("presidencia");
 
@@ -539,6 +541,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
           )}
         </NavLink>
 
+        {!isEncarregado && (<>
         <NavLink
           to="/app/presidencia"
           className={({ isActive }) =>
@@ -581,30 +584,37 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
             )}
           </NavLink>
         )}
+        </>)}
       </div>
 
-      {/* Section label */}
-      {!collapsed && (
-        <p className="mt-4 px-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-muted">
-          Módulos do ERP
-        </p>
+      {/* Módulos — escondidos para encarregado (só vê o Início) */}
+      {isEncarregado ? (
+        <div className="flex-1" />
+      ) : (
+        <>
+          {!collapsed && (
+            <p className="mt-4 px-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-muted">
+              Módulos do ERP
+            </p>
+          )}
+          <nav className="mt-2 flex-1 overflow-y-auto scroll-elegant px-2 py-1">
+            {visibleModules.map((mod) => (
+              <ModuleEntry
+                key={mod.id}
+                mod={mod}
+                collapsed={collapsed}
+                active={mod.id === activeModuleId}
+                expanded={expandedModule === mod.id}
+                onToggle={() => setExpandedModule((cur) => (cur === mod.id ? null : mod.id))}
+              />
+            ))}
+          </nav>
+        </>
       )}
-
-      <nav className="mt-2 flex-1 overflow-y-auto scroll-elegant px-2 py-1">
-        {visibleModules.map((mod) => (
-          <ModuleEntry
-            key={mod.id}
-            mod={mod}
-            collapsed={collapsed}
-            active={mod.id === activeModuleId}
-            expanded={expandedModule === mod.id}
-            onToggle={() => setExpandedModule((cur) => (cur === mod.id ? null : mod.id))}
-          />
-        ))}
-      </nav>
 
       {/* Configurações + ambiente */}
       <div className="border-t border-sidebar-border p-2">
+        {!isEncarregado && (
         <NavLink
           to="/app/administracao"
           className={({ isActive }) =>
@@ -620,6 +630,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
           <Settings className="h-4 w-4 shrink-0" />
           {!collapsed && <span>Configurações do ERP</span>}
         </NavLink>
+        )}
         {!collapsed && (
           <div className="mt-2 flex items-center gap-2 rounded-md bg-sidebar-accent/40 px-2.5 py-2">
             <span className="h-2 w-2 rounded-full bg-success animate-pulse-soft" />

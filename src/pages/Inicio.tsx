@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsEncarregado } from "@/hooks/useVinculoEmpregado";
 
 // ── Helpers ────────────────────────────────────────────────────────
 function fmtDt(s?: string) {
@@ -68,6 +69,7 @@ const QA = [
 
 export default function Inicio() {
   const { user } = useAuth();
+  const { isEncarregado } = useIsEncarregado(); // encarregado vê só hero + cards de solicitação
   const [displayName, setDisplayName] = useState("");
 
   // ── Wizard nova vaga ──────────────────────────────────────────────
@@ -98,6 +100,8 @@ export default function Inicio() {
   // ── Toasts ───────────────────────────────────────────────────────
   const [toasts, setToasts] = useState<{ id: number; msg: string; type: string }[]>([]);
   const toastId = useRef(0);
+  const empDebounce = useRef<ReturnType<typeof setTimeout> | null>(null); // debounce busca colaborador
+  const empTermo    = useRef("");  // último termo (descarta respostas obsoletas)
 
   const toast = useCallback((msg: string, type = "info") => {
     const id = ++toastId.current;
@@ -144,18 +148,24 @@ export default function Inicio() {
   };
 
   // ── Empregados ────────────────────────────────────────────────────
-  const buscarEmpregados = async (term: string) => {
+  // Auto-debounced + descarta respostas obsoletas (cobre os 3 modais: vaga, férias, bonificação).
+  const buscarEmpregados = (term: string) => {
+    empTermo.current = term;
     setLoadingEmps(true);
-    const { data, error } = await (supabase as any)
-      .from("EMPREGADOS")
-      .select('"ID", "Nome", "CPF", "Filial", "Nome Filial", "Título do Cargo", "Valor Salário", "% Insalubridade", "Admissão"')
-      .eq("Situação", "Trabalhando")
-      .ilike("Nome", `%${term}%`)
-      .order('"Nome"')
-      .limit(50);
-    setLoadingEmps(false);
-    if (error) console.error("[EMPREGADOS] erro:", error.message, error.code);
-    setEmpregados(data ?? []);
+    if (empDebounce.current) clearTimeout(empDebounce.current);
+    empDebounce.current = setTimeout(async () => {
+      const { data, error } = await (supabase as any)
+        .from("EMPREGADOS")
+        .select('"ID", "Nome", "CPF", "Filial", "Nome Filial", "Título do Cargo", "Valor Salário", "% Insalubridade", "Admissão", "Escala"')
+        .eq("Situação", "Trabalhando")
+        .ilike("Nome", `%${term}%`)
+        .order('"Nome"')
+        .limit(50);
+      if (empTermo.current !== term) return; // resposta de uma busca antiga — descarta
+      setLoadingEmps(false);
+      if (error) console.error("[EMPREGADOS] erro:", error.message, error.code);
+      setEmpregados(data ?? []);
+    }, 350);
   };
 
   const selecionarEmpregado = (emp: any) => {
@@ -168,6 +178,7 @@ export default function Inicio() {
       salario: emp["Valor Salário"] ? `R$ ${String(emp["Valor Salário"]).replace(".", ",")}` : "",
       insalubridade_recebe: insal > 0 ? "Sim" : "Não",
       insalubridade_quanto: insal > 0 ? `${emp["% Insalubridade"]}%` : "",
+      escala: emp["Escala"] ? String(emp["Escala"]) : v.escala,
       contrato: contratoMatch ? contratoMatch["NOME CONTRATO"] : v.contrato,
     }));
     setEmpSearch(emp.Nome);
@@ -399,30 +410,34 @@ export default function Inicio() {
         </div>
       </div>
 
-      {/* ── Acesso Rápido ── */}
-      <div className="ini-card">
-        <div className="ini-card-hd">
-          <h3>⚡ Acesso Rápido</h3>
-        </div>
-        <div className="ini-card-body">
-          <div className="ini-qa">
-            {QA.map(q => (
-              <Link key={q.to} to={q.to} className="ini-qa-btn">
-                <span className="icon">{q.icon}</span>
-                <span>{q.label}</span>
-              </Link>
-            ))}
+      {/* ── Acesso Rápido (oculto para encarregado) ── */}
+      {!isEncarregado && (
+        <div className="ini-card">
+          <div className="ini-card-hd">
+            <h3>⚡ Acesso Rápido</h3>
+          </div>
+          <div className="ini-card-body">
+            <div className="ini-qa">
+              {QA.map(q => (
+                <Link key={q.to} to={q.to} className="ini-qa-btn">
+                  <span className="icon">{q.icon}</span>
+                  <span>{q.label}</span>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Minhas Solicitações ── */}
       <div className="ini-card">
         <div className="ini-card-hd">
           <h3>📤 Minhas Solicitações</h3>
-          <Link to="/app/rh/recrutamento" style={{ fontSize: ".78rem", fontWeight: 600, color: "#0f3171", textDecoration: "none" }}>
-            Ver todas →
-          </Link>
+          {!isEncarregado && (
+            <Link to="/app/rh/recrutamento" style={{ fontSize: ".78rem", fontWeight: 600, color: "#0f3171", textDecoration: "none" }}>
+              Ver todas →
+            </Link>
+          )}
         </div>
         <div className="ini-card-body">
           {/* Botões de criação */}

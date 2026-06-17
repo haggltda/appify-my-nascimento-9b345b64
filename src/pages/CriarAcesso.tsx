@@ -29,8 +29,10 @@ type Tipo = "ENCARREGADO" | "ADMINISTRATIVO";
 
 export default function CriarAcesso() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [tipo, setTipo] = useState<Tipo | null>(null);
+  const [modoSenha, setModoSenha] = useState("");
+  const [showModoPwd, setShowModoPwd] = useState(false);
 
   const [cpf, setCpf] = useState("");
   const [nascimento, setNascimento] = useState("");
@@ -51,7 +53,17 @@ export default function CriarAcesso() {
     });
   }, [tipo, contratos.length]);
 
-  const escolherTipo = (t: Tipo) => { setTipo(t); setError(null); setStep(2); };
+  const escolherTipo = (t: Tipo) => { setTipo(t); setModoSenha(""); setError(null); setStep(2); };
+
+  const validarModo = async () => {
+    setError(null);
+    if (!modoSenha) return setError("Informe a senha do modo.");
+    setLoading(true);
+    const r = await callFn("auth-criar-acesso", { action: "validar_modo", tipo, modo_senha: modoSenha });
+    setLoading(false);
+    if (!r.ok) return setError(r.error ?? "Senha do modo incorreta.");
+    setStep(3);
+  };
 
   const submit = async () => {
     setError(null);
@@ -64,13 +76,13 @@ export default function CriarAcesso() {
     setLoading(true);
     const contrato = contratos.find(c => String(c.id) === contratoId);
     const r = await callFn("auth-criar-acesso", {
-      cpf, nascimento, password, tipo,
+      cpf, nascimento, password, tipo, modo_senha: modoSenha,
       contrato_id: contratoId ? Number(contratoId) : undefined,
       contrato_nome: contrato?.nome,
     });
     setLoading(false);
     if (!r.ok) return setError(r.error ?? "Não foi possível criar o acesso.");
-    setStep(3);
+    setStep(4);
   };
 
   return (
@@ -142,6 +154,40 @@ export default function CriarAcesso() {
               <h2 className="font-display text-2xl font-bold">
                 {tipo === "ENCARREGADO" ? "Acesso de Encarregado" : "Acesso Administrativo"}
               </h2>
+              <p className="mt-1 text-sm text-muted-foreground">Informe a senha do modo para continuar.</p>
+
+              {error && (
+                <div className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive-soft px-3 py-2.5 text-sm text-destructive">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><p>{error}</p>
+                </div>
+              )}
+
+              <div className="mt-5">
+                <Field label={`Senha do modo ${tipo === "ENCARREGADO" ? "Encarregado" : "Administrativo"}`} icon={<Lock className="h-4 w-4" />}>
+                  <input value={modoSenha} onChange={e => setModoSenha(e.target.value)} type={showModoPwd ? "text" : "password"}
+                    autoFocus placeholder="Senha do modo" className={inputCls}
+                    onKeyDown={e => { if (e.key === "Enter") validarModo(); }} />
+                  <button type="button" onClick={() => setShowModoPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showModoPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </Field>
+              </div>
+
+              <button onClick={validarModo} disabled={loading}
+                className="btn-relief mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gradient-accent text-sm font-semibold text-accent-foreground disabled:opacity-60">
+                {loading ? "Validando…" : <>Continuar <ArrowRight className="h-4 w-4" /></>}
+              </button>
+              <button onClick={() => { setStep(1); setError(null); }} className="mt-2 flex w-full items-center justify-center gap-1.5 text-center text-xs text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="h-3 w-3" /> Voltar
+              </button>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <h2 className="font-display text-2xl font-bold">
+                {tipo === "ENCARREGADO" ? "Acesso de Encarregado" : "Acesso Administrativo"}
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Confirme sua identidade e crie sua senha. Seu login será o CPF.
               </p>
@@ -196,13 +242,13 @@ export default function CriarAcesso() {
                 className="btn-relief mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gradient-accent text-sm font-semibold text-accent-foreground disabled:opacity-60">
                 {loading ? "Criando…" : <>Criar acesso <ArrowRight className="h-4 w-4" /></>}
               </button>
-              <button onClick={() => { setStep(1); setError(null); }} className="mt-2 flex w-full items-center justify-center gap-1.5 text-center text-xs text-muted-foreground hover:text-foreground">
+              <button onClick={() => { setStep(2); setError(null); }} className="mt-2 flex w-full items-center justify-center gap-1.5 text-center text-xs text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="h-3 w-3" /> Voltar
               </button>
             </>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="py-6 text-center">
               <CheckCircle2 className="mx-auto mb-3 h-14 w-14 text-success" />
               <h2 className="font-display text-2xl font-bold">Acesso criado!</h2>

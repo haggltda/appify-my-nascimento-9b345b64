@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useRef } from "react";
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, Navigate } from "react-router-dom";
+import { useIsEncarregado } from "@/hooks/useVinculoEmpregado";
 import { ShieldAlert } from "lucide-react";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
 import { usePermissoes } from "@/context/PermissoesContext";
@@ -66,6 +67,7 @@ export function RouteGuard({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { data, isLoading } = useAccessibleMenus("visualizar");
   const { roles } = usePermissoes();
+  const { isEncarregado } = useIsEncarregado();
   const loggedRef = useRef<string>("");
 
   // Bloco V3 — checagem soberana de fase via feature flag.
@@ -119,6 +121,11 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       });
     })();
   }, [isLoading, allowed, pathname, menuCode]);
+
+  // Encarregado (Setor_ERP=ENCARREGADO) só pode ver o Início — qualquer outra rota volta para /app.
+  if (isEncarregado && pathname !== "/app") {
+    return <Navigate to="/app" replace />;
+  }
 
   // Só bloqueia na primeira carga (sem dados). Com dados em cache (mesmo query key
   // diferente), mantém o children montado para não perder estado da Lista.

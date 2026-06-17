@@ -55,3 +55,13 @@ export function useVinculoEmpregado() {
 
   return { empregado, linked: !!empregado, loading, ready, refetch };
 }
+
+/**
+ * Encarregado = colaborador vinculado com Setor_ERP = 'ENCARREGADO'.
+ * Esses usuários só podem ver o Início (cards de solicitação).
+ */
+export function useIsEncarregado() {
+  const { empregado, loading } = useVinculoEmpregado();
+  const isEncarregado = String(empregado?.setor ?? "").trim().toUpperCase() === "ENCARREGADO";
+  return { isEncarregado, loading };
+}

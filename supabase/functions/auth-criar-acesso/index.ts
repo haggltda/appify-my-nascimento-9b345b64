@@ -43,26 +43,43 @@ async function sha256Hex(text: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Confere a senha do modo (ENCARREGADO/ADMINISTRATIVO) contra PASS_MODO_LOGIN.
+async function senhaModoConfere(admin: ReturnType<typeof createClient>, modo: string, senha: string): Promise<boolean> {
+  const { data } = await admin.from("PASS_MODO_LOGIN").select("senha_hash").eq("modo", modo).maybeSingle();
+  if (!data?.senha_hash) return false;
+  return (await sha256Hex(senha)) === String(data.senha_hash).toLowerCase();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
   if (!SUPABASE_URL || !SERVICE_ROLE) return jsonResponse({ error: "Ambiente Supabase não configurado." }, 500);
 
   try {
-    let body: { cpf?: string; nascimento?: string; password?: string; tipo?: string; contrato_id?: number | string; contrato_nome?: string };
+    let body: { action?: string; cpf?: string; nascimento?: string; password?: string; tipo?: string; modo_senha?: string; contrato_id?: number | string; contrato_nome?: string };
     try { body = await req.json(); } catch { return jsonResponse({ error: "JSON inválido" }, 400); }
+
+    const tipo = String(body.tipo ?? "").toUpperCase() === "ENCARREGADO" ? "ENCARREGADO" : "ADMINISTRATIVO";
+    const modoSenha = String(body.modo_senha ?? "");
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
+
+    const modoOk = modoSenha ? await senhaModoConfere(admin, tipo, modoSenha) : false;
+
+    // action "validar_modo": só confere a senha do modo (gate antes do formulário).
+    if (body.action === "validar_modo") {
+      if (!modoSenha) return jsonResponse({ error: "Informe a senha do modo." }, 400);
+      return modoOk ? jsonResponse({ ok: true }) : jsonResponse({ error: "Senha do modo incorreta." }, 401);
+    }
+    if (!modoOk) return jsonResponse({ error: "Senha do modo incorreta." }, 401);
 
     const cpf = soDigitos(body.cpf);
     const senha = String(body.password ?? "");
-    const tipo = String(body.tipo ?? "").toUpperCase() === "ENCARREGADO" ? "ENCARREGADO" : "ADMINISTRATIVO";
     const nascNorm = normNasc(body.nascimento);
 
     if (cpf.length !== 11) return jsonResponse({ error: "Informe um CPF válido (11 dígitos)." }, 400);
     if (normNasc(body.nascimento).length < 8) return jsonResponse({ error: "Informe a data de nascimento." }, 400);
     if (senha.length < 6) return jsonResponse({ error: "A senha deve ter ao menos 6 caracteres." }, 400);
     if (tipo === "ENCARREGADO" && !body.contrato_id) return jsonResponse({ error: "Selecione o contrato pelo qual você é responsável." }, 400);
-
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
 
     const { data: rows, error: selErr } = await admin
       .from("EMPREGADOS")
@@ -99,6 +116,7 @@ Deno.serve(async (req) => {
       tipo_acesso: tipo,
     };
     if (tipo === "ENCARREGADO") {
+      patch["Setor_ERP"] = "ENCARREGADO";   // encarregado só enxerga o Início (gating no front)
       patch.contrato_responsavel_id = Number(body.contrato_id) || null;
       patch.contrato_responsavel = body.contrato_nome ?? null;
     }
