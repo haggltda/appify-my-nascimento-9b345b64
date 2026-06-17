@@ -11,22 +11,17 @@ import {
   useGradePromover,
 } from "@/hooks/useGrade";
 import type { GradeItem, GradeFase, GradeInsert } from "@/hooks/useGrade";
+import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -95,12 +90,20 @@ export default function Pipeline() {
   const update = useGradeUpdate(empresaAtivaId ?? "");
   const remove = useGradeDelete(empresaAtivaId ?? "");
   const promover = useGradePromover(empresaAtivaId ?? "");
+  const { data: usuarios = [] } = useUsuariosEmpresa();
 
   // filtros
   const [faseAtiva, setFaseAtiva] = useState<GradeFase | "Todas">("Todas");
   const [mesAtivo, setMesAtivo] = useState<number | null>(null);
   const [anoAtivo, setAnoAtivo] = useState<number | null>(null);
   const [busca, setBusca] = useState("");
+  const [responsavelFiltro, setResponsavelFiltro] = useState<string>("Todos");
+
+  // lista de responsáveis únicos para o filtro
+  const responsaveis = useMemo(() => {
+    const set = new Set(items.map((i) => i.responsavel).filter(Boolean) as string[]);
+    return Array.from(set).sort();
+  }, [items]);
 
   // modais
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -134,6 +137,10 @@ export default function Pipeline() {
       });
     }
 
+    if (responsavelFiltro !== "Todos") {
+      list = list.filter((i) => i.responsavel === responsavelFiltro);
+    }
+
     if (busca.trim()) {
       const q = busca.toLowerCase();
       list = list.filter(
@@ -148,12 +155,12 @@ export default function Pipeline() {
     // ordenação contextual
     if (faseAtiva === "À Iniciar") {
       list.sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""));
-    } else if (faseAtiva === "Em Andamento") {
+    } else if (faseAtiva === "Em Andamento" || faseAtiva === "Finalizada") {
       list.sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999));
     }
 
     return list;
-  }, [items, faseAtiva, mesAtivo, anoAtivo, busca]);
+  }, [items, faseAtiva, mesAtivo, anoAtivo, busca, responsavelFiltro]);
 
   function openNew() {
     setEditing(null);
@@ -244,6 +251,21 @@ export default function Pipeline() {
             ))}
           </SelectContent>
         </Select>
+
+        {/* Filtro por responsável */}
+        {responsaveis.length > 0 && (
+          <Select value={responsavelFiltro} onValueChange={setResponsavelFiltro}>
+            <SelectTrigger className="h-9 w-[160px]">
+              <SelectValue placeholder="Responsável" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos</SelectItem>
+              {responsaveis.map((r) => (
+                <SelectItem key={r} value={r}>{r}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Conteúdo */}
@@ -281,6 +303,7 @@ export default function Pipeline() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         editing={editing}
+        usuarios={usuarios}
         onSave={(payload) => {
           if (editing) {
             update.mutate(
@@ -457,20 +480,23 @@ function GradeCard({
 
 // ── Sheet form ─────────────────────────────────────────────────────────────
 
+import type { UsuarioEmpresaOption } from "@/hooks/useUsuariosEmpresa";
+
 const EMPTY_FORM = {
   edital: "", fase: "À Iniciar" as GradeFase, responsavel: "", cidade: "",
   uf: "", data: "", horario: "", objeto: "", qtd_pessoas: "",
-  valor_global: "", posicao: "", status_obs: "",
+  valor_global: "", posicao: "", status_obs: "", data_captacao: "",
 };
 
 function GradeSheet({
-  open, onOpenChange, editing, onSave, isSaving,
+  open, onOpenChange, editing, onSave, isSaving, usuarios,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   editing: GradeItem | null;
   onSave: (p: Partial<GradeItem>) => void;
   isSaving: boolean;
+  usuarios: UsuarioEmpresaOption[];
 }) {
   const [f, setF] = useState({ ...EMPTY_FORM });
 
@@ -491,6 +517,7 @@ function GradeSheet({
         valor_global: editing.valor_global ?? "",
         posicao: editing.posicao !== null ? String(editing.posicao) : "",
         status_obs: editing.status_obs ?? "",
+        data_captacao: editing.data_captacao ?? "",
       });
     } else {
       setF({ ...EMPTY_FORM });
@@ -513,6 +540,7 @@ function GradeSheet({
       valor_global: f.valor_global || null,
       posicao: f.posicao ? Number(f.posicao) : null,
       status_obs: f.status_obs || null,
+      data_captacao: f.data_captacao || null,
     });
   }
 
@@ -531,12 +559,12 @@ function GradeSheet({
   );
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-lg overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{editing ? "Editar Entrada" : "Nova Entrada"}</SheetTitle>
-        </SheetHeader>
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{editing ? "Editar Entrada" : "Nova Entrada"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="mt-2 space-y-4">
           {field("Nº do Edital", "edital")}
 
           <div className="space-y-1">
@@ -552,6 +580,38 @@ function GradeSheet({
           {field("Objeto / Descrição", "objeto")}
 
           <div className="grid grid-cols-2 gap-3">
+            {field("Data de captação", "data_captacao", { type: "date" })}
+            {field("Data de Abertura", "data", { type: "date" })}
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">Responsável</Label>
+            {usuarios.length > 0 ? (
+              <Select
+                value={f.responsavel || "_"}
+                onValueChange={(v) => setF((p) => ({ ...p, responsavel: v === "_" ? "" : v }))}
+              >
+                <SelectTrigger className="h-9"><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_">— Sem responsável —</SelectItem>
+                  {usuarios.map((u) => (
+                    <SelectItem key={u.id} value={u.display_name ?? u.email ?? u.id}>
+                      {u.display_name || u.email || u.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value={f.responsavel}
+                onChange={(e) => setF((p) => ({ ...p, responsavel: e.target.value }))}
+                className="h-9"
+                placeholder="Nome do responsável"
+              />
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             {field("Cidade", "cidade")}
             <div className="space-y-1">
               <Label htmlFor="uf" className="text-xs">UF</Label>
@@ -560,11 +620,8 @@ function GradeSheet({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {field("Data de Abertura", "data", { type: "date" })}
-            {field("Horário", "horario")}
+            {field("Horário de Abertura", "horario")}
           </div>
-
-          {field("Responsável", "responsavel")}
 
           <div className="grid grid-cols-2 gap-3">
             {field("Qtd. Pessoas", "qtd_pessoas", { type: "number" })}
@@ -583,13 +640,13 @@ function GradeSheet({
             />
           </div>
 
-          <SheetFooter className="pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={isSaving}>{isSaving ? "Salvando…" : editing ? "Salvar" : "Criar"}</Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -617,6 +674,7 @@ function ViewModal({ item, onClose }: { item: GradeItem; onClose: () => void }) 
         <div className="mt-2 space-y-3 text-sm">
           <Row label="Objeto" value={item.objeto} />
           <Row label="Cidade / UF" value={[item.cidade, item.uf].filter(Boolean).join(" / ") || "—"} />
+          <Row label="Captação" value={fmtDate(item.data_captacao)} />
           <Row label="Abertura" value={`${fmtDate(item.data)}${item.horario ? " às " + item.horario : ""}`} />
           <Row label="Responsável" value={item.responsavel} />
           <Row label="Posição" value={item.posicao !== null ? String(item.posicao) : null} />

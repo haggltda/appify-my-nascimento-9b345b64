@@ -92,8 +92,8 @@ const licitacoesModule: ModuleDef = {
       label: "Operação",
       defaultOpen: true,
       items: [
-        { label: "Cadastro de Editais", to: "/app/editais", icon: FileText },
-        { label: "Implantação de Contratos", to: "/app/contratos/implantacao", icon: ListChecks },
+        { label: "Capa de Edital Licitações", to: "/app/editais", icon: FileText },
+        { label: "Implantação de Contratos", to: "/app/licitacoes/implantacao", icon: ListChecks },
         { label: "Documentos", to: "/app/documentos", icon: ScrollText },
         // B2: "Triagem & IA" removida do menu (rota /app/triagem segue existindo,
         // mas controlada pelo RouteGuard + matriz de permissões do ERP).

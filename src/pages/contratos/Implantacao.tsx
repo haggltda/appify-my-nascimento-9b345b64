@@ -10,8 +10,12 @@ import {
   calcPrazo,
 } from "@/hooks/useImplantacao";
 import type { ImplantacaoContrato, ChecklistItem, Resposta } from "@/hooks/useImplantacao";
-import { CheckCircle2, Circle, Clock, Building2, ChevronDown, ChevronRight } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Building2, ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Select,
   SelectContent,
@@ -19,6 +23,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 export default function Implantacao() {
   const { data: empresaAtivaId } = useEmpresaId();
@@ -27,6 +39,9 @@ export default function Implantacao() {
 
   const [contratoSelecionado, setContratoSelecionado] = useState<string | null>(null);
   const [momentoFiltro, setMomentoFiltro] = useState<string>("Todos");
+  const [editandoNome, setEditandoNome] = useState(false);
+  const [nomeConfirmados, setNomeConfirmados] = useState<Set<string>>(() => new Set());
+  const qc = useQueryClient();
 
   const contrato = contratos.find((c) => c.id === contratoSelecionado) ?? null;
 
@@ -126,6 +141,32 @@ export default function Implantacao() {
             )}
           </div>
 
+          {/* Banner confirmação de nome */}
+          {contrato && !nomeConfirmados.has(contrato.id) && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-400/50 bg-amber-500/10 px-4 py-3">
+              <div className="text-xs text-amber-700">
+                <span className="font-semibold">O nome do contrato está correto?</span>
+                <span className="ml-2 font-mono">"{contrato.nome}"</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm" variant="outline"
+                  className="h-7 gap-1.5 px-2 text-[11px] border-amber-400/50 text-amber-700 hover:bg-amber-50"
+                  onClick={() => setEditandoNome(true)}
+                >
+                  <Pencil className="h-3 w-3" /> Editar
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 px-2 text-[11px] bg-emerald-600 hover:bg-emerald-700"
+                  onClick={() => setNomeConfirmados((s) => new Set([...s, contrato.id]))}
+                >
+                  Confirmar
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Barra de progresso */}
           {contrato && (
             <div className="space-y-1">
@@ -161,6 +202,18 @@ export default function Implantacao() {
             </div>
           ) : null}
         </div>
+      )}
+
+      {/* Modal editar nome */}
+      {editandoNome && contrato && (
+        <EditarNomeModal
+          contrato={contrato}
+          onClose={() => setEditandoNome(false)}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: ["implantacao", empresaAtivaId] });
+            setNomeConfirmados((s) => new Set([...s, contrato.id]));
+          }}
+        />
       )}
     </div>
   );
@@ -268,6 +321,54 @@ function SetorAccordion({
         </div>
       )}
     </div>
+  );
+}
+
+// ── Modal editar nome do contrato ─────────────────────────────────────────
+
+function EditarNomeModal({ contrato, onClose, onSaved }: {
+  contrato: ImplantacaoContrato;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [nome, setNome] = useState(contrato.nome);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!nome.trim()) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("implantacao_contrato")
+      .update({ nome: nome.trim() })
+      .eq("id", contrato.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Nome atualizado!" });
+      onSaved();
+      onClose();
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Editar nome do contrato</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2 py-2">
+          <Label className="text-xs">Nome</Label>
+          <Input value={nome} onChange={(e) => setNome(e.target.value)} className="h-9" autoFocus />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button disabled={saving || !nome.trim()} onClick={handleSave}>
+            {saving ? "Salvando…" : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -16,13 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -369,23 +362,26 @@ function CapaCard({
         )}
       </div>
 
-      {/* Alterar status */}
-      {canAlterar && capa.status === "Em andamento" && (
-        <div className="flex gap-2 border-t border-border pt-2.5">
-          <Button
-            size="sm" variant="outline"
-            className="h-7 flex-1 text-[11px] border-emerald-400/50 text-emerald-700 hover:bg-emerald-50"
-            onClick={() => onStatusChange("Ganhamos")}
-          >
-            Ganhamos
-          </Button>
-          <Button
-            size="sm" variant="outline"
-            className="h-7 flex-1 text-[11px] border-red-400/50 text-red-700 hover:bg-red-50"
-            onClick={() => onStatusChange("Perdemos")}
-          >
-            Perdemos
-          </Button>
+      {/* Alterar status — qualquer direção */}
+      {canAlterar && (
+        <div className="flex flex-wrap gap-1.5 border-t border-border pt-2.5">
+          {(["Em andamento", "Ganhamos", "Perdemos"] as CapaStatus[])
+            .filter((s) => s !== capa.status)
+            .map((s) => (
+              <Button
+                key={s}
+                size="sm" variant="outline"
+                className={cn(
+                  "h-7 flex-1 text-[11px]",
+                  s === "Ganhamos" && "border-emerald-400/50 text-emerald-700 hover:bg-emerald-50",
+                  s === "Perdemos" && "border-red-400/50 text-red-700 hover:bg-red-50",
+                  s === "Em andamento" && "border-amber-400/50 text-amber-700 hover:bg-amber-50",
+                )}
+                onClick={() => onStatusChange(s)}
+              >
+                {s}
+              </Button>
+            ))}
         </div>
       )}
 
@@ -464,12 +460,12 @@ function CapaSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full max-w-2xl overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{editing ? "Editar Licitação" : "Nova Licitação"}</SheetTitle>
-        </SheetHeader>
-        <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{editing ? "Editar Licitação" : "Nova Licitação"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="mt-2 space-y-6">
 
           <Secao title="Identificação">
             <Grid2>
@@ -542,13 +538,13 @@ function CapaSheet({
             />
           </Secao>
 
-          <SheetFooter>
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" disabled={isSaving}>{isSaving ? "Salvando…" : editing ? "Salvar" : "Criar"}</Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 

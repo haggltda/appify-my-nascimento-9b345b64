@@ -31,6 +31,7 @@ export interface GradeItem {
   valor_global: string | null;
   posicao: number | null;
   status_obs: string | null;
+  data_captacao: string | null;
   capa_id: string | null;
   historico: HistoricoEntry[];
   created_at: string;
