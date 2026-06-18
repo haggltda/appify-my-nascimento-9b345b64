@@ -335,6 +335,25 @@ const recrutamentoModule: ModuleDef = {
   ],
 };
 
+// Encarregados — hub de solicitações (vaga, férias, bonificação) + históricos/status
+const encarregadosModule: ModuleDef = {
+  id: "encarregados",
+  label: "Encarregados",
+  description: "Solicitações e históricos",
+  icon: HardHat,
+  basePath: "/app/encarregados",
+  status: "active",
+  groups: [
+    {
+      label: "Solicitações",
+      defaultOpen: true,
+      items: [
+        { label: "Minhas Solicitações", to: "/app/encarregados", icon: ClipboardCheck },
+      ],
+    },
+  ],
+};
+
 // BI
 const biModule: ModuleDef = {
   id: "bi",
@@ -406,6 +425,7 @@ const erpModules: ModuleDef[] = [
   contabilModule,
   rhModule,
   recrutamentoModule,
+  encarregadosModule,
   biModule,
 ];
 
@@ -429,7 +449,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/rh/bonificacoes"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/rh/bonificacoes", "/app/encarregados"];
   const visibleModules = useMemo(() => {
     if (!access) return allModules;
     const canSee = (to: string) => {

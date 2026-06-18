@@ -30,6 +30,7 @@ const PHASE_FLAGGED_ROUTES: { prefix: string; flag: "triagemIA" }[] = [
 const TECHNICAL_ALLOWLIST = [
   "/app",                            // Início (index do AppShell)
   "/app/meu-perfil",                 // Perfil do próprio usuário logado
+  "/app/encarregados",               // Hub de solicitações (Minhas Solicitações)
   "/app/co/orcamento-completo",      // TODO B2.x: cadastrar em app_menu
   "/app/contabil/razao-detalhado",   // TODO B2.x: cadastrar em app_menu
 ];

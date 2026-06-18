@@ -210,6 +210,8 @@ export default function Recrutamento() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimer   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const empDebounce = useRef<ReturnType<typeof setTimeout> | null>(null); // debounce busca colaborador
+  const empTermo    = useRef("");  // último termo buscado (descarta respostas obsoletas)
 
   // ── Toast helper ─────────────────────────────────────────────
   const toast = useCallback((msg: string, type = "info") => {
@@ -511,14 +513,16 @@ export default function Recrutamento() {
   };
 
   const buscarEmpregados = async (term: string) => {
+    empTermo.current = term;
     setLoadingEmps(true);
     const { data, error } = await (supabase as any)
       .from("EMPREGADOS")
-      .select('"Nome", "Filial", "Nome Filial", "Título do Cargo", "Valor Salário", "% Insalubridade"')
+      .select('"Nome", "Filial", "Nome Filial", "Título do Cargo", "Valor Salário", "% Insalubridade", "Escala"')
       .eq("Situação", "Trabalhando")
       .ilike("Nome", `%${term}%`)
       .order('"Nome"')
       .limit(50);
+    if (empTermo.current !== term) return; // resposta de uma busca antiga — descarta
     setLoadingEmps(false);
     if (error) { toast("EMPREGADOS: " + error.message + " (" + (error.code ?? "?") + ")", "err"); return; }
     setEmpregados(data ?? []);
@@ -534,6 +538,7 @@ export default function Recrutamento() {
       salario: emp["Valor Salário"] ? `R$ ${String(emp["Valor Salário"]).replace(".", ",")}` : "",
       insalubridade_recebe: insal > 0 ? "Sim" : "Não",
       insalubridade_quanto: insal > 0 ? `${emp["% Insalubridade"]}%` : "",
+      escala: emp["Escala"] ? String(emp["Escala"]) : v.escala,
       contrato: contratoMatch ? contratoMatch["NOME CONTRATO"] : v.contrato,
     }));
     setEmpSearch(emp.Nome);
@@ -1150,8 +1155,12 @@ export default function Recrutamento() {
                       const v = e.target.value;
                       setEmpSearch(v);
                       setVaga(prev => ({ ...prev, nome_substituido: v }));
-                      if (v.length >= 2) { setShowEmpDrop(true); buscarEmpregados(v); }
-                      else { setShowEmpDrop(false); setEmpregados([]); }
+                      if (empDebounce.current) clearTimeout(empDebounce.current);
+                      if (v.trim().length >= 2) {
+                        setShowEmpDrop(true);
+                        setLoadingEmps(true);
+                        empDebounce.current = setTimeout(() => buscarEmpregados(v.trim()), 350);
+                      } else { setShowEmpDrop(false); setEmpregados([]); }
                     }}
                   />
                   {showEmpDrop && empSearch.length >= 2 && (
@@ -1159,7 +1168,7 @@ export default function Recrutamento() {
                       {loadingEmps ? (
                         <div style={{ padding: "12px", fontSize: 12, color: "#94a3b8", textAlign: "center" }}>Buscando...</div>
                       ) : (() => {
-                        const filtrados = empregados.filter(e => e.Nome?.toLowerCase().includes(empSearch.toLowerCase())).slice(0, 40);
+                        const filtrados = empregados.slice(0, 40);
                         return filtrados.length === 0 ? (
                           <div style={{ padding: "12px", fontSize: 12, color: "#94a3b8", textAlign: "center" }}>Nenhum colaborador encontrado.</div>
                         ) : filtrados.map((emp, i) => (
