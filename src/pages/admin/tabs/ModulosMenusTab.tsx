@@ -14,6 +14,20 @@ interface Modulo { id: string; codigo: string; nome: string; ordem: number; ativ
 interface Menu { id: string; modulo_id: string; codigo: string; nome: string; rota: string | null; ordem: number; ativo: boolean }
 interface ProfileRow { id: string; display_name: string | null; email: string | null }
 
+// Remove acentos antes de virar slug — "Solicitações" → "solicitacoes", não "solicitações".
+// Sem isso, o código salvo no banco diverge do que outras partes do sistema esperam
+// (ex: comparações de menu_codigo) por causa de caracteres acentuados invisíveis na UI.
+const DIACRITICS_RE = new RegExp("[\\u0300-\\u036f]", "g");
+
+function slugify(text: string): string {
+  return text
+    .trim()
+    .normalize("NFD")
+    .replace(DIACRITICS_RE, "")
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+}
+
 type View = "catalogo" | "acesso";
 
 export function ModulosMenusTab() {
@@ -125,7 +139,7 @@ function CatalogoView({ isAdmin, modulosQ, menusQ, showAddForm, onAddFormClose, 
   const addModulo = async () => {
     if (!novoModulo.codigo || !novoModulo.nome) { toast({ title: "Código e nome obrigatórios", variant: "destructive" }); return; }
     const { error } = await supabase.from("app_modulo").insert({
-      codigo: novoModulo.codigo.trim().toLowerCase().replace(/\s+/g, "_"),
+      codigo: slugify(novoModulo.codigo),
       nome: novoModulo.nome.trim(),
       icone: novoModulo.icone || null,
       ordem: ((modulosQ.data ?? []).length + 1) * 10,
@@ -201,7 +215,7 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
     const rotaNormalizada = rotaTrim ? (rotaTrim.startsWith("/") ? rotaTrim : `/${rotaTrim}`) : null;
     const { error } = await supabase.from("app_menu").insert({
       modulo_id: moduloId,
-      codigo: novo.codigo.trim().toLowerCase().replace(/\s+/g, "_"),
+      codigo: slugify(novo.codigo),
       nome: novo.nome.trim(),
       rota: rotaNormalizada,
       ordem: (menus.length + 1) * 10,
