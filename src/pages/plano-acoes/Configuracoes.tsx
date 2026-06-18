@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
@@ -37,15 +36,42 @@ const PERM_DESC: Record<string, string> = {
   ver_todas:   "Visualiza todos os planos sem restrição de visibilidade",
 };
 
+/**
+ * plano_acao_usuario_permissao é escopada por empresa_id. Como um mesmo usuário
+ * pode atuar em várias empresas do grupo (via user_empresa ou acessa_todas_empresas),
+ * a permissão configurada aqui precisa ser propagada para TODAS as empresas em que
+ * o usuário-alvo atua — não apenas a empresa ativa de quem está configurando.
+ * Sem isso, a permissão "funciona" só na empresa que estava ativa no momento do save.
+ */
+async function getEmpresaIdsDoUsuario(profileId: string): Promise<string[]> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("empresa_id, acessa_todas_empresas")
+    .eq("id", profileId)
+    .maybeSingle();
+
+  if ((profile as any)?.acessa_todas_empresas) {
+    const { data } = await supabase.from("empresas").select("id").eq("ativa", true);
+    return (data ?? []).map((e: any) => e.id as string);
+  }
+
+  const { data: vinculos } = await supabase
+    .from("user_empresa")
+    .select("empresa_id")
+    .eq("user_id", profileId);
+
+  const ids = new Set<string>((vinculos ?? []).map((v: any) => v.empresa_id));
+  if ((profile as any)?.empresa_id) ids.add((profile as any).empresa_id);
+  return Array.from(ids);
+}
+
 export default function PlanoAcoesConfiguracoes({ bypassGuard }: { bypassGuard?: boolean } = {}) {
-  const { empresa } = useEmpresaAtiva();
-  const empresaId = empresa?.id ?? null;
   const { can, loading } = usePlanoAcaoPermissao();
   const { toast } = useToast();
 
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  // DB state: flag → boolean (current saved values for selected user)
+  // DB state: flag → boolean (true se habilitado em qualquer empresa do usuário)
   const [dbPerms, setDbPerms] = useState<Record<string, boolean>>({});
   // Staged (unsaved) changes: flag → new value
   const [pending, setPending] = useState<Map<string, boolean>>(new Map());
@@ -53,33 +79,30 @@ export default function PlanoAcoesConfiguracoes({ bypassGuard }: { bypassGuard?:
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (!empresaId) return;
     supabase
       .from("profiles")
       .select("id,display_name,email")
-      .eq("empresa_id", empresaId)
       .eq("ativo", true)
       .order("display_name")
       .then(({ data }) => setProfiles(data ?? []));
-  }, [empresaId]);
+  }, []);
 
   useEffect(() => {
     setPending(new Map());
-    if (!selectedUserId || !empresaId) { setDbPerms({}); return; }
+    if (!selectedUserId) { setDbPerms({}); return; }
     setLoadingPerms(true);
     supabase
       .from("plano_acao_usuario_permissao")
       .select("*")
-      .eq("empresa_id", empresaId)
       .eq("profile_id", selectedUserId)
-      .maybeSingle()
       .then(({ data }) => {
+        const rows = data ?? [];
         const row: Record<string, boolean> = {};
-        PERMISSOES_FLAGS.forEach((f) => { row[f] = data ? !!data[`pode_${f}`] : false; });
+        PERMISSOES_FLAGS.forEach((f) => { row[f] = rows.some((r: any) => !!r[`pode_${f}`]); });
         setDbPerms(row);
         setLoadingPerms(false);
       });
-  }, [selectedUserId, empresaId]);
+  }, [selectedUserId]);
 
   if (loading) return null;
   if (!bypassGuard && !can("administrar")) return <ForbiddenCard />;
@@ -108,38 +131,43 @@ export default function PlanoAcoesConfiguracoes({ bypassGuard }: { bypassGuard?:
   };
 
   const handleSave = async () => {
-    if (!selectedUserId || !empresaId || pending.size === 0) return;
+    if (!selectedUserId || pending.size === 0) return;
     setIsSaving(true);
     try {
       const updates: Record<string, boolean> = { ...dbPerms };
       pending.forEach((v, k) => { updates[k] = v; });
 
-      const { data: existing } = await supabase
+      const empresaIds = await getEmpresaIdsDoUsuario(selectedUserId);
+      if (empresaIds.length === 0) {
+        toast({ title: "Usuário sem empresa vinculada", variant: "destructive" });
+        return;
+      }
+
+      const payloadBase: any = { profile_id: selectedUserId };
+      PERMISSOES_FLAGS.forEach((f) => { payloadBase[`pode_${f}`] = updates[f] ?? false; });
+
+      const { data: existingRows } = await supabase
         .from("plano_acao_usuario_permissao")
-        .select("id")
-        .eq("empresa_id", empresaId)
+        .select("id, empresa_id")
         .eq("profile_id", selectedUserId)
-        .maybeSingle();
+        .in("empresa_id", empresaIds);
+      const existingByEmpresa = new Map((existingRows ?? []).map((r: any) => [r.empresa_id, r.id]));
 
-      const payload: any = { empresa_id: empresaId, profile_id: selectedUserId };
-      PERMISSOES_FLAGS.forEach((f) => { payload[`pode_${f}`] = updates[f] ?? false; });
-
-      if (existing) {
-        const { error } = await supabase
-          .from("plano_acao_usuario_permissao")
-          .update(payload)
-          .eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("plano_acao_usuario_permissao")
-          .insert(payload);
-        if (error) throw error;
+      for (const eid of empresaIds) {
+        const payload = { ...payloadBase, empresa_id: eid };
+        const existingId = existingByEmpresa.get(eid);
+        if (existingId) {
+          const { error } = await supabase.from("plano_acao_usuario_permissao").update(payload).eq("id", existingId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("plano_acao_usuario_permissao").insert(payload);
+          if (error) throw error;
+        }
       }
 
       setDbPerms(updates);
       setPending(new Map());
-      toast({ title: "Permissões salvas com sucesso" });
+      toast({ title: `Permissões salvas em ${empresaIds.length} empresa${empresaIds.length === 1 ? "" : "s"}` });
     } catch (e: any) {
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
     } finally {
