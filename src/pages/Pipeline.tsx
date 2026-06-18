@@ -11,7 +11,8 @@ import {
   useGradePromover,
 } from "@/hooks/useGrade";
 import type { GradeItem, GradeFase, GradeInsert } from "@/hooks/useGrade";
-import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
+import { useUsuariosLicitacao } from "@/hooks/useUsuariosLicitacao";
+import type { UsuarioOption } from "@/hooks/useUsuariosLicitacao";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,7 +91,7 @@ export default function Pipeline() {
   const update = useGradeUpdate(empresaAtivaId ?? "");
   const remove = useGradeDelete(empresaAtivaId ?? "");
   const promover = useGradePromover(empresaAtivaId ?? "");
-  const { data: usuarios = [] } = useUsuariosEmpresa();
+  const { data: usuarios = [] } = useUsuariosLicitacao();
 
   // filtros
   const [faseAtiva, setFaseAtiva] = useState<GradeFase | "Todas">("Todas");
@@ -175,9 +176,9 @@ export default function Pipeline() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Pipeline"
-        breadcrumb={["Pipeline"]}
-        subtitle="Grade de licitações — pré-análise de editais antes da Capa de Edital."
+        title="Grade de Licitações"
+        breadcrumb={["Licitações", "Grade de Licitações"]}
+        subtitle="Pré-análise de editais — acompanhe cada oportunidade antes da Capa de Edital."
         actions={
           canIncluir ? (
             <Button size="sm" onClick={openNew} className="gap-2">
@@ -480,7 +481,6 @@ function GradeCard({
 
 // ── Sheet form ─────────────────────────────────────────────────────────────
 
-import type { UsuarioEmpresaOption } from "@/hooks/useUsuariosEmpresa";
 
 const EMPTY_FORM = {
   edital: "", fase: "À Iniciar" as GradeFase, responsavel: "", cidade: "",
@@ -496,7 +496,7 @@ function GradeSheet({
   editing: GradeItem | null;
   onSave: (p: Partial<GradeItem>) => void;
   isSaving: boolean;
-  usuarios: UsuarioEmpresaOption[];
+  usuarios: UsuarioOption[];
 }) {
   const [f, setF] = useState({ ...EMPTY_FORM });
 
