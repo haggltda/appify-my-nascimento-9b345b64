@@ -195,11 +195,15 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
 
   const add = async () => {
     if (!novo.codigo || !novo.nome) return;
+    const rotaTrim = novo.rota.trim();
+    // RouteGuard compara a rota com pathname exato (com barra inicial) — sem isso,
+    // matchMenuCode nunca encontra a rota e o switch de permissão fica sem efeito.
+    const rotaNormalizada = rotaTrim ? (rotaTrim.startsWith("/") ? rotaTrim : `/${rotaTrim}`) : null;
     const { error } = await supabase.from("app_menu").insert({
       modulo_id: moduloId,
       codigo: novo.codigo.trim().toLowerCase().replace(/\s+/g, "_"),
       nome: novo.nome.trim(),
-      rota: novo.rota || null,
+      rota: rotaNormalizada,
       ordem: (menus.length + 1) * 10,
     });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
