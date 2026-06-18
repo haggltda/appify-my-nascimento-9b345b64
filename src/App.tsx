@@ -36,6 +36,7 @@ import ParecerControladoria from "./pages/pareceres/ParecerControladoria";
 import ParecerDiretorOperacional from "./pages/pareceres/ParecerDiretorOperacional";
 import ParecerDiretorAdministrativo from "./pages/pareceres/ParecerDiretorAdministrativo";
 import Implantacao from "./pages/contratos/Implantacao";
+import PlanilhaCusto from "./pages/licitacoes/PlanilhaCusto";
 import ContratosAtivos from "./pages/contratos/Ativos";
 import Empenhos from "./pages/contratos/Empenhos";
 import Postos from "./pages/contratos/Postos";
@@ -160,6 +161,7 @@ const App = () => (
             <Route path="resultado" element={<Resultado />} />
             <Route path="prontas-contrato" element={<ProntasContrato />} />
             <Route path="contratos/implantacao" element={<Implantacao />} />
+            <Route path="licitacoes/planilha-custo" element={<PlanilhaCusto />} />
             <Route path="licitacoes/implantacao" element={<Implantacao />} />
             <Route path="contratos/ativos" element={<ContratosAtivos />} />
             <Route path="contratos/empenhos" element={<Empenhos />} />

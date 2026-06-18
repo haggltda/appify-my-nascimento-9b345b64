@@ -37,6 +37,7 @@ import {
   BookOpen,
   ClipboardCheck,
   DatabaseZap,
+  TableProperties,
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
@@ -84,7 +85,7 @@ const licitacoesModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Painel Executivo", to: "/app/painel-executivo", icon: LayoutDashboard },
-        { label: "Pipeline", to: "/app/pipeline", icon: FolderKanban, badge: "32" },
+        { label: "Grade de Licitações", to: "/app/pipeline", icon: FolderKanban, badge: "32" },
       ],
     },
     {
@@ -92,6 +93,7 @@ const licitacoesModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Capa de Edital Licitações", to: "/app/editais", icon: FileText },
+        { label: "Planilha de Custo", to: "/app/licitacoes/planilha-custo", icon: TableProperties },
         { label: "Implantação de Contratos", to: "/app/licitacoes/implantacao", icon: ListChecks },
         { label: "Documentos", to: "/app/documentos", icon: ScrollText },
         // B2: "Triagem & IA" removida do menu (rota /app/triagem segue existindo,
