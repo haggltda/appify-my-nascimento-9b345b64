@@ -41,7 +41,6 @@ import {
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
-import { useIsEncarregado } from "@/hooks/useVinculoEmpregado";
 import { Inbox } from "lucide-react";
 import { Target } from "lucide-react";
 import { GitBranch } from "lucide-react";
@@ -336,6 +335,25 @@ const recrutamentoModule: ModuleDef = {
   ],
 };
 
+// Encarregados — hub de solicitações (vaga, férias, bonificação) + históricos/status
+const encarregadosModule: ModuleDef = {
+  id: "encarregados",
+  label: "Encarregados",
+  description: "Solicitações e históricos",
+  icon: HardHat,
+  basePath: "/app/encarregados",
+  status: "active",
+  groups: [
+    {
+      label: "Solicitações",
+      defaultOpen: true,
+      items: [
+        { label: "Minhas Solicitações", to: "/app/encarregados", icon: ClipboardCheck },
+      ],
+    },
+  ],
+};
+
 // BI
 const biModule: ModuleDef = {
   id: "bi",
@@ -407,6 +425,7 @@ const erpModules: ModuleDef[] = [
   contabilModule,
   rhModule,
   recrutamentoModule,
+  encarregadosModule,
   biModule,
 ];
 
@@ -421,7 +440,6 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const { perms } = usePlanoAcaoPermissao();
   const { temAlcada, pendentes } = useTemAlcada();
   const { data: access } = useAccessibleMenus("visualizar");
-  const { isEncarregado } = useIsEncarregado(); // encarregado só vê o Início
 
   const allModules = [
     ...erpModules,
@@ -431,7 +449,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/rh/bonificacoes"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/rh/bonificacoes", "/app/encarregados"];
   const visibleModules = useMemo(() => {
     if (!access) return allModules;
     const canSee = (to: string) => {
@@ -537,7 +555,6 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
           )}
         </NavLink>
 
-        {!isEncarregado && (<>
         <NavLink
           to="/app/presidencia"
           className={({ isActive }) =>
@@ -580,37 +597,30 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
             )}
           </NavLink>
         )}
-        </>)}
       </div>
 
-      {/* Módulos — escondidos para encarregado (só vê o Início) */}
-      {isEncarregado ? (
-        <div className="flex-1" />
-      ) : (
-        <>
-          {!collapsed && (
-            <p className="mt-4 px-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-muted">
-              Módulos do ERP
-            </p>
-          )}
-          <nav className="mt-2 flex-1 overflow-y-auto scroll-elegant px-2 py-1">
-            {visibleModules.map((mod) => (
-              <ModuleEntry
-                key={mod.id}
-                mod={mod}
-                collapsed={collapsed}
-                active={mod.id === activeModuleId}
-                expanded={expandedModule === mod.id}
-                onToggle={() => setExpandedModule((cur) => (cur === mod.id ? null : mod.id))}
-              />
-            ))}
-          </nav>
-        </>
+      {/* Section label */}
+      {!collapsed && (
+        <p className="mt-4 px-5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-muted">
+          Módulos do ERP
+        </p>
       )}
+
+      <nav className="mt-2 flex-1 overflow-y-auto scroll-elegant px-2 py-1">
+        {visibleModules.map((mod) => (
+          <ModuleEntry
+            key={mod.id}
+            mod={mod}
+            collapsed={collapsed}
+            active={mod.id === activeModuleId}
+            expanded={expandedModule === mod.id}
+            onToggle={() => setExpandedModule((cur) => (cur === mod.id ? null : mod.id))}
+          />
+        ))}
+      </nav>
 
       {/* Configurações + ambiente */}
       <div className="border-t border-sidebar-border p-2">
-        {!isEncarregado && (
         <NavLink
           to="/app/administracao"
           className={({ isActive }) =>
@@ -626,7 +636,6 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
           <Settings className="h-4 w-4 shrink-0" />
           {!collapsed && <span>Configurações do ERP</span>}
         </NavLink>
-        )}
         {!collapsed && (
           <div className="mt-2 flex items-center gap-2 rounded-md bg-sidebar-accent/40 px-2.5 py-2">
             <span className="h-2 w-2 rounded-full bg-success animate-pulse-soft" />

@@ -1,6 +1,5 @@
 import { ReactNode, useEffect, useRef } from "react";
-import { useLocation, Link, Navigate } from "react-router-dom";
-import { useIsEncarregado } from "@/hooks/useVinculoEmpregado";
+import { useLocation, Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +30,7 @@ const PHASE_FLAGGED_ROUTES: { prefix: string; flag: "triagemIA" }[] = [
 const TECHNICAL_ALLOWLIST = [
   "/app",                            // Início (index do AppShell)
   "/app/meu-perfil",                 // Perfil do próprio usuário logado
+  "/app/encarregados",               // Hub de solicitações (Minhas Solicitações)
   "/app/co/orcamento-completo",      // TODO B2.x: cadastrar em app_menu
   "/app/contabil/razao-detalhado",   // TODO B2.x: cadastrar em app_menu
 ];
@@ -44,7 +44,6 @@ function inAllowlist(pathname: string): boolean {
 export function RouteGuard({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { data, isLoading } = useAccessibleMenus("visualizar");
-  const { isEncarregado } = useIsEncarregado();
   const loggedRef = useRef<string>("");
 
   // Bloco V3 — checagem soberana de fase via feature flag.
@@ -86,11 +85,6 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       });
     })();
   }, [isLoading, allowed, pathname, menuCode]);
-
-  // Encarregado (Setor_ERP=ENCARREGADO) só pode ver o Início — qualquer outra rota volta para /app.
-  if (isEncarregado && pathname !== "/app") {
-    return <Navigate to="/app" replace />;
-  }
 
   // Só bloqueia na primeira carga (sem dados). Com dados em cache (mesmo query key
   // diferente), mantém o children montado para não perder estado da Lista.

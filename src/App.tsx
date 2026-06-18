@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login.tsx";
-import CriarAcesso from "./pages/CriarAcesso";
 import TrocarSenha from "./pages/TrocarSenha.tsx";
 import EsqueciSenha from "./pages/EsqueciSenha.tsx";
 import RedefinirSenha from "./pages/RedefinirSenha.tsx";
@@ -98,6 +97,7 @@ import Alocacoes from "./pages/rh/Alocacoes";
 import Recrutamento from "./pages/rh/Recrutamento";
 import Ferias from "./pages/rh/Ferias";
 import Bonificacoes from "./pages/rh/Bonificacoes";
+import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
 import BIDashboard from "./pages/bi/Dashboard";
 import Fiscal from "./pages/Fiscal";
 import IntegracaoBatches from "./pages/integracao/Batches";
@@ -132,12 +132,12 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/criar-acesso" element={<CriarAcesso />} />
           <Route path="/trocar-senha" element={<TrocarSenha />} />
           <Route path="/esqueci-senha" element={<EsqueciSenha />} />
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<Inicio />} />
+            <Route path="encarregados" element={<MinhasSolicitacoes />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
             <Route path="presidencia" element={<Presidencia />} />
             <Route path="pipeline" element={<Pipeline />} />
