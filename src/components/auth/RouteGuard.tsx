@@ -3,16 +3,14 @@ import { useLocation, Link, Navigate } from "react-router-dom";
 import { useIsEncarregado } from "@/hooks/useVinculoEmpregado";
 import { ShieldAlert } from "lucide-react";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
-import { usePermissoes } from "@/context/PermissoesContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useFeatureFlag } from "@/lib/featureFlags";
 
 /**
  * Bloco V3 — Rotas governadas por feature flag soberana de fase.
- * Quando a flag está desativada, o RouteGuard nega acesso mesmo para admin
- * e mesmo que a rota esteja em app_menu / permissões. Reativação exige
- * flip explícito da flag (Fase 1 = desativada por padrão).
+ * Quando a flag está desativada, o RouteGuard nega acesso mesmo que a rota
+ * esteja em app_menu / permissões. Reativação exige flip explícito da flag.
  */
 const PHASE_FLAGGED_ROUTES: { prefix: string; flag: "triagemIA" }[] = [
   // Triagem IA — desativada permanentemente (decisão de negócio 2026-05-28).
@@ -22,13 +20,6 @@ const PHASE_FLAGGED_ROUTES: { prefix: string; flag: "triagemIA" }[] = [
   // deve acessar funcionalidades de IA da Fase 1.
   { prefix: "/app/plano-acoes/copiloto", flag: "triagemIA" },
 ];
-
-/**
- * Rotas privilegiadas que sempre são liberadas para admin, controladoria e
- * presidência, mesmo que ainda não estejam mapeadas em screen_permission_*.
- */
-const PRIVILEGED_ROUTES = ["/app/admin/permissoes"];
-const PRIVILEGED_ROLES = ["admin", "controladoria", "presidencia"];
 
 /**
  * B2 — Allowlist técnica.
@@ -44,35 +35,20 @@ const TECHNICAL_ALLOWLIST = [
   "/app/contabil/razao-detalhado",   // TODO B2.x: cadastrar em app_menu
 ];
 
-/** Rotas técnicas restritas a um role específico (sem registro em app_menu). */
-const ROLE_RESTRICTED_ROUTES: { route: string; roles: string[] }[] = [
-  { route: "/app/admin/smoke-helena", roles: ["admin"] },
-];
-
 function inAllowlist(pathname: string): boolean {
   return TECHNICAL_ALLOWLIST.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
 }
 
-function checkRoleRestricted(pathname: string, roles: string[]): boolean | null {
-  const match = ROLE_RESTRICTED_ROUTES.find(
-    (r) => pathname === r.route || pathname.startsWith(r.route + "/"),
-  );
-  if (!match) return null; // não é rota role-restricted
-  return roles.some((r) => match.roles.includes(r));
-}
-
 export function RouteGuard({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { data, isLoading } = useAccessibleMenus("visualizar");
-  const { roles } = usePermissoes();
   const { isEncarregado } = useIsEncarregado();
   const loggedRef = useRef<string>("");
 
   // Bloco V3 — checagem soberana de fase via feature flag.
-  // Se a flag de fase estiver desativada, a rota é negada mesmo para
-  // admin / menu liberado / permissão liberada.
+  // Se a flag de fase estiver desativada, a rota é negada independente de qualquer permissão.
   const [triagemIAEnabled] = useFeatureFlag("triagemIA", false);
   const phaseFlagged = PHASE_FLAGGED_ROUTES.find(
     (r) => pathname === r.prefix || pathname.startsWith(r.prefix + "/"),
@@ -82,24 +58,13 @@ export function RouteGuard({ children }: { children: ReactNode }) {
     : true;
 
   const menuCode = data ? matchMenuCode(pathname, data.routes) : null;
-  const isPrivilegedRoute = PRIVILEGED_ROUTES.some((r) => pathname.startsWith(r));
-  const hasPrivilegedRole = roles.some((r) => PRIVILEGED_ROLES.includes(r));
-  const privilegedBypass = isPrivilegedRoute && hasPrivilegedRole;
-  const roleRestricted = checkRoleRestricted(pathname, roles);
 
   // Acesso determinado exclusivamente pelo painel de usuários em /app/administracao?tab=modulos.
   // Cargo/role não concede nenhum bypass — a RPC list_accessible_menus retorna apenas
   // menus com allow=true explícito para TODOS os usuários (incluindo admin).
   const allowed =
     phaseFlagEnabled &&
-    (!data ||
-      privilegedBypass ||
-      (roleRestricted !== null
-        ? roleRestricted
-        : (menuCode ? data.codes.has(menuCode) : inAllowlist(pathname))));
-
-
-
+    (!data || (menuCode ? data.codes.has(menuCode) : inAllowlist(pathname)));
 
   useEffect(() => {
     if (isLoading || allowed) return;
@@ -140,7 +105,7 @@ export function RouteGuard({ children }: { children: ReactNode }) {
       <h1 className="text-2xl font-semibold">Acesso negado</h1>
       <p className="max-w-md text-sm text-muted-foreground">
         Você não tem permissão para visualizar esta tela. Caso precise de acesso,
-        solicite ao administrador em <strong>Configurações &gt; Acessos &amp; Permissões</strong>.
+        solicite ao administrador em <strong>Administração &gt; Módulos &amp; Menus</strong>.
       </p>
       <p className="text-xs text-muted-foreground">
         Tela: <code>{menuCode}</code> · Rota: <code>{pathname}</code>

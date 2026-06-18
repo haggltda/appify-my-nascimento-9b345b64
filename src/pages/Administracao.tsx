@@ -1,22 +1,24 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Users, GitBranch, ShieldCheck } from "lucide-react";
+import { Users, GitBranch, ShieldCheck, ClipboardList } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { UsuariosReal } from "@/components/admin/UsuariosReal";
 import { ModulosMenusTab } from "@/pages/admin/tabs/ModulosMenusTab";
 import { AlcadasTab } from "@/pages/admin/tabs/AlcadasTab";
 import { AuditoriaTab } from "@/pages/admin/tabs/AuditoriaTab";
+import PlanoAcoesConfiguracoes from "@/pages/plano-acoes/Configuracoes";
 import { ChevronRight } from "lucide-react";
 
-type Tab = "usuarios" | "modulos" | "alcadas" | "auditoria";
+type Tab = "usuarios" | "modulos" | "alcadas" | "auditoria" | "plano-acoes-acl";
 
-const VALID_TABS: Tab[] = ["usuarios", "modulos", "alcadas", "auditoria"];
+const VALID_TABS: Tab[] = ["usuarios", "modulos", "alcadas", "auditoria", "plano-acoes-acl"];
 
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "usuarios", label: "Usuários", icon: Users },
   { id: "modulos", label: "Módulos & Menus", icon: GitBranch },
+  { id: "plano-acoes-acl", label: "Plano de Ações — ACL", icon: ClipboardList },
   { id: "alcadas", label: "Alçadas de aprovação", icon: GitBranch },
   { id: "auditoria", label: "Auditoria sensível", icon: ShieldCheck },
 ];
@@ -77,6 +79,7 @@ export default function Administracao() {
         <div className="space-y-5">
           {tab === "usuarios" && <UsuariosReal />}
           {tab === "modulos" && <ModulosMenusTab />}
+          {tab === "plano-acoes-acl" && <PlanoAcoesConfiguracoes bypassGuard />}
           {tab === "alcadas" && <AlcadasTab />}
           {tab === "auditoria" && <AuditoriaTab />}
         </div>

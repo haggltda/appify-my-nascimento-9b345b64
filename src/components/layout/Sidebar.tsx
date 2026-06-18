@@ -38,7 +38,6 @@ import {
   ClipboardCheck,
   DatabaseZap,
 } from "lucide-react";
-import { usePermissoes } from "@/context/PermissoesContext";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
@@ -93,7 +92,8 @@ const licitacoesModule: ModuleDef = {
       label: "Operação",
       defaultOpen: true,
       items: [
-        { label: "Cadastro de Editais", to: "/app/editais", icon: FileText },
+        { label: "Capa de Edital Licitações", to: "/app/editais", icon: FileText },
+        { label: "Implantação de Contratos", to: "/app/licitacoes/implantacao", icon: ListChecks },
         { label: "Documentos", to: "/app/documentos", icon: ScrollText },
         // B2: "Triagem & IA" removida do menu (rota /app/triagem segue existindo,
         // mas controlada pelo RouteGuard + matriz de permissões do ERP).
@@ -126,7 +126,6 @@ const licitacoesModule: ModuleDef = {
     {
       label: "Contratos",
       items: [
-        { label: "Implantação", to: "/app/contratos/implantacao", icon: ListChecks },
         { label: "Contratos Ativos", to: "/app/contratos/ativos", icon: Building2, badge: "18" },
         { label: "Empenhos", to: "/app/contratos/empenhos", icon: Wallet },
         { label: "Postos & Alocações", to: "/app/contratos/postos", icon: Users2 },
@@ -419,18 +418,15 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: SidebarProps) {
   const location = useLocation();
-  const { roles } = usePermissoes();
-  const { perms, isAdmin } = usePlanoAcaoPermissao();
+  const { perms } = usePlanoAcaoPermissao();
   const { temAlcada, pendentes } = useTemAlcada();
   const { data: access } = useAccessibleMenus("visualizar");
   const { isEncarregado } = useIsEncarregado(); // encarregado só vê o Início
-  const podeVerPlanoAcoes = isAdmin || perms.pode_visualizar;
-  const podeCopiloto = roles.includes("admin") || roles.includes("presidencia");
 
   const allModules = [
     ...erpModules,
-    ...(podeVerPlanoAcoes ? [buildPlanoAcoesModule(podeCopiloto)] : []),
-    ...(roles.includes("admin") ? [integracaoModule] : []),
+    ...(perms.pode_visualizar ? [buildPlanoAcoesModule(false)] : []),
+    integracaoModule,
   ];
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.

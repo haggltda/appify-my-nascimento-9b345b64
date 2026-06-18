@@ -22,36 +22,25 @@ const NONE: PlanoAcaoPermissao = {
   pode_ver_todas: false,
 };
 
-const ALL: PlanoAcaoPermissao = {
-  pode_visualizar: true, pode_dashboard: true, pode_criar: true, pode_editar: true,
-  pode_excluir: true, pode_importar: true, pode_aprovar: true, pode_administrar: true,
-  pode_ver_todas: true,
-};
-
 export function usePlanoAcaoPermissao() {
-  const { roles, loading } = usePermissoes();
+  const { loading } = usePermissoes();
   const { empresa, loading: loadingEmp } = useEmpresaAtiva();
   const empresaId = empresa?.id ?? null;
-  const isAdmin = roles.includes("admin");
 
   const q = useQuery({
-    queryKey: ["plano_acao_permissao", empresaId, isAdmin],
-    enabled: !loading && !loadingEmp && !!empresaId && !isAdmin,
+    queryKey: ["plano_acao_permissao", empresaId],
+    enabled: !loading && !loadingEmp && !!empresaId,
     queryFn: async (): Promise<PlanoAcaoPermissao> => {
-      const { data: userRes } = await supabase.auth.getUser();
-      const uid = userRes.user?.id;
-      if (!uid) return NONE;
-      const { data } = await supabase
-        .from("plano_acao_usuario_permissao")
-        .select("pode_visualizar,pode_dashboard,pode_criar,pode_editar,pode_excluir,pode_importar,pode_aprovar,pode_administrar,pode_ver_todas")
-        .eq("empresa_id", empresaId!)
-        .eq("profile_id", uid)
-        .maybeSingle();
-      return (data as PlanoAcaoPermissao) ?? NONE;
+      const { data, error } = await (supabase as any).rpc(
+        "minha_permissao_plano_acao",
+        { _empresa_id: empresaId! },
+      );
+      if (error || !data) return NONE;
+      return data as PlanoAcaoPermissao;
     },
   });
 
-  const perms = isAdmin ? ALL : (q.data ?? NONE);
+  const perms = q.data ?? NONE;
   const can = (p: PermissaoFlag) => perms[`pode_${p}` as keyof PlanoAcaoPermissao];
-  return { perms, can, loading: loading || loadingEmp || q.isLoading, isAdmin };
+  return { perms, can, loading: loading || loadingEmp || q.isLoading };
 }
