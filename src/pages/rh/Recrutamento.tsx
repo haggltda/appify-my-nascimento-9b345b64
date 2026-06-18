@@ -228,8 +228,8 @@ export default function Recrutamento() {
     ? [{ label: "Todas as Solicitações", tab: "todas" }]
     : isAdmin || isTreinamento
     ? [
-        { label: "Pendente Aprovação", tab: "analista" },
         { label: "Todas", tab: "todas" },
+        { label: "Pendente Aprovação", tab: "analista" },
         { label: "Minhas Solicitações", tab: "minha" },
       ]
     : [{ label: "Minhas Solicitações", tab: "minha" }];
@@ -258,14 +258,10 @@ export default function Recrutamento() {
     });
   }, []);
 
-  // ── Carregar Lista ────────────────────────────────────────────
-  const loadLista = useCallback(async () => {
-    setLoading(true);
-    const PER = 20;
-    let q = (supabase as any)
-      .from("SISTEMA_RECRUTAMENTO")
-      .select("*", { count: "exact" });
-
+  // ── Filtros compartilhados ────────────────────────────────────
+  // Tabela e Kanban são a MESMA consulta, só muda a apresentação — então os
+  // dois aplicam exatamente os mesmos filtros (aba/status/busca).
+  const aplicarFiltros = useCallback((q: any) => {
     if (statusFilter === "em_processo") {
       q = q.in("status", [
         "Vaga Aberta","Seleção de Currículos","Entrevistas",
@@ -275,16 +271,25 @@ export default function Recrutamento() {
     } else if (statusFilter) {
       q = q.eq("status", statusFilter);
     }
-
     if (tab === "minha" && user?.email) {
       q = q.eq("solicitante_cpf", user.email);
     } else if (tab === "analista") {
       q = q.eq("status", "Aguardando Aprovação");
     }
-
     if (search) {
       q = q.or(`cargo.ilike.%${search}%,contrato.ilike.%${search}%,cidade.ilike.%${search}%`);
     }
+    return q;
+  }, [statusFilter, tab, search, user]);
+
+  // ── Carregar Lista ────────────────────────────────────────────
+  const loadLista = useCallback(async () => {
+    setLoading(true);
+    const PER = 20;
+    let q = (supabase as any)
+      .from("SISTEMA_RECRUTAMENTO")
+      .select("*", { count: "exact" });
+    q = aplicarFiltros(q);
 
     const from = (page - 1) * PER;
     const to   = from + PER - 1;
@@ -297,14 +302,18 @@ export default function Recrutamento() {
     const ct = count ?? 0;
     setTotal(ct);
     setPages(Math.max(1, Math.ceil(ct / PER)));
-  }, [tab, page, statusFilter, search, user, toast]);
+  }, [aplicarFiltros, page, toast]);
 
   // ── Carregar Kanban ───────────────────────────────────────────
   const loadKanban = useCallback(async () => {
+    // Mesma consulta da tabela (mesmos filtros), só agrupada por status.
     // Tenta trazer status_changed_at (tempo na etapa atual); se a coluna ainda
     // não existir no ambiente, refaz a consulta sem ela.
-    const kbQuery = (cols: string) => (supabase as any)
-      .from("SISTEMA_RECRUTAMENTO").select(cols).order("created_at", { ascending: false });
+    const kbQuery = (cols: string) => {
+      let q = (supabase as any).from("SISTEMA_RECRUTAMENTO").select(cols);
+      q = aplicarFiltros(q);
+      return q.order("created_at", { ascending: false });
+    };
     let { data, error } = await kbQuery("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at,status_changed_at");
     if (error) ({ data, error } = await kbQuery("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at"));
     if (error || !data) return;
@@ -314,7 +323,7 @@ export default function Recrutamento() {
       grouped[row.status].push(row);
     }
     setKanbanData(grouped);
-  }, []);
+  }, [aplicarFiltros]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { if (view === "tabela") loadLista(); else loadKanban(); }, [view, loadLista, loadKanban, tab, page, statusFilter, search]);
@@ -621,7 +630,8 @@ export default function Recrutamento() {
       .kb-nav{display:flex;gap:6px;flex-shrink:0}
       .kb-nav-btn{width:34px;height:30px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;color:#0f3171;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(15,23,42,.06);transition:.15s;display:inline-flex;align-items:center;justify-content:center}
       .kb-nav-btn:hover{background:#0f3171;color:#fff;border-color:#0f3171}
-      .kb-board{display:flex;gap:10px;height:calc(100vh - 320px);min-height:420px;overflow-x:auto;overflow-y:hidden;padding-bottom:14px;align-items:flex-start;scroll-behavior:smooth}
+      .kb-board{display:flex;gap:10px;height:calc(100vh - 320px);min-height:420px;overflow-x:auto;overflow-y:hidden;padding-bottom:14px;align-items:flex-start;scroll-behavior:smooth;cursor:grab}
+      .kb-board.kb-grabbing{cursor:grabbing;scroll-behavior:auto;user-select:none}
       .kb-board::-webkit-scrollbar{height:12px}
       .kb-board::-webkit-scrollbar-track{background:#eef2f7;border-radius:8px}
       .kb-board::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px;border:3px solid #eef2f7}
@@ -715,11 +725,11 @@ export default function Recrutamento() {
       btns.push(<button key="rep" onClick={() => { setReprovarMotivo(""); setModalReprovar(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reprovar</button>);
       btns.push(<button key="apr" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>✓ Aprovar</button>);
     }
-    if (s.status === "Aguardando Recrutamento" && isTreinamento) {
+    if (s.status === "Aguardando Recrutamento" && (isTreinamento || isAdmin)) {
       btns.push(<button key="rep2" onClick={() => { setReprovarMotivo(""); setModalReprovar(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reprovar</button>);
       btns.push(<button key="lib" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>✓ Liberar Vaga</button>);
     }
-    if (isTreinamento && !["Aguardando Aprovação","Aguardando Recrutamento","Reprovada","Contratado"].includes(s.status)) {
+    if ((isTreinamento || isAdmin) && !["Aguardando Aprovação","Aguardando Recrutamento","Reprovada","Contratado"].includes(s.status)) {
       btns.push(<button key="st" onClick={() => { setStatusSel(""); setStatusExtra({}); setModalStatus(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>Atualizar Status</button>);
     }
     const linkStatuses = ["Aprovada","Vaga Aberta","Em Processo Seletivo"];
@@ -737,6 +747,27 @@ export default function Recrutamento() {
 
   // Kanban: rola o quadro horizontalmente (~1,5 coluna por clique).
   const scrollKb = (dir: -1 | 1) => kbBoardRef.current?.scrollBy({ left: dir * 380, behavior: "smooth" });
+
+  // Kanban: clicar numa área vazia do quadro e arrastar para o lado (pan).
+  // Ignora cliques sobre os cards para não atrapalhar o arrastar-e-soltar deles.
+  const kbPan = useRef({ down: false, startX: 0, startLeft: 0 });
+  const kbPanDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest(".kb-card")) return;
+    const el = kbBoardRef.current; if (!el) return;
+    e.preventDefault();
+    kbPan.current = { down: true, startX: e.pageX, startLeft: el.scrollLeft };
+    el.classList.add("kb-grabbing");
+  };
+  const kbPanMove = (e: React.MouseEvent) => {
+    const st = kbPan.current; if (!st.down) return;
+    const el = kbBoardRef.current; if (!el) return;
+    el.scrollLeft = st.startLeft - (e.pageX - st.startX);
+  };
+  const kbPanEnd = () => {
+    if (!kbPan.current.down) return;
+    kbPan.current.down = false;
+    kbBoardRef.current?.classList.remove("kb-grabbing");
+  };
 
   // ── RENDER ────────────────────────────────────────────────────
   return (
@@ -865,13 +896,14 @@ export default function Recrutamento() {
         {view === "kanban" && (
           <>
             <div className="kb-toolbar">
-              <span className="kb-hint">Arraste os cards entre as colunas · use as setas ou <strong>Shift + roda do mouse</strong> para navegar →</span>
+              <span className="kb-hint">Arraste os cards entre as colunas · <strong>clique e arraste a tela</strong>, use as setas ou <strong>Shift + roda do mouse</strong> para navegar →</span>
               <div className="kb-nav">
                 <button type="button" className="kb-nav-btn" onClick={() => scrollKb(-1)} aria-label="Rolar para a esquerda" title="Rolar para a esquerda">◀</button>
                 <button type="button" className="kb-nav-btn" onClick={() => scrollKb(1)} aria-label="Rolar para a direita" title="Rolar para a direita">▶</button>
               </div>
             </div>
-          <div className="kb-board" ref={kbBoardRef}>
+          <div className="kb-board" ref={kbBoardRef}
+            onMouseDown={kbPanDown} onMouseMove={kbPanMove} onMouseUp={kbPanEnd} onMouseLeave={kbPanEnd}>
             {KB_STATUS_ORDER.map(status => {
               const cards = kanbanData[status] ?? [];
               const meta  = KB_COL_COLORS[status] ?? { dot: "#f97316", label: "#ea580c", accent: "#f97316" };

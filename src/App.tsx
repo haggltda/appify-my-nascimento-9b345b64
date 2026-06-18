@@ -96,7 +96,6 @@ import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
 import Recrutamento from "./pages/rh/Recrutamento";
 import Ferias from "./pages/rh/Ferias";
-import Bonificacoes from "./pages/rh/Bonificacoes";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
 import BIDashboard from "./pages/bi/Dashboard";
 import Fiscal from "./pages/Fiscal";
@@ -228,7 +227,6 @@ const App = () => (
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             <Route path="rh/folha" element={<Folha />} />
             <Route path="rh/ferias" element={<Ferias />} />
-            <Route path="rh/bonificacoes" element={<Bonificacoes />} />
             <Route path="rh/recrutamento" element={<Recrutamento />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
