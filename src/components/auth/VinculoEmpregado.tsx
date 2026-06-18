@@ -3,19 +3,29 @@ import { IdCard, Calendar, ArrowRight, CheckCircle2, AlertCircle, X, Loader2, Bu
 import { supabase } from "@/integrations/supabase/client";
 import { useVinculoEmpregado, type EmpregadoVinculo } from "@/hooks/useVinculoEmpregado";
 
-const DISMISS_KEY = "erp:vinculo-dispensado";
+interface VinculoResp {
+  ok: boolean;
+  error?: string;
+  empregado?: EmpregadoVinculo;
+  ja_vinculado?: boolean;
+  vinculado?: boolean;
+}
 
-async function callFn(name: string, body: unknown): Promise<{ ok: boolean; error?: string; [k: string]: unknown }> {
-  const { data, error } = await supabase.functions.invoke(name, { body });
+/**
+ * Vínculo via RPC SECURITY DEFINER (vincular_meu_empregado) — vai pelo endpoint
+ * /rest/v1/rpc já usado pelo app. Substitui a antiga Edge Function, que falhava
+ * com "Failed to send a request to the Edge Function".
+ */
+async function vincularRpc(cpf: string, nascimento: string, confirmar: boolean): Promise<VinculoResp> {
+  const { data, error } = await (supabase as any).rpc("vincular_meu_empregado", {
+    p_cpf: cpf,
+    p_nascimento: nascimento,
+    p_confirmar: confirmar,
+  });
   if (error) {
-    let msg = error.message;
-    try {
-      const j = await (error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.();
-      if (j?.error) msg = j.error;
-    } catch { /* mantém msg padrão */ }
-    return { ok: false, error: msg };
+    return { ok: false, error: error.message || "Não foi possível concluir o vínculo. Tente novamente." };
   }
-  return (data as { ok: boolean }) ?? { ok: false, error: "Sem resposta do servidor." };
+  return (data as VinculoResp) ?? { ok: false, error: "Sem resposta do servidor." };
 }
 
 function maskCpf(v: string): string {
@@ -36,19 +46,13 @@ function maskData(v: string): string {
  *  amarrado a um cadastro EMPREGADOS. Dispensável por sessão. */
 export function VinculoGate() {
   const { linked, loading, ready, refetch } = useVinculoEmpregado();
-  const [dismissed, setDismissed] = useState(() => {
-    try { return sessionStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
-  });
+  // Dispensa em memória: "Agora não" some durante a navegação, mas ao recarregar
+  // a página (ou novo login) o card reaparece enquanto o usuário não vincular.
+  const [dismissed, setDismissed] = useState(false);
 
-  // Só mostra quando a RPC respondeu (migration aplicada) e o usuário não está vinculado.
   if (loading || !ready || linked || dismissed) return null;
 
-  const dispensar = () => {
-    try { sessionStorage.setItem(DISMISS_KEY, "1"); } catch { /* noop */ }
-    setDismissed(true);
-  };
-
-  return <VincularModal onClose={dispensar} onLinked={() => { refetch(); }} />;
+  return <VincularModal onClose={() => setDismissed(true)} onLinked={() => { refetch(); }} />;
 }
 
 function VincularModal({ onClose, onLinked }: { onClose: () => void; onLinked: () => void }) {
@@ -64,7 +68,7 @@ function VincularModal({ onClose, onLinked }: { onClose: () => void; onLinked: (
     if (cpf.replace(/\D/g, "").length !== 11) return setError("Informe um CPF válido.");
     if (nascimento.replace(/\D/g, "").length !== 8) return setError("Informe a data de nascimento (DD/MM/AAAA).");
     setLoading(true);
-    const r = await callFn("auth-vincular-empregado", { action: "buscar", cpf, nascimento });
+    const r = await vincularRpc(cpf, nascimento, false);
     setLoading(false);
     if (!r.ok) return setError(r.error ?? "Não foi possível localizar o cadastro.");
     setPreview(r.empregado as EmpregadoVinculo);
@@ -73,7 +77,7 @@ function VincularModal({ onClose, onLinked }: { onClose: () => void; onLinked: (
   const confirmar = async () => {
     setError(null);
     setLoading(true);
-    const r = await callFn("auth-vincular-empregado", { action: "vincular", cpf, nascimento });
+    const r = await vincularRpc(cpf, nascimento, true);
     setLoading(false);
     if (!r.ok) return setError(r.error ?? "Não foi possível vincular.");
     setDone(true);

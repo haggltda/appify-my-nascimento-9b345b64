@@ -1,12 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { ESTADOS_BR, municipiosDe } from "@/data/municipios-brasil";
 
 // ── Helpers ────────────────────────────────────────────────────────
 function fmtDt(s?: string) {
   if (!s) return "—";
   const d = new Date(s.length <= 10 ? s + "T12:00:00" : s);
   return isNaN(+d) ? (s ?? "—") : d.toLocaleDateString("pt-BR");
+}
+/** Dias inteiros decorridos desde a data informada (0 = hoje). */
+function diasDesde(s?: string): number | null {
+  if (!s) return null;
+  const d = new Date(s.length <= 10 ? s + "T12:00:00" : s);
+  if (isNaN(+d)) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
 }
 function mesLabel(s?: string) {
   const m = String(s ?? "").match(/^(\d{4})-(\d{2})$/);
@@ -17,7 +25,7 @@ function mesLabel(s?: string) {
 function badgeStatusCls(st: string) {
   const m: Record<string, string> = {
     "Aguardando Aprovação": "bg-yellow-100 text-yellow-800 border-yellow-200",
-    "Aguardando Treinamentos": "bg-purple-100 text-purple-700 border-purple-200",
+    "Aguardando Recrutamento": "bg-purple-100 text-purple-700 border-purple-200",
     Pendente: "bg-yellow-100 text-yellow-800 border-yellow-200",
     Aprovada: "bg-green-100 text-green-700 border-green-200",
     Reprovada: "bg-red-100 text-red-700 border-red-200",
@@ -56,7 +64,10 @@ const VAGA_RESET = {
   motivos_saida: "", recomendacao: "", observacao_importante: "",
 };
 
-interface SolItem { tipo: string; icon: string; id: number; titulo: string; status: string; data: string; }
+interface SolItem {
+  tipo: string; icon: string; id: number; titulo: string; status: string; data: string;
+  substituido?: string; motivo?: string; qtdVagas?: number; statusDesde?: string;
+}
 
 export default function MinhasSolicitacoes() {
   const { user } = useAuth();
@@ -111,15 +122,29 @@ export default function MinhasSolicitacoes() {
     if (!user?.email) return;
     setLoadingSols(true);
     const email = user.email;
-    const [vg, fr, bn] = await Promise.all([
-      (supabase as any).from("SISTEMA_RECRUTAMENTO").select("id, cargo, contrato, status, created_at").eq("solicitante_cpf", email).order("created_at", { ascending: false }).limit(30),
+
+    // Vaga: tenta com status_changed_at; se a coluna ainda não existir, refaz sem ela.
+    const vagaQuery = (cols: string) => (supabase as any)
+      .from("SISTEMA_RECRUTAMENTO").select(cols)
+      .eq("solicitante_cpf", email).order("created_at", { ascending: false }).limit(30);
+    let vg = await vagaQuery("id, cargo, contrato, status, created_at, nome_substituido, quantidade_vagas, motivo_vaga, status_changed_at");
+    if (vg.error) vg = await vagaQuery("id, cargo, contrato, status, created_at, nome_substituido, quantidade_vagas, motivo_vaga");
+
+    const [fr, bn] = await Promise.all([
       (supabase as any).from("SISTEMA_SOLICITACOES_FERIAS").select("id, colaborador_nome, status, criado_em").eq("solicitante_email", email).order("criado_em", { ascending: false }).limit(30),
       (supabase as any).from("SISTEMA_SOLICITACOES_BONIFICACAO").select("id, mes_pagamento, total_colaboradores, status, criado_em").eq("solicitante_email", email).order("criado_em", { ascending: false }).limit(30),
     ]);
     const itens: SolItem[] = [
-      ...(vg.data ?? []).map((r: any) => ({ tipo: "Vaga", icon: "🎯", id: r.id, titulo: `${r.cargo || "Vaga"}${r.contrato ? ` — ${r.contrato}` : ""}`, status: r.status, data: r.created_at })),
-      ...(fr.data ?? []).map((r: any) => ({ tipo: "Férias", icon: "📅", id: r.id, titulo: `Férias — ${r.colaborador_nome || ""}`, status: r.status, data: r.criado_em })),
-      ...(bn.data ?? []).map((r: any) => ({ tipo: "Bonificação", icon: "🎁", id: r.id, titulo: `Bonificação — ${r.total_colaboradores || 0} colab. (${mesLabel(r.mes_pagamento)})`, status: r.status, data: r.criado_em })),
+      ...(vg.data ?? []).map((r: any) => ({
+        tipo: "Vaga", icon: "🎯", id: r.id,
+        titulo: `${r.cargo || "Vaga"}${r.contrato ? ` — ${r.contrato}` : ""}`,
+        status: r.status, data: r.created_at,
+        substituido: r.nome_substituido || "", motivo: r.motivo_vaga || "",
+        qtdVagas: Number(r.quantidade_vagas) || 1,
+        statusDesde: r.status_changed_at || r.created_at,
+      })),
+      ...(fr.data ?? []).map((r: any) => ({ tipo: "Férias", icon: "📅", id: r.id, titulo: `Férias — ${r.colaborador_nome || ""}`, status: r.status, data: r.criado_em, statusDesde: r.criado_em })),
+      ...(bn.data ?? []).map((r: any) => ({ tipo: "Bonificação", icon: "🎁", id: r.id, titulo: `Bonificação — ${r.total_colaboradores || 0} colab. (${mesLabel(r.mes_pagamento)})`, status: r.status, data: r.criado_em, statusDesde: r.criado_em })),
     ].sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
     setLoadingSols(false);
     setMinhasSols(itens);
@@ -294,6 +319,10 @@ export default function MinhasSolicitacoes() {
       .ini-sol-info{flex:1;min-width:0;}
       .ini-sol-title{font-size:.85rem;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
       .ini-sol-meta{font-size:.72rem;color:#94a3b8;margin-top:2px;}
+      .ini-sol-top{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;}
+      .ini-sol-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#475569;background:#eef4ff;border:1px solid #dbe4f0;border-radius:6px;padding:1px 7px;line-height:1.5;}
+      .ini-sol-tag strong{color:#0f172a;font-weight:700;}
+      .ini-sol-dias{font-size:10px;color:#94a3b8;white-space:nowrap;font-weight:600;}
       .ini-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;border:1px solid transparent;}
       .ini-modal-ov{position:fixed;inset:0;z-index:700;background:rgba(15,23,42,.42);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;}
       .ini-modal{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:24px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;position:relative;box-shadow:0 16px 40px rgba(15,23,42,.12);}
@@ -352,16 +381,35 @@ export default function MinhasSolicitacoes() {
             </div>
           ) : (
             <div>
-              {lista.map(s => (
-                <div key={`${s.tipo}-${s.id}`} className="ini-sol-item">
-                  <div className="ini-sol-icon">{s.icon}</div>
-                  <div className="ini-sol-info">
-                    <div className="ini-sol-title">{s.titulo}</div>
-                    <div className="ini-sol-meta">{s.tipo} · #{s.id} · {fmtDt(s.data)}</div>
+              {lista.map(s => {
+                const dias = diasDesde(s.statusDesde);
+                const qtd = s.qtdVagas || 1;
+                return (
+                  <div key={`${s.tipo}-${s.id}`} className="ini-sol-item">
+                    <div className="ini-sol-icon">{s.icon}</div>
+                    <div className="ini-sol-info">
+                      {s.tipo === "Vaga" && (
+                        <div className="ini-sol-top">
+                          {s.motivo === "Substituição" && s.substituido && (
+                            <span className="ini-sol-tag">🔁 Substituindo: <strong>{s.substituido}</strong></span>
+                          )}
+                          <span className="ini-sol-tag">🎯 {qtd} vaga{qtd > 1 ? "s" : ""} solicitada{qtd > 1 ? "s" : ""}</span>
+                        </div>
+                      )}
+                      <div className="ini-sol-title">{s.titulo}</div>
+                      <div className="ini-sol-meta">{s.tipo} · #{s.id} · {fmtDt(s.data)}</div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      <span className={`ini-badge ${badgeStatusCls(s.status)}`}>{s.status}</span>
+                      {dias !== null && (
+                        <span className="ini-sol-dias" title={`Tempo parado no status atual: ${s.status}`}>
+                          ⏱ {dias === 0 ? "hoje" : `há ${dias} dia${dias > 1 ? "s" : ""}`} neste status
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <span className={`ini-badge ${badgeStatusCls(s.status)}`}>{s.status}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -419,8 +467,20 @@ export default function MinhasSolicitacoes() {
               </div>
               <div className="ini-fg"><label>Cargo *</label><input className="ini-fi" placeholder="Ex: Auxiliar de Limpeza, Vigilante..." value={vaga.cargo} onChange={e => setVaga(v => ({ ...v, cargo: e.target.value }))} /></div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div className="ini-fg"><label>Estado (UF)</label><input className="ini-fi" placeholder="SP, RJ, MG..." maxLength={2} value={vaga.estado} onChange={e => setVaga(v => ({ ...v, estado: e.target.value.toUpperCase() }))} /></div>
-                <div className="ini-fg"><label>Cidade</label><input className="ini-fi" placeholder="Nome da cidade..." value={vaga.cidade} onChange={e => setVaga(v => ({ ...v, cidade: e.target.value }))} /></div>
+                <div className="ini-fg">
+                  <label>Estado (UF)</label>
+                  <select className="ini-fi" value={vaga.estado} onChange={e => setVaga(v => ({ ...v, estado: e.target.value, cidade: "" }))}>
+                    <option value="">— Selecione —</option>
+                    {ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} — {e.nome}</option>)}
+                  </select>
+                </div>
+                <div className="ini-fg">
+                  <label>Cidade</label>
+                  <select className="ini-fi" value={vaga.cidade} disabled={!vaga.estado} onChange={e => setVaga(v => ({ ...v, cidade: e.target.value }))}>
+                    <option value="">{vaga.estado ? "— Selecione —" : "Selecione o estado primeiro"}</option>
+                    {municipiosDe(vaga.estado).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
               </div>
             </>)}
 

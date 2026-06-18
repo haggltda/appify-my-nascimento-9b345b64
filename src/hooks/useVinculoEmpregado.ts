@@ -36,16 +36,38 @@ export function useVinculoEmpregado() {
     }
     setLoading(true);
     const { data, error } = await (supabase as any).rpc("meu_empregado");
+    if (!error) {
+      setLoading(false);
+      setReady(true);
+      setEmpregado(Array.isArray(data) && data.length ? (data[0] as EmpregadoVinculo) : null);
+      return;
+    }
+
+    // Fallback: RPC indisponível → consulta direta (authenticated lê EMPREGADOS).
+    // Mantém o card de vínculo funcionando mesmo se meu_empregado ainda não existir.
+    console.warn("[meu_empregado] indisponível, usando fallback direto:", error.message);
+    const { data: row, error: e2 } = await (supabase as any)
+      .from("EMPREGADOS")
+      .select('"ID","Nome","CPF","Título do Cargo","Setor_ERP","Perfil_ERP","LIDER","Situação","Admissão","Nome da Empresa","Nome Filial","email"')
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
     setLoading(false);
-    if (error) {
-      // RPC ausente (migration não aplicada) ou erro → não trava o app nem mostra card quebrado.
-      console.error("[meu_empregado] erro:", error.message);
+    if (e2) {
+      // Sem coluna auth_user_id / sem acesso → não mostra card quebrado.
+      console.error("[vinculo] probe direto falhou:", e2.message);
       setReady(false);
       setEmpregado(null);
       return;
     }
     setReady(true);
-    setEmpregado(Array.isArray(data) && data.length ? (data[0] as EmpregadoVinculo) : null);
+    setEmpregado(row ? {
+      id: row["ID"], nome: row["Nome"] ?? "", cpf: row["CPF"] ?? "",
+      cargo: row["Título do Cargo"] ?? "", setor: row["Setor_ERP"] ?? "",
+      perfil: row["Perfil_ERP"] ?? "", lider: row["LIDER"] ?? "",
+      situacao: row["Situação"] ?? "", admissao: row["Admissão"] ?? "",
+      empresa: row["Nome da Empresa"] ?? "", filial: row["Nome Filial"] ?? "",
+      email: row["email"] ?? "",
+    } as EmpregadoVinculo : null);
   }, [user]);
 
   useEffect(() => {

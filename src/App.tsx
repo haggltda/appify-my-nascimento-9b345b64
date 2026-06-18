@@ -137,7 +137,8 @@ const App = () => (
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<Inicio />} />
-            <Route path="encarregados" element={<MinhasSolicitacoes />} />
+            <Route path="encarregados" element={<Navigate to="/app/encarregados/minhas-solicitacoes" replace />} />
+            <Route path="encarregados/minhas-solicitacoes" element={<MinhasSolicitacoes />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
             <Route path="presidencia" element={<Presidencia />} />
             <Route path="pipeline" element={<Pipeline />} />

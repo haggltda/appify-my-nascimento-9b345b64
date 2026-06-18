@@ -13,7 +13,7 @@ const QA = [
   { to: "/app/bi",                      icon: "📈", label: "BI" },
   { to: "/app/rh/recrutamento",         icon: "🎯", label: "Recrutamento" },
   { to: "/app/meu-perfil",              icon: "👤", label: "Meu Perfil" },
-  { to: "/app/encarregados",            icon: "📤", label: "Minhas Solicitações" },
+  { to: "/app/encarregados/minhas-solicitacoes", icon: "📤", label: "Minhas Solicitações" },
 ];
 
 export default function Inicio() {

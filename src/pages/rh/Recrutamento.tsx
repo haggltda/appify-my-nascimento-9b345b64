@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/context/PermissoesContext";
+import { ESTADOS_BR, municipiosDe } from "@/data/municipios-brasil";
 
 // ── Tipos ──────────────────────────────────────────────────────────
 interface Solicitacao {
@@ -43,6 +44,7 @@ interface Solicitacao {
   solicitante_cpf?: string;
   aprovado_por_nome?: string;
   created_at: string;
+  status_changed_at?: string;
 }
 
 interface Mensagem {
@@ -82,7 +84,7 @@ function fmtDt(s?: string) {
 function badgeStatusCls(st: string) {
   const m: Record<string, string> = {
     "Aguardando Aprovação": "bg-yellow-100 text-yellow-800 border border-yellow-200",
-    "Aguardando Treinamentos": "bg-purple-100 text-purple-700 border border-purple-200",
+    "Aguardando Recrutamento": "bg-purple-100 text-purple-700 border border-purple-200",
     Aprovada: "bg-green-100 text-green-700 border border-green-200",
     Reprovada: "bg-red-100 text-red-700 border border-red-200",
     "Vaga Aberta": "bg-orange-100 text-orange-700 border border-orange-200",
@@ -101,7 +103,7 @@ function badgeUrgCls(u?: string) {
 
 const KB_STATUS_ORDER = [
   "Aguardando Aprovação",
-  "Aguardando Treinamentos",
+  "Aguardando Recrutamento",
   "Aprovada",
   "Vaga Aberta",
   "Seleção de Currículos",
@@ -117,7 +119,7 @@ const KB_STATUS_ORDER = [
 
 const KB_COL_COLORS: Record<string, { dot: string; label: string; accent: string }> = {
   "Aguardando Aprovação":    { dot: "#f59e0b", label: "#b45309", accent: "#f59e0b" },
-  "Aguardando Treinamentos": { dot: "#8b5cf6", label: "#7c3aed", accent: "#8b5cf6" },
+  "Aguardando Recrutamento": { dot: "#8b5cf6", label: "#7c3aed", accent: "#8b5cf6" },
   Aprovada:                  { dot: "#16a34a", label: "#15803d", accent: "#16a34a" },
   "Vaga Aberta":             { dot: "#f97316", label: "#ea580c", accent: "#f97316" },
   "Seleção de Currículos":   { dot: "#3b82f6", label: "#2563eb", accent: "#3b82f6" },
@@ -208,6 +210,7 @@ export default function Recrutamento() {
   const toastId = useRef(0);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const kbBoardRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimer   = useRef<ReturnType<typeof setInterval> | null>(null);
   const empDebounce = useRef<ReturnType<typeof setTimeout> | null>(null); // debounce busca colaborador
@@ -248,7 +251,7 @@ export default function Recrutamento() {
     setStats({
       total:            rows.length,
       pendentes:        rows.filter(r => r.status === "Aguardando Aprovação").length,
-      ag_treinamentos:  rows.filter(r => r.status === "Aguardando Treinamentos").length,
+      ag_treinamentos:  rows.filter(r => r.status === "Aguardando Recrutamento").length,
       em_processo:      rows.filter(r => emProcesso.includes(r.status)).length,
       contratados:      rows.filter(r => r.status === "Contratado").length,
       reprovadas:       rows.filter(r => r.status === "Reprovada").length,
@@ -298,10 +301,12 @@ export default function Recrutamento() {
 
   // ── Carregar Kanban ───────────────────────────────────────────
   const loadKanban = useCallback(async () => {
-    const { data, error } = await (supabase as any)
-      .from("SISTEMA_RECRUTAMENTO")
-      .select("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at")
-      .order("created_at", { ascending: false });
+    // Tenta trazer status_changed_at (tempo na etapa atual); se a coluna ainda
+    // não existir no ambiente, refaz a consulta sem ela.
+    const kbQuery = (cols: string) => (supabase as any)
+      .from("SISTEMA_RECRUTAMENTO").select(cols).order("created_at", { ascending: false });
+    let { data, error } = await kbQuery("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at,status_changed_at");
+    if (error) ({ data, error } = await kbQuery("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at"));
     if (error || !data) return;
     const grouped: Record<string, Solicitacao[]> = {};
     for (const row of data) {
@@ -374,12 +379,12 @@ export default function Recrutamento() {
   // ── Aprovar ───────────────────────────────────────────────────
   const aprovar = async () => {
     if (!drawerId || !drawerSol) return;
-    const label = drawerSol.status === "Aguardando Treinamentos" ? "Liberar Vaga" : "Aprovar";
+    const label = drawerSol.status === "Aguardando Recrutamento" ? "Liberar Vaga" : "Aprovar";
     if (!confirm(`${label} solicitação #${drawerId}?`)) return;
 
-    let novoStatus = drawerSol.status === "Aguardando Treinamentos"
+    let novoStatus = drawerSol.status === "Aguardando Recrutamento"
       ? "Aprovada"
-      : "Aguardando Treinamentos";
+      : "Aguardando Recrutamento";
 
     const { error } = await (supabase as any)
       .from("SISTEMA_RECRUTAMENTO")
@@ -387,7 +392,7 @@ export default function Recrutamento() {
       .eq("id", drawerId);
 
     if (error) { toast("Erro ao aprovar.", "err"); return; }
-    toast(drawerSol.status === "Aguardando Treinamentos" ? "Vaga liberada!" : "Aprovado e encaminhado para Treinamentos!", "ok");
+    toast(drawerSol.status === "Aguardando Recrutamento" ? "Vaga liberada!" : "Aprovado e encaminhado para Recrutamento!", "ok");
     fecharDrawer();
     loadStats();
     loadLista();
@@ -610,7 +615,18 @@ export default function Recrutamento() {
       .rec-fi:focus{border-color:#0f3171;box-shadow:0 0 0 4px rgba(15,49,113,.08)}
       .rec-fg{margin-bottom:14px}
       .rec-fg label{display:block;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
-      .kb-board{display:flex;gap:10px;height:calc(100vh - 300px);min-height:420px;overflow-x:auto;padding-bottom:16px;align-items:flex-start}
+      .kb-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+      .kb-hint{font-size:11px;color:#94a3b8;font-weight:600}
+      .kb-hint strong{color:#475569}
+      .kb-nav{display:flex;gap:6px;flex-shrink:0}
+      .kb-nav-btn{width:34px;height:30px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;color:#0f3171;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(15,23,42,.06);transition:.15s;display:inline-flex;align-items:center;justify-content:center}
+      .kb-nav-btn:hover{background:#0f3171;color:#fff;border-color:#0f3171}
+      .kb-board{display:flex;gap:10px;height:calc(100vh - 320px);min-height:420px;overflow-x:auto;overflow-y:hidden;padding-bottom:14px;align-items:flex-start;scroll-behavior:smooth}
+      .kb-board::-webkit-scrollbar{height:12px}
+      .kb-board::-webkit-scrollbar-track{background:#eef2f7;border-radius:8px}
+      .kb-board::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px;border:3px solid #eef2f7}
+      .kb-board::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+      .kb-board{scrollbar-width:auto;scrollbar-color:#cbd5e1 #eef2f7}
       .kb-col{flex:0 0 252px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;display:flex;flex-direction:column;max-height:100%;overflow:hidden;transition:.15s;box-shadow:0 8px 24px rgba(15,23,42,.06)}
       .kb-col.drag-over{border-color:#0f3171;background:rgba(15,49,113,.04)}
       .kb-col-head{padding:10px 12px 8px;border-bottom:1px solid #e2e8f0;flex-shrink:0;display:flex;align-items:center;gap:6px;background:#fcfdff}
@@ -699,11 +715,11 @@ export default function Recrutamento() {
       btns.push(<button key="rep" onClick={() => { setReprovarMotivo(""); setModalReprovar(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reprovar</button>);
       btns.push(<button key="apr" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>✓ Aprovar</button>);
     }
-    if (s.status === "Aguardando Treinamentos" && isTreinamento) {
+    if (s.status === "Aguardando Recrutamento" && isTreinamento) {
       btns.push(<button key="rep2" onClick={() => { setReprovarMotivo(""); setModalReprovar(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reprovar</button>);
       btns.push(<button key="lib" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>✓ Liberar Vaga</button>);
     }
-    if (isTreinamento && !["Aguardando Aprovação","Aguardando Treinamentos","Reprovada","Contratado"].includes(s.status)) {
+    if (isTreinamento && !["Aguardando Aprovação","Aguardando Recrutamento","Reprovada","Contratado"].includes(s.status)) {
       btns.push(<button key="st" onClick={() => { setStatusSel(""); setStatusExtra({}); setModalStatus(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>Atualizar Status</button>);
     }
     const linkStatuses = ["Aprovada","Vaga Aberta","Em Processo Seletivo"];
@@ -718,6 +734,9 @@ export default function Recrutamento() {
 
   const canNovaVaga = !isRH;
   const linkUrl = drawerSol?.link_publico ? `${window.location.origin}/recrutamento/candidatura/${drawerSol.link_publico}` : "";
+
+  // Kanban: rola o quadro horizontalmente (~1,5 coluna por clique).
+  const scrollKb = (dir: -1 | 1) => kbBoardRef.current?.scrollBy({ left: dir * 380, behavior: "smooth" });
 
   // ── RENDER ────────────────────────────────────────────────────
   return (
@@ -743,7 +762,7 @@ export default function Recrutamento() {
           {[
             { label: "Total",          val: stats.total,           color: "#0f3171" },
             { label: "Ag. Aprovação",  val: stats.pendentes,       color: "#f59e0b" },
-            { label: "Ag. Treinamento",val: stats.ag_treinamentos, color: "#8b5cf6" },
+            { label: "Ag. Recrutamento",val: stats.ag_treinamentos, color: "#8b5cf6" },
             { label: "Em Processo",    val: stats.em_processo,     color: "#3b82f6" },
             { label: "Contratados",    val: stats.contratados,     color: "#16a34a" },
             { label: "Reprovadas",     val: stats.reprovadas,      color: "#dc2626" },
@@ -780,7 +799,7 @@ export default function Recrutamento() {
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
               {[
                 { label: "Pend. Analista", val: "Aguardando Aprovação" },
-                { label: "Pend. Treinamento", val: "Aguardando Treinamentos" },
+                { label: "Pend. Recrutamento", val: "Aguardando Recrutamento" },
                 { label: "Em Processo", val: "em_processo" },
                 { label: "Contratados", val: "Contratado" },
                 { label: "Reprovados", val: "Reprovada" },
@@ -844,7 +863,15 @@ export default function Recrutamento() {
 
         {/* Kanban View */}
         {view === "kanban" && (
-          <div className="kb-board">
+          <>
+            <div className="kb-toolbar">
+              <span className="kb-hint">Arraste os cards entre as colunas · use as setas ou <strong>Shift + roda do mouse</strong> para navegar →</span>
+              <div className="kb-nav">
+                <button type="button" className="kb-nav-btn" onClick={() => scrollKb(-1)} aria-label="Rolar para a esquerda" title="Rolar para a esquerda">◀</button>
+                <button type="button" className="kb-nav-btn" onClick={() => scrollKb(1)} aria-label="Rolar para a direita" title="Rolar para a direita">▶</button>
+              </div>
+            </div>
+          <div className="kb-board" ref={kbBoardRef}>
             {KB_STATUS_ORDER.map(status => {
               const cards = kanbanData[status] ?? [];
               const meta  = KB_COL_COLORS[status] ?? { dot: "#f97316", label: "#ea580c", accent: "#f97316" };
@@ -862,7 +889,7 @@ export default function Recrutamento() {
                     {cards.length === 0 ? (
                       <div style={{ textAlign: "center", padding: "22px 8px", color: "#94a3b8", fontSize: 10, opacity: .6 }}>Nenhuma solicitação</div>
                     ) : cards.map(c => {
-                      const dias = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 86400000);
+                      const dias = Math.floor((Date.now() - new Date(c.status_changed_at || c.created_at).getTime()) / 86400000);
                       return (
                         <div key={c.id} id={`kbcard_${c.id}`} className={`kb-card${dragId === c.id ? " dragging" : ""}`}
                           draggable
@@ -881,7 +908,7 @@ export default function Recrutamento() {
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #e2e8f0", padding: "5px 10px 6px", background: "#fcfdff" }}>
-                            <span style={{ fontSize: 9, color: "#94a3b8" }}>⏱ {dias === 0 ? "hoje" : `${dias}d`}</span>
+                            <span style={{ fontSize: 9, color: "#94a3b8" }} title={`Tempo parado neste status (${status})`}>⏱ {dias === 0 ? "hoje" : `${dias}d nesta etapa`}</span>
                             <span style={{ fontSize: 9, color: "#94a3b8", maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(c.analista_nome ?? c.solicitante_nome ?? "").split(" ")[0]}</span>
                           </div>
                         </div>
@@ -892,6 +919,7 @@ export default function Recrutamento() {
               );
             })}
           </div>
+          </>
         )}
       </div>
 
@@ -1194,8 +1222,20 @@ export default function Recrutamento() {
               </div>
               <div className="rec-fg"><label>Cargo *</label><input className="rec-fi" placeholder="Ex: Auxiliar de Limpeza, Vigilante..." value={vaga.cargo} onChange={e => setVaga(v => ({ ...v, cargo: e.target.value }))} /></div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div className="rec-fg"><label>Estado (UF)</label><input className="rec-fi" placeholder="SP, RJ, MG..." maxLength={2} value={vaga.estado} onChange={e => setVaga(v => ({ ...v, estado: e.target.value.toUpperCase() }))} /></div>
-                <div className="rec-fg"><label>Cidade</label><input className="rec-fi" placeholder="Nome da cidade..." value={vaga.cidade} onChange={e => setVaga(v => ({ ...v, cidade: e.target.value }))} /></div>
+                <div className="rec-fg">
+                  <label>Estado (UF)</label>
+                  <select className="rec-fi" value={vaga.estado} onChange={e => setVaga(v => ({ ...v, estado: e.target.value, cidade: "" }))}>
+                    <option value="">— Selecione —</option>
+                    {ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} — {e.nome}</option>)}
+                  </select>
+                </div>
+                <div className="rec-fg">
+                  <label>Cidade</label>
+                  <select className="rec-fi" value={vaga.cidade} disabled={!vaga.estado} onChange={e => setVaga(v => ({ ...v, cidade: e.target.value }))}>
+                    <option value="">{vaga.estado ? "— Selecione —" : "Selecione o estado primeiro"}</option>
+                    {municipiosDe(vaga.estado).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
               </div>
             </>)}
 
