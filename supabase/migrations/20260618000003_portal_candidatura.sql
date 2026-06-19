@@ -85,6 +85,8 @@ AS $$
 DECLARE
   v_status text;
   v_id     bigint;
+  v_field  record;
+  v_col    text;
 BEGIN
   IF coalesce(btrim(p_nome), '') = '' THEN
     RETURN jsonb_build_object('ok', false, 'error', 'Informe seu nome.');
@@ -101,13 +103,37 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'Esta vaga não está mais recebendo currículos.');
   END IF;
 
-  INSERT INTO public."WA_CURRICULOS"
-    (vaga_id, nome_cand, telefone, email_cand, cpf_cand, mensagem, arquivo_nome, storage_path, origem)
-  VALUES
-    (p_vaga_id, btrim(p_nome), btrim(p_telefone), NULLIF(btrim(p_email), ''),
-     NULLIF(btrim(p_cpf), ''), NULLIF(btrim(p_mensagem), ''),
-     NULLIF(btrim(p_arquivo_nome), ''), NULLIF(btrim(p_storage_path), ''), 'Portal')
+  -- Linha base com o vínculo da vaga + origem.
+  INSERT INTO public."WA_CURRICULOS" (vaga_id, origem)
+  VALUES (p_vaga_id, 'Portal')
   RETURNING id INTO v_id;
+
+  -- Preenche cada campo na coluna que EXISTIR. O schema de WA_CURRICULOS varia
+  -- entre ambientes (nome vs nome_cand, email vs email_cand, etc.), então
+  -- gravamos no primeiro nome de coluna que existir de fato.
+  FOR v_field IN
+    SELECT t.cands, t.val FROM (VALUES
+      (ARRAY['nome','nome_cand','nome_candidato'],    btrim(p_nome)),
+      (ARRAY['telefone','fone','celular','whatsapp'], btrim(p_telefone)),
+      (ARRAY['email','email_cand'],                   NULLIF(btrim(p_email), '')),
+      (ARRAY['cpf','cpf_cand'],                       NULLIF(btrim(p_cpf), '')),
+      (ARRAY['mensagem','observacao','obs'],          NULLIF(btrim(p_mensagem), '')),
+      (ARRAY['arquivo_nome','nome_arquivo'],          NULLIF(btrim(p_arquivo_nome), '')),
+      (ARRAY['storage_path','arquivo_path','path'],   NULLIF(btrim(p_storage_path), ''))
+    ) AS t(cands text[], val text)
+    WHERE t.val IS NOT NULL
+  LOOP
+    SELECT c.column_name INTO v_col
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public' AND c.table_name = 'WA_CURRICULOS'
+      AND c.column_name = ANY (v_field.cands)
+    ORDER BY array_position(v_field.cands, c.column_name)
+    LIMIT 1;
+    IF v_col IS NOT NULL THEN
+      EXECUTE format('UPDATE public."WA_CURRICULOS" SET %I = $1 WHERE id = $2', v_col)
+        USING v_field.val, v_id;
+    END IF;
+  END LOOP;
 
   RETURN jsonb_build_object('ok', true, 'id', v_id);
 EXCEPTION WHEN OTHERS THEN

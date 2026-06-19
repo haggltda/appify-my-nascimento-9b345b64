@@ -480,10 +480,11 @@ export default function Recrutamento() {
     if (data) {
       setCurriculos(data.map((c: any) => ({
         ...c,
-        nome: c.nome_cand ?? c.nome ?? "",
-        email: c.email_cand ?? c.email ?? "",
-        cpf: c.cpf_cand ?? "",
-        tem_pdf: !!c.storage_path,
+        nome: c.nome ?? c.nome_cand ?? c.nome_candidato ?? "",
+        email: c.email ?? c.email_cand ?? "",
+        cpf: c.cpf ?? c.cpf_cand ?? "",
+        storage_path: c.storage_path ?? c.arquivo_path ?? c.path ?? "",
+        tem_pdf: !!(c.storage_path ?? c.arquivo_path ?? c.path ?? c.arquivo_url),
       })));
     }
   };
