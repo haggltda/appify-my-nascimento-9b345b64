@@ -4,6 +4,7 @@ import { toast } from "@/hooks/use-toast";
 
 export type GradeFase =
   | "À Iniciar"
+  | "Iniciado"
   | "Em Andamento"
   | "Finalizada"
   | "Não Participado"
