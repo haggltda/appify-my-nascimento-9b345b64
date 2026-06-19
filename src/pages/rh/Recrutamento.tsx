@@ -1349,7 +1349,7 @@ export default function Recrutamento() {
 
       {/* ── Modal: bloquear CPF (lista negra) ── */}
       {blockModal && (
-        <div className="rec-modal-ov" onClick={e => { if (e.target === e.currentTarget) setBlockModal(null); }}>
+        <div className="rec-modal-ov" style={{ zIndex: 900 }} onClick={e => { if (e.target === e.currentTarget) setBlockModal(null); }}>
           <div className="rec-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setBlockModal(null)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4, color: "#dc2626" }}>🚫 Adicionar CPF à lista negra</div>
@@ -1366,7 +1366,7 @@ export default function Recrutamento() {
 
       {/* ── Modal: detalhes dos cadastros em EMPREGADOS ── */}
       {detalheEmp && (
-        <div className="rec-modal-ov" onClick={e => { if (e.target === e.currentTarget) setDetalheEmp(null); }}>
+        <div className="rec-modal-ov" style={{ zIndex: 900 }} onClick={e => { if (e.target === e.currentTarget) setDetalheEmp(null); }}>
           <div className="rec-modal" style={{ maxWidth: 580 }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setDetalheEmp(null)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🏦 Cadastros na empresa</div>
