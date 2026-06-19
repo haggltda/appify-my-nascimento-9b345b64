@@ -63,8 +63,8 @@ BEGIN
     SELECT c.column_name INTO v_col
     FROM information_schema.columns c
     WHERE c.table_schema = 'public' AND c.table_name = 'WA_CURRICULOS'
-      AND c.column_name = ANY (v_field.cands)
-    ORDER BY array_position(v_field.cands, c.column_name)
+      AND c.column_name::text = ANY (v_field.cands)
+    ORDER BY array_position(v_field.cands, c.column_name::text)
     LIMIT 1;
     IF v_col IS NOT NULL THEN
       EXECUTE format('UPDATE public."WA_CURRICULOS" SET %I = $1 WHERE id = $2', v_col)
