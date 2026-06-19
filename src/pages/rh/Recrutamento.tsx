@@ -157,6 +157,9 @@ export default function Recrutamento() {
   const [items, setItems]             = useState<Solicitacao[]>([]);
   const [loading, setLoading]         = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
+  const [contratoFiltro, setContratoFiltro]         = useState<string[]>([]);
+  const [contratoCounts, setContratoCounts]         = useState<{ contrato: string; n: number }[]>([]);
+  const [showContratoFiltro, setShowContratoFiltro] = useState(false);
   const [search, setSearch]           = useState("");
   const [stats, setStats]             = useState({ total: 0, pendentes: 0, ag_treinamentos: 0, em_processo: 0, contratados: 0, reprovadas: 0 });
   const [kanbanData, setKanbanData]   = useState<Record<string, Solicitacao[]>>({});
@@ -291,6 +294,7 @@ export default function Recrutamento() {
       .from("SISTEMA_RECRUTAMENTO")
       .select("*", { count: "exact" });
     q = aplicarFiltros(q);
+    if (contratoFiltro.length) q = q.in("contrato", contratoFiltro);
 
     const from = (page - 1) * PER;
     const to   = from + PER - 1;
@@ -303,7 +307,7 @@ export default function Recrutamento() {
     const ct = count ?? 0;
     setTotal(ct);
     setPages(Math.max(1, Math.ceil(ct / PER)));
-  }, [aplicarFiltros, page, toast]);
+  }, [aplicarFiltros, contratoFiltro, page, toast]);
 
   // ── Carregar Kanban ───────────────────────────────────────────
   const loadKanban = useCallback(async () => {
@@ -313,6 +317,7 @@ export default function Recrutamento() {
     const kbQuery = (cols: string) => {
       let q = (supabase as any).from("SISTEMA_RECRUTAMENTO").select(cols);
       q = aplicarFiltros(q);
+      if (contratoFiltro.length) q = q.in("contrato", contratoFiltro);
       return q.order("created_at", { ascending: false });
     };
     let { data, error } = await kbQuery("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at,status_changed_at");
@@ -324,9 +329,24 @@ export default function Recrutamento() {
       grouped[row.status].push(row);
     }
     setKanbanData(grouped);
+  }, [aplicarFiltros, contratoFiltro]);
+
+  // Contagem de solicitações por contrato (respeita aba/status/busca; ignora o próprio filtro de contrato).
+  const loadContratoCounts = useCallback(async () => {
+    let q = (supabase as any).from("SISTEMA_RECRUTAMENTO").select("contrato");
+    q = aplicarFiltros(q);
+    const { data, error } = await q;
+    if (error || !data) return;
+    const map = new Map<string, number>();
+    for (const r of data) {
+      const c = String(r.contrato ?? "").trim();
+      if (c) map.set(c, (map.get(c) ?? 0) + 1);
+    }
+    setContratoCounts(Array.from(map, ([contrato, n]) => ({ contrato, n })).sort((a, b) => a.contrato.localeCompare(b.contrato)));
   }, [aplicarFiltros]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => { loadContratoCounts(); }, [loadContratoCounts]);
   useEffect(() => { if (view === "tabela") loadLista(); else loadKanban(); }, [view, loadLista, loadKanban, tab, page, statusFilter, search]);
 
   const debounceSearch = (v: string) => {
@@ -850,6 +870,39 @@ export default function Recrutamento() {
               {v === "tabela" ? "⊞ Tabela" : "⚏ Kanban"}
             </button>
           ))}
+        </div>
+
+        {/* Filtro de Contratos — vale para Tabela e Kanban */}
+        <div style={{ position: "relative", marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={() => setShowContratoFiltro(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: contratoFiltro.length ? "#0f3171" : "#fff", color: contratoFiltro.length ? "#fff" : "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
+            🗂 Filtros · Contratos{contratoFiltro.length ? ` (${contratoFiltro.length})` : ""} ▾
+          </button>
+          {contratoFiltro.length > 0 && (
+            <button onClick={() => { setContratoFiltro([]); setPage(1); }} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>limpar</button>
+          )}
+          {showContratoFiltro && (
+            <>
+              <div onClick={() => setShowContratoFiltro(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+              <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 50, marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 16px 40px rgba(15,23,42,.16)", padding: 10, width: 340, maxWidth: "90vw", maxHeight: 360, overflowY: "auto" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, padding: "0 4px" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px" }}>Mostrar só estes contratos</span>
+                  {contratoFiltro.length > 0 && <button onClick={() => { setContratoFiltro([]); setPage(1); }} style={{ background: "none", border: "none", color: "#0f3171", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Limpar</button>}
+                </div>
+                {contratoCounts.length === 0 ? (
+                  <div style={{ fontSize: 12, color: "#94a3b8", padding: "8px 6px" }}>Nenhum contrato com solicitação.</div>
+                ) : contratoCounts.map(c => {
+                  const checked = contratoFiltro.includes(c.contrato);
+                  return (
+                    <label key={c.contrato} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 6px", borderRadius: 8, cursor: "pointer", background: checked ? "#eef4ff" : "transparent" }}>
+                      <input type="checkbox" checked={checked} onChange={() => { setContratoFiltro(prev => checked ? prev.filter(x => x !== c.contrato) : [...prev, c.contrato]); setPage(1); }} style={{ width: 15, height: 15, accentColor: "#0f3171", cursor: "pointer" }} />
+                      <span style={{ flex: 1, fontSize: 13, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.contrato}</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", background: "#fff", border: "1px solid #dbe4f0", borderRadius: 20, padding: "1px 9px", minWidth: 22, textAlign: "center" }}>{c.n}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Tabela View */}
