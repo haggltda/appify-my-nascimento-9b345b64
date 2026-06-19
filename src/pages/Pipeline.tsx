@@ -41,12 +41,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, FileText, Eye, History } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Eye, History, Upload, CheckCircle2, XCircle } from "lucide-react";
+import * as XLSX from "xlsx";
 
 // ── Constantes ─────────────────────────────────────────────────────────────
 
 const FASES: GradeFase[] = [
   "À Iniciar",
+  "Iniciado",
   "Em Andamento",
   "Finalizada",
   "Não Participado",
@@ -55,6 +57,7 @@ const FASES: GradeFase[] = [
 
 const FASE_COLOR: Record<GradeFase, string> = {
   "À Iniciar": "bg-blue-500/15 text-blue-700 border-blue-300/50",
+  "Iniciado": "bg-sky-500/15 text-sky-700 border-sky-300/50",
   "Em Andamento": "bg-amber-500/15 text-amber-700 border-amber-300/50",
   "Finalizada": "bg-emerald-500/15 text-emerald-700 border-emerald-300/50",
   "Não Participado": "bg-slate-400/15 text-slate-600 border-slate-300/50",
@@ -63,6 +66,7 @@ const FASE_COLOR: Record<GradeFase, string> = {
 
 const FASE_DOT: Record<GradeFase, string> = {
   "À Iniciar": "bg-blue-500",
+  "Iniciado": "bg-sky-500",
   "Em Andamento": "bg-amber-500",
   "Finalizada": "bg-emerald-500",
   "Não Participado": "bg-slate-400",
@@ -112,11 +116,12 @@ export default function Pipeline() {
   const [viewItem, setViewItem] = useState<GradeItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GradeItem | null>(null);
   const [promoverTarget, setPromoverTarget] = useState<GradeItem | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   // stats
   const stats = useMemo(() => {
     const map: Record<GradeFase, number> = {
-      "À Iniciar": 0, "Em Andamento": 0, "Finalizada": 0,
+      "À Iniciar": 0, "Iniciado": 0, "Em Andamento": 0, "Finalizada": 0,
       "Não Participado": 0, "Suspenso/Revogado": 0,
     };
     items.forEach((i) => { if (i.fase in map) map[i.fase]++; });
@@ -181,9 +186,14 @@ export default function Pipeline() {
         subtitle="Pré-análise de editais — acompanhe cada oportunidade antes da Capa de Edital."
         actions={
           canIncluir ? (
-            <Button size="sm" onClick={openNew} className="gap-2">
-              <Plus className="h-4 w-4" /> Nova Entrada
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-2">
+                <Upload className="h-4 w-4" /> Importar Excel
+              </Button>
+              <Button size="sm" onClick={openNew} className="gap-2">
+                <Plus className="h-4 w-4" /> Nova Entrada
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -373,7 +383,252 @@ export default function Pipeline() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Excel */}
+      {importOpen && empresaAtivaId && (
+        <ImportModal
+          empresaId={empresaAtivaId}
+          onClose={() => setImportOpen(false)}
+        />
+      )}
     </div>
+  );
+}
+
+// ── Import Modal ───────────────────────────────────────────────────────────
+
+type ImportRow = {
+  edital: string;
+  objeto: string;
+  cidade: string;
+  abertura: string | null;
+  data_captacao: string | null;
+  fase: GradeFase;
+  valor_global: number | null;
+  observacoes: string | null;
+  ok: boolean;
+  erro?: string;
+};
+
+const FASE_MAP: Record<string, GradeFase> = {
+  "À INICIAR": "À Iniciar",
+  "A INICIAR": "À Iniciar",
+  "INICIADO": "Iniciado",
+  "EM ANDAMENTO": "Em Andamento",
+  "FINALIZADA": "Finalizada",
+  "FINALIZADO": "Finalizada",
+  "NÃO PARTICIPADO": "Não Participado",
+  "NAO PARTICIPADO": "Não Participado",
+  "SUSPENSO/REVOGADO": "Suspenso/Revogado",
+  "SUSPENSO": "Suspenso/Revogado",
+  "REVOGADO": "Suspenso/Revogado",
+};
+
+function normalizeFase(raw: string | null | undefined): GradeFase {
+  if (!raw) return "À Iniciar";
+  const upper = String(raw).toUpperCase().trim();
+  return FASE_MAP[upper] ?? "À Iniciar";
+}
+
+function excelDateToISO(val: unknown): string | null {
+  if (!val) return null;
+  if (val instanceof Date) return val.toISOString().slice(0, 10);
+  if (typeof val === "number") {
+    const d = XLSX.SSF.parse_date_code(val);
+    if (!d) return null;
+    return `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
+  }
+  if (typeof val === "string") {
+    const iso = val.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  }
+  return null;
+}
+
+function ImportModal({ empresaId, onClose }: { empresaId: string; onClose: () => void }) {
+  const [rows, setRows] = useState<ImportRow[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [done, setDone] = useState(false);
+  const insert = useGradeInsert(empresaId);
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const wb = XLSX.read(ev.target?.result, { type: "array", cellDates: true });
+      // Tenta ler da aba GERAL primeiro; senão lê todas as abas mensais
+      const sheetName = wb.SheetNames.find((n) => n.toUpperCase() === "GERAL") ?? null;
+      const sheetsToRead = sheetName
+        ? [sheetName]
+        : wb.SheetNames.filter((n) => !n.toUpperCase().includes("RELAT"));
+
+      const parsed: ImportRow[] = [];
+      for (const name of sheetsToRead) {
+        const ws = wb.Sheets[name];
+        const data: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: null });
+        for (const row of data) {
+          // Normaliza chaves removendo prefixo "Content." (aba GERAL)
+          const r: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(row)) {
+            r[k.replace(/^Content\./, "")] = v;
+          }
+          const edital = String(r["EDITAL"] ?? "").trim();
+          if (!edital || edital === "null") continue;
+          const fase = normalizeFase(r["FASE"] as string);
+          const valor = r["VALOR GLOBAL"];
+          parsed.push({
+            edital,
+            objeto: String(r["Objeto"] ?? r["OBJETO"] ?? "").trim(),
+            cidade: String(r["Cidade"] ?? r["CIDADE"] ?? "").trim(),
+            abertura: excelDateToISO(r["DATA"]),
+            data_captacao: excelDateToISO(r["DATA DA CAPTAÇÃO"] ?? r["DATA DE CAPTAÇÃO"]),
+            fase,
+            valor_global: valor != null && !isNaN(Number(valor)) ? Number(valor) : null,
+            observacoes: String(r["STATUS"] ?? "").trim() || null,
+            ok: true,
+          });
+        }
+      }
+      // Remove duplicatas por edital + data de abertura (mesma licitação, mesmo pregão)
+      const seen = new Set<string>();
+      const unique = parsed.filter((r) => {
+        const key = `${r.edital}||${r.abertura ?? ""}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setRows(unique);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  async function handleImport() {
+    setImporting(true);
+    let ok = 0;
+    const updated = [...rows];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      try {
+        await insert.mutateAsync({
+          edital: r.edital,
+          objeto: r.objeto || null,
+          cidade: r.cidade || null,
+          abertura: r.abertura,
+          data_captacao: r.data_captacao,
+          fase: r.fase,
+          valor_global: r.valor_global,
+          observacoes: r.observacoes,
+          responsavel: null,
+          modalidade: null,
+          posicao: null,
+        });
+        updated[i] = { ...r, ok: true };
+        ok++;
+      } catch (err: unknown) {
+        updated[i] = { ...r, ok: false, erro: (err as Error).message };
+      }
+      setRows([...updated]);
+    }
+    setImporting(false);
+    setDone(true);
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && !importing && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Importar Grade — Excel</DialogTitle>
+        </DialogHeader>
+
+        {rows.length === 0 ? (
+          <div className="flex flex-col items-center gap-4 py-10">
+            <Upload className="h-10 w-10 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
+              Selecione o arquivo <strong>.xlsx</strong> da Grade de Licitações.<br />
+              O campo <strong>Responsável</strong> será ignorado na importação.
+            </p>
+            <label className="cursor-pointer">
+              <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFile} />
+              <span className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-secondary transition">
+                <Upload className="h-4 w-4" /> Escolher arquivo
+              </span>
+            </label>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                <strong>{rows.length}</strong> registros encontrados
+                {done && (
+                  <span className="ml-2 text-emerald-600 font-medium">
+                    — {rows.filter((r) => r.ok && !r.erro).length} importados com sucesso
+                  </span>
+                )}
+              </span>
+              {!done && (
+                <label className="cursor-pointer text-xs text-muted-foreground underline">
+                  <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFile} />
+                  Trocar arquivo
+                </label>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-auto rounded-md border border-border">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-muted/80 backdrop-blur">
+                  <tr>
+                    {done && <th className="px-3 py-2 text-left w-8" />}
+                    <th className="px-3 py-2 text-left">Edital</th>
+                    <th className="px-3 py-2 text-left">Objeto</th>
+                    <th className="px-3 py-2 text-left">Cidade</th>
+                    <th className="px-3 py-2 text-left">Abertura</th>
+                    <th className="px-3 py-2 text-left">Fase</th>
+                    <th className="px-3 py-2 text-right">Valor</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {rows.map((r, i) => (
+                    <tr key={i} className={cn("hover:bg-muted/30", r.erro && "bg-red-500/5")}>
+                      {done && (
+                        <td className="px-3 py-1.5">
+                          {r.erro
+                            ? <XCircle className="h-3.5 w-3.5 text-red-500" />
+                            : <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
+                        </td>
+                      )}
+                      <td className="px-3 py-1.5 font-mono">{r.edital}</td>
+                      <td className="px-3 py-1.5 max-w-[200px] truncate">{r.objeto || "—"}</td>
+                      <td className="px-3 py-1.5">{r.cidade || "—"}</td>
+                      <td className="px-3 py-1.5">{r.abertura ?? "—"}</td>
+                      <td className="px-3 py-1.5">
+                        <span className={cn("rounded-full border px-1.5 py-0.5 text-[10px] font-semibold", FASE_COLOR[r.fase])}>
+                          {r.fase}
+                        </span>
+                      </td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">
+                        {r.valor_global != null
+                          ? r.valor_global.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose} disabled={importing}>Fechar</Button>
+              {!done && (
+                <Button onClick={handleImport} disabled={importing} className="gap-2">
+                  {importing ? "Importando…" : `Importar ${rows.length} registros`}
+                </Button>
+              )}
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
