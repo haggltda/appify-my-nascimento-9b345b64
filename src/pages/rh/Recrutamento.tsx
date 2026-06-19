@@ -763,6 +763,24 @@ export default function Recrutamento() {
   // Kanban: rola o quadro horizontalmente (~1,5 coluna por clique).
   const scrollKb = (dir: -1 | 1) => kbBoardRef.current?.scrollBy({ left: dir * 380, behavior: "smooth" });
 
+  // Portal público de candidatura (/vagas): copiar o link para divulgar.
+  const [portalCopiado, setPortalCopiado] = useState(false);
+  const copiarLinkPortal = async () => {
+    const url = `${window.location.origin}/vagas`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand("copy"); } catch { /* noop */ }
+      document.body.removeChild(ta);
+    }
+    setPortalCopiado(true);
+    toast("Link de candidatura copiado!", "ok");
+    setTimeout(() => setPortalCopiado(false), 2000);
+  };
+
   // Kanban: clicar numa área vazia do quadro e arrastar para o lado (pan).
   // Ignora cliques sobre os cards para não atrapalhar o arrastar-e-soltar deles.
   const kbPan = useRef({ down: false, startX: 0, startLeft: 0 });
@@ -792,6 +810,11 @@ export default function Recrutamento() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "linear-gradient(135deg,#fff 0%,#f8fbff 100%)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0, gap: 14, flexWrap: "wrap" }}>
         <div style={{ fontSize: 19, fontWeight: 800, color: "#0f3171" }}>🎯 Seleção e Recrutamento</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {(isAdmin || isTreinamento) && (
+            <button onClick={copiarLinkPortal} title="Copia o link público (/vagas) para os candidatos escolherem a cidade e enviarem o currículo" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 10, border: "1px solid #f97316", background: "rgba(249,115,22,.10)", color: "#ea580c", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              🔗 {portalCopiado ? "Link copiado!" : "Copiar link de candidatura"}
+            </button>
+          )}
           {canNovaVaga && (
             <button onClick={abrirModalVaga} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 10, border: "none", background: "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 10px 22px rgba(15,49,113,.18)" }}>
               + Nova Solicitação
