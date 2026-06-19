@@ -115,7 +115,8 @@ export default function Vagas() {
     <div className="pv">
       <style>{`
         *{box-sizing:border-box}
-        .pv{min-height:100vh;background:#fff;font-family:Inter,system-ui,sans-serif;color:#0f172a;-webkit-font-smoothing:antialiased}
+        .pv{min-height:100vh;background:#fff;font-family:Inter,system-ui,sans-serif;color:#0f172a;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+        .pv-main{flex:1 0 auto}
         .pv h1,.pv h2,.pv h3{font-family:'Plus Jakarta Sans',Inter,sans-serif;letter-spacing:-.02em}
         .pv-wrap{max-width:1100px;margin:0 auto;padding:0 22px}
 
@@ -247,6 +248,7 @@ export default function Vagas() {
         </div>
       </nav>
 
+      <div className="pv-main">
       {/* ===== LANDING (passo cidade) ===== */}
       {naLanding && (<>
         <section className="pv-hero">
@@ -402,6 +404,8 @@ export default function Vagas() {
           </div>
         </section>
       )}
+
+      </div>
 
       {/* FOOTER */}
       <footer className="pv-foot">
