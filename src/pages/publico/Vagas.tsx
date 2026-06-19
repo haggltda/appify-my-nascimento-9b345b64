@@ -24,6 +24,18 @@ const maskFone = (v: string) => {
   return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
 };
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+// Valida CPF pelos dígitos verificadores (mesma regra do backend is_cpf_valido).
+const isValidCpf = (v: string): boolean => {
+  const c = v.replace(/\D/g, "");
+  if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+  let s = 0; for (let i = 0; i < 9; i++) s += parseInt(c[i], 10) * (10 - i);
+  let d1 = 11 - (s % 11); if (d1 >= 10) d1 = 0;
+  if (d1 !== parseInt(c[9], 10)) return false;
+  s = 0; for (let i = 0; i < 10; i++) s += parseInt(c[i], 10) * (11 - i);
+  let d2 = 11 - (s % 11); if (d2 >= 10) d2 = 0;
+  return d2 === parseInt(c[10], 10);
+};
+const isValidEmail = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim());
 
 const MAX_MB = 8;
 const ACCEPT = ".pdf,.doc,.docx,.jpg,.jpeg,.png";
@@ -83,7 +95,8 @@ export default function Vagas() {
     if (!vaga) return;
     if (!form.nome.trim()) return setErro("Informe seu nome completo.");
     if (form.telefone.replace(/\D/g, "").length < 10) return setErro("Informe um telefone válido com DDD.");
-    if (form.cpf.replace(/\D/g, "").length !== 11) return setErro("Informe um CPF válido.");
+    if (!isValidCpf(form.cpf)) return setErro("CPF inválido. Confira os números digitados.");
+    if (!isValidEmail(form.email)) return setErro("Informe um e-mail válido.");
     if (!file) return setErro("Anexe o seu currículo (PDF, DOC, DOCX, JPG ou PNG).");
     if (file.size > MAX_MB * 1024 * 1024) return setErro(`Arquivo muito grande. Máximo ${MAX_MB} MB.`);
 
@@ -375,10 +388,10 @@ export default function Vagas() {
                     <div className="pv-fg"><label>Telefone (WhatsApp) *</label>
                       <input className="pv-fi" inputMode="numeric" value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: maskFone(e.target.value) }))} placeholder="(51) 99999-9999" /></div>
                     <div className="pv-fg"><label>CPF *</label>
-                      <input className="pv-fi" inputMode="numeric" value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: maskCpf(e.target.value) }))} placeholder="000.000.000-00" /></div>
+                      <input className="pv-fi" inputMode="numeric" value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: maskCpf(e.target.value) }))} placeholder="000.000.000-00" style={form.cpf.replace(/\D/g, "").length === 11 && !isValidCpf(form.cpf) ? { borderColor: "#dc2626", boxShadow: "0 0 0 4px rgba(220,38,38,.12)" } : undefined} />{form.cpf.replace(/\D/g, "").length === 11 && !isValidCpf(form.cpf) && (<div style={{ fontSize: 12, color: "#dc2626", marginTop: 5, fontWeight: 600 }}>CPF inválido — confira os números.</div>)}</div>
                   </div>
-                  <div className="pv-fg"><label>E-mail</label>
-                    <input className="pv-fi" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="seu@email.com (opcional)" /></div>
+                  <div className="pv-fg"><label>E-mail *</label>
+                    <input className="pv-fi" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="seu@email.com" /></div>
                   <div className="pv-fg"><label>Mensagem</label>
                     <textarea className="pv-fi" rows={3} value={form.mensagem} onChange={e => setForm(f => ({ ...f, mensagem: e.target.value }))} placeholder="Conte um pouco sobre você (opcional)" /></div>
                   <div className="pv-fg"><label>Currículo * (PDF, DOC, DOCX, JPG ou PNG — até {MAX_MB} MB)</label>

@@ -183,6 +183,10 @@ export default function Recrutamento() {
   const [vagaStep, setVagaStep]             = useState(1);
   const [curriculos, setCurriculos]         = useState<Curriculo[]>([]);
   const [showCurriculos, setShowCurriculos] = useState(false);
+  const [empCpf, setEmpCpf]                 = useState<Record<string, any[]>>({});   // CPF dígitos → cadastros EMPREGADOS
+  const [blacklist, setBlacklist]           = useState<Record<string, { motivo: string; criado_em?: string }>>({});
+  const [blockModal, setBlockModal]         = useState<{ digits: string; fmt: string } | null>(null);
+  const [blockMotivo, setBlockMotivo]       = useState("");
 
   // Kanban drag
   const [dragId, setDragId]                 = useState<number | null>(null);
@@ -469,23 +473,42 @@ export default function Recrutamento() {
   };
 
   // ── Carregar Currículos ───────────────────────────────────────
+  const digitsOf = (s?: string) => String(s ?? "").replace(/\D/g, "");
+
   const abrirCurriculos = async () => {
     setShowCurriculos(true);
-    setCurriculos([]);
+    setCurriculos([]); setEmpCpf({}); setBlacklist({});
     const { data } = await (supabase as any)
       .from("WA_CURRICULOS")
       .select("*")
       .eq("vaga_id", drawerId)
       .order("created_at", { ascending: false });
-    if (data) {
-      setCurriculos(data.map((c: any) => ({
-        ...c,
-        nome: c.nome ?? c.nome_cand ?? c.nome_candidato ?? "",
-        email: c.email ?? c.email_cand ?? "",
-        cpf: c.cpf ?? c.cpf_cand ?? "",
-        storage_path: c.storage_path ?? c.arquivo_path ?? c.path ?? "",
-        tem_pdf: !!(c.storage_path ?? c.arquivo_path ?? c.path ?? c.arquivo_url),
-      })));
+    if (!data) return;
+    const mapped: Curriculo[] = data.map((c: any) => ({
+      ...c,
+      nome: c.nome ?? c.nome_cand ?? c.nome_candidato ?? "",
+      email: c.email ?? c.email_cand ?? "",
+      cpf: c.cpf ?? c.cpf_cand ?? "",
+      storage_path: c.storage_path ?? c.arquivo_path ?? c.path ?? "",
+      tem_pdf: !!(c.storage_path ?? c.arquivo_path ?? c.path ?? c.arquivo_url),
+    }));
+    setCurriculos(mapped);
+
+    // Cruza o CPF com a tabela EMPREGADOS e verifica a lista negra.
+    const cpfs = Array.from(new Set(mapped.map(c => c.cpf).filter(Boolean))) as string[];
+    const digits = Array.from(new Set(mapped.map(c => digitsOf(c.cpf)).filter(d => d.length === 11)));
+    if (cpfs.length) {
+      const { data: emps } = await (supabase as any).rpc("empregados_por_cpfs", { p_cpfs: cpfs });
+      const byCpf: Record<string, any[]> = {};
+      (emps ?? []).forEach((e: any) => { (byCpf[e.cpf_match] = byCpf[e.cpf_match] || []).push(e); });
+      setEmpCpf(byCpf);
+    }
+    if (digits.length) {
+      const { data: bl } = await (supabase as any)
+        .from("RECRUTAMENTO_CPF_BLACKLIST").select("cpf_digits,motivo,criado_em").in("cpf_digits", digits);
+      const blMap: Record<string, { motivo: string; criado_em?: string }> = {};
+      (bl ?? []).forEach((b: any) => { blMap[b.cpf_digits] = { motivo: b.motivo, criado_em: b.criado_em }; });
+      setBlacklist(blMap);
     }
   };
 
@@ -495,6 +518,31 @@ export default function Recrutamento() {
     const { data, error } = await supabase.storage.from("curriculos").createSignedUrl(cv.storage_path, 3600);
     if (error || !data?.signedUrl) { toast("Não foi possível abrir o arquivo.", "err"); return; }
     window.open(data.signedUrl, "_blank", "noopener");
+  };
+
+  // ── Lista negra de CPF ────────────────────────────────────────
+  const abrirBloqueio = (cv: Curriculo) => {
+    const digits = digitsOf(cv.cpf);
+    if (digits.length !== 11) { toast("CPF do candidato inválido.", "err"); return; }
+    setBlockMotivo(""); setBlockModal({ digits, fmt: cv.cpf || digits });
+  };
+  const confirmarBloqueio = async () => {
+    if (!blockModal) return;
+    if (!blockMotivo.trim()) { toast("Informe o motivo do bloqueio.", "err"); return; }
+    const { error } = await (supabase as any).from("RECRUTAMENTO_CPF_BLACKLIST").upsert({
+      cpf_digits: blockModal.digits, cpf_fmt: blockModal.fmt, motivo: blockMotivo.trim(),
+      criado_por: user?.user_metadata?.nome ?? user?.email ?? "",
+    }, { onConflict: "cpf_digits" });
+    if (error) { toast("Erro ao bloquear: " + error.message, "err"); return; }
+    setBlacklist(prev => ({ ...prev, [blockModal.digits]: { motivo: blockMotivo.trim() } }));
+    setBlockModal(null); toast("CPF adicionado à lista negra.", "ok");
+  };
+  const desbloquearCpf = async (digits: string) => {
+    if (!confirm("Remover este CPF da lista negra?")) return;
+    const { error } = await (supabase as any).from("RECRUTAMENTO_CPF_BLACKLIST").delete().eq("cpf_digits", digits);
+    if (error) { toast("Erro ao remover: " + error.message, "err"); return; }
+    setBlacklist(prev => { const n = { ...prev }; delete n[digits]; return n; });
+    toast("CPF removido da lista negra.", "ok");
   };
 
   // ── Kanban Mover ──────────────────────────────────────────────
@@ -1228,33 +1276,84 @@ export default function Recrutamento() {
                 </div>
               ) : (
                 <div className="cv-grid">
-                  {curriculos.map(cv => (
-                    <div key={cv.id} className="cv-card">
+                  {curriculos.map(cv => {
+                    const digits = digitsOf(cv.cpf);
+                    const emps = empCpf[digits] || [];
+                    const bl = digits.length === 11 ? blacklist[digits] : undefined;
+                    const desligado = (s: string) => /demit|rescis|deslig/i.test(s || "");
+                    return (
+                    <div key={cv.id} className="cv-card" style={{ position: "relative", outline: bl ? "2px solid #fecaca" : undefined, outlineOffset: -1 }}>
                       <div style={{ height: 3, background: cv.origem === "whatsapp" ? "linear-gradient(90deg,#22c55e,#16a34a)" : "linear-gradient(90deg,#0f3171,#1e4a8a)" }}></div>
+                      {bl && (
+                        <div title={`Lista negra: ${bl.motivo}`} style={{ position: "absolute", top: 9, right: 9, zIndex: 2, display: "inline-flex", alignItems: "center", gap: 4, background: "#dc2626", color: "#fff", borderRadius: 8, padding: "3px 8px", fontSize: 10, fontWeight: 800, boxShadow: "0 6px 16px rgba(220,38,38,.32)" }}>🚫 BLOQUEADO</div>
+                      )}
                       <div style={{ padding: "16px 18px", flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: ".5px", textTransform: "uppercase", padding: "3px 9px", borderRadius: 4, background: cv.origem === "whatsapp" ? "rgba(34,197,94,.1)" : "rgba(249,115,22,.12)", color: cv.origem === "whatsapp" ? "#22c55e" : "#f97316", border: `1px solid ${cv.origem === "whatsapp" ? "rgba(34,197,94,.2)" : "rgba(249,115,22,.18)"}` }}>
-                          {cv.origem === "whatsapp" ? "WhatsApp" : "Link Público"}
-                        </span>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: ".5px", textTransform: "uppercase", padding: "3px 9px", borderRadius: 4, background: cv.origem === "whatsapp" ? "rgba(34,197,94,.1)" : "rgba(249,115,22,.12)", color: cv.origem === "whatsapp" ? "#22c55e" : "#f97316", border: `1px solid ${cv.origem === "whatsapp" ? "rgba(34,197,94,.2)" : "rgba(249,115,22,.18)"}` }}>
+                            {cv.origem === "whatsapp" ? "WhatsApp" : "Portal"}
+                          </span>
+                          <span style={{ fontSize: 11, color: "#94a3b8" }}>{fmtDt(cv.created_at)}</span>
+                        </div>
                         {cv.nome ? <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>{cv.nome}</div> : <div style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8", fontStyle: "italic" }}>Nome não informado</div>}
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                           {cv.telefone && <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 7 }}><span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", minWidth: 50 }}>Fone</span>{cv.telefone}</div>}
                           {cv.email    && <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 7 }}><span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", minWidth: 50 }}>Email</span>{cv.email}</div>}
                           {cv.cpf      && <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 7 }}><span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", minWidth: 50 }}>CPF</span>{cv.cpf}</div>}
                         </div>
+                        {bl && <div style={{ fontSize: 11.5, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 7, padding: "8px 10px" }}><b>🚫 Na lista negra.</b> {bl.motivo}</div>}
                         {cv.mensagem && <div style={{ fontSize: 12, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "10px 12px", lineHeight: 1.6, maxHeight: 80, overflow: "hidden" }}>{cv.mensagem}</div>}
+                        {digits.length === 11 && (
+                          emps.length === 0 ? (
+                            <div style={{ fontSize: 11, color: "#94a3b8" }}>Sem cadastro em EMPREGADOS</div>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".5px", color: "#0f3171" }}>📇 {emps.length} cadastro{emps.length > 1 ? "s" : ""} na empresa</div>
+                              {emps.map((e, i) => (
+                                <div key={i} style={{ border: "1px solid #dbe4f0", borderRadius: 8, padding: "8px 10px", background: "#f5f9ff" }}>
+                                  <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{e.nome}</div>
+                                  {(e.cargo || e.setor) && <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{[e.cargo, e.setor].filter(Boolean).join(" · ")}</div>}
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 5 }}>
+                                    {e.situacao && <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 20, background: desligado(e.situacao) ? "#fee2e2" : "#dcfce7", color: desligado(e.situacao) ? "#b91c1c" : "#15803d" }}>{e.situacao}</span>}
+                                    {e.admissao && <span style={{ fontSize: 10, color: "#64748b", padding: "1px 7px", borderRadius: 20, background: "#eef2f7" }}>Adm. {e.admissao}</span>}
+                                    {(e.empresa || e.filial) && <span style={{ fontSize: 10, color: "#64748b", padding: "1px 7px", borderRadius: 20, background: "#eef2f7" }}>{[e.empresa, e.filial].filter(Boolean).join(" / ")}</span>}
+                                    {e.lider && <span style={{ fontSize: 10, color: "#64748b", padding: "1px 7px", borderRadius: 20, background: "#eef2f7" }}>Líder: {e.lider}</span>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        )}
                       </div>
-                      <div style={{ padding: "12px 18px", borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "#fcfdff" }}>
-                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{fmtDt(cv.created_at)}</span>
+                      <div style={{ padding: "10px 14px", borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "#fcfdff", flexWrap: "wrap" }}>
+                        {bl
+                          ? <button onClick={() => desbloquearCpf(digits)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "#f1f5f9", border: "1px solid #e2e8f0", color: "#475569", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Desbloquear CPF</button>
+                          : <button onClick={() => abrirBloqueio(cv)} disabled={digits.length !== 11} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "rgba(220,38,38,.08)", border: "1px solid rgba(220,38,38,.25)", color: "#dc2626", fontSize: 11, fontWeight: 700, cursor: digits.length === 11 ? "pointer" : "not-allowed", opacity: digits.length === 11 ? 1 : .5 }}>🚫 Bloquear CPF</button>}
                         {cv.tem_pdf ? (
-                          <button onClick={() => baixarCurriculo(cv)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", color: "#f97316", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                            ↓ Baixar currículo
-                          </button>
+                          <button onClick={() => baixarCurriculo(cv)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", color: "#f97316", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>↓ Baixar currículo</button>
                         ) : <span style={{ fontSize: 11, color: "#94a3b8" }}>Sem arquivo</span>}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: bloquear CPF (lista negra) ── */}
+      {blockModal && (
+        <div className="rec-modal-ov" onClick={e => { if (e.target === e.currentTarget) setBlockModal(null); }}>
+          <div className="rec-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setBlockModal(null)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4, color: "#dc2626" }}>🚫 Adicionar CPF à lista negra</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>CPF {blockModal.fmt} — informe o motivo do bloqueio.</div>
+            <div className="rec-fg"><label>Motivo *</label>
+              <textarea className="rec-fi" rows={3} value={blockMotivo} onChange={e => setBlockMotivo(e.target.value)} placeholder="Ex.: histórico de faltas, desligamento por justa causa, etc." /></div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+              <button onClick={() => setBlockModal(null)} style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={confirmarBloqueio} style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Bloquear CPF</button>
             </div>
           </div>
         </div>
