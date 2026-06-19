@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Users, GitBranch, ShieldCheck, ClipboardList } from "lucide-react";
+import { Users, GitBranch, ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { UsuariosReal } from "@/components/admin/UsuariosReal";
@@ -18,7 +18,6 @@ const VALID_TABS: Tab[] = ["usuarios", "modulos", "alcadas", "auditoria", "plano
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "usuarios", label: "Usuários", icon: Users },
   { id: "modulos", label: "Módulos & Menus", icon: GitBranch },
-  { id: "plano-acoes-acl", label: "Plano de Ações — ACL", icon: ClipboardList },
   { id: "alcadas", label: "Alçadas de aprovação", icon: GitBranch },
   { id: "auditoria", label: "Auditoria sensível", icon: ShieldCheck },
 ];
