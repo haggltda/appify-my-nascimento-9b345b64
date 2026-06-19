@@ -908,24 +908,15 @@ export default function Recrutamento() {
         {/* Tabela View */}
         {view === "tabela" && (
           <>
-            {/* Tabs */}
-            <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
-              {tabs.map(t => (
-                <button key={t.tab} onClick={() => { setTab(t.tab); setPage(1); }} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: tab === t.tab ? "#0f3171" : "#fff", color: tab === t.tab ? "#fff" : "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Status Pills */}
+            {/* Filtros de status (linha única) */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
               {[
-                { label: "Pend. Analista", val: "Aguardando Aprovação" },
-                { label: "Pend. Recrutamento", val: "Aguardando Recrutamento" },
+                { label: "Todas", val: "" },
+                { label: "Pendente Analista", val: "Aguardando Aprovação" },
+                { label: "Pendente Recrutamento", val: "Aguardando Recrutamento" },
                 { label: "Em Processo", val: "em_processo" },
                 { label: "Contratados", val: "Contratado" },
                 { label: "Reprovados", val: "Reprovada" },
-                { label: "Todas", val: "" },
               ].map(p => (
                 <button key={p.val} onClick={() => { setStatusFilter(p.val); setPage(1); }} style={{ padding: "5px 13px", borderRadius: 20, border: "1px solid #e2e8f0", background: statusFilter === p.val ? "#0f3171" : "#fff", color: statusFilter === p.val ? "#fff" : "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                   {p.label}
