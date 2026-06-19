@@ -117,6 +117,7 @@ import CopilotoIA from "./pages/plano-acoes/CopilotoIA";
 import Ajuda from "./pages/ajuda/Ajuda";
 import AjudaTopico from "./pages/ajuda/AjudaTopico";
 import InboxAprovacoes from "./pages/aprovacoes/Inbox";
+import SolicitacoesErp from "./pages/sistemas/SolicitacoesErp";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,8 @@ const App = () => (
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<Inicio />} />
             <Route path="encarregados" element={<MinhasSolicitacoes />} />
+            {/* Sistemas */}
+            <Route path="sistemas/solicitacoes-erp" element={<SolicitacoesErp />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
             <Route path="presidencia" element={<Presidencia />} />
             <Route path="pipeline" element={<Pipeline />} />
