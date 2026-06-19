@@ -22,6 +22,8 @@ const maskFone = (v: string) => {
   if (d.length <= 10) return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
   return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
 };
+// Normaliza para busca (ignora acento e caixa): "são" casa com "Sao".
+const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 const MAX_MB = 8;
 const ACCEPT = ".pdf,.doc,.docx,.jpg,.jpeg,.png";
@@ -31,6 +33,7 @@ export default function Vagas() {
   const [cidades, setCidades] = useState<Cidade[]>([]);
   const [loadingCid, setLoadingCid] = useState(true);
   const [cidade, setCidade] = useState("");
+  const [buscaCidade, setBuscaCidade] = useState("");
   const [vagas, setVagas] = useState<Vaga[]>([]);
   const [loadingVagas, setLoadingVagas] = useState(false);
   const [vaga, setVaga] = useState<Vaga | null>(null);
@@ -91,6 +94,8 @@ export default function Vagas() {
     setStep("ok");
   };
 
+  const cidadesFiltradas = cidades.filter(c => norm(c.cidade).includes(norm(buscaCidade)));
+
   return (
     <div className="pv-wrap">
       <style>{`
@@ -132,7 +137,20 @@ export default function Vagas() {
         .pv-ok .ico{font-size:52px}
         .pv-ok h2{font-size:20px;font-weight:800;color:#0f172a;margin:12px 0 6px}
         .pv-ok p{font-size:14px;color:#64748b;max-width:420px;margin:0 auto 18px;line-height:1.6}
-        @media(max-width:560px){.pv-row{grid-template-columns:1fr}}
+        .pv-search{width:100%;height:46px;border:1px solid #cbd5e1;border-radius:10px;padding:0 14px;font-size:15px;background:#fff;box-sizing:border-box;margin-bottom:14px}
+        .pv-search:focus{outline:none;border-color:#0f3171;box-shadow:0 0 0 4px rgba(15,49,113,.08)}
+        @media(max-width:600px){
+          .pv-top{padding:22px 16px 0}
+          .pv-h1{font-size:21px}
+          .pv-sub{font-size:13px}
+          .pv-card{margin:16px 12px 0;border-radius:14px}
+          .pv-card-hd{padding:14px 16px}
+          .pv-body{padding:16px}
+          .pv-grid{grid-template-columns:1fr;gap:10px}
+          .pv-row{grid-template-columns:1fr}
+          .pv-fi,.pv-search{font-size:16px}
+          .pv-vaga .meta{gap:4px 12px}
+        }
       `}</style>
 
       <div className="pv-top">
@@ -151,14 +169,22 @@ export default function Vagas() {
             ) : cidades.length === 0 ? (
               <div className="pv-empty">Nenhuma vaga aberta no momento. Volte em breve! 🙂</div>
             ) : (
-              <div className="pv-grid">
-                {cidades.map(c => (
-                  <button key={c.cidade} className="pv-tile" onClick={() => escolherCidade(c.cidade)}>
-                    <div className="city">📍 {c.cidade}</div>
-                    <div className="n">{c.vagas} vaga{c.vagas > 1 ? "s" : ""} disponível{c.vagas > 1 ? "is" : ""}</div>
-                  </button>
-                ))}
-              </div>
+              <>
+                <input className="pv-search" value={buscaCidade} onChange={e => setBuscaCidade(e.target.value)}
+                  placeholder="🔎 Buscar cidade…" inputMode="search" />
+                {cidadesFiltradas.length === 0 ? (
+                  <div className="pv-empty">Nenhuma cidade encontrada para “{buscaCidade}”.</div>
+                ) : (
+                  <div className="pv-grid">
+                    {cidadesFiltradas.map(c => (
+                      <button key={c.cidade} className="pv-tile" onClick={() => escolherCidade(c.cidade)}>
+                        <div className="city">📍 {c.cidade}</div>
+                        <div className="n">{c.vagas} vaga{c.vagas > 1 ? "s" : ""} disponível{c.vagas > 1 ? "is" : ""}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
