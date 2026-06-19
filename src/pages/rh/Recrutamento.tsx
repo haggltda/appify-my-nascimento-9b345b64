@@ -187,7 +187,7 @@ export default function Recrutamento() {
   const [blacklist, setBlacklist]           = useState<Record<string, { motivo: string; criado_em?: string }>>({});
   const [blockModal, setBlockModal]         = useState<{ digits: string; fmt: string } | null>(null);
   const [blockMotivo, setBlockMotivo]       = useState("");
-  const [detalheEmp, setDetalheEmp]         = useState<{ nome: string; cpf: string; emps: any[] } | null>(null);
+  const [detalheEmp, setDetalheEmp]         = useState<{ nome: string; cpf: string; telefone?: string; email?: string; itens: Curriculo[]; emps: any[] } | null>(null);
 
   // Kanban drag
   const [dragId, setDragId]                 = useState<number | null>(null);
@@ -1335,7 +1335,7 @@ export default function Recrutamento() {
                         {bl
                           ? <button onClick={() => desbloquearCpf(digits)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "#f1f5f9", border: "1px solid #e2e8f0", color: "#475569", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Desbloquear CPF</button>
                           : <button onClick={() => abrirBloqueio(cv)} disabled={!digits} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "rgba(220,38,38,.08)", border: "1px solid rgba(220,38,38,.25)", color: "#dc2626", fontSize: 11, fontWeight: 700, cursor: digits ? "pointer" : "not-allowed", opacity: digits ? 1 : .5 }}>🚫 Bloquear CPF</button>}
-                        {hasEmp && <button onClick={() => setDetalheEmp({ nome: cv.nome || "Candidato", cpf: cv.cpf || "", emps })} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "rgba(15,49,113,.08)", border: "1px solid rgba(15,49,113,.25)", color: "#0f3171", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>🏦 Ver detalhes ({emps.length})</button>}
+                        <button onClick={() => setDetalheEmp({ nome: cv.nome || "Candidato", cpf: cv.cpf || "", telefone: cv.telefone, email: cv.email, itens: g.items, emps })} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "rgba(15,49,113,.08)", border: "1px solid rgba(15,49,113,.25)", color: "#0f3171", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{hasEmp ? `🏦 Ver detalhes (${emps.length})` : "Ver detalhes"}</button>
                       </div>
                     </div>
                     );
@@ -1369,28 +1369,59 @@ export default function Recrutamento() {
         <div className="rec-modal-ov" style={{ zIndex: 900 }} onClick={e => { if (e.target === e.currentTarget) setDetalheEmp(null); }}>
           <div className="rec-modal" style={{ maxWidth: 580 }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setDetalheEmp(null)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
-            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🏦 Cadastros na empresa</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>{detalheEmp.nome} · CPF {detalheEmp.cpf} · {detalheEmp.emps.length} cadastro{detalheEmp.emps.length > 1 ? "s" : ""}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: "62vh", overflowY: "auto" }}>
-              {detalheEmp.emps.map((e, i) => {
-                const off = /demit|rescis|deslig|inativ/i.test(e.situacao || "");
-                return (
-                  <div key={i} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 14px", background: "#f8fbff" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{e.cargo || "Cargo não informado"}</div>
-                      {e.situacao && <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: off ? "#fee2e2" : "#dcfce7", color: off ? "#b91c1c" : "#15803d" }}>{e.situacao}</span>}
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🪪 Detalhes do candidato</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>{detalheEmp.nome} · CPF {detalheEmp.cpf || "—"}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18, maxHeight: "64vh", overflowY: "auto" }}>
+
+              {/* Dados enviados na candidatura */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".5px", color: "#0f3171", marginBottom: 8 }}>📩 Candidatura ({detalheEmp.itens.length} envio{detalheEmp.itens.length > 1 ? "s" : ""})</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 16px", fontSize: 12, color: "#334155", marginBottom: 12 }}>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Nome: </span>{detalheEmp.nome || "—"}</div>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>CPF: </span>{detalheEmp.cpf || "—"}</div>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Telefone: </span>{detalheEmp.telefone || "—"}</div>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>E-mail: </span>{detalheEmp.email || "—"}</div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {detalheEmp.itens.map(item => (
+                    <div key={item.id} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", background: "#fcfdff" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>Enviado em {fmtDt(item.created_at)}</span>
+                        {item.tem_pdf ? <button onClick={() => baixarCurriculo(item)} style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", color: "#f97316", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>↓ Baixar currículo</button> : <span style={{ fontSize: 11, color: "#94a3b8" }}>Sem arquivo</span>}
+                      </div>
+                      {item.mensagem && <div style={{ fontSize: 12.5, color: "#475569", marginTop: 8, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{item.mensagem}</div>}
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", marginTop: 10, fontSize: 12, color: "#334155" }}>
-                      <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Admissão: </span>{e.admissao || "—"}</div>
-                      <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Setor: </span>{e.setor || "—"}</div>
-                      <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Empresa: </span>{e.empresa || "—"}</div>
-                      <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Filial: </span>{e.filial || "—"}</div>
-                      <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Perfil: </span>{e.perfil || "—"}</div>
-                      <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Líder: </span>{e.lider || "—"}</div>
-                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Cadastros na empresa (EMPREGADOS) */}
+              {detalheEmp.emps.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".5px", color: "#0f3171", marginBottom: 8 }}>🏦 Cadastros na empresa ({detalheEmp.emps.length})</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {detalheEmp.emps.map((e, i) => {
+                      const off = /demit|rescis|deslig|inativ/i.test(e.situacao || "");
+                      return (
+                        <div key={i} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 14px", background: "#f8fbff" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{e.cargo || "Cargo não informado"}</div>
+                            {e.situacao && <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: off ? "#fee2e2" : "#dcfce7", color: off ? "#b91c1c" : "#15803d" }}>{e.situacao}</span>}
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", marginTop: 10, fontSize: 12, color: "#334155" }}>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Admissão: </span>{e.admissao || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Setor: </span>{e.setor || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Empresa: </span>{e.empresa || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Filial: </span>{e.filial || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Perfil: </span>{e.perfil || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Líder: </span>{e.lider || "—"}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              )}
             </div>
           </div>
         </div>
