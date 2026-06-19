@@ -57,7 +57,7 @@ BEGIN
       (ARRAY['mensagem','observacao','obs'],          NULLIF(btrim(p_mensagem), '')),
       (ARRAY['arquivo_nome','nome_arquivo'],          NULLIF(btrim(p_arquivo_nome), '')),
       (ARRAY['storage_path','arquivo_path','path'],   NULLIF(btrim(p_storage_path), ''))
-    ) AS t(cands text[], val text)
+    ) AS t(cands, val)
     WHERE t.val IS NOT NULL
   LOOP
     SELECT c.column_name INTO v_col
