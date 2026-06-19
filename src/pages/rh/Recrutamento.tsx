@@ -62,6 +62,7 @@ interface Curriculo {
   telefone?: string;
   nome?: string;
   email?: string;
+  cpf?: string;
   mensagem?: string;
   tem_pdf?: boolean;
   storage_path?: string;
@@ -457,8 +458,22 @@ export default function Recrutamento() {
       .eq("vaga_id", drawerId)
       .order("created_at", { ascending: false });
     if (data) {
-      setCurriculos(data.map((c: any) => ({ ...c, tem_pdf: !!c.storage_path })));
+      setCurriculos(data.map((c: any) => ({
+        ...c,
+        nome: c.nome_cand ?? c.nome ?? "",
+        email: c.email_cand ?? c.email ?? "",
+        cpf: c.cpf_cand ?? "",
+        tem_pdf: !!c.storage_path,
+      })));
     }
+  };
+
+  // Download do currículo: signed URL temporária no bucket privado 'curriculos'.
+  const baixarCurriculo = async (cv: Curriculo) => {
+    if (!cv.storage_path) return;
+    const { data, error } = await supabase.storage.from("curriculos").createSignedUrl(cv.storage_path, 3600);
+    if (error || !data?.signedUrl) { toast("Não foi possível abrir o arquivo.", "err"); return; }
+    window.open(data.signedUrl, "_blank", "noopener");
   };
 
   // ── Kanban Mover ──────────────────────────────────────────────
@@ -1141,7 +1156,7 @@ export default function Recrutamento() {
                 <div style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
                   <div style={{ fontSize: 14, marginBottom: 4 }}>Nenhum currículo recebido ainda.</div>
-                  <div style={{ fontSize: 12 }}>Compartilhe o link da vaga para receber candidaturas.</div>
+                  <div style={{ fontSize: 12 }}>Com a vaga em <b>“Seleção de Currículos”</b>, ela aparece no portal público <b>/vagas</b> para receber candidaturas.</div>
                 </div>
               ) : (
                 <div className="cv-grid">
@@ -1156,16 +1171,17 @@ export default function Recrutamento() {
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                           {cv.telefone && <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 7 }}><span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", minWidth: 50 }}>Fone</span>{cv.telefone}</div>}
                           {cv.email    && <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 7 }}><span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", minWidth: 50 }}>Email</span>{cv.email}</div>}
+                          {cv.cpf      && <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 7 }}><span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", minWidth: 50 }}>CPF</span>{cv.cpf}</div>}
                         </div>
                         {cv.mensagem && <div style={{ fontSize: 12, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "10px 12px", lineHeight: 1.6, maxHeight: 80, overflow: "hidden" }}>{cv.mensagem}</div>}
                       </div>
                       <div style={{ padding: "12px 18px", borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "#fcfdff" }}>
                         <span style={{ fontSize: 11, color: "#94a3b8" }}>{fmtDt(cv.created_at)}</span>
                         {cv.tem_pdf ? (
-                          <a href={`/recrutamento/api/curriculo/${cv.id}/download`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", color: "#f97316", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
-                            ↓ Baixar PDF
-                          </a>
-                        ) : <span style={{ fontSize: 11, color: "#94a3b8" }}>Sem PDF</span>}
+                          <button onClick={() => baixarCurriculo(cv)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", color: "#f97316", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                            ↓ Baixar currículo
+                          </button>
+                        ) : <span style={{ fontSize: 11, color: "#94a3b8" }}>Sem arquivo</span>}
                       </div>
                     </div>
                   ))}
