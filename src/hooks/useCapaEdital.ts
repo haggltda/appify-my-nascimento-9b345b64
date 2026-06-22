@@ -131,8 +131,9 @@ export function useCapaUpdate(empresaId: string) {
 
       // Auto-stamp data_homologacao ao ganhar pela primeira vez
       if (changes.status === "Ganhamos" && !current.data_homologacao) {
-        changes.data_homologacao = now;
-        historico.push({ ts: now, campo: "Homologação", de: "—", para: now });
+        const today = new Date().toISOString().slice(0, 10);
+        changes.data_homologacao = today;
+        historico.push({ ts: now, campo: "Homologação", de: "—", para: today });
       }
 
       // Stamp preenchido_em quando campos do formulário são salvos

@@ -21,16 +21,20 @@ function usePerfisDisponiveis() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("perfil_metadata")
-        .select("role, descricao")
+        .select("role, descricao, nome")
         .order("role");
       if (error) throw error;
-      return (data ?? []) as { role: Role; descricao: string | null }[];
+      return (data ?? []) as { role: Role; descricao: string | null; nome: string | null }[];
     },
   });
   const perfis = (q.data && q.data.length > 0)
     ? q.data
-    : FALLBACK_ROLES.map((r) => ({ role: r, descricao: null }));
+    : FALLBACK_ROLES.map((r) => ({ role: r, descricao: null, nome: null }));
   return perfis;
+}
+
+function roleLabel(role: Role, nome?: string | null) {
+  return nome && nome.trim().length > 0 ? nome : role;
 }
 
 const ROLES: Role[] = FALLBACK_ROLES;
@@ -50,6 +54,12 @@ export function UsuariosReal() {
   const podeEditar = (myRoles ?? []).includes("admin");
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
+  const perfis = usePerfisDisponiveis();
+  const nomeByRole = useMemo(() => {
+    const m = new Map<Role, string | null>();
+    perfis.forEach(({ role: r, nome }) => m.set(r, nome));
+    return m;
+  }, [perfis]);
 
   const profilesQ = useQuery({
     queryKey: ["admin-profiles"],
@@ -183,7 +193,7 @@ export function UsuariosReal() {
                     {userRoles.map((r) => (
                       <Badge key={r} variant={r === "admin" ? "default" : "secondary"} className="text-[10px]">
                         {r === "admin" && <ShieldCheck className="mr-1 h-3 w-3" />}
-                        {r}
+                        {roleLabel(r, nomeByRole.get(r))}
                       </Badge>
                     ))}
                   </div>
@@ -436,11 +446,11 @@ function EditarUsuarioDialog({
             <Label>Perfis (roles)</Label>
             <p className="text-[11px] text-muted-foreground mb-2">Marque um ou mais perfis. Acessos finos por tela serão configurados em Configurações › Acessos & Permissões.</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              {perfis.map(({ role: r, descricao }) => (
+              {perfis.map(({ role: r, descricao, nome }) => (
                 <label key={r} title={descricao ?? ""} className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
                   <Checkbox className="mt-0.5" checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
                   <span className="flex flex-col">
-                    <span className="font-medium">{r}</span>
+                    <span className="font-medium">{roleLabel(r, nome)}</span>
                     {descricao && <span className="text-[10px] text-muted-foreground leading-tight">{descricao}</span>}
                   </span>
                 </label>
@@ -741,11 +751,11 @@ function NovoUsuarioDialog({
               <Label>Perfis (roles)</Label>
               <p className="text-[11px] text-muted-foreground mb-2">Marque um ou mais perfis. Acessos finos por tela serão configurados em Configurações › Acessos & Permissões.</p>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {perfis.map(({ role: r, descricao }) => (
+                {perfis.map(({ role: r, descricao, nome }) => (
                   <label key={r} title={descricao ?? ""} className="flex items-start gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
                     <Checkbox className="mt-0.5" checked={selectedRoles.includes(r)} onCheckedChange={() => toggleRole(r)} />
                     <span className="flex flex-col">
-                      <span className="font-medium">{r}</span>
+                      <span className="font-medium">{roleLabel(r, nome)}</span>
                       {descricao && <span className="text-[10px] text-muted-foreground leading-tight">{descricao}</span>}
                     </span>
                   </label>

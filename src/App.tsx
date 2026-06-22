@@ -37,6 +37,7 @@ import ParecerControladoria from "./pages/pareceres/ParecerControladoria";
 import ParecerDiretorOperacional from "./pages/pareceres/ParecerDiretorOperacional";
 import ParecerDiretorAdministrativo from "./pages/pareceres/ParecerDiretorAdministrativo";
 import Implantacao from "./pages/contratos/Implantacao";
+import PlanilhaCusto from "./pages/licitacoes/PlanilhaCusto";
 import ContratosAtivos from "./pages/contratos/Ativos";
 import Empenhos from "./pages/contratos/Empenhos";
 import Postos from "./pages/contratos/Postos";
@@ -116,6 +117,7 @@ import CopilotoIA from "./pages/plano-acoes/CopilotoIA";
 import Ajuda from "./pages/ajuda/Ajuda";
 import AjudaTopico from "./pages/ajuda/AjudaTopico";
 import InboxAprovacoes from "./pages/aprovacoes/Inbox";
+import SolicitacoesErp from "./pages/sistemas/SolicitacoesErp";
 
 const queryClient = new QueryClient();
 
@@ -142,6 +144,8 @@ const App = () => (
             <Route index element={<Inicio />} />
             <Route path="encarregados" element={<Navigate to="/app/encarregados/minhas-solicitacoes" replace />} />
             <Route path="encarregados/minhas-solicitacoes" element={<MinhasSolicitacoes />} />
+            {/* Sistemas */}
+            <Route path="sistemas/solicitacoes-erp" element={<SolicitacoesErp />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
             <Route path="presidencia" element={<Presidencia />} />
             <Route path="pipeline" element={<Pipeline />} />
@@ -164,6 +168,7 @@ const App = () => (
             <Route path="resultado" element={<Resultado />} />
             <Route path="prontas-contrato" element={<ProntasContrato />} />
             <Route path="contratos/implantacao" element={<Implantacao />} />
+            <Route path="licitacoes/planilha-custo" element={<PlanilhaCusto />} />
             <Route path="licitacoes/implantacao" element={<Implantacao />} />
             <Route path="contratos/ativos" element={<ContratosAtivos />} />
             <Route path="contratos/empenhos" element={<Empenhos />} />
