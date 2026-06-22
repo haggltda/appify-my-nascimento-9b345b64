@@ -38,6 +38,7 @@ import {
   ClipboardCheck,
   DatabaseZap,
   TableProperties,
+  Laptop2,
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
@@ -356,6 +357,25 @@ const encarregadosModule: ModuleDef = {
   ],
 };
 
+// Sistemas — demandas de sistemas (kanban de 8 etapas)
+const sistemasModule: ModuleDef = {
+  id: "sistemas",
+  label: "Sistemas",
+  description: "Demandas de sistemas",
+  icon: Laptop2,
+  basePath: "/app/sistemas",
+  status: "active",
+  groups: [
+    {
+      label: "Solicitações",
+      defaultOpen: true,
+      items: [
+        { label: "Solicitações ERP", to: "/app/sistemas/solicitacoes-erp", icon: Laptop2 },
+      ],
+    },
+  ],
+};
+
 // BI
 const biModule: ModuleDef = {
   id: "bi",
@@ -428,6 +448,7 @@ const erpModules: ModuleDef[] = [
   rhModule,
   recrutamentoModule,
   encarregadosModule,
+  sistemasModule,
   biModule,
 ];
 
