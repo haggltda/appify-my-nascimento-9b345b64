@@ -313,7 +313,6 @@ const rhModule: ModuleDef = {
         { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
         { label: "Folha de Pagamento", to: "/app/rh/folha", icon: ListChecks },
         { label: "Gestão de Férias", to: "/app/rh/ferias", icon: CalendarRange },
-        { label: "Gestão Bonificações", to: "/app/rh/bonificacoes", icon: Trophy },
       ],
     },
   ],
@@ -338,20 +337,20 @@ const recrutamentoModule: ModuleDef = {
   ],
 };
 
-// Encarregados — hub de solicitações (vaga, férias, bonificação) + históricos/status
+// Encarregados — hub de solicitações (vaga, férias) + históricos/status
 const encarregadosModule: ModuleDef = {
   id: "encarregados",
   label: "Encarregados",
   description: "Solicitações e históricos",
   icon: HardHat,
-  basePath: "/app/encarregados",
+  basePath: "/app/encarregados/minhas-solicitacoes",
   status: "active",
   groups: [
     {
       label: "Solicitações",
       defaultOpen: true,
       items: [
-        { label: "Minhas Solicitações", to: "/app/encarregados", icon: ClipboardCheck },
+        { label: "Minhas Solicitações", to: "/app/encarregados/minhas-solicitacoes", icon: ClipboardCheck },
       ],
     },
   ],
@@ -472,7 +471,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/rh/bonificacoes"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes"];
   const visibleModules = useMemo(() => {
     if (!access) return allModules;
     const canSee = (to: string) => {

@@ -8,6 +8,7 @@ import Login from "./pages/Login.tsx";
 import TrocarSenha from "./pages/TrocarSenha.tsx";
 import EsqueciSenha from "./pages/EsqueciSenha.tsx";
 import RedefinirSenha from "./pages/RedefinirSenha.tsx";
+import Vagas from "./pages/publico/Vagas";
 import { AppShell } from "./components/layout/AppShell";
 import { DemoModeProvider } from "./context/DemoModeContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -97,7 +98,6 @@ import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
 import Recrutamento from "./pages/rh/Recrutamento";
 import Ferias from "./pages/rh/Ferias";
-import Bonificacoes from "./pages/rh/Bonificacoes";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
 import BIDashboard from "./pages/bi/Dashboard";
 import Fiscal from "./pages/Fiscal";
@@ -137,9 +137,13 @@ const App = () => (
           <Route path="/trocar-senha" element={<TrocarSenha />} />
           <Route path="/esqueci-senha" element={<EsqueciSenha />} />
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+          {/* Portal público de candidatura (sem login) */}
+          <Route path="/vagas" element={<Vagas />} />
+          <Route path="/candidatura" element={<Navigate to="/vagas" replace />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<Inicio />} />
-            <Route path="encarregados" element={<MinhasSolicitacoes />} />
+            <Route path="encarregados" element={<Navigate to="/app/encarregados/minhas-solicitacoes" replace />} />
+            <Route path="encarregados/minhas-solicitacoes" element={<MinhasSolicitacoes />} />
             {/* Sistemas */}
             <Route path="sistemas/solicitacoes-erp" element={<SolicitacoesErp />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
@@ -232,7 +236,6 @@ const App = () => (
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             <Route path="rh/folha" element={<Folha />} />
             <Route path="rh/ferias" element={<Ferias />} />
-            <Route path="rh/bonificacoes" element={<Bonificacoes />} />
             <Route path="rh/recrutamento" element={<Recrutamento />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />

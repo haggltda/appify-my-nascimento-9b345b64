@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/context/PermissoesContext";
+import { ESTADOS_BR, municipiosDe } from "@/data/municipios-brasil";
 
 // ── Tipos ──────────────────────────────────────────────────────────
 interface Solicitacao {
@@ -43,6 +44,7 @@ interface Solicitacao {
   solicitante_cpf?: string;
   aprovado_por_nome?: string;
   created_at: string;
+  status_changed_at?: string;
 }
 
 interface Mensagem {
@@ -60,6 +62,7 @@ interface Curriculo {
   telefone?: string;
   nome?: string;
   email?: string;
+  cpf?: string;
   mensagem?: string;
   tem_pdf?: boolean;
   storage_path?: string;
@@ -82,7 +85,7 @@ function fmtDt(s?: string) {
 function badgeStatusCls(st: string) {
   const m: Record<string, string> = {
     "Aguardando Aprovação": "bg-yellow-100 text-yellow-800 border border-yellow-200",
-    "Aguardando Treinamentos": "bg-purple-100 text-purple-700 border border-purple-200",
+    "Aguardando Recrutamento": "bg-purple-100 text-purple-700 border border-purple-200",
     Aprovada: "bg-green-100 text-green-700 border border-green-200",
     Reprovada: "bg-red-100 text-red-700 border border-red-200",
     "Vaga Aberta": "bg-orange-100 text-orange-700 border border-orange-200",
@@ -101,7 +104,7 @@ function badgeUrgCls(u?: string) {
 
 const KB_STATUS_ORDER = [
   "Aguardando Aprovação",
-  "Aguardando Treinamentos",
+  "Aguardando Recrutamento",
   "Aprovada",
   "Vaga Aberta",
   "Seleção de Currículos",
@@ -117,7 +120,7 @@ const KB_STATUS_ORDER = [
 
 const KB_COL_COLORS: Record<string, { dot: string; label: string; accent: string }> = {
   "Aguardando Aprovação":    { dot: "#f59e0b", label: "#b45309", accent: "#f59e0b" },
-  "Aguardando Treinamentos": { dot: "#8b5cf6", label: "#7c3aed", accent: "#8b5cf6" },
+  "Aguardando Recrutamento": { dot: "#8b5cf6", label: "#7c3aed", accent: "#8b5cf6" },
   Aprovada:                  { dot: "#16a34a", label: "#15803d", accent: "#16a34a" },
   "Vaga Aberta":             { dot: "#f97316", label: "#ea580c", accent: "#f97316" },
   "Seleção de Currículos":   { dot: "#3b82f6", label: "#2563eb", accent: "#3b82f6" },
@@ -154,6 +157,9 @@ export default function Recrutamento() {
   const [items, setItems]             = useState<Solicitacao[]>([]);
   const [loading, setLoading]         = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
+  const [contratoFiltro, setContratoFiltro]         = useState<string[]>([]);
+  const [contratoCounts, setContratoCounts]         = useState<{ contrato: string; n: number }[]>([]);
+  const [showContratoFiltro, setShowContratoFiltro] = useState(false);
   const [search, setSearch]           = useState("");
   const [stats, setStats]             = useState({ total: 0, pendentes: 0, ag_treinamentos: 0, em_processo: 0, contratados: 0, reprovadas: 0 });
   const [kanbanData, setKanbanData]   = useState<Record<string, Solicitacao[]>>({});
@@ -177,6 +183,11 @@ export default function Recrutamento() {
   const [vagaStep, setVagaStep]             = useState(1);
   const [curriculos, setCurriculos]         = useState<Curriculo[]>([]);
   const [showCurriculos, setShowCurriculos] = useState(false);
+  const [empCpf, setEmpCpf]                 = useState<Record<string, any[]>>({});   // CPF dígitos → cadastros EMPREGADOS
+  const [blacklist, setBlacklist]           = useState<Record<string, { motivo: string; criado_em?: string }>>({});
+  const [blockModal, setBlockModal]         = useState<{ digits: string; fmt: string } | null>(null);
+  const [blockMotivo, setBlockMotivo]       = useState("");
+  const [detalheEmp, setDetalheEmp]         = useState<{ nome: string; cpf: string; telefone?: string; email?: string; itens: Curriculo[]; emps: any[] } | null>(null);
 
   // Kanban drag
   const [dragId, setDragId]                 = useState<number | null>(null);
@@ -208,6 +219,7 @@ export default function Recrutamento() {
   const toastId = useRef(0);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const kbBoardRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimer   = useRef<ReturnType<typeof setInterval> | null>(null);
   const empDebounce = useRef<ReturnType<typeof setTimeout> | null>(null); // debounce busca colaborador
@@ -225,8 +237,8 @@ export default function Recrutamento() {
     ? [{ label: "Todas as Solicitações", tab: "todas" }]
     : isAdmin || isTreinamento
     ? [
-        { label: "Pendente Aprovação", tab: "analista" },
         { label: "Todas", tab: "todas" },
+        { label: "Pendente Aprovação", tab: "analista" },
         { label: "Minhas Solicitações", tab: "minha" },
       ]
     : [{ label: "Minhas Solicitações", tab: "minha" }];
@@ -248,21 +260,17 @@ export default function Recrutamento() {
     setStats({
       total:            rows.length,
       pendentes:        rows.filter(r => r.status === "Aguardando Aprovação").length,
-      ag_treinamentos:  rows.filter(r => r.status === "Aguardando Treinamentos").length,
+      ag_treinamentos:  rows.filter(r => r.status === "Aguardando Recrutamento").length,
       em_processo:      rows.filter(r => emProcesso.includes(r.status)).length,
       contratados:      rows.filter(r => r.status === "Contratado").length,
       reprovadas:       rows.filter(r => r.status === "Reprovada").length,
     });
   }, []);
 
-  // ── Carregar Lista ────────────────────────────────────────────
-  const loadLista = useCallback(async () => {
-    setLoading(true);
-    const PER = 20;
-    let q = (supabase as any)
-      .from("SISTEMA_RECRUTAMENTO")
-      .select("*", { count: "exact" });
-
+  // ── Filtros compartilhados ────────────────────────────────────
+  // Tabela e Kanban são a MESMA consulta, só muda a apresentação — então os
+  // dois aplicam exatamente os mesmos filtros (aba/status/busca).
+  const aplicarFiltros = useCallback((q: any) => {
     if (statusFilter === "em_processo") {
       q = q.in("status", [
         "Vaga Aberta","Seleção de Currículos","Entrevistas",
@@ -272,16 +280,26 @@ export default function Recrutamento() {
     } else if (statusFilter) {
       q = q.eq("status", statusFilter);
     }
-
     if (tab === "minha" && user?.email) {
       q = q.eq("solicitante_cpf", user.email);
     } else if (tab === "analista") {
       q = q.eq("status", "Aguardando Aprovação");
     }
-
     if (search) {
       q = q.or(`cargo.ilike.%${search}%,contrato.ilike.%${search}%,cidade.ilike.%${search}%`);
     }
+    return q;
+  }, [statusFilter, tab, search, user]);
+
+  // ── Carregar Lista ────────────────────────────────────────────
+  const loadLista = useCallback(async () => {
+    setLoading(true);
+    const PER = 20;
+    let q = (supabase as any)
+      .from("SISTEMA_RECRUTAMENTO")
+      .select("*", { count: "exact" });
+    q = aplicarFiltros(q);
+    if (contratoFiltro.length) q = q.in("contrato", contratoFiltro);
 
     const from = (page - 1) * PER;
     const to   = from + PER - 1;
@@ -294,14 +312,21 @@ export default function Recrutamento() {
     const ct = count ?? 0;
     setTotal(ct);
     setPages(Math.max(1, Math.ceil(ct / PER)));
-  }, [tab, page, statusFilter, search, user, toast]);
+  }, [aplicarFiltros, contratoFiltro, page, toast]);
 
   // ── Carregar Kanban ───────────────────────────────────────────
   const loadKanban = useCallback(async () => {
-    const { data, error } = await (supabase as any)
-      .from("SISTEMA_RECRUTAMENTO")
-      .select("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at")
-      .order("created_at", { ascending: false });
+    // Mesma consulta da tabela (mesmos filtros), só agrupada por status.
+    // Tenta trazer status_changed_at (tempo na etapa atual); se a coluna ainda
+    // não existir no ambiente, refaz a consulta sem ela.
+    const kbQuery = (cols: string) => {
+      let q = (supabase as any).from("SISTEMA_RECRUTAMENTO").select(cols);
+      q = aplicarFiltros(q);
+      if (contratoFiltro.length) q = q.in("contrato", contratoFiltro);
+      return q.order("created_at", { ascending: false });
+    };
+    let { data, error } = await kbQuery("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at,status_changed_at");
+    if (error) ({ data, error } = await kbQuery("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at"));
     if (error || !data) return;
     const grouped: Record<string, Solicitacao[]> = {};
     for (const row of data) {
@@ -309,9 +334,24 @@ export default function Recrutamento() {
       grouped[row.status].push(row);
     }
     setKanbanData(grouped);
-  }, []);
+  }, [aplicarFiltros, contratoFiltro]);
+
+  // Contagem de solicitações por contrato (respeita aba/status/busca; ignora o próprio filtro de contrato).
+  const loadContratoCounts = useCallback(async () => {
+    let q = (supabase as any).from("SISTEMA_RECRUTAMENTO").select("contrato");
+    q = aplicarFiltros(q);
+    const { data, error } = await q;
+    if (error || !data) return;
+    const map = new Map<string, number>();
+    for (const r of data) {
+      const c = String(r.contrato ?? "").trim();
+      if (c) map.set(c, (map.get(c) ?? 0) + 1);
+    }
+    setContratoCounts(Array.from(map, ([contrato, n]) => ({ contrato, n })).sort((a, b) => a.contrato.localeCompare(b.contrato)));
+  }, [aplicarFiltros]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => { loadContratoCounts(); }, [loadContratoCounts]);
   useEffect(() => { if (view === "tabela") loadLista(); else loadKanban(); }, [view, loadLista, loadKanban, tab, page, statusFilter, search]);
 
   const debounceSearch = (v: string) => {
@@ -374,12 +414,12 @@ export default function Recrutamento() {
   // ── Aprovar ───────────────────────────────────────────────────
   const aprovar = async () => {
     if (!drawerId || !drawerSol) return;
-    const label = drawerSol.status === "Aguardando Treinamentos" ? "Liberar Vaga" : "Aprovar";
+    const label = drawerSol.status === "Aguardando Recrutamento" ? "Liberar Vaga" : "Aprovar";
     if (!confirm(`${label} solicitação #${drawerId}?`)) return;
 
-    let novoStatus = drawerSol.status === "Aguardando Treinamentos"
+    let novoStatus = drawerSol.status === "Aguardando Recrutamento"
       ? "Aprovada"
-      : "Aguardando Treinamentos";
+      : "Aguardando Recrutamento";
 
     const { error } = await (supabase as any)
       .from("SISTEMA_RECRUTAMENTO")
@@ -387,7 +427,7 @@ export default function Recrutamento() {
       .eq("id", drawerId);
 
     if (error) { toast("Erro ao aprovar.", "err"); return; }
-    toast(drawerSol.status === "Aguardando Treinamentos" ? "Vaga liberada!" : "Aprovado e encaminhado para Treinamentos!", "ok");
+    toast(drawerSol.status === "Aguardando Recrutamento" ? "Vaga liberada!" : "Aprovado e encaminhado para Recrutamento!", "ok");
     fecharDrawer();
     loadStats();
     loadLista();
@@ -434,18 +474,93 @@ export default function Recrutamento() {
   };
 
   // ── Carregar Currículos ───────────────────────────────────────
+  const digitsOf = (s?: string) => String(s ?? "").replace(/\D/g, "");
+
   const abrirCurriculos = async () => {
     setShowCurriculos(true);
-    setCurriculos([]);
+    setCurriculos([]); setEmpCpf({}); setBlacklist({});
     const { data } = await (supabase as any)
       .from("WA_CURRICULOS")
       .select("*")
       .eq("vaga_id", drawerId)
       .order("created_at", { ascending: false });
-    if (data) {
-      setCurriculos(data.map((c: any) => ({ ...c, tem_pdf: !!c.storage_path })));
+    if (!data) return;
+    const mapped: Curriculo[] = data.map((c: any) => ({
+      ...c,
+      nome: c.nome ?? c.nome_cand ?? c.nome_candidato ?? "",
+      email: c.email ?? c.email_cand ?? "",
+      cpf: c.cpf ?? c.cpf_cand ?? "",
+      storage_path: c.storage_path ?? c.arquivo_path ?? c.path ?? "",
+      tem_pdf: !!(c.storage_path ?? c.arquivo_path ?? c.path ?? c.arquivo_url),
+    }));
+    setCurriculos(mapped);
+
+    // Cruza o CPF com a tabela EMPREGADOS e verifica a lista negra.
+    const cpfs = Array.from(new Set(mapped.map(c => c.cpf).filter(Boolean))) as string[];
+    const digits = Array.from(new Set(mapped.map(c => digitsOf(c.cpf)).filter(d => d.length === 11)));
+    if (cpfs.length) {
+      const { data: emps } = await (supabase as any).rpc("empregados_por_cpfs", { p_cpfs: cpfs });
+      const byCpf: Record<string, any[]> = {};
+      (emps ?? []).forEach((e: any) => { (byCpf[e.cpf_match] = byCpf[e.cpf_match] || []).push(e); });
+      setEmpCpf(byCpf);
+    }
+    if (digits.length) {
+      const { data: bl } = await (supabase as any)
+        .from("RECRUTAMENTO_CPF_BLACKLIST").select("cpf_digits,motivo,criado_em").in("cpf_digits", digits);
+      const blMap: Record<string, { motivo: string; criado_em?: string }> = {};
+      (bl ?? []).forEach((b: any) => { blMap[b.cpf_digits] = { motivo: b.motivo, criado_em: b.criado_em }; });
+      setBlacklist(blMap);
     }
   };
+
+  // Download do currículo: signed URL temporária no bucket privado 'curriculos'.
+  const baixarCurriculo = async (cv: Curriculo) => {
+    if (!cv.storage_path) return;
+    const { data, error } = await supabase.storage.from("curriculos").createSignedUrl(cv.storage_path, 3600);
+    if (error || !data?.signedUrl) { toast("Não foi possível abrir o arquivo.", "err"); return; }
+    window.open(data.signedUrl, "_blank", "noopener");
+  };
+
+  // ── Lista negra de CPF ────────────────────────────────────────
+  const abrirBloqueio = (cv: Curriculo) => {
+    const digits = digitsOf(cv.cpf);
+    if (digits.length !== 11) { toast("CPF do candidato inválido.", "err"); return; }
+    setBlockMotivo(""); setBlockModal({ digits, fmt: cv.cpf || digits });
+  };
+  const confirmarBloqueio = async () => {
+    if (!blockModal) return;
+    if (!blockMotivo.trim()) { toast("Informe o motivo do bloqueio.", "err"); return; }
+    const { error } = await (supabase as any).from("RECRUTAMENTO_CPF_BLACKLIST").upsert({
+      cpf_digits: blockModal.digits, cpf_fmt: blockModal.fmt, motivo: blockMotivo.trim(),
+      criado_por: user?.user_metadata?.nome ?? user?.email ?? "",
+    }, { onConflict: "cpf_digits" });
+    if (error) { toast("Erro ao bloquear: " + error.message, "err"); return; }
+    setBlacklist(prev => ({ ...prev, [blockModal.digits]: { motivo: blockMotivo.trim() } }));
+    setBlockModal(null); toast("CPF adicionado à lista negra.", "ok");
+  };
+  const desbloquearCpf = async (digits: string) => {
+    if (!confirm("Remover este CPF da lista negra?")) return;
+    const { error } = await (supabase as any).from("RECRUTAMENTO_CPF_BLACKLIST").delete().eq("cpf_digits", digits);
+    if (error) { toast("Erro ao remover: " + error.message, "err"); return; }
+    setBlacklist(prev => { const n = { ...prev }; delete n[digits]; return n; });
+    toast("CPF removido da lista negra.", "ok");
+  };
+
+  // Agrupa currículos pelo MESMO CPF (dígitos). Sem CPF válido → grupo próprio.
+  const cvGrupos = (() => {
+    const m = new Map<string, Curriculo[]>();
+    for (const cv of curriculos) {
+      const d = digitsOf(cv.cpf);
+      const key = d.length === 11 ? d : `id:${cv.id}`;
+      const arr = m.get(key);
+      if (arr) arr.push(cv); else m.set(key, [cv]);
+    }
+    return Array.from(m.values()).map(items => {
+      const latest = items[0]; // já vem ordenado por created_at desc
+      const d = digitsOf(latest.cpf);
+      return { items, latest, digits: d.length === 11 ? d : "" };
+    });
+  })();
 
   // ── Kanban Mover ──────────────────────────────────────────────
   const executarMover = async (id: number, novoStatus: string, oldSt: string, extra: Record<string, any>) => {
@@ -610,7 +725,19 @@ export default function Recrutamento() {
       .rec-fi:focus{border-color:#0f3171;box-shadow:0 0 0 4px rgba(15,49,113,.08)}
       .rec-fg{margin-bottom:14px}
       .rec-fg label{display:block;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
-      .kb-board{display:flex;gap:10px;height:calc(100vh - 300px);min-height:420px;overflow-x:auto;padding-bottom:16px;align-items:flex-start}
+      .kb-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+      .kb-hint{font-size:11px;color:#94a3b8;font-weight:600}
+      .kb-hint strong{color:#475569}
+      .kb-nav{display:flex;gap:6px;flex-shrink:0}
+      .kb-nav-btn{width:34px;height:30px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;color:#0f3171;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(15,23,42,.06);transition:.15s;display:inline-flex;align-items:center;justify-content:center}
+      .kb-nav-btn:hover{background:#0f3171;color:#fff;border-color:#0f3171}
+      .kb-board{display:flex;gap:10px;height:calc(100vh - 320px);min-height:420px;overflow-x:auto;overflow-y:hidden;padding-bottom:14px;align-items:flex-start;scroll-behavior:smooth;cursor:grab}
+      .kb-board.kb-grabbing{cursor:grabbing;scroll-behavior:auto;user-select:none}
+      .kb-board::-webkit-scrollbar{height:12px}
+      .kb-board::-webkit-scrollbar-track{background:#eef2f7;border-radius:8px}
+      .kb-board::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px;border:3px solid #eef2f7}
+      .kb-board::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+      .kb-board{scrollbar-width:auto;scrollbar-color:#cbd5e1 #eef2f7}
       .kb-col{flex:0 0 252px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;display:flex;flex-direction:column;max-height:100%;overflow:hidden;transition:.15s;box-shadow:0 8px 24px rgba(15,23,42,.06)}
       .kb-col.drag-over{border-color:#0f3171;background:rgba(15,49,113,.04)}
       .kb-col-head{padding:10px 12px 8px;border-bottom:1px solid #e2e8f0;flex-shrink:0;display:flex;align-items:center;gap:6px;background:#fcfdff}
@@ -699,11 +826,11 @@ export default function Recrutamento() {
       btns.push(<button key="rep" onClick={() => { setReprovarMotivo(""); setModalReprovar(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reprovar</button>);
       btns.push(<button key="apr" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>✓ Aprovar</button>);
     }
-    if (s.status === "Aguardando Treinamentos" && isTreinamento) {
+    if (s.status === "Aguardando Recrutamento" && (isTreinamento || isAdmin)) {
       btns.push(<button key="rep2" onClick={() => { setReprovarMotivo(""); setModalReprovar(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reprovar</button>);
       btns.push(<button key="lib" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>✓ Liberar Vaga</button>);
     }
-    if (isTreinamento && !["Aguardando Aprovação","Aguardando Treinamentos","Reprovada","Contratado"].includes(s.status)) {
+    if ((isTreinamento || isAdmin) && !["Aguardando Aprovação","Aguardando Recrutamento","Reprovada","Contratado"].includes(s.status)) {
       btns.push(<button key="st" onClick={() => { setStatusSel(""); setStatusExtra({}); setModalStatus(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>Atualizar Status</button>);
     }
     const linkStatuses = ["Aprovada","Vaga Aberta","Em Processo Seletivo"];
@@ -719,6 +846,48 @@ export default function Recrutamento() {
   const canNovaVaga = !isRH;
   const linkUrl = drawerSol?.link_publico ? `${window.location.origin}/recrutamento/candidatura/${drawerSol.link_publico}` : "";
 
+  // Kanban: rola o quadro horizontalmente (~1,5 coluna por clique).
+  const scrollKb = (dir: -1 | 1) => kbBoardRef.current?.scrollBy({ left: dir * 380, behavior: "smooth" });
+
+  // Portal público de candidatura (/vagas): copiar o link para divulgar.
+  const [portalCopiado, setPortalCopiado] = useState(false);
+  const copiarLinkPortal = async () => {
+    const url = `${window.location.origin}/vagas`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand("copy"); } catch { /* noop */ }
+      document.body.removeChild(ta);
+    }
+    setPortalCopiado(true);
+    toast("Link de candidatura copiado!", "ok");
+    setTimeout(() => setPortalCopiado(false), 2000);
+  };
+
+  // Kanban: clicar numa área vazia do quadro e arrastar para o lado (pan).
+  // Ignora cliques sobre os cards para não atrapalhar o arrastar-e-soltar deles.
+  const kbPan = useRef({ down: false, startX: 0, startLeft: 0 });
+  const kbPanDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest(".kb-card")) return;
+    const el = kbBoardRef.current; if (!el) return;
+    e.preventDefault();
+    kbPan.current = { down: true, startX: e.pageX, startLeft: el.scrollLeft };
+    el.classList.add("kb-grabbing");
+  };
+  const kbPanMove = (e: React.MouseEvent) => {
+    const st = kbPan.current; if (!st.down) return;
+    const el = kbBoardRef.current; if (!el) return;
+    el.scrollLeft = st.startLeft - (e.pageX - st.startX);
+  };
+  const kbPanEnd = () => {
+    if (!kbPan.current.down) return;
+    kbPan.current.down = false;
+    kbBoardRef.current?.classList.remove("kb-grabbing");
+  };
+
   // ── RENDER ────────────────────────────────────────────────────
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
@@ -727,6 +896,11 @@ export default function Recrutamento() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "linear-gradient(135deg,#fff 0%,#f8fbff 100%)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0, gap: 14, flexWrap: "wrap" }}>
         <div style={{ fontSize: 19, fontWeight: 800, color: "#0f3171" }}>🎯 Seleção e Recrutamento</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {(isAdmin || isTreinamento) && (
+            <button onClick={copiarLinkPortal} title="Copia o link público (/vagas) para os candidatos escolherem a cidade e enviarem o currículo" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 10, border: "1px solid #f97316", background: "rgba(249,115,22,.10)", color: "#ea580c", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              🔗 {portalCopiado ? "Link copiado!" : "Copiar link de candidatura"}
+            </button>
+          )}
           {canNovaVaga && (
             <button onClick={abrirModalVaga} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 10, border: "none", background: "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 10px 22px rgba(15,49,113,.18)" }}>
               + Nova Solicitação
@@ -743,7 +917,7 @@ export default function Recrutamento() {
           {[
             { label: "Total",          val: stats.total,           color: "#0f3171" },
             { label: "Ag. Aprovação",  val: stats.pendentes,       color: "#f59e0b" },
-            { label: "Ag. Treinamento",val: stats.ag_treinamentos, color: "#8b5cf6" },
+            { label: "Ag. Recrutamento",val: stats.ag_treinamentos, color: "#8b5cf6" },
             { label: "Em Processo",    val: stats.em_processo,     color: "#3b82f6" },
             { label: "Contratados",    val: stats.contratados,     color: "#16a34a" },
             { label: "Reprovadas",     val: stats.reprovadas,      color: "#dc2626" },
@@ -764,27 +938,51 @@ export default function Recrutamento() {
           ))}
         </div>
 
+        {/* Filtro de Contratos — vale para Tabela e Kanban */}
+        <div style={{ position: "relative", marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={() => setShowContratoFiltro(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: contratoFiltro.length ? "#0f3171" : "#fff", color: contratoFiltro.length ? "#fff" : "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
+            🗂 Filtros · Contratos{contratoFiltro.length ? ` (${contratoFiltro.length})` : ""} ▾
+          </button>
+          {contratoFiltro.length > 0 && (
+            <button onClick={() => { setContratoFiltro([]); setPage(1); }} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>limpar</button>
+          )}
+          {showContratoFiltro && (
+            <>
+              <div onClick={() => setShowContratoFiltro(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+              <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 50, marginTop: 6, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 16px 40px rgba(15,23,42,.16)", padding: 10, width: 340, maxWidth: "90vw", maxHeight: 360, overflowY: "auto" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, padding: "0 4px" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px" }}>Mostrar só estes contratos</span>
+                  {contratoFiltro.length > 0 && <button onClick={() => { setContratoFiltro([]); setPage(1); }} style={{ background: "none", border: "none", color: "#0f3171", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Limpar</button>}
+                </div>
+                {contratoCounts.length === 0 ? (
+                  <div style={{ fontSize: 12, color: "#94a3b8", padding: "8px 6px" }}>Nenhum contrato com solicitação.</div>
+                ) : contratoCounts.map(c => {
+                  const checked = contratoFiltro.includes(c.contrato);
+                  return (
+                    <label key={c.contrato} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 6px", borderRadius: 8, cursor: "pointer", background: checked ? "#eef4ff" : "transparent" }}>
+                      <input type="checkbox" checked={checked} onChange={() => { setContratoFiltro(prev => checked ? prev.filter(x => x !== c.contrato) : [...prev, c.contrato]); setPage(1); }} style={{ width: 15, height: 15, accentColor: "#0f3171", cursor: "pointer" }} />
+                      <span style={{ flex: 1, fontSize: 13, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.contrato}</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", background: "#fff", border: "1px solid #dbe4f0", borderRadius: 20, padding: "1px 9px", minWidth: 22, textAlign: "center" }}>{c.n}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
         {/* Tabela View */}
         {view === "tabela" && (
           <>
-            {/* Tabs */}
-            <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
-              {tabs.map(t => (
-                <button key={t.tab} onClick={() => { setTab(t.tab); setPage(1); }} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: tab === t.tab ? "#0f3171" : "#fff", color: tab === t.tab ? "#fff" : "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Status Pills */}
+            {/* Filtros de status (linha única) */}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
               {[
-                { label: "Pend. Analista", val: "Aguardando Aprovação" },
-                { label: "Pend. Treinamento", val: "Aguardando Treinamentos" },
+                { label: "Todas", val: "" },
+                { label: "Pendente Analista", val: "Aguardando Aprovação" },
+                { label: "Pendente Recrutamento", val: "Aguardando Recrutamento" },
                 { label: "Em Processo", val: "em_processo" },
                 { label: "Contratados", val: "Contratado" },
                 { label: "Reprovados", val: "Reprovada" },
-                { label: "Todas", val: "" },
               ].map(p => (
                 <button key={p.val} onClick={() => { setStatusFilter(p.val); setPage(1); }} style={{ padding: "5px 13px", borderRadius: 20, border: "1px solid #e2e8f0", background: statusFilter === p.val ? "#0f3171" : "#fff", color: statusFilter === p.val ? "#fff" : "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                   {p.label}
@@ -844,7 +1042,16 @@ export default function Recrutamento() {
 
         {/* Kanban View */}
         {view === "kanban" && (
-          <div className="kb-board">
+          <>
+            <div className="kb-toolbar">
+              <span className="kb-hint">Arraste os cards entre as colunas · <strong>clique e arraste a tela</strong>, use as setas ou <strong>Shift + roda do mouse</strong> para navegar →</span>
+              <div className="kb-nav">
+                <button type="button" className="kb-nav-btn" onClick={() => scrollKb(-1)} aria-label="Rolar para a esquerda" title="Rolar para a esquerda">◀</button>
+                <button type="button" className="kb-nav-btn" onClick={() => scrollKb(1)} aria-label="Rolar para a direita" title="Rolar para a direita">▶</button>
+              </div>
+            </div>
+          <div className="kb-board" ref={kbBoardRef}
+            onMouseDown={kbPanDown} onMouseMove={kbPanMove} onMouseUp={kbPanEnd} onMouseLeave={kbPanEnd}>
             {KB_STATUS_ORDER.map(status => {
               const cards = kanbanData[status] ?? [];
               const meta  = KB_COL_COLORS[status] ?? { dot: "#f97316", label: "#ea580c", accent: "#f97316" };
@@ -862,7 +1069,7 @@ export default function Recrutamento() {
                     {cards.length === 0 ? (
                       <div style={{ textAlign: "center", padding: "22px 8px", color: "#94a3b8", fontSize: 10, opacity: .6 }}>Nenhuma solicitação</div>
                     ) : cards.map(c => {
-                      const dias = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 86400000);
+                      const dias = Math.floor((Date.now() - new Date(c.status_changed_at || c.created_at).getTime()) / 86400000);
                       return (
                         <div key={c.id} id={`kbcard_${c.id}`} className={`kb-card${dragId === c.id ? " dragging" : ""}`}
                           draggable
@@ -881,7 +1088,7 @@ export default function Recrutamento() {
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #e2e8f0", padding: "5px 10px 6px", background: "#fcfdff" }}>
-                            <span style={{ fontSize: 9, color: "#94a3b8" }}>⏱ {dias === 0 ? "hoje" : `${dias}d`}</span>
+                            <span style={{ fontSize: 9, color: "#94a3b8" }} title={`Tempo parado neste status (${status})`}>⏱ {dias === 0 ? "hoje" : `${dias}d nesta etapa`}</span>
                             <span style={{ fontSize: 9, color: "#94a3b8", maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(c.analista_nome ?? c.solicitante_nome ?? "").split(" ")[0]}</span>
                           </div>
                         </div>
@@ -892,6 +1099,7 @@ export default function Recrutamento() {
               );
             })}
           </div>
+          </>
         )}
       </div>
 
@@ -1081,34 +1289,137 @@ export default function Recrutamento() {
                 <div style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
                   <div style={{ fontSize: 14, marginBottom: 4 }}>Nenhum currículo recebido ainda.</div>
-                  <div style={{ fontSize: 12 }}>Compartilhe o link da vaga para receber candidaturas.</div>
+                  <div style={{ fontSize: 12 }}>Com a vaga em <b>“Seleção de Currículos”</b>, ela aparece no portal público <b>/vagas</b> para receber candidaturas.</div>
                 </div>
               ) : (
                 <div className="cv-grid">
-                  {curriculos.map(cv => (
-                    <div key={cv.id} className="cv-card">
+                  {cvGrupos.map(g => {
+                    const cv = g.latest;
+                    const digits = g.digits;
+                    const emps = empCpf[digits] || [];
+                    const hasEmp = emps.length > 0;
+                    const bl = digits ? blacklist[digits] : undefined;
+                    return (
+                    <div key={g.items[0].id} className="cv-card" style={{ position: "relative", outline: bl ? "2px solid #fecaca" : undefined, outlineOffset: -1 }}>
                       <div style={{ height: 3, background: cv.origem === "whatsapp" ? "linear-gradient(90deg,#22c55e,#16a34a)" : "linear-gradient(90deg,#0f3171,#1e4a8a)" }}></div>
+                      <div style={{ position: "absolute", top: 9, right: 9, zIndex: 2, display: "flex", gap: 6 }}>
+                        {hasEmp && <span title="Já tem cadastro na empresa (EMPREGADOS)" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#0f3171", color: "#fff", borderRadius: 8, padding: "3px 8px", fontSize: 10, fontWeight: 800, boxShadow: "0 6px 16px rgba(15,49,113,.3)" }}>🏦 NO BANCO</span>}
+                        {bl && <span title={`Lista negra: ${bl.motivo}`} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#dc2626", color: "#fff", borderRadius: 8, padding: "3px 8px", fontSize: 10, fontWeight: 800, boxShadow: "0 6px 16px rgba(220,38,38,.32)" }}>🚫 BLOQUEADO</span>}
+                      </div>
                       <div style={{ padding: "16px 18px", flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: ".5px", textTransform: "uppercase", padding: "3px 9px", borderRadius: 4, background: cv.origem === "whatsapp" ? "rgba(34,197,94,.1)" : "rgba(249,115,22,.12)", color: cv.origem === "whatsapp" ? "#22c55e" : "#f97316", border: `1px solid ${cv.origem === "whatsapp" ? "rgba(34,197,94,.2)" : "rgba(249,115,22,.18)"}` }}>
-                          {cv.origem === "whatsapp" ? "WhatsApp" : "Link Público"}
+                        <span style={{ width: "fit-content", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: ".5px", textTransform: "uppercase", padding: "3px 9px", borderRadius: 4, background: cv.origem === "whatsapp" ? "rgba(34,197,94,.1)" : "rgba(249,115,22,.12)", color: cv.origem === "whatsapp" ? "#22c55e" : "#f97316", border: `1px solid ${cv.origem === "whatsapp" ? "rgba(34,197,94,.2)" : "rgba(249,115,22,.18)"}` }}>
+                          {cv.origem === "whatsapp" ? "WhatsApp" : "Portal"}
                         </span>
                         {cv.nome ? <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>{cv.nome}</div> : <div style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8", fontStyle: "italic" }}>Nome não informado</div>}
+                        {g.items.length > 1 && <span style={{ width: "fit-content", fontSize: 11, fontWeight: 700, color: "#0f3171", background: "#eef4ff", border: "1px solid #dbe4f0", borderRadius: 20, padding: "2px 10px" }}>📩 {g.items.length} candidaturas enviadas</span>}
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                           {cv.telefone && <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 7 }}><span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", minWidth: 50 }}>Fone</span>{cv.telefone}</div>}
                           {cv.email    && <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 7 }}><span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", minWidth: 50 }}>Email</span>{cv.email}</div>}
+                          {cv.cpf      && <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 7 }}><span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", minWidth: 50 }}>CPF</span>{cv.cpf}</div>}
                         </div>
-                        {cv.mensagem && <div style={{ fontSize: 12, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "10px 12px", lineHeight: 1.6, maxHeight: 80, overflow: "hidden" }}>{cv.mensagem}</div>}
+                        {bl && <div style={{ fontSize: 11.5, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 7, padding: "8px 10px" }}><b>🚫 Na lista negra.</b> {bl.motivo}</div>}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".5px", color: "#94a3b8" }}>Currículos enviados</div>
+                          {g.items.map(item => (
+                            <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: "7px 10px", background: "#fcfdff" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 11, color: "#94a3b8" }}>{fmtDt(item.created_at)}</div>
+                                {item.mensagem && <div style={{ fontSize: 12, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.mensagem}</div>}
+                              </div>
+                              {item.tem_pdf ? <button onClick={() => baixarCurriculo(item)} style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", color: "#f97316", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>↓ Baixar</button> : <span style={{ flexShrink: 0, fontSize: 11, color: "#94a3b8" }}>Sem arquivo</span>}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div style={{ padding: "12px 18px", borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "#fcfdff" }}>
-                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{fmtDt(cv.created_at)}</span>
-                        {cv.tem_pdf ? (
-                          <a href={`/recrutamento/api/curriculo/${cv.id}/download`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 6, background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", color: "#f97316", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
-                            ↓ Baixar PDF
-                          </a>
-                        ) : <span style={{ fontSize: 11, color: "#94a3b8" }}>Sem PDF</span>}
+                      <div style={{ padding: "10px 14px", borderTop: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "#fcfdff", flexWrap: "wrap" }}>
+                        {bl
+                          ? <button onClick={() => desbloquearCpf(digits)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "#f1f5f9", border: "1px solid #e2e8f0", color: "#475569", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Desbloquear CPF</button>
+                          : <button onClick={() => abrirBloqueio(cv)} disabled={!digits} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "rgba(220,38,38,.08)", border: "1px solid rgba(220,38,38,.25)", color: "#dc2626", fontSize: 11, fontWeight: 700, cursor: digits ? "pointer" : "not-allowed", opacity: digits ? 1 : .5 }}>🚫 Bloquear CPF</button>}
+                        <button onClick={() => setDetalheEmp({ nome: cv.nome || "Candidato", cpf: cv.cpf || "", telefone: cv.telefone, email: cv.email, itens: g.items, emps })} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "rgba(15,49,113,.08)", border: "1px solid rgba(15,49,113,.25)", color: "#0f3171", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{hasEmp ? `🏦 Ver detalhes (${emps.length})` : "Ver detalhes"}</button>
                       </div>
                     </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: bloquear CPF (lista negra) ── */}
+      {blockModal && (
+        <div className="rec-modal-ov" style={{ zIndex: 900 }} onClick={e => { if (e.target === e.currentTarget) setBlockModal(null); }}>
+          <div className="rec-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setBlockModal(null)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4, color: "#dc2626" }}>🚫 Adicionar CPF à lista negra</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>CPF {blockModal.fmt} — informe o motivo do bloqueio.</div>
+            <div className="rec-fg"><label>Motivo *</label>
+              <textarea className="rec-fi" rows={3} value={blockMotivo} onChange={e => setBlockMotivo(e.target.value)} placeholder="Ex.: histórico de faltas, desligamento por justa causa, etc." /></div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+              <button onClick={() => setBlockModal(null)} style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={confirmarBloqueio} style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Bloquear CPF</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: detalhes dos cadastros em EMPREGADOS ── */}
+      {detalheEmp && (
+        <div className="rec-modal-ov" style={{ zIndex: 900 }} onClick={e => { if (e.target === e.currentTarget) setDetalheEmp(null); }}>
+          <div className="rec-modal" style={{ maxWidth: 580 }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setDetalheEmp(null)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🪪 Detalhes do candidato</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>{detalheEmp.nome} · CPF {detalheEmp.cpf || "—"}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18, maxHeight: "64vh", overflowY: "auto" }}>
+
+              {/* Dados enviados na candidatura */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".5px", color: "#0f3171", marginBottom: 8 }}>📩 Candidatura ({detalheEmp.itens.length} envio{detalheEmp.itens.length > 1 ? "s" : ""})</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 16px", fontSize: 12, color: "#334155", marginBottom: 12 }}>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Nome: </span>{detalheEmp.nome || "—"}</div>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>CPF: </span>{detalheEmp.cpf || "—"}</div>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Telefone: </span>{detalheEmp.telefone || "—"}</div>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>E-mail: </span>{detalheEmp.email || "—"}</div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {detalheEmp.itens.map(item => (
+                    <div key={item.id} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", background: "#fcfdff" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>Enviado em {fmtDt(item.created_at)}</span>
+                        {item.tem_pdf ? <button onClick={() => baixarCurriculo(item)} style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", color: "#f97316", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>↓ Baixar currículo</button> : <span style={{ fontSize: 11, color: "#94a3b8" }}>Sem arquivo</span>}
+                      </div>
+                      {item.mensagem && <div style={{ fontSize: 12.5, color: "#475569", marginTop: 8, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>{item.mensagem}</div>}
+                    </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Cadastros na empresa (EMPREGADOS) */}
+              {detalheEmp.emps.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".5px", color: "#0f3171", marginBottom: 8 }}>🏦 Cadastros na empresa ({detalheEmp.emps.length})</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {detalheEmp.emps.map((e, i) => {
+                      const off = /demit|rescis|deslig|inativ/i.test(e.situacao || "");
+                      return (
+                        <div key={i} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 14px", background: "#f8fbff" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{e.cargo || "Cargo não informado"}</div>
+                            {e.situacao && <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: off ? "#fee2e2" : "#dcfce7", color: off ? "#b91c1c" : "#15803d" }}>{e.situacao}</span>}
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", marginTop: 10, fontSize: 12, color: "#334155" }}>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Admissão: </span>{e.admissao || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Setor: </span>{e.setor || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Empresa: </span>{e.empresa || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Filial: </span>{e.filial || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Perfil: </span>{e.perfil || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Líder: </span>{e.lider || "—"}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -1194,8 +1505,20 @@ export default function Recrutamento() {
               </div>
               <div className="rec-fg"><label>Cargo *</label><input className="rec-fi" placeholder="Ex: Auxiliar de Limpeza, Vigilante..." value={vaga.cargo} onChange={e => setVaga(v => ({ ...v, cargo: e.target.value }))} /></div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div className="rec-fg"><label>Estado (UF)</label><input className="rec-fi" placeholder="SP, RJ, MG..." maxLength={2} value={vaga.estado} onChange={e => setVaga(v => ({ ...v, estado: e.target.value.toUpperCase() }))} /></div>
-                <div className="rec-fg"><label>Cidade</label><input className="rec-fi" placeholder="Nome da cidade..." value={vaga.cidade} onChange={e => setVaga(v => ({ ...v, cidade: e.target.value }))} /></div>
+                <div className="rec-fg">
+                  <label>Estado (UF)</label>
+                  <select className="rec-fi" value={vaga.estado} onChange={e => setVaga(v => ({ ...v, estado: e.target.value, cidade: "" }))}>
+                    <option value="">— Selecione —</option>
+                    {ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} — {e.nome}</option>)}
+                  </select>
+                </div>
+                <div className="rec-fg">
+                  <label>Cidade</label>
+                  <select className="rec-fi" value={vaga.cidade} disabled={!vaga.estado} onChange={e => setVaga(v => ({ ...v, cidade: e.target.value }))}>
+                    <option value="">{vaga.estado ? "— Selecione —" : "Selecione o estado primeiro"}</option>
+                    {municipiosDe(vaga.estado).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
               </div>
             </>)}
 
