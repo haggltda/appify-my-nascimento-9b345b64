@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { useEmpresaId } from "@/hooks/useEmpresaId";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { usePermissoes } from "@/context/PermissoesContext";
 import { cn } from "@/lib/utils";
 import {
@@ -24,6 +24,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,25 +53,28 @@ const FASES: GradeFase[] = [
   "Em Andamento",
   "Finalizada",
   "Não Participado",
-  "Suspenso/Revogado",
+  "Suspenso",
+  "Revogado",
 ];
 
 const FASE_COLOR: Record<GradeFase, string> = {
-  "À Iniciar": "bg-blue-500/15 text-blue-700 border-blue-300/50",
-  "Iniciado": "bg-sky-500/15 text-sky-700 border-sky-300/50",
-  "Em Andamento": "bg-amber-500/15 text-amber-700 border-amber-300/50",
-  "Finalizada": "bg-emerald-500/15 text-emerald-700 border-emerald-300/50",
+  "À Iniciar":       "bg-blue-500/15 text-blue-700 border-blue-300/50",
+  "Iniciado":        "bg-sky-500/15 text-sky-700 border-sky-300/50",
+  "Em Andamento":    "bg-amber-500/15 text-amber-700 border-amber-300/50",
+  "Finalizada":      "bg-emerald-500/15 text-emerald-700 border-emerald-300/50",
   "Não Participado": "bg-slate-400/15 text-slate-600 border-slate-300/50",
-  "Suspenso/Revogado": "bg-red-400/15 text-red-700 border-red-300/50",
+  "Suspenso":        "bg-orange-400/15 text-orange-700 border-orange-300/50",
+  "Revogado":        "bg-red-400/15 text-red-700 border-red-300/50",
 };
 
 const FASE_DOT: Record<GradeFase, string> = {
-  "À Iniciar": "bg-blue-500",
-  "Iniciado": "bg-sky-500",
-  "Em Andamento": "bg-amber-500",
-  "Finalizada": "bg-emerald-500",
+  "À Iniciar":       "bg-blue-500",
+  "Iniciado":        "bg-sky-500",
+  "Em Andamento":    "bg-amber-500",
+  "Finalizada":      "bg-emerald-500",
   "Não Participado": "bg-slate-400",
-  "Suspenso/Revogado": "bg-red-500",
+  "Suspenso":        "bg-orange-400",
+  "Revogado":        "bg-red-500",
 };
 
 const MESES = [
@@ -83,7 +87,8 @@ const ANOS = [2024, 2025, 2026, 2027];
 // ── Componente principal ───────────────────────────────────────────────────
 
 export default function Pipeline() {
-  const { data: empresaAtivaId } = useEmpresaId();
+  const { empresa } = useEmpresaAtiva();
+  const empresaAtivaId = empresa.id;
   const { can } = usePermissoes();
 
   const canIncluir = can("incluir", "licitacoes", "pipeline");
@@ -122,7 +127,7 @@ export default function Pipeline() {
   const stats = useMemo(() => {
     const map: Record<GradeFase, number> = {
       "À Iniciar": 0, "Iniciado": 0, "Em Andamento": 0, "Finalizada": 0,
-      "Não Participado": 0, "Suspenso/Revogado": 0,
+      "Não Participado": 0, "Suspenso": 0, "Revogado": 0,
     };
     items.forEach((i) => { if (i.fase in map) map[i.fase]++; });
     return map;
@@ -402,6 +407,7 @@ type ImportRow = {
   objeto: string;
   cidade: string;
   abertura: string | null;
+  horario: string | null;
   data_captacao: string | null;
   fase: GradeFase;
   valor_global: number | null;
@@ -411,17 +417,17 @@ type ImportRow = {
 };
 
 const FASE_MAP: Record<string, GradeFase> = {
-  "À INICIAR": "À Iniciar",
-  "A INICIAR": "À Iniciar",
-  "INICIADO": "Iniciado",
-  "EM ANDAMENTO": "Em Andamento",
-  "FINALIZADA": "Finalizada",
-  "FINALIZADO": "Finalizada",
+  "À INICIAR":       "À Iniciar",
+  "A INICIAR":       "À Iniciar",
+  "INICIADO":        "Iniciado",
+  "EM ANDAMENTO":    "Em Andamento",
+  "FINALIZADA":      "Finalizada",
+  "FINALIZADO":      "Finalizada",
   "NÃO PARTICIPADO": "Não Participado",
   "NAO PARTICIPADO": "Não Participado",
-  "SUSPENSO/REVOGADO": "Suspenso/Revogado",
-  "SUSPENSO": "Suspenso/Revogado",
-  "REVOGADO": "Suspenso/Revogado",
+  "SUSPENSO/REVOGADO": "Suspenso",
+  "SUSPENSO":        "Suspenso",
+  "REVOGADO":        "Revogado",
 };
 
 function normalizeFase(raw: string | null | undefined): GradeFase {
@@ -477,14 +483,17 @@ function ImportModal({ empresaId, onClose }: { empresaId: string; onClose: () =>
           if (!edital || edital === "null") continue;
           const fase = normalizeFase(r["FASE"] as string);
           const valor = r["VALOR GLOBAL"];
+          const dataISO = excelDateToISO(r["DATA"]);
+          const horario = String(r["HORÁRIO"] ?? r["HORARIO"] ?? "").trim() || null;
           parsed.push({
             edital,
             objeto: String(r["Objeto"] ?? r["OBJETO"] ?? "").trim(),
             cidade: String(r["Cidade"] ?? r["CIDADE"] ?? "").trim(),
-            abertura: excelDateToISO(r["DATA"]),
+            abertura: dataISO,
             data_captacao: excelDateToISO(r["DATA DA CAPTAÇÃO"] ?? r["DATA DE CAPTAÇÃO"]),
             fase,
             valor_global: valor != null && !isNaN(Number(valor)) ? Number(valor) : null,
+            horario,
             observacoes: String(r["STATUS"] ?? "").trim() || null,
             ok: true,
           });
@@ -493,7 +502,7 @@ function ImportModal({ empresaId, onClose }: { empresaId: string; onClose: () =>
       // Remove duplicatas por edital + data de abertura (mesma licitação, mesmo pregão)
       const seen = new Set<string>();
       const unique = parsed.filter((r) => {
-        const key = `${r.edital}||${r.abertura ?? ""}`;
+        const key = `${r.edital}||${r.abertura ?? ""}||${r.horario ?? ""}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -514,13 +523,15 @@ function ImportModal({ empresaId, onClose }: { empresaId: string; onClose: () =>
           edital: r.edital,
           objeto: r.objeto || null,
           cidade: r.cidade || null,
-          abertura: r.abertura,
+          data: r.abertura,
+          horario: r.horario,
           data_captacao: r.data_captacao,
           fase: r.fase,
-          valor_global: r.valor_global,
-          observacoes: r.observacoes,
+          valor_global: r.valor_global != null ? String(r.valor_global) : null,
+          status_obs: r.observacoes,
           responsavel: null,
-          modalidade: null,
+          uf: null,
+          qtd_pessoas: null,
           posicao: null,
         });
         updated[i] = { ...r, ok: true };
@@ -682,9 +693,13 @@ function GradeCard({
         <span><span className="font-medium text-foreground">Cidade:</span> {item.cidade || "—"} {item.uf ? `/ ${item.uf}` : ""}</span>
         <span><span className="font-medium text-foreground">Abertura:</span> {fmtDate(item.data)}</span>
         <span><span className="font-medium text-foreground">Responsável:</span> {item.responsavel || "—"}</span>
-        <span><span className="font-medium text-foreground">Posição:</span> {item.posicao ?? "—"}</span>
+        <span><span className="font-medium text-foreground">Posição:</span> {item.posicao != null ? `${item.posicao}º` : "—"}</span>
         {item.valor_global && (
-          <span className="col-span-2"><span className="font-medium text-foreground">Valor:</span> {item.valor_global}</span>
+          <span className="col-span-2"><span className="font-medium text-foreground">Valor:</span> {
+            Number(item.valor_global)
+              ? Number(item.valor_global).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+              : item.valor_global
+          }</span>
         )}
       </div>
 
@@ -883,7 +898,13 @@ function GradeSheet({
             {field("Posição", "posicao", { type: "number" })}
           </div>
 
-          {field("Valor Global", "valor_global")}
+          <div className="space-y-1">
+            <Label className="text-xs">Valor Global</Label>
+            <CurrencyInput
+              value={f.valor_global}
+              onChange={(v) => setF((p) => ({ ...p, valor_global: v }))}
+            />
+          </div>
 
           <div className="space-y-1">
             <Label htmlFor="status_obs" className="text-xs">Observações / Status</Label>
@@ -932,7 +953,7 @@ function ViewModal({ item, onClose }: { item: GradeItem; onClose: () => void }) 
           <Row label="Captação" value={fmtDate(item.data_captacao)} />
           <Row label="Abertura" value={`${fmtDate(item.data)}${item.horario ? " às " + item.horario : ""}`} />
           <Row label="Responsável" value={item.responsavel} />
-          <Row label="Posição" value={item.posicao !== null ? String(item.posicao) : null} />
+          <Row label="Posição" value={item.posicao !== null ? `${item.posicao}º` : null} />
           <Row label="Qtd. Pessoas" value={item.qtd_pessoas !== null ? String(item.qtd_pessoas) : null} />
           <Row label="Valor Global" value={item.valor_global} />
           {item.status_obs && <Row label="Obs." value={item.status_obs} />}

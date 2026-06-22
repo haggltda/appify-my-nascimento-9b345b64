@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { useEmpresaId } from "@/hooks/useEmpresaId";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { cn } from "@/lib/utils";
 import {
   useImplantacaoContratos,
@@ -10,9 +10,10 @@ import {
   calcPrazo,
 } from "@/hooks/useImplantacao";
 import type { ImplantacaoContrato, ChecklistItem, Resposta } from "@/hooks/useImplantacao";
-import { CheckCircle2, Circle, Clock, Building2, ChevronDown, ChevronRight, Pencil } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Pencil, Eye, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -33,56 +34,67 @@ import {
 import { Label } from "@/components/ui/label";
 
 export default function Implantacao() {
-  const { data: empresaAtivaId } = useEmpresaId();
-  const { data: contratos = [], isLoading, error } = useImplantacaoContratos(empresaAtivaId ?? null);
+  const { empresa } = useEmpresaAtiva();
+  const empresaAtivaId = empresa.id;
+  const { data: contratos = [], isLoading, error } = useImplantacaoContratos(empresaAtivaId);
   const { data: checklistItems = [] } = useChecklistItems();
 
   const [contratoSelecionado, setContratoSelecionado] = useState<string | null>(null);
-  const [momentoFiltro, setMomentoFiltro] = useState<string>("Todos");
+  const [momentoFiltro, setMomentoFiltro] = useState<string>("");
+  const [setorFiltro, setSetorFiltro] = useState<string>("");
   const [editandoNome, setEditandoNome] = useState(false);
-  const [nomeConfirmados, setNomeConfirmados] = useState<Set<string>>(() => new Set());
+  const [nomeConfirmados, setNomeConfirmados] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("implantacao:nomes-confirmados");
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
   const qc = useQueryClient();
 
   const contrato = contratos.find((c) => c.id === contratoSelecionado) ?? null;
 
-  // Seleciona o primeiro automaticamente
   useMemo(() => {
     if (contratos.length > 0 && !contratoSelecionado) {
       setContratoSelecionado(contratos[0].id);
     }
   }, [contratos, contratoSelecionado]);
 
-  const momentos = useMemo(() => {
-    const set = new Set(checklistItems.map((i) => i.momento ?? "Geral"));
-    return ["Todos", ...Array.from(set)];
-  }, [checklistItems]);
+  const momentos = useMemo(() => [...new Set(checklistItems.map((i) => i.momento).filter(Boolean) as string[])], [checklistItems]);
+  const setores  = useMemo(() => [...new Set(checklistItems.map((i) => i.setor).filter(Boolean)  as string[])], [checklistItems]);
 
   const itensFiltrados = useMemo(() => {
-    if (momentoFiltro === "Todos") return checklistItems;
-    return checklistItems.filter((i) => (i.momento ?? "Geral") === momentoFiltro);
-  }, [checklistItems, momentoFiltro]);
+    return checklistItems.filter((i) => {
+      if (momentoFiltro && i.momento !== momentoFiltro) return false;
+      if (setorFiltro  && i.setor   !== setorFiltro)   return false;
+      return true;
+    });
+  }, [checklistItems, momentoFiltro, setorFiltro]);
 
-  const setores = useMemo(() => {
-    const set = new Set(itensFiltrados.map((i) => i.setor));
-    return Array.from(set);
-  }, [itensFiltrados]);
+  const setoresFiltrados = useMemo(() => [...new Set(itensFiltrados.map((i) => i.setor))], [itensFiltrados]);
 
-  // KPIs
   const { data: respostas = [] } = useRespostas(contratoSelecionado, empresaAtivaId ?? null);
+  const upsert = useRespostaUpsert(empresaAtivaId ?? "");
+
   const respostaMap = useMemo(() => {
     const m: Record<string, Resposta> = {};
     respostas.forEach((r) => { m[r.checklist_item_id] = r; });
     return m;
   }, [respostas]);
 
-  const total = checklistItems.length;
-  const respondidos = checklistItems.filter(
-    (i) => respostaMap[i.id]?.resposta && respostaMap[i.id].resposta !== ""
-  ).length;
-  const pct = total > 0 ? Math.round((respondidos / total) * 100) : 0;
+  const total       = checklistItems.length;
+  const respondidos = checklistItems.filter((i) => respostaMap[i.id]?.resposta).length;
+  const pct         = total > 0 ? Math.round((respondidos / total) * 100) : 0;
+
+  function confirmarNome(id: string) {
+    setNomeConfirmados((prev) => {
+      const next = new Set([...prev, id]);
+      localStorage.setItem("implantacao:nomes-confirmados", JSON.stringify([...next]));
+      return next;
+    });
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Implantação de Contratos"
         breadcrumb={["Contratos", "Implantação"]}
@@ -91,9 +103,9 @@ export default function Implantacao() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Kpi label="Contratos ativos" value={String(contratos.filter((c) => c.status === "ativo").length)} />
+        <Kpi label="Contratos ativos"  value={String(contratos.filter((c) => c.status === "ativo").length)} />
         <Kpi label="Itens respondidos" value={`${respondidos}/${total}`} />
-        <Kpi label="Progresso" value={`${pct}%`} highlight={pct === 100} />
+        <Kpi label="Progresso"         value={`${pct}%`} highlight={pct === 100} />
       </div>
 
       {!empresaAtivaId ? (
@@ -106,12 +118,9 @@ export default function Implantacao() {
         <Empty title="Nenhum contrato" message="Promova licitações ganhas no módulo Capa de Edital para criar contratos aqui." />
       ) : (
         <div className="space-y-4">
-          {/* Seletor de contrato + filtro de momento */}
+          {/* Seletor de contrato */}
           <div className="card-elevated flex flex-wrap items-center gap-3 p-3">
-            <Select
-              value={contratoSelecionado ?? ""}
-              onValueChange={setContratoSelecionado}
-            >
+            <Select value={contratoSelecionado ?? ""} onValueChange={setContratoSelecionado}>
               <SelectTrigger className="h-9 min-w-[260px] max-w-sm">
                 <SelectValue placeholder="Selecione o contrato" />
               </SelectTrigger>
@@ -121,18 +130,6 @@ export default function Implantacao() {
                 ))}
               </SelectContent>
             </Select>
-
-            <Select value={momentoFiltro} onValueChange={setMomentoFiltro}>
-              <SelectTrigger className="h-9 w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {momentos.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             {contrato && (
               <div className="text-xs text-muted-foreground">
                 Início: <span className="font-medium text-foreground">{contrato.data_inicio ?? "—"}</span>
@@ -149,18 +146,13 @@ export default function Implantacao() {
                 <span className="ml-2 font-mono">"{contrato.nome}"</span>
               </div>
               <div className="flex gap-2">
-                <Button
-                  size="sm" variant="outline"
+                <Button size="sm" variant="outline"
                   className="h-7 gap-1.5 px-2 text-[11px] border-amber-400/50 text-amber-700 hover:bg-amber-50"
-                  onClick={() => setEditandoNome(true)}
-                >
+                  onClick={() => setEditandoNome(true)}>
                   <Pencil className="h-3 w-3" /> Editar
                 </Button>
-                <Button
-                  size="sm"
-                  className="h-7 px-2 text-[11px] bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => setNomeConfirmados((s) => new Set([...s, contrato.id]))}
-                >
+                <Button size="sm" className="h-7 px-2 text-[11px] bg-emerald-600 hover:bg-emerald-700"
+                  onClick={() => confirmarNome(contrato.id)}>
                   Confirmar
                 </Button>
               </div>
@@ -175,43 +167,83 @@ export default function Implantacao() {
                 <span className="font-semibold">{pct}%</span>
               </div>
               <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-2 rounded-full bg-emerald-500 transition-all"
-                  style={{ width: `${pct}%` }}
-                />
+                <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
               </div>
             </div>
           )}
 
-          {/* Checklist por setor */}
-          {contrato && checklistItems.length === 0 ? (
-            <Empty title="Checklist vazio" message="Nenhum item de checklist cadastrado. Importe o Excel na tabela checklist_items no Supabase." />
-          ) : contrato ? (
-            <div className="space-y-3">
-              {setores.map((setor) => (
-                <SetorAccordion
-                  key={setor}
-                  setor={setor}
-                  items={itensFiltrados.filter((i) => i.setor === setor)}
-                  contrato={contrato}
-                  respostaMap={respostaMap}
-                  empresaId={empresaAtivaId!}
-                  contratoId={contratoSelecionado!}
-                />
+          {/* Filtro de Momento */}
+          {momentos.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <FiltroBtn active={momentoFiltro === ""} onClick={() => setMomentoFiltro("")}>Todos momentos</FiltroBtn>
+              {momentos.map((m) => (
+                <FiltroBtn key={m} active={momentoFiltro === m} onClick={() => setMomentoFiltro(momentoFiltro === m ? "" : m)}>{m}</FiltroBtn>
               ))}
+            </div>
+          )}
+
+          {/* Filtro de Setor */}
+          {setores.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <FiltroBtn active={setorFiltro === ""} onClick={() => setSetorFiltro("")} variant="setor">Todos setores</FiltroBtn>
+              {setores.map((s) => (
+                <FiltroBtn key={s} active={setorFiltro === s} onClick={() => setSetorFiltro(setorFiltro === s ? "" : s)} variant="setor">{s}</FiltroBtn>
+              ))}
+            </div>
+          )}
+
+          {/* Cards por setor */}
+          {contrato && checklistItems.length === 0 ? (
+            <Empty title="Checklist vazio" message="Nenhum item de checklist cadastrado." />
+          ) : contrato ? (
+            <div className="space-y-6">
+              {setoresFiltrados.map((setor) => {
+                const itensSetor = itensFiltrados.filter((i) => i.setor === setor);
+                const respSetor  = itensSetor.filter((i) => respostaMap[i.id]?.resposta).length;
+                return (
+                  <section key={setor}>
+                    {/* Header do setor */}
+                    <div className="flex items-center gap-3 border-b border-border pb-2 mb-3 flex-wrap">
+                      <span className="bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">{setor}</span>
+                      <span className="font-bold text-sm">{setor}</span>
+                      <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{respSetor}/{itensSetor.length}</span>
+                        <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full transition-all"
+                            style={{ width: `${itensSetor.length ? Math.round(respSetor / itensSetor.length * 100) : 0}%` }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Grid de cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {itensSetor.map((item) => (
+                        <CardChecklist
+                          key={item.id}
+                          item={item}
+                          contrato={contrato}
+                          resposta={respostaMap[item.id] ?? null}
+                          onSave={(resposta, obs) =>
+                            upsert.mutateAsync({ contratoId: contratoSelecionado!, itemId: item.id, resposta, obs })
+                          }
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           ) : null}
         </div>
       )}
 
-      {/* Modal editar nome */}
       {editandoNome && contrato && (
         <EditarNomeModal
           contrato={contrato}
           onClose={() => setEditandoNome(false)}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["implantacao", empresaAtivaId] });
-            setNomeConfirmados((s) => new Set([...s, contrato.id]));
+            confirmarNome(contrato.id);
           }}
         />
       )}
@@ -219,112 +251,176 @@ export default function Implantacao() {
   );
 }
 
-// ── Accordion por setor ───────────────────────────────────────────────────
+// ── Card individual ───────────────────────────────────────────────────────────
 
-function SetorAccordion({
-  setor, items, contrato, respostaMap, empresaId, contratoId,
+function CardChecklist({
+  item,
+  contrato,
+  resposta: savedResp,
+  onSave,
 }: {
-  setor: string;
-  items: ChecklistItem[];
+  item: ChecklistItem;
   contrato: ImplantacaoContrato;
-  respostaMap: Record<string, Resposta>;
-  empresaId: string;
-  contratoId: string;
+  resposta: Resposta | null;
+  onSave: (resposta: string, obs: string) => Promise<unknown>;
 }) {
-  const [open, setOpen] = useState(true);
-  const upsert = useRespostaUpsert(empresaId);
+  const isSimNao   = item.tipo_resposta === "simnao";
+  const prazo      = calcPrazo(item, contrato);
+  const answered   = !!savedResp?.resposta;
 
-  const respondidos = items.filter((i) => respostaMap[i.id]?.resposta).length;
+  const [localResp, setLocalResp] = useState<string>(savedResp?.resposta ?? "");
+  const [localObs,  setLocalObs]  = useState<string>(savedResp?.obs ?? "");
+  const [state, setState]         = useState<"idle" | "saving" | "saved" | "failed">("idle");
+
+  async function handleSave() {
+    if (!localResp) return;
+    setState("saving");
+    try {
+      await onSave(localResp, localObs);
+      setState("saved");
+      setTimeout(() => setState("idle"), 2000);
+    } catch {
+      setState("failed");
+      setTimeout(() => setState("idle"), 2500);
+    }
+  }
 
   return (
-    <div className="card-elevated overflow-hidden">
-      <button
-        className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left hover:bg-muted/30"
-        onClick={() => setOpen((o) => !o)}
-      >
-        <div className="flex items-center gap-3">
-          <Building2 className="h-4 w-4 text-muted-foreground" />
-          <span className="font-semibold">{setor}</span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-            {respondidos}/{items.length}
-          </span>
+    <div className={cn(
+      "rounded-xl border bg-card flex flex-col gap-3 shadow-sm transition-all",
+      answered ? "border-l-4 border-l-emerald-400" : "border-border",
+      "hover:shadow-md hover:border-primary/30 p-4"
+    )}>
+      {/* Cabeçalho */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {item.responsavel_acao && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-secondary border border-border px-2 py-0.5 rounded">
+              <ArrowRight className="w-3 h-3 text-primary" />
+              {item.responsavel_acao}
+            </span>
+          )}
+          {item.categoria && (
+            <span className="text-[11px] font-semibold text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded">
+              {item.categoria}
+            </span>
+          )}
         </div>
-        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-      </button>
+        {item.momento && (
+          <span className="text-[10px] text-muted-foreground text-right shrink-0 leading-tight max-w-[120px]">
+            {item.momento}
+          </span>
+        )}
+      </div>
 
-      {open && (
-        <div className="divide-y divide-border border-t border-border">
-          {items.map((item) => {
-            const resp = respostaMap[item.id];
-            const prazo = calcPrazo(item, contrato);
+      {/* Pergunta */}
+      <p className="text-sm font-semibold text-foreground leading-snug">{item.item}</p>
 
-            return (
-              <div key={item.id} className="flex flex-wrap items-start gap-3 px-5 py-3">
-                <div className="flex-1 min-w-0 space-y-0.5">
-                  <p className="text-sm font-medium">{item.item}</p>
-                  <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-                    {item.momento && <span>Momento: <strong>{item.momento}</strong></span>}
-                    {prazo && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {prazo}</span>}
-                    {item.responsavel_acao && <span>Resp.: {item.responsavel_acao}</span>}
-                  </div>
-                  {item.plano_acao && (
-                    <p className="text-[11px] italic text-muted-foreground">{item.plano_acao}</p>
-                  )}
-                </div>
+      {/* Resposta */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Resposta</span>
+        {isSimNao ? (
+          <div className="flex gap-2">
+            {(["Sim", "Não", "N/A"] as const).map((op) => (
+              <button
+                key={op}
+                onClick={() => setLocalResp(localResp === op ? "" : op)}
+                className={cn(
+                  "flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all",
+                  localResp === op && op === "Sim"  && "bg-emerald-50 border-emerald-500 text-emerald-700",
+                  localResp === op && op === "Não"  && "bg-red-50 border-red-500 text-red-700",
+                  localResp === op && op === "N/A"  && "bg-muted border-muted-foreground/40 text-muted-foreground",
+                  localResp !== op && "bg-card border-border text-foreground hover:bg-muted/50"
+                )}
+              >
+                {op === "Sim" ? "✓ Sim" : op === "Não" ? "✗ Não" : "N/A"}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <Textarea
+            placeholder="Digite a resposta…"
+            className="min-h-[52px] text-xs resize-y"
+            value={localResp}
+            onChange={(e) => setLocalResp(e.target.value)}
+          />
+        )}
+      </div>
 
-                {/* Resposta */}
-                <div className="shrink-0">
-                  {item.tipo_resposta === "simnao" ? (
-                    <div className="flex gap-2">
-                      {["Sim", "Não", "N/A"].map((op) => (
-                        <Button
-                          key={op}
-                          size="sm"
-                          variant={resp?.resposta === op ? "default" : "outline"}
-                          className={cn(
-                            "h-7 px-2 text-[11px]",
-                            resp?.resposta === op && op === "Sim" && "bg-emerald-600 hover:bg-emerald-700",
-                            resp?.resposta === op && op === "Não" && "bg-red-600 hover:bg-red-700",
-                          )}
-                          onClick={() =>
-                            upsert.mutate({ contratoId, itemId: item.id, resposta: op })
-                          }
-                        >
-                          {op}
-                        </Button>
-                      ))}
-                    </div>
-                  ) : (
-                    <input
-                      className="h-8 w-36 rounded-md border border-border bg-card px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring/30"
-                      placeholder="Resposta…"
-                      defaultValue={resp?.resposta ?? ""}
-                      onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        if (v) upsert.mutate({ contratoId, itemId: item.id, resposta: v });
-                      }}
-                    />
-                  )}
-                </div>
+      {/* Observações */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Observações</span>
+        <Textarea
+          placeholder="Adicione observações…"
+          className="min-h-[40px] text-xs resize-y"
+          value={localObs}
+          onChange={(e) => setLocalObs(e.target.value)}
+        />
+      </div>
 
-                {/* Ícone de status */}
-                <div className="shrink-0 pt-0.5">
-                  {resp?.resposta ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  ) : (
-                    <Circle className="h-4 w-4 text-muted-foreground/40" />
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      {/* Salvar */}
+      <Button
+        size="sm"
+        className={cn(
+          "w-full text-xs font-semibold",
+          state === "saved"  && "bg-emerald-600 hover:bg-emerald-600",
+          state === "failed" && "bg-destructive hover:bg-destructive",
+        )}
+        disabled={state === "saving" || !localResp}
+        onClick={handleSave}
+      >
+        {state === "saving" ? "Salvando…" : state === "saved" ? "✓ Salvo" : state === "failed" ? "✗ Falhou" : "Salvar"}
+      </Button>
+
+      {/* Meta-block */}
+      {(item.plano_acao || item.responsavel_acao || item.onde || prazo) && (
+        <div className="bg-muted/60 rounded-lg px-3 py-2.5 space-y-1.5 text-[11px]">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Meta-block — contexto para execução</p>
+          {item.plano_acao && <MetaRow label="Plano de ação" value={item.plano_acao} />}
+          {item.responsavel_acao && <MetaRow label="Resp. ação" value={item.responsavel_acao} />}
+          {item.onde && <MetaRow label="Onde" value={item.onde} />}
+          {prazo && <MetaRow label="Prazo" value={prazo} highlight />}
         </div>
       )}
     </div>
   );
 }
 
-// ── Modal editar nome do contrato ─────────────────────────────────────────
+function MetaRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className="flex gap-2">
+      <span className="text-muted-foreground min-w-[80px] shrink-0 font-semibold">{label}</span>
+      <span className={highlight ? "text-orange-600 font-semibold" : "text-foreground"}>{value}</span>
+    </div>
+  );
+}
+
+// ── Filtro pill ───────────────────────────────────────────────────────────────
+
+function FiltroBtn({ children, active, onClick, variant = "momento" }: {
+  children: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  variant?: "momento" | "setor";
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "text-xs font-semibold px-3 py-1 rounded-full border transition-all",
+        active
+          ? variant === "setor"
+            ? "bg-primary text-primary-foreground border-primary"
+            : "bg-foreground text-background border-foreground"
+          : "bg-card text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ── Modal editar nome ─────────────────────────────────────────────────────────
 
 function EditarNomeModal({ contrato, onClose, onSaved }: {
   contrato: ImplantacaoContrato;
@@ -337,10 +433,7 @@ function EditarNomeModal({ contrato, onClose, onSaved }: {
   async function handleSave() {
     if (!nome.trim()) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("implantacao_contrato")
-      .update({ nome: nome.trim() })
-      .eq("id", contrato.id);
+    const { error } = await supabase.from("implantacao_contrato").update({ nome: nome.trim() }).eq("id", contrato.id);
     setSaving(false);
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
@@ -354,9 +447,7 @@ function EditarNomeModal({ contrato, onClose, onSaved }: {
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Editar nome do contrato</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>Editar nome do contrato</DialogTitle></DialogHeader>
         <div className="space-y-2 py-2">
           <Label className="text-xs">Nome</Label>
           <Input value={nome} onChange={(e) => setNome(e.target.value)} className="h-9" autoFocus />
@@ -372,15 +463,13 @@ function EditarNomeModal({ contrato, onClose, onSaved }: {
   );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function Kpi({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className="card-elevated p-5">
       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={cn("mt-2 font-display text-3xl font-bold", highlight ? "text-emerald-600" : "text-foreground")}>
-        {value}
-      </p>
+      <p className={cn("mt-2 font-display text-3xl font-bold", highlight ? "text-emerald-600" : "text-foreground")}>{value}</p>
     </div>
   );
 }

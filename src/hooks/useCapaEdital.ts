@@ -34,15 +34,20 @@ export interface CapaEdital {
   issqn: string | null;
   vale_transporte_valor: string | null;
   garantia: string | null;
+  garantia_proposta: string | null;
+  garantia_contratual: string | null;
   material: string | null;
   material_tipo: string | null;
   reajuste: string[] | null;
 
+  responsavel: string | null;
+  trabalho_escolar: boolean | null;
+  emergencial: boolean | null;
+  diluicao_meses: number | null;
   diluir_verbas: string | null;
   conta_vinculada: string | null;
   conta_vinculada_quem_abre: string | null;
   ponto_eletronico: string[] | null;
-  trabalho_escolar: string | null;
 
   observacoes: string | null;
 
