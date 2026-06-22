@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, Paperclip, Download, UserCircle2, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Solicitacao {
@@ -17,19 +19,55 @@ interface Solicitacao {
   titulo: string;
   descricao: string | null;
   etapa: string;
+  responsavel_user_id: string | null;
   created_at: string;
 }
 
-const ETAPAS: Array<{ key: string; label: string }> = [
-  { key: "solicitacoes", label: "Solicitações" },
-  { key: "aprovado_presidencia", label: "Aprovado Presidência" },
-  { key: "projetos_definicao_responsavel", label: "Projetos e Definição de Responsável" },
-  { key: "em_andamento", label: "Em Andamento" },
-  { key: "validacao_presidencia", label: "Validação Presidência" },
-  { key: "teste_setor_responsavel", label: "Teste com Setor Responsável" },
-  { key: "treinamentos", label: "Treinamentos" },
-  { key: "implantacao", label: "Implantação" },
+interface Anexo {
+  id: string;
+  storage_path: string;
+  nome_arquivo: string;
+  created_at: string;
+}
+
+interface Comentario {
+  id: string;
+  autor_id: string;
+  texto: string;
+  created_at: string;
+}
+
+const BUCKET = "sistema-solicitacoes";
+
+const ETAPAS: Array<{ key: string; label: string; cor: string }> = [
+  { key: "solicitacoes", label: "Solicitações", cor: "muted" },
+  { key: "aprovado_presidencia", label: "Aprovado Presidência", cor: "primary" },
+  { key: "projetos_definicao_responsavel", label: "Projetos e Definição de Responsável", cor: "accent" },
+  { key: "em_andamento", label: "Em Andamento", cor: "info" },
+  { key: "validacao_presidencia", label: "Validação Presidência", cor: "primary" },
+  { key: "teste_setor_responsavel", label: "Teste com Setor Responsável", cor: "warning" },
+  { key: "treinamentos", label: "Treinamentos", cor: "accent" },
+  { key: "implantacao", label: "Implantação", cor: "success" },
 ];
+
+// Classes Tailwind por token de cor — precisam estar escritas por extenso
+// (não construídas via template string) pro JIT do Tailwind conseguir detectar.
+const COR_DOT: Record<string, string> = {
+  muted: "bg-muted-foreground/40",
+  primary: "bg-primary",
+  accent: "bg-accent",
+  info: "bg-info",
+  warning: "bg-warning",
+  success: "bg-success",
+};
+const COR_BORDER: Record<string, string> = {
+  muted: "border-l-muted-foreground/40",
+  primary: "border-l-primary",
+  accent: "border-l-accent",
+  info: "border-l-info",
+  warning: "border-l-warning",
+  success: "border-l-success",
+};
 
 // Fluxo linear: cada etapa só avança pra próxima exata, e só quem tem o
 // toggle daquela transição ligado (em /app/administracao?tab=modulos,
@@ -44,6 +82,10 @@ const PROXIMA_ETAPA: Record<string, { para: string; codigo: string }> = {
   treinamentos: { para: "implantacao", codigo: "sistemas_mover_treinamentos_implantacao" },
 };
 
+function iniciais(nome: string): string {
+  return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
+}
+
 export default function SolicitacoesErp() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -52,9 +94,18 @@ export default function SolicitacoesErp() {
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novoDescricao, setNovoDescricao] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [detalheId, setDetalheId] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [enviandoAnexo, setEnviandoAnexo] = useState(false);
+  const [novoComentario, setNovoComentario] = useState("");
+  const [enviandoComentario, setEnviandoComentario] = useState(false);
 
   const podeCriar = access?.codes.has("sistemas_criar_solicitacao") ?? false;
   const podeMover = (codigo: string) => access?.codes.has(codigo) ?? false;
+  // Definir responsável só é permitido na etapa "Projetos e Definição de
+  // Responsável", por quem pode mover o card dela pra "Em Andamento" —
+  // mesma regra reforçada no banco pelo trigger.
+  const podeDefinirResponsavel = podeMover("sistemas_mover_projetos_em_andamento");
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["sistema_solicitacao"],
@@ -63,12 +114,22 @@ export default function SolicitacoesErp() {
       // (mesmo padrão usado em rh/Ferias.tsx pra tabelas recém-criadas).
       const { data, error } = await (supabase as any)
         .from("sistema_solicitacao")
-        .select("id, titulo, descricao, etapa, created_at")
+        .select("id, titulo, descricao, etapa, responsavel_user_id, created_at")
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Solicitacao[];
     },
   });
+
+  const { data: usuarios = [] } = useQuery({
+    queryKey: ["sistemas-usuarios-ativos"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("listar_usuarios_ativos");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; display_name: string }>;
+    },
+  });
+  const nomeUsuario = (id: string | null) => usuarios.find((u) => u.id === id)?.display_name ?? null;
 
   const grouped = useMemo(() => {
     const m = new Map<string, Solicitacao[]>();
@@ -76,6 +137,36 @@ export default function SolicitacoesErp() {
     rows.forEach((r) => m.get(r.etapa)?.push(r));
     return m;
   }, [rows]);
+
+  const cardDetalhe = rows.find((r) => r.id === detalheId) ?? null;
+
+  const { data: anexos = [] } = useQuery({
+    queryKey: ["sistema_solicitacao_anexo", detalheId],
+    enabled: !!detalheId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("sistema_solicitacao_anexo")
+        .select("id, storage_path, nome_arquivo, created_at")
+        .eq("solicitacao_id", detalheId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Anexo[];
+    },
+  });
+
+  const { data: comentarios = [] } = useQuery({
+    queryKey: ["sistema_solicitacao_comentario", detalheId],
+    enabled: !!detalheId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("sistema_solicitacao_comentario")
+        .select("id, autor_id, texto, created_at")
+        .eq("solicitacao_id", detalheId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Comentario[];
+    },
+  });
 
   const criar = async () => {
     if (!novoTitulo.trim()) return;
@@ -120,6 +211,64 @@ export default function SolicitacoesErp() {
     }
   };
 
+  const definirResponsavel = async (userId: string) => {
+    if (!cardDetalhe) return;
+    const { error } = await (supabase as any)
+      .from("sistema_solicitacao")
+      .update({ responsavel_user_id: userId })
+      .eq("id", cardDetalhe.id);
+    if (error) {
+      toast({ title: "Erro ao definir responsável", description: error.message, variant: "destructive" });
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
+  };
+
+  const anexar = async () => {
+    if (!pendingFile || !cardDetalhe) return;
+    setEnviandoAnexo(true);
+    const path = `${cardDetalhe.id}/${Date.now()}-${pendingFile.name}`;
+    const up = await supabase.storage.from(BUCKET).upload(path, pendingFile, { contentType: pendingFile.type });
+    if (up.error) {
+      setEnviandoAnexo(false);
+      toast({ title: "Erro ao enviar arquivo", description: up.error.message, variant: "destructive" });
+      return;
+    }
+    const { error } = await (supabase as any).from("sistema_solicitacao_anexo").insert({
+      solicitacao_id: cardDetalhe.id,
+      storage_path: path,
+      nome_arquivo: pendingFile.name,
+      mime_type: pendingFile.type || null,
+      tamanho_bytes: pendingFile.size,
+    });
+    setEnviandoAnexo(false);
+    if (error) {
+      toast({ title: "Erro ao registrar anexo", description: error.message, variant: "destructive" });
+      return;
+    }
+    setPendingFile(null);
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao_anexo", cardDetalhe.id] });
+    toast({ title: "Anexo enviado" });
+  };
+
+  const getDownloadUrl = (path: string) => supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+
+  const comentar = async () => {
+    if (!novoComentario.trim() || !cardDetalhe) return;
+    setEnviandoComentario(true);
+    const { error } = await (supabase as any).from("sistema_solicitacao_comentario").insert({
+      solicitacao_id: cardDetalhe.id,
+      texto: novoComentario.trim(),
+    });
+    setEnviandoComentario(false);
+    if (error) {
+      toast({ title: "Erro ao comentar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setNovoComentario("");
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao_comentario", cardDetalhe.id] });
+  };
+
   return (
     <div>
       <PageHeader
@@ -147,24 +296,39 @@ export default function SolicitacoesErp() {
             onDrop={(e) => onDrop(e, etapa.key)}
           >
             <div className="mb-2 flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">{etapa.label}</span>
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
+                <span className={`h-2 w-2 rounded-full ${COR_DOT[etapa.cor]}`} />
+                {etapa.label}
+              </span>
               <Badge variant="outline" className="text-[10px]">{grouped.get(etapa.key)?.length ?? 0}</Badge>
             </div>
             <div className="space-y-2">
               {grouped.get(etapa.key)?.map((card) => {
                 const transicao = PROXIMA_ETAPA[card.etapa];
                 const arrastavel = !!transicao && podeMover(transicao.codigo);
+                const responsavelNome = nomeUsuario(card.responsavel_user_id);
                 return (
                   <Card
                     key={card.id}
                     draggable={arrastavel}
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", card.id)}
-                    className={arrastavel ? "cursor-grab p-3" : "p-3"}
+                    onClick={() => setDetalheId(card.id)}
+                    className={`border-l-4 p-3 ${COR_BORDER[etapa.cor]} ${arrastavel ? "cursor-grab" : "cursor-pointer"}`}
                   >
                     <p className="text-xs font-medium">{card.titulo}</p>
                     {card.descricao && (
                       <p className="mt-1 line-clamp-3 text-[11px] text-muted-foreground">{card.descricao}</p>
                     )}
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <Avatar className="h-5 w-5">
+                        <AvatarFallback className="text-[9px]">
+                          {responsavelNome ? iniciais(responsavelNome) : <UserCircle2 className="h-3 w-3" />}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="truncate text-[10px] text-muted-foreground">
+                        {responsavelNome ?? "Sem responsável"}
+                      </span>
+                    </div>
                   </Card>
                 );
               })}
@@ -193,6 +357,106 @@ export default function SolicitacoesErp() {
               {salvando ? "Salvando…" : "Criar"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!detalheId} onOpenChange={(open) => { if (!open) { setDetalheId(null); setPendingFile(null); setNovoComentario(""); } }}>
+        <DialogContent className="max-w-3xl sm:max-w-3xl">
+          {cardDetalhe && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{cardDetalhe.titulo}</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-6 md:grid-cols-[1fr_280px]">
+                <div className="space-y-4">
+                  {cardDetalhe.descricao && (
+                    <p className="text-sm text-muted-foreground">{cardDetalhe.descricao}</p>
+                  )}
+
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Responsável</p>
+                    <SearchableSelect
+                      value={cardDetalhe.responsavel_user_id}
+                      onChange={definirResponsavel}
+                      options={usuarios.map((u) => ({ value: u.id, label: u.display_name }))}
+                      placeholder="Sem responsável"
+                      searchPlaceholder="Buscar usuário..."
+                      disabled={!podeDefinirResponsavel || cardDetalhe.etapa !== "projetos_definicao_responsavel"}
+                    />
+                    {cardDetalhe.etapa !== "projetos_definicao_responsavel" && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Só pode ser definido com o card em "Projetos e Definição de Responsável".
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Anexos</p>
+                    <div className="space-y-1">
+                      {anexos.map((a) => (
+                        <div key={a.id} className="flex items-center justify-between rounded border border-border px-2 py-1.5 text-xs">
+                          <span className="truncate" title={a.nome_arquivo}>{a.nome_arquivo}</span>
+                          <a href={getDownloadUrl(a.storage_path)} target="_blank" rel="noopener noreferrer" className="ml-2 shrink-0 text-primary hover:underline">
+                            <Download className="h-3.5 w-3.5" />
+                          </a>
+                        </div>
+                      ))}
+                      {anexos.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhum anexo ainda.</p>}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
+                        className="flex-1 cursor-pointer text-xs"
+                      />
+                      {pendingFile && (
+                        <Button size="sm" onClick={anexar} disabled={enviandoAnexo} className="gap-1.5">
+                          <Paperclip className="h-3.5 w-3.5" />
+                          {enviandoAnexo ? "Enviando…" : "Anexar"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex h-[420px] min-h-0 flex-col border-l border-border pl-4">
+                  <p className="mb-2 shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comentários</p>
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                    {comentarios.map((c) => {
+                      const nome = nomeUsuario(c.autor_id) ?? "Usuário";
+                      return (
+                        <div key={c.id} className="flex items-start gap-2">
+                          <Avatar className="h-6 w-6 shrink-0">
+                            <AvatarFallback className="text-[9px]">{iniciais(nome)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="text-[11px]">
+                              <span className="font-medium">{nome}</span>
+                              <span className="ml-1.5 text-muted-foreground">{new Date(c.created_at).toLocaleString("pt-BR")}</span>
+                            </p>
+                            <p className="break-words text-xs">{c.texto}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {comentarios.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhum comentário ainda.</p>}
+                  </div>
+                  <div className="mt-3 flex shrink-0 items-center gap-2">
+                    <Input
+                      placeholder="Comentar..."
+                      value={novoComentario}
+                      onChange={(e) => setNovoComentario(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && comentar()}
+                      className="text-xs"
+                    />
+                    <Button size="icon" variant="ghost" onClick={comentar} disabled={!novoComentario.trim() || enviandoComentario}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

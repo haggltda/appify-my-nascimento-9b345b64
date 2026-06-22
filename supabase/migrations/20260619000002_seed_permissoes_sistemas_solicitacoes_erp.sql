@@ -10,7 +10,8 @@
 DO $$
 DECLARE v_ids uuid[];
 BEGIN
-  SELECT array_agg(id) INTO v_ids FROM public.profiles WHERE display_name ILIKE '%Eduardo Jeiel%';
+  SELECT array_agg(id) INTO v_ids FROM public.profiles
+   WHERE display_name ILIKE '%Eduardo Jeiel%' AND display_name NOT ILIKE '%teste%';
   IF v_ids IS NULL OR array_length(v_ids, 1) <> 1 THEN
     RAISE EXCEPTION 'Esperava 1 profile para "Eduardo Jeiel", encontrou %.', COALESCE(array_length(v_ids, 1), 0);
   END IF;
@@ -24,7 +25,8 @@ END $$;
 DO $$
 DECLARE v_ids uuid[];
 BEGIN
-  SELECT array_agg(id) INTO v_ids FROM public.profiles WHERE display_name ILIKE '%Helena%';
+  SELECT array_agg(id) INTO v_ids FROM public.profiles
+   WHERE display_name ILIKE '%Helena%' AND display_name NOT ILIKE '%teste%';
   IF v_ids IS NULL OR array_length(v_ids, 1) <> 1 THEN
     RAISE EXCEPTION 'Esperava 1 profile para "Helena", encontrou %.', COALESCE(array_length(v_ids, 1), 0);
   END IF;
@@ -39,9 +41,13 @@ END $$;
 DO $$
 DECLARE v_ids uuid[];
 BEGIN
-  SELECT array_agg(id) INTO v_ids FROM public.profiles WHERE display_name ILIKE '%Iury%';
+  -- Existe "Iury Silva - Testes" (conta de teste, será apagada) além da
+  -- conta oficial — exclui qualquer coisa com "teste" pra não pegar a errada.
+  SELECT array_agg(id) INTO v_ids FROM public.profiles
+   WHERE display_name ILIKE '%Iury de Jesus Silva%'
+     AND display_name NOT ILIKE '%teste%';
   IF v_ids IS NULL OR array_length(v_ids, 1) <> 1 THEN
-    RAISE EXCEPTION 'Esperava 1 profile para "Iury", encontrou %.', COALESCE(array_length(v_ids, 1), 0);
+    RAISE EXCEPTION 'Esperava 1 profile para "Iury de Jesus Silva", encontrou %.', COALESCE(array_length(v_ids, 1), 0);
   END IF;
 
   INSERT INTO public.screen_permission_user (user_id, menu_codigo, acao, allow, empresa_id) VALUES
@@ -57,7 +63,8 @@ END $$;
 DO $$
 DECLARE v_ids uuid[];
 BEGIN
-  SELECT array_agg(id) INTO v_ids FROM public.profiles WHERE display_name ILIKE '%Yuri%';
+  SELECT array_agg(id) INTO v_ids FROM public.profiles
+   WHERE display_name ILIKE '%Yuri%' AND display_name NOT ILIKE '%teste%';
   IF v_ids IS NULL OR array_length(v_ids, 1) <> 1 THEN
     RAISE EXCEPTION 'Esperava 1 profile para "Yuri", encontrou %.', COALESCE(array_length(v_ids, 1), 0);
   END IF;
@@ -73,7 +80,8 @@ END $$;
 DO $$
 DECLARE v_ids uuid[];
 BEGIN
-  SELECT array_agg(id) INTO v_ids FROM public.profiles WHERE display_name ILIKE '%Érica%' OR display_name ILIKE '%Erica%';
+  SELECT array_agg(id) INTO v_ids FROM public.profiles
+   WHERE (display_name ILIKE '%Érica%' OR display_name ILIKE '%Erica%') AND display_name NOT ILIKE '%teste%';
   IF v_ids IS NULL OR array_length(v_ids, 1) <> 1 THEN
     RAISE EXCEPTION 'Esperava 1 profile para "Érica", encontrou %.', COALESCE(array_length(v_ids, 1), 0);
   END IF;
