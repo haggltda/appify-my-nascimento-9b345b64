@@ -307,22 +307,22 @@ export default function SolicitacoesErp() {
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 
-      <div className="flex gap-3 overflow-x-auto pb-4">
+      <div className="-mb-4 flex h-[calc(100vh-170px)] min-h-[420px] gap-3 overflow-x-auto pb-0 sm:-mb-6 lg:-mb-8">
         {ETAPAS.map((etapa) => (
           <div
             key={etapa.key}
-            className="min-w-[260px] flex-1"
+            className="flex h-full min-w-[260px] flex-1 flex-col overflow-hidden"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => onDrop(e, etapa.key)}
           >
-            <div className="mb-2 flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
+            <div className="mb-2 flex shrink-0 items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
               <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
                 <span className={`h-2 w-2 rounded-full ${COR_DOT[etapa.cor]}`} />
                 {etapa.label}
               </span>
               <Badge variant="outline" className="text-[10px]">{grouped.get(etapa.key)?.length ?? 0}</Badge>
             </div>
-            <div className="space-y-2">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {grouped.get(etapa.key)?.map((card) => {
                 const transicao = PROXIMA_ETAPA[card.etapa];
                 const arrastavel = !!transicao && podeMover(transicao.codigo);
