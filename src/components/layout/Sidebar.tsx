@@ -375,6 +375,25 @@ const sistemasModule: ModuleDef = {
   ],
 };
 
+// Jurídico — Gestão Patrimonial e Obrigações
+const juridicoModule: ModuleDef = {
+  id: "juridico",
+  label: "Jurídico",
+  description: "Patrimônios e obrigações",
+  icon: Scale,
+  basePath: "/app/juridico/patrimonios",
+  status: "active",
+  groups: [
+    {
+      label: "Gestão Patrimonial",
+      defaultOpen: true,
+      items: [
+        { label: "Patrimônios / Contas", to: "/app/juridico/patrimonios", icon: Building2 },
+      ],
+    },
+  ],
+};
+
 // BI
 const biModule: ModuleDef = {
   id: "bi",
@@ -448,6 +467,7 @@ const erpModules: ModuleDef[] = [
   recrutamentoModule,
   encarregadosModule,
   sistemasModule,
+  juridicoModule,
   biModule,
 ];
 
@@ -471,7 +491,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios"];
   const visibleModules = useMemo(() => {
     if (!access) return allModules;
     const canSee = (to: string) => {

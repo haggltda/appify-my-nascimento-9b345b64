@@ -97,6 +97,7 @@ import Contabilidade from "./pages/Contabilidade";
 import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
 import Recrutamento from "./pages/rh/Recrutamento";
+import Patrimonios from "./pages/juridico/Patrimonios";
 import Ferias from "./pages/rh/Ferias";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
 import BIDashboard from "./pages/bi/Dashboard";
@@ -237,6 +238,9 @@ const App = () => (
             <Route path="rh/folha" element={<Folha />} />
             <Route path="rh/ferias" element={<Ferias />} />
             <Route path="rh/recrutamento" element={<Recrutamento />} />
+            {/* Jurídico — Gestão Patrimonial */}
+            <Route path="juridico" element={<Navigate to="/app/juridico/patrimonios" replace />} />
+            <Route path="juridico/patrimonios" element={<Patrimonios />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}
