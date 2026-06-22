@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public."JUR_CONTAS" (
   id                 bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   created_at         timestamptz NOT NULL DEFAULT now(),
   updated_at         timestamptz NOT NULL DEFAULT now(),
+  patrimonio_id      bigint REFERENCES public."JUR_PATRIMONIOS"(id) ON DELETE CASCADE,
   descricao          text NOT NULL,
   categoria          text,                 -- Água, Luz, Internet, Aluguel...
   empresa            text,
@@ -40,6 +41,10 @@ CREATE TABLE IF NOT EXISTS public."JUR_CONTA_LANCAMENTOS" (
 
 CREATE INDEX IF NOT EXISTS jur_clanc_conta_idx ON public."JUR_CONTA_LANCAMENTOS"(conta_id);
 CREATE INDEX IF NOT EXISTS jur_clanc_comp_idx  ON public."JUR_CONTA_LANCAMENTOS"(competencia);
+
+-- Contas vinculadas ao patrimônio (garante a coluna mesmo se a tabela já existir).
+ALTER TABLE public."JUR_CONTAS" ADD COLUMN IF NOT EXISTS patrimonio_id bigint REFERENCES public."JUR_PATRIMONIOS"(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS jur_contas_pat_idx ON public."JUR_CONTAS"(patrimonio_id);
 
 DO $$
 DECLARE t text;

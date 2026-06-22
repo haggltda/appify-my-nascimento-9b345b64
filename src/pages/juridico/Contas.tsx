@@ -41,7 +41,7 @@ function ocorrencias(dataInicio: string | undefined, intervalo: number | undefin
 
 const CONTA_RESET = { descricao: "", categoria: "Água", empresa: "", responsavel: "", onde_pagar: "", possui_recorrencia: "Não", intervalo_dias: "30", data_inicio: hoje(), valor: "", status: "Ativo", observacoes: "" };
 
-export default function Contas() {
+export default function Contas({ patrimonioId }: { patrimonioId: number }) {
   const [contas, setContas] = useState<Conta[]>([]);
   const [lancs, setLancs] = useState<Lanc[]>([]);
   const [comp, setComp] = useState(compAtual());
@@ -56,10 +56,10 @@ export default function Contas() {
   const toast = (msg: string, t = "info") => { const id = Date.now() + Math.random(); setToasts(x => [...x, { id, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== id)), 3200); };
 
   const loadContas = useCallback(async () => {
-    const { data } = await (supabase as any).from("JUR_CONTAS").select("*").order("descricao");
+    const { data } = await (supabase as any).from("JUR_CONTAS").select("*").eq("patrimonio_id", patrimonioId).order("descricao");
     setContas(data ?? []);
     return (data ?? []) as Conta[];
-  }, []);
+  }, [patrimonioId]);
 
   // Gera (idempotente) os lançamentos recorrentes do mês e carrega tudo.
   const gerarECarregar = useCallback(async (cs: Conta[], competencia: string) => {
@@ -93,7 +93,7 @@ export default function Contas() {
       descricao: form.descricao, categoria: form.categoria, empresa: form.empresa || null, responsavel: form.responsavel || null,
       onde_pagar: form.onde_pagar || null, possui_recorrencia: rec, intervalo_dias: rec ? Number(form.intervalo_dias) : null,
       data_inicio: form.data_inicio || null, valor: form.valor ? Number(form.valor) : null, status: form.status,
-      observacoes: form.observacoes || null, updated_at: new Date().toISOString(),
+      observacoes: form.observacoes || null, patrimonio_id: patrimonioId, updated_at: new Date().toISOString(),
     };
     if (editId) {
       const { error } = await (supabase as any).from("JUR_CONTAS").update(payload).eq("id", editId);
@@ -143,7 +143,7 @@ export default function Contas() {
   );
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
+    <div>
       <style>{`
         .jc-fi{width:100%;height:40px;border:1px solid #cbd5e1;border-radius:9px;padding:0 11px;font-size:13px;background:#fff;box-sizing:border-box}
         textarea.jc-fi{height:auto;padding:9px 11px;resize:vertical}
@@ -159,13 +159,13 @@ export default function Contas() {
         .jc-tab.on{background:#0f3171;color:#fff;border-color:#0f3171}
       `}</style>
 
-      {/* Topbar */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 16, background: "linear-gradient(135deg,#fff,#f8fbff)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#0f3171" }}>💳 Contas</div>
-        <button className="jc-btn" onClick={abrirNova} style={{ background: "#0f3171", color: "#fff", boxShadow: "0 10px 22px rgba(15,49,113,.18)" }}>+ Nova Conta</button>
+      {/* Header compacto (dentro da aba do patrimônio) */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 12, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#0f3171" }}>💳 Contas deste patrimônio</div>
+        <button className="jc-btn" onClick={abrirNova} style={{ background: "#0f3171", color: "#fff" }}>+ Nova Conta</button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "18px 24px 28px" }}>
+      <div>
         {/* Toggle de visão */}
         <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
           <button className={`jc-tab${view === "mes" ? " on" : ""}`} onClick={() => setView("mes")}>📅 Por mês</button>

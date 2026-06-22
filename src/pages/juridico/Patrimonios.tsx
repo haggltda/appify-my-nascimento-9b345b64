@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import Contas from "./Contas";
 
 // =====================================================================
 // JURÍDICO — Gestão Patrimonial e Obrigações
@@ -351,7 +352,7 @@ export default function Patrimonios() {
             </div>
 
             <div style={{ display: "flex", gap: 2, padding: "0 16px", borderBottom: "1px solid #e2e8f0", background: "#fff", flexWrap: "wrap" }}>
-              {[["obrigacoes", "Obrigações"], ["acessos", "Acessos"], ["contatos", "Contatos"], ["documentos", "Documentos"], ["historico", "Histórico"]].map(([k, l]) => (
+              {[["obrigacoes", "Obrigações"], ["contas", "Contas"], ["acessos", "Acessos"], ["contatos", "Contatos"], ["documentos", "Documentos"], ["historico", "Histórico"]].map(([k, l]) => (
                 <button key={k} className={`jp-tab${tab === k ? " on" : ""}`} onClick={() => setTab(k)}>{l}</button>
               ))}
             </div>
@@ -389,6 +390,9 @@ export default function Patrimonios() {
                   );
                 })}
               </>)}
+
+              {/* CONTAS (submódulo embutido no patrimônio) */}
+              {tab === "contas" && <Contas patrimonioId={sel.id} />}
 
               {/* ACESSOS */}
               {tab === "acessos" && (<>
