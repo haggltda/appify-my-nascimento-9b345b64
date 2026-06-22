@@ -292,7 +292,9 @@ export default function Recrutamento() {
   }, [statusFilter, tab, search, user]);
 
   // ── Carregar Lista ────────────────────────────────────────────
+  const listaReq = useRef(0);
   const loadLista = useCallback(async () => {
+    const myReq = ++listaReq.current;   // descarta respostas antigas (race ao trocar de aba/filtro)
     setLoading(true);
     const PER = 20;
     let q = (supabase as any)
@@ -306,6 +308,7 @@ export default function Recrutamento() {
     q = q.order("created_at", { ascending: false }).range(from, to);
 
     const { data, count, error } = await q;
+    if (myReq !== listaReq.current) return;   // já saiu uma consulta mais nova: ignora esta
     setLoading(false);
     if (error) { toast("Erro ao carregar lista: " + error.message, "err"); return; }
     setItems(data ?? []);
@@ -315,7 +318,9 @@ export default function Recrutamento() {
   }, [aplicarFiltros, contratoFiltro, page, toast]);
 
   // ── Carregar Kanban ───────────────────────────────────────────
+  const kanbanReq = useRef(0);
   const loadKanban = useCallback(async () => {
+    const myReq = ++kanbanReq.current;
     // Mesma consulta da tabela (mesmos filtros), só agrupada por status.
     // Tenta trazer status_changed_at (tempo na etapa atual); se a coluna ainda
     // não existir no ambiente, refaz a consulta sem ela.
@@ -327,6 +332,7 @@ export default function Recrutamento() {
     };
     let { data, error } = await kbQuery("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at,status_changed_at");
     if (error) ({ data, error } = await kbQuery("id,cargo,contrato,cidade,status,grau_urgencia,quantidade_vagas,analista_nome,solicitante_nome,created_at"));
+    if (myReq !== kanbanReq.current) return;
     if (error || !data) return;
     const grouped: Record<string, Solicitacao[]> = {};
     for (const row of data) {
