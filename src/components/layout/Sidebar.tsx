@@ -388,7 +388,8 @@ const juridicoModule: ModuleDef = {
       label: "Gestão Patrimonial",
       defaultOpen: true,
       items: [
-        { label: "Patrimônios / Contas", to: "/app/juridico/patrimonios", icon: Building2 },
+        { label: "Patrimônios", to: "/app/juridico/patrimonios", icon: Building2 },
+        { label: "Contas", to: "/app/juridico/contas", icon: Receipt },
       ],
     },
   ],
@@ -491,7 +492,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/contas"];
   const visibleModules = useMemo(() => {
     if (!access) return allModules;
     const canSee = (to: string) => {

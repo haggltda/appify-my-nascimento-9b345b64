@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 interface Patrimonio {
   id: number; codigo?: string; tipo: string; descricao: string; localizacao?: string;
   placa?: string; cidade?: string; empresa?: string; responsavel?: string;
-  centro_custo?: string; status: string; observacoes?: string; onde_pagar?: string; created_at?: string;
+  centro_custo?: string; status: string; observacoes?: string; created_at?: string;
 }
 interface Obrigacao {
   id: number; patrimonio_id: number; categoria: string; descricao?: string; valor?: number;
@@ -24,7 +24,7 @@ interface Contato { id: number; patrimonio_id: number; tipo?: string; nome?: str
 interface Documento { id: number; patrimonio_id: number; tipo?: string; nome?: string; storage_path?: string; criado_por?: string; created_at?: string; }
 interface Historico { id: number; patrimonio_id: number; acao: string; detalhe?: string; autor?: string; created_at?: string; }
 
-const TIPOS = ["Imóvel", "Veículo", "Terreno", "Equipamento", "Conta", "Outros"];
+const TIPOS = ["Imóvel", "Veículo", "Terreno", "Equipamento", "Outros"];
 const CATEGORIAS = ["IPTU", "Condomínio", "Energia", "Água", "Internet", "Seguro", "Aluguel", "IPVA", "Licenciamento", "Manutenção", "Rastreamento", "Outros"];
 const PERIODICIDADES = ["Mensal", "Bimestral", "Trimestral", "Semestral", "Anual", "Único"];
 
@@ -39,7 +39,7 @@ const statusObr = (o: Obrigacao): "Pago" | "Vencido" | "Pendente" => {
   return "Pendente";
 };
 
-const PATRIM_RESET = { codigo: "", tipo: "Imóvel", descricao: "", localizacao: "", placa: "", cidade: "", empresa: "", responsavel: "", centro_custo: "", status: "Ativo", observacoes: "", onde_pagar: "" };
+const PATRIM_RESET = { codigo: "", tipo: "Imóvel", descricao: "", localizacao: "", placa: "", cidade: "", empresa: "", responsavel: "", centro_custo: "", status: "Ativo", observacoes: "" };
 const OBR_RESET = { categoria: "Energia", descricao: "", valor: "", vencimento: "", periodicidade: "Mensal", forma_pagamento: "", responsavel: "", seguradora: "", apolice: "", vigencia_inicio: "", vigencia_fim: "", premio: "", parcelas: "" };
 
 export default function Patrimonios() {
@@ -320,11 +320,7 @@ export default function Patrimonios() {
               <div className="jp-fg"><label>Código</label><input className="jp-fi" value={pat.codigo} onChange={e => setPat(v => ({ ...v, codigo: e.target.value }))} /></div>
               <div className="jp-fg"><label>Tipo</label><select className="jp-fi" value={pat.tipo} onChange={e => setPat(v => ({ ...v, tipo: e.target.value }))}>{TIPOS.map(t => <option key={t}>{t}</option>)}</select></div>
               <div className="jp-fg"><label>Status</label><select className="jp-fi" value={pat.status} onChange={e => setPat(v => ({ ...v, status: e.target.value }))}><option>Ativo</option><option>Inativo</option></select></div>
-              {pat.tipo === "Conta" ? (
-                <div className="jp-fg"><label>Onde pagar essa conta? (URL)</label><input className="jp-fi" value={pat.onde_pagar} onChange={e => setPat(v => ({ ...v, onde_pagar: e.target.value }))} placeholder="https://www.corsan.com.br, site da CPFL…" /></div>
-              ) : (
-                <div className="jp-fg"><label>{pat.tipo === "Veículo" ? "Placa" : "Endereço / Localização"}</label><input className="jp-fi" value={pat.tipo === "Veículo" ? pat.placa : pat.localizacao} onChange={e => setPat(v => pat.tipo === "Veículo" ? { ...v, placa: e.target.value } : { ...v, localizacao: e.target.value })} /></div>
-              )}
+              <div className="jp-fg"><label>{pat.tipo === "Veículo" ? "Placa" : "Endereço / Localização"}</label><input className="jp-fi" value={pat.tipo === "Veículo" ? pat.placa : pat.localizacao} onChange={e => setPat(v => pat.tipo === "Veículo" ? { ...v, placa: e.target.value } : { ...v, localizacao: e.target.value })} /></div>
               <div className="jp-fg"><label>Cidade</label><input className="jp-fi" value={pat.cidade} onChange={e => setPat(v => ({ ...v, cidade: e.target.value }))} /></div>
               <div className="jp-fg"><label>Empresa</label><input className="jp-fi" value={pat.empresa} onChange={e => setPat(v => ({ ...v, empresa: e.target.value }))} placeholder="HAGG, CANAÃ…" /></div>
               <div className="jp-fg"><label>Responsável interno</label><input className="jp-fi" value={pat.responsavel} onChange={e => setPat(v => ({ ...v, responsavel: e.target.value }))} /></div>
@@ -348,10 +344,7 @@ export default function Patrimonios() {
                 <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>{sel.descricao}</div>
                 <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{[sel.tipo, sel.codigo, [sel.localizacao, sel.cidade].filter(Boolean).join(" · ") || sel.placa, sel.empresa].filter(Boolean).join(" · ")}</div>
               </div>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                {sel.tipo === "Conta" && sel.onde_pagar && (
-                  <a className="jp-btn" href={/^https?:\/\//i.test(sel.onde_pagar) ? sel.onde_pagar : "https://" + sel.onde_pagar} target="_blank" rel="noreferrer" style={{ background: "#0f3171", color: "#fff", textDecoration: "none", display: "inline-block" }}>💳 Pagar conta →</a>
-                )}
+              <div style={{ display: "flex", gap: 6 }}>
                 <button className="jp-btn" onClick={() => abrirEditarPat(sel)} style={{ background: "#eef4ff", color: "#0f3171", border: "1px solid #dbe4f0" }}>Editar</button>
                 <button onClick={() => setSel(null)} style={{ border: "none", background: "none", fontSize: 22, color: "#94a3b8", cursor: "pointer" }}>✕</button>
               </div>
