@@ -8,7 +8,8 @@ export type GradeFase =
   | "Em Andamento"
   | "Finalizada"
   | "Não Participado"
-  | "Suspenso/Revogado";
+  | "Suspenso"
+  | "Revogado";
 
 export interface HistoricoEntry {
   ts: string;
@@ -53,7 +54,7 @@ export function useGrade(empresaId: string | null) {
         .from("grade")
         .select("*")
         .eq("empresa_id", empresaId!)
-        .order("created_at", { ascending: false });
+        .order("data", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return (data ?? []) as GradeItem[];
     },
@@ -95,7 +96,13 @@ export function useGradeUpdate(empresaId: string) {
         const prev = String(current[field as keyof GradeItem] ?? "");
         const next = String((changes as Record<string, unknown>)[field] ?? "");
         if (field in changes && prev !== next) {
-          historico.push({ ts: now, campo: label, de: prev || "—", para: next || "—" });
+          const paraLabel = field === "posicao" && next && next !== "null"
+            ? `${next}º`
+            : next || "—";
+          const deLabel = field === "posicao" && prev && prev !== "null"
+            ? `${prev}º`
+            : prev || "—";
+          historico.push({ ts: now, campo: label, de: deLabel, para: paraLabel });
         }
       }
 
@@ -106,7 +113,20 @@ export function useGradeUpdate(empresaId: string) {
         .select()
         .single();
       if (error) throw error;
-      return data as GradeItem;
+
+      const updated = data as GradeItem;
+
+      // Item 8: auto-atualiza status da capa quando grade finalizada
+      if (changes.fase === "Finalizada" && updated.capa_id) {
+        const novoStatus = updated.posicao === 1 ? "Ganhamos" : "Perdemos";
+        await supabase
+          .from("capa_edital")
+          .update({ status: novoStatus })
+          .eq("id", updated.capa_id);
+        qc.invalidateQueries({ queryKey: ["capa-edital", empresaId] });
+      }
+
+      return updated;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK(empresaId) });
@@ -149,6 +169,7 @@ export function useGradePromover(empresaId: string) {
           abertura: abertura || null,
           qtd_postos: item.qtd_pessoas,
           valor_estimado: item.valor_global,
+          responsavel: item.responsavel,
           status: "Em andamento",
           historico: [],
           preenchido_em: new Date().toISOString().slice(0, 10),

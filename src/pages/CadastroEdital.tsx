@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { useEmpresaId } from "@/hooks/useEmpresaId";
+import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { usePermissoes } from "@/context/PermissoesContext";
 import { cn } from "@/lib/utils";
 import {
@@ -40,6 +40,62 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Eye, History, FileText, AlertCircle } from "lucide-react";
+import { useUsuariosLicitacao } from "@/hooks/useUsuariosLicitacao";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { PrazoInput } from "@/components/ui/PrazoInput";
+
+const REAJUSTE_OPCOES = ["IPCA", "IGPM", "INPC", "Convenção coletiva"];
+
+const ESCALAS = ["5x2", "6x1", "4x3", "12x36"];
+const HORAS_OPCOES = ["20h", "30h", "36h", "40h", "44h"];
+
+// Armazena como "5x2 — 40h" ou texto livre
+function CargaHorariaInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // Parse: "5x2 — 40h" → { escala: "5x2", horas: "40h" } | texto livre
+  function parse(v: string) {
+    const m = v.match(/^(.+?)\s*—\s*(.+)$/);
+    if (m) return { escala: m[1].trim(), horas: m[2].trim() };
+    const soEscala = ESCALAS.includes(v.trim());
+    if (soEscala) return { escala: v.trim(), horas: "" };
+    return { escala: "", horas: v };
+  }
+  const parsed = parse(value);
+  const [escala, setEscala] = useState(parsed.escala);
+  const [horas, setHoras]   = useState(parsed.horas);
+
+  useEffect(() => {
+    const p = parse(value);
+    setEscala(p.escala);
+    setHoras(p.horas);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  function emit(e: string, h: string) {
+    if (e && h) onChange(`${e} — ${h}`);
+    else if (e) onChange(e);
+    else onChange(h);
+  }
+
+  return (
+    <div className="flex gap-1">
+      <Select value={escala || "_"} onValueChange={(v) => { const e = v === "_" ? "" : v; setEscala(e); emit(e, horas); }}>
+        <SelectTrigger className="h-9 w-28 shrink-0"><SelectValue placeholder="Escala" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="_">— Escala —</SelectItem>
+          {ESCALAS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={horas || "_"} onValueChange={(v) => { const h = v === "_" ? "" : v; setHoras(h); emit(escala, h); }}>
+        <SelectTrigger className="h-9 flex-1"><SelectValue placeholder="Horas" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="_">— Horas —</SelectItem>
+          {HORAS_OPCOES.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+          <SelectItem value="outro">Outro</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 // ── Constantes ─────────────────────────────────────────────────────────────
 
@@ -62,7 +118,8 @@ function needs48hAlert(capa: CapaEdital): boolean {
 // ── Componente principal ───────────────────────────────────────────────────
 
 export default function CadastroEdital() {
-  const { data: empresaAtivaId } = useEmpresaId();
+  const { empresa } = useEmpresaAtiva();
+  const empresaAtivaId = empresa.id;
   const { can } = usePermissoes();
 
   const canIncluir = can("incluir", "licitacoes", "editais");
@@ -425,9 +482,11 @@ const EMPTY: Partial<CapaEdital> = {
   atestado_cap_tecnica: "", escritorio: "", abertura: "", prazo_impugnacao: "",
   prazo_recurso: "", validade_proposta: "", prazo_contrato: "", visita_tecnica: "",
   data_inicio: "", qtd_postos: null, carga_horaria: "", valor_estimado: "",
-  issqn: "", vale_transporte_valor: "", garantia: "", material: "", material_tipo: "",
-  diluir_verbas: "", conta_vinculada: "", conta_vinculada_quem_abre: "",
-  trabalho_escolar: "", observacoes: "",
+  issqn: "", vale_transporte_valor: "", garantia: "", garantia_proposta: "", garantia_contratual: "", material: "", material_tipo: "",
+  reajuste: [],
+  trabalho_escolar: false, emergencial: false, diluicao_meses: 12,
+  conta_vinculada: "", conta_vinculada_quem_abre: "",
+  responsavel: "", observacoes: "",
 };
 
 function CapaSheet({
@@ -440,6 +499,7 @@ function CapaSheet({
   isSaving: boolean;
 }) {
   const [f, setF] = useState<Partial<CapaEdital>>({ ...EMPTY });
+  const { data: usuarios = [] } = useUsuariosLicitacao();
 
   useEffect(() => {
     if (!open) return;
@@ -471,6 +531,33 @@ function CapaSheet({
             <Grid2>
               <F label="Cidade">{txt("cidade")}</F>
               <F label="Modalidade">{txt("modalidade")}</F>
+              <F label="Responsável *">
+                {usuarios.length > 0 ? (
+                  <Select
+                    value={f.responsavel ?? ""}
+                    onValueChange={(v) => setF((p) => ({ ...p, responsavel: v }))}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="— Selecione —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {usuarios.map((u) => (
+                        <SelectItem key={u.id} value={u.display_name ?? u.id}>
+                          {u.display_name ?? u.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={f.responsavel ?? ""}
+                    onChange={(e) => setF((p) => ({ ...p, responsavel: e.target.value }))}
+                    className="h-9"
+                    placeholder="Nome do responsável"
+                    required
+                  />
+                )}
+              </F>
               <F label="Forma de julgamento">{txt("forma_julgamento")}</F>
               <F label="Escritório">{txt("escritorio")}</F>
               <F label="Local">{txt("local")}</F>
@@ -484,10 +571,18 @@ function CapaSheet({
           <Secao title="Datas e Prazos">
             <Grid2>
               <F label="Abertura">{txt("abertura")}</F>
-              <F label="Prazo impugnação">{txt("prazo_impugnacao")}</F>
-              <F label="Prazo recurso">{txt("prazo_recurso")}</F>
-              <F label="Validade proposta">{txt("validade_proposta")}</F>
-              <F label="Prazo contrato">{txt("prazo_contrato")}</F>
+              <F label="Prazo impugnação">
+                <PrazoInput value={(f.prazo_impugnacao as string) ?? ""} onChange={(v) => setF((p) => ({ ...p, prazo_impugnacao: v }))} />
+              </F>
+              <F label="Prazo recurso">
+                <PrazoInput value={(f.prazo_recurso as string) ?? ""} onChange={(v) => setF((p) => ({ ...p, prazo_recurso: v }))} />
+              </F>
+              <F label="Validade proposta">
+                <PrazoInput value={(f.validade_proposta as string) ?? ""} onChange={(v) => setF((p) => ({ ...p, validade_proposta: v }))} />
+              </F>
+              <F label="Prazo contrato">
+                <PrazoInput value={(f.prazo_contrato as string) ?? ""} onChange={(v) => setF((p) => ({ ...p, prazo_contrato: v }))} />
+              </F>
               <F label="Visita técnica">{txt("visita_tecnica")}</F>
               <F label="Data início">
                 <Input
@@ -510,11 +605,19 @@ function CapaSheet({
                   className="h-9"
                 />
               </F>
-              <F label="Carga horária">{txt("carga_horaria")}</F>
-              <F label="Valor estimado">{txt("valor_estimado")}</F>
+              <F label="Carga horária">
+                <CargaHorariaInput
+                  value={(f.carga_horaria as string) ?? ""}
+                  onChange={(v) => setF((p) => ({ ...p, carga_horaria: v }))}
+                />
+              </F>
+              <F label="Valor estimado">
+                <CurrencyInput value={(f.valor_estimado as string) ?? ""} onChange={(v) => setF((p) => ({ ...p, valor_estimado: v }))} />
+              </F>
               <F label="ISSQN">{txt("issqn")}</F>
               <F label="Vale transporte (valor)">{txt("vale_transporte_valor")}</F>
-              <F label="Garantia">{txt("garantia")}</F>
+              <F label="Garantia da Proposta">{txt("garantia_proposta")}</F>
+              <F label="Garantia Contratual">{txt("garantia_contratual")}</F>
               <F label="Material">{txt("material")}</F>
               <F label="Material (tipo)">{txt("material_tipo")}</F>
             </Grid2>
@@ -522,11 +625,89 @@ function CapaSheet({
 
           <Secao title="Condições Operacionais">
             <Grid2>
-              <F label="Diluir verbas">{txt("diluir_verbas")}</F>
+              {/* Trabalho escolar e Emergencial (item 5) */}
+              <F label="Trabalho escolar">
+                <div className="flex h-9 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="escolar"
+                    checked={!!f.trabalho_escolar}
+                    onChange={(e) => {
+                      const escolar = e.target.checked;
+                      setF((p) => ({
+                        ...p,
+                        trabalho_escolar: escolar,
+                        diluicao_meses: escolar || p.emergencial ? (p.diluicao_meses ?? 11) : 12,
+                      }));
+                    }}
+                    className="h-4 w-4 rounded border-border accent-primary"
+                  />
+                  <label htmlFor="escolar" className="text-sm cursor-pointer">Sim</label>
+                </div>
+              </F>
+              <F label="Emergencial">
+                <div className="flex h-9 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="emergencial"
+                    checked={!!f.emergencial}
+                    onChange={(e) => {
+                      const emerg = e.target.checked;
+                      setF((p) => ({
+                        ...p,
+                        emergencial: emerg,
+                        diluicao_meses: p.trabalho_escolar || emerg ? (p.diluicao_meses ?? 11) : 12,
+                      }));
+                    }}
+                    className="h-4 w-4 rounded border-border accent-primary"
+                  />
+                  <label htmlFor="emergencial" className="text-sm cursor-pointer">Sim</label>
+                </div>
+              </F>
+              {/* Diluição de verbas (item 5) */}
+              <F label="Diluição de verbas (meses)">
+                <Input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={f.diluicao_meses ?? 12}
+                  disabled={!f.trabalho_escolar && !f.emergencial}
+                  onChange={(e) => setF((p) => ({ ...p, diluicao_meses: Number(e.target.value) }))}
+                  className="h-9"
+                />
+                {!f.trabalho_escolar && !f.emergencial && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Padrão: 12 meses</p>
+                )}
+              </F>
               <F label="Conta vinculada">{txt("conta_vinculada")}</F>
               <F label="Conta vinculada — quem abre">{txt("conta_vinculada_quem_abre")}</F>
-              <F label="Trabalho escolar">{txt("trabalho_escolar")}</F>
             </Grid2>
+
+            {/* Reajuste (item 6) */}
+            <F label="Reajuste">
+              <div className="flex flex-wrap gap-4 pt-1">
+                {REAJUSTE_OPCOES.map((op) => (
+                  <div key={op} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`reaj-${op}`}
+                      checked={(f.reajuste ?? []).includes(op)}
+                      onChange={(e) => {
+                        const atual = f.reajuste ?? [];
+                        setF((p) => ({
+                          ...p,
+                          reajuste: e.target.checked
+                            ? [...atual, op]
+                            : atual.filter((r) => r !== op),
+                        }));
+                      }}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    <label htmlFor={`reaj-${op}`} className="text-sm cursor-pointer">{op}</label>
+                  </div>
+                ))}
+              </div>
+            </F>
           </Secao>
 
           <Secao title="Observações">

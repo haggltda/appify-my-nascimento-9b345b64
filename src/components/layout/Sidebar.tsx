@@ -95,6 +95,7 @@ const licitacoesModule: ModuleDef = {
       items: [
         { label: "Capa de Edital Licitações", to: "/app/editais", icon: FileText },
         { label: "Planilha de Custo", to: "/app/licitacoes/planilha-custo", icon: TableProperties },
+        { label: "Checklist de Implantação", to: "/app/licitacoes/checklist", icon: ClipboardCheck },
         { label: "Implantação de Contratos", to: "/app/licitacoes/implantacao", icon: ListChecks },
         { label: "Documentos", to: "/app/documentos", icon: ScrollText },
         // B2: "Triagem & IA" removida do menu (rota /app/triagem segue existindo,
