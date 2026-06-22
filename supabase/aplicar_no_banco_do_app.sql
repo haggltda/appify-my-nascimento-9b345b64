@@ -610,7 +610,7 @@ CREATE POLICY rcb_all_auth ON public."RECRUTAMENTO_CPF_BLACKLIST"
 
 NOTIFY pgrst, 'reload schema';
 
--- ===== 20260622000001_juridico_patrimonios =====
+-- ===== 20260622000010_juridico_patrimonios =====
 -- =========================================================================
 -- JURÍDICO — Gestão Patrimonial e Obrigações
 --
@@ -744,7 +744,7 @@ CREATE POLICY "jur_docs_rw_auth" ON storage.objects
 
 NOTIFY pgrst, 'reload schema';
 
--- ===== 20260622000002_jur_contas =====
+-- ===== 20260622000011_jur_contas =====
 -- =========================================================================
 -- JURÍDICO — Submódulo CONTAS (recorrentes) + lançamentos por mês
 --
