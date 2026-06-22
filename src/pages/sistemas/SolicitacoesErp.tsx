@@ -23,6 +23,8 @@ interface Solicitacao {
   etapa: string;
   responsavel_user_id: string | null;
   progresso_pct: number;
+  data_inicio: string | null;
+  data_fim: string | null;
   created_at: string;
 }
 
@@ -89,6 +91,12 @@ function iniciais(nome: string): string {
   return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 }
 
+function fmtData(data: string | null): string | null {
+  if (!data) return null;
+  const [ano, mes, dia] = data.split("-");
+  return `${dia}/${mes}/${ano}`;
+}
+
 export default function SolicitacoesErp() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -97,6 +105,8 @@ export default function SolicitacoesErp() {
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novoDescricao, setNovoDescricao] = useState("");
+  const [novaDataInicio, setNovaDataInicio] = useState("");
+  const [novoArquivo, setNovoArquivo] = useState<File | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -119,7 +129,7 @@ export default function SolicitacoesErp() {
       // (mesmo padrão usado em rh/Ferias.tsx pra tabelas recém-criadas).
       const { data, error } = await (supabase as any)
         .from("sistema_solicitacao")
-        .select("id, titulo, descricao, etapa, responsavel_user_id, progresso_pct, created_at")
+        .select("id, titulo, descricao, etapa, responsavel_user_id, progresso_pct, data_inicio, data_fim, created_at")
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Solicitacao[];
@@ -174,20 +184,34 @@ export default function SolicitacoesErp() {
   });
 
   const criar = async () => {
-    if (!novoTitulo.trim()) return;
+    if (!novoTitulo.trim() || !novaDataInicio) return;
     setSalvando(true);
-    const { error } = await (supabase as any).from("sistema_solicitacao").insert({
-      titulo: novoTitulo.trim(),
-      descricao: novoDescricao.trim() || null,
-    });
-    setSalvando(false);
+    const { data, error } = await (supabase as any)
+      .from("sistema_solicitacao")
+      .insert({
+        titulo: novoTitulo.trim(),
+        descricao: novoDescricao.trim() || null,
+        data_inicio: novaDataInicio,
+      })
+      .select("id")
+      .single();
     if (error) {
+      setSalvando(false);
       toast({ title: "Erro ao criar solicitação", description: error.message, variant: "destructive" });
       return;
     }
+    if (novoArquivo) {
+      const { error: anexoError } = await uploadAnexo(data.id, novoArquivo);
+      if (anexoError) {
+        toast({ title: "Solicitação criada, mas o anexo falhou", description: anexoError, variant: "destructive" });
+      }
+    }
+    setSalvando(false);
     setNovoOpen(false);
     setNovoTitulo("");
     setNovoDescricao("");
+    setNovaDataInicio("");
+    setNovoArquivo(null);
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
     toast({ title: "Solicitação criada" });
   };
@@ -229,7 +253,9 @@ export default function SolicitacoesErp() {
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
   };
 
-  const podeEditarProgresso = !!user?.id && !!cardDetalhe && user.id === cardDetalhe.responsavel_user_id;
+  // Mesma regra pra progresso e pra data final: só quem é o responsável
+  // atual da solicitação (não importa o código de permissão).
+  const souResponsavelAtual = !!user?.id && !!cardDetalhe && user.id === cardDetalhe.responsavel_user_id;
 
   const salvarProgresso = async (pct: number) => {
     if (!cardDetalhe) return;
@@ -244,26 +270,40 @@ export default function SolicitacoesErp() {
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
   };
 
+  const salvarDataFim = async (data: string) => {
+    if (!cardDetalhe) return;
+    const { error } = await (supabase as any)
+      .from("sistema_solicitacao")
+      .update({ data_fim: data || null })
+      .eq("id", cardDetalhe.id);
+    if (error) {
+      toast({ title: "Erro ao atualizar data final", description: error.message, variant: "destructive" });
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
+  };
+
+  const uploadAnexo = async (solicitacaoId: string, file: File): Promise<{ error: string | null }> => {
+    const path = `${solicitacaoId}/${Date.now()}-${file.name}`;
+    const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+    if (up.error) return { error: up.error.message };
+    const { error } = await (supabase as any).from("sistema_solicitacao_anexo").insert({
+      solicitacao_id: solicitacaoId,
+      storage_path: path,
+      nome_arquivo: file.name,
+      mime_type: file.type || null,
+      tamanho_bytes: file.size,
+    });
+    return { error: error?.message ?? null };
+  };
+
   const anexar = async () => {
     if (!pendingFile || !cardDetalhe) return;
     setEnviandoAnexo(true);
-    const path = `${cardDetalhe.id}/${Date.now()}-${pendingFile.name}`;
-    const up = await supabase.storage.from(BUCKET).upload(path, pendingFile, { contentType: pendingFile.type });
-    if (up.error) {
-      setEnviandoAnexo(false);
-      toast({ title: "Erro ao enviar arquivo", description: up.error.message, variant: "destructive" });
-      return;
-    }
-    const { error } = await (supabase as any).from("sistema_solicitacao_anexo").insert({
-      solicitacao_id: cardDetalhe.id,
-      storage_path: path,
-      nome_arquivo: pendingFile.name,
-      mime_type: pendingFile.type || null,
-      tamanho_bytes: pendingFile.size,
-    });
+    const { error } = await uploadAnexo(cardDetalhe.id, pendingFile);
     setEnviandoAnexo(false);
     if (error) {
-      toast({ title: "Erro ao registrar anexo", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao enviar anexo", description: error, variant: "destructive" });
       return;
     }
     setPendingFile(null);
@@ -353,6 +393,10 @@ export default function SolicitacoesErp() {
                       <Progress value={card.progresso_pct} className="h-1.5 flex-1" />
                       <span className="text-[10px] text-muted-foreground">{card.progresso_pct}%</span>
                     </div>
+                    <div className="mt-1.5 text-[10px] text-muted-foreground">
+                      Início: {fmtData(card.data_inicio) ?? "—"}
+                      {card.data_fim && <> · Fim: {fmtData(card.data_fim)}</>}
+                    </div>
                   </Card>
                 );
               })}
@@ -374,10 +418,22 @@ export default function SolicitacoesErp() {
           <div className="space-y-3">
             <Input placeholder="Título" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} />
             <Textarea placeholder="Descrição (opcional)" value={novoDescricao} onChange={(e) => setNovoDescricao(e.target.value)} />
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Data de início</label>
+              <Input type="date" value={novaDataInicio} onChange={(e) => setNovaDataInicio(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Anexo (opcional)</label>
+              <Input
+                type="file"
+                onChange={(e) => setNovoArquivo(e.target.files?.[0] ?? null)}
+                className="cursor-pointer text-xs"
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setNovoOpen(false)}>Cancelar</Button>
-            <Button onClick={criar} disabled={!novoTitulo.trim() || salvando}>
+            <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovoArquivo(null); }}>Cancelar</Button>
+            <Button onClick={criar} disabled={!novoTitulo.trim() || !novaDataInicio || salvando}>
               {salvando ? "Salvando…" : "Criar"}
             </Button>
           </DialogFooter>
@@ -454,7 +510,7 @@ export default function SolicitacoesErp() {
                         min={0}
                         max={100}
                         value={progressoInput}
-                        disabled={!podeEditarProgresso}
+                        disabled={!souResponsavelAtual}
                         onChange={(e) => setProgressoInput(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
                         onBlur={() => salvarProgresso(progressoInput)}
                         onKeyDown={(e) => e.key === "Enter" && salvarProgresso(progressoInput)}
@@ -462,9 +518,36 @@ export default function SolicitacoesErp() {
                       />
                       <span className="text-xs text-muted-foreground">%</span>
                     </div>
-                    {!podeEditarProgresso && (
+                    {!souResponsavelAtual && (
                       <p className="mt-1 text-[11px] text-muted-foreground">
                         Só o responsável pela demanda pode atualizar o progresso.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Datas</p>
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <label className="mb-1 block text-[11px] text-muted-foreground">Data de início</label>
+                        <p className="text-xs">
+                          {cardDetalhe.data_inicio ? new Date(`${cardDetalhe.data_inicio}T00:00:00`).toLocaleDateString("pt-BR") : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] text-muted-foreground">Data final</label>
+                        <Input
+                          type="date"
+                          value={cardDetalhe.data_fim ?? ""}
+                          disabled={!souResponsavelAtual}
+                          onChange={(e) => salvarDataFim(e.target.value)}
+                          className="w-40 text-xs"
+                        />
+                      </div>
+                    </div>
+                    {!souResponsavelAtual && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Só o responsável pela demanda pode preencher a data final.
                       </p>
                     )}
                   </div>
