@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Paperclip, Download, UserCircle2, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Solicitacao {
   id: string;
@@ -20,6 +22,7 @@ interface Solicitacao {
   descricao: string | null;
   etapa: string;
   responsavel_user_id: string | null;
+  progresso_pct: number;
   created_at: string;
 }
 
@@ -89,6 +92,7 @@ function iniciais(nome: string): string {
 export default function SolicitacoesErp() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
   const { data: access } = useAccessibleMenus("visualizar");
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
@@ -99,6 +103,7 @@ export default function SolicitacoesErp() {
   const [enviandoAnexo, setEnviandoAnexo] = useState(false);
   const [novoComentario, setNovoComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
+  const [progressoInput, setProgressoInput] = useState(0);
 
   const podeCriar = access?.codes.has("sistemas_criar_solicitacao") ?? false;
   const podeMover = (codigo: string) => access?.codes.has(codigo) ?? false;
@@ -114,7 +119,7 @@ export default function SolicitacoesErp() {
       // (mesmo padrão usado em rh/Ferias.tsx pra tabelas recém-criadas).
       const { data, error } = await (supabase as any)
         .from("sistema_solicitacao")
-        .select("id, titulo, descricao, etapa, responsavel_user_id, created_at")
+        .select("id, titulo, descricao, etapa, responsavel_user_id, progresso_pct, created_at")
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Solicitacao[];
@@ -224,6 +229,21 @@ export default function SolicitacoesErp() {
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
   };
 
+  const podeEditarProgresso = !!user?.id && !!cardDetalhe && user.id === cardDetalhe.responsavel_user_id;
+
+  const salvarProgresso = async (pct: number) => {
+    if (!cardDetalhe) return;
+    const { error } = await (supabase as any)
+      .from("sistema_solicitacao")
+      .update({ progresso_pct: pct })
+      .eq("id", cardDetalhe.id);
+    if (error) {
+      toast({ title: "Erro ao atualizar progresso", description: error.message, variant: "destructive" });
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
+  };
+
   const anexar = async () => {
     if (!pendingFile || !cardDetalhe) return;
     setEnviandoAnexo(true);
@@ -312,7 +332,7 @@ export default function SolicitacoesErp() {
                     key={card.id}
                     draggable={arrastavel}
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", card.id)}
-                    onClick={() => setDetalheId(card.id)}
+                    onClick={() => { setDetalheId(card.id); setProgressoInput(card.progresso_pct); }}
                     className={`border-l-4 p-3 ${COR_BORDER[etapa.cor]} ${arrastavel ? "cursor-grab" : "cursor-pointer"}`}
                   >
                     <p className="text-xs font-medium">{card.titulo}</p>
@@ -328,6 +348,10 @@ export default function SolicitacoesErp() {
                       <span className="truncate text-[10px] text-muted-foreground">
                         {responsavelNome ?? "Sem responsável"}
                       </span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Progress value={card.progresso_pct} className="h-1.5 flex-1" />
+                      <span className="text-[10px] text-muted-foreground">{card.progresso_pct}%</span>
                     </div>
                   </Card>
                 );
@@ -360,7 +384,7 @@ export default function SolicitacoesErp() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!detalheId} onOpenChange={(open) => { if (!open) { setDetalheId(null); setPendingFile(null); setNovoComentario(""); } }}>
+      <Dialog open={!!detalheId} onOpenChange={(open) => { if (!open) { setDetalheId(null); setPendingFile(null); setNovoComentario(""); setProgressoInput(0); } }}>
         <DialogContent className="max-w-3xl sm:max-w-3xl">
           {cardDetalhe && (
             <>
@@ -416,6 +440,33 @@ export default function SolicitacoesErp() {
                         </Button>
                       )}
                     </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Progresso</p>
+                    <Progress value={progressoInput} className="h-2.5" />
+                    <div className="mt-2 flex items-center gap-2">
+                      <label className="text-xs text-muted-foreground">
+                        Digite a porcentagem concluída dessa demanda:
+                      </label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={progressoInput}
+                        disabled={!podeEditarProgresso}
+                        onChange={(e) => setProgressoInput(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                        onBlur={() => salvarProgresso(progressoInput)}
+                        onKeyDown={(e) => e.key === "Enter" && salvarProgresso(progressoInput)}
+                        className="w-20 text-xs"
+                      />
+                      <span className="text-xs text-muted-foreground">%</span>
+                    </div>
+                    {!podeEditarProgresso && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Só o responsável pela demanda pode atualizar o progresso.
+                      </p>
+                    )}
                   </div>
                 </div>
 
