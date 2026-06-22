@@ -63,7 +63,7 @@ DECLARE
   v_nasc    text := regexp_replace(coalesce(p_nascimento, ''), '\D', '', 'g');
   v_cpf_fmt text;
   v_emp     public."EMPREGADOS"%ROWTYPE;
-  v_bloq    text[] := ARRAY['DEMITIDO','DEMITIDA','RESCISAO','RESCISÃO','DESLIGADO','DESLIGADA'];
+  v_bloq    text[] := ARRAY['DEMITIDO','DEMITIDA','RECISÃO','RECISÕES','RECISAO','DESLIGADO','DESLIGADA'];
   v_preview jsonb;
 BEGIN
   IF v_uid IS NULL THEN
