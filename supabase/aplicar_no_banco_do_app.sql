@@ -642,8 +642,11 @@ CREATE TABLE IF NOT EXISTS public."JUR_PATRIMONIOS" (
   responsavel text,
   centro_custo text,
   status      text NOT NULL DEFAULT 'Ativo',    -- Ativo / Inativo
-  observacoes text
+  observacoes text,
+  onde_pagar  text                              -- tipo 'Conta': URL do site de pagamento
 );
+-- garante a coluna mesmo se a tabela já existir
+ALTER TABLE public."JUR_PATRIMONIOS" ADD COLUMN IF NOT EXISTS onde_pagar text;
 
 CREATE TABLE IF NOT EXISTS public."JUR_OBRIGACOES" (
   id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
