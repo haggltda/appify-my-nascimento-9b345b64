@@ -357,7 +357,7 @@ const encarregadosModule: ModuleDef = {
   ],
 };
 
-// Sistemas — demandas de sistemas (kanban de 8 etapas)
+// Sistemas — demandas de sistemas (kanban de 13 etapas, acesso livre)
 const sistemasModule: ModuleDef = {
   id: "sistemas",
   label: "Sistemas",
@@ -492,7 +492,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/sistemas/solicitacoes-erp"];
   const visibleModules = useMemo(() => {
     if (!access) return allModules;
     const canSee = (to: string) => {
