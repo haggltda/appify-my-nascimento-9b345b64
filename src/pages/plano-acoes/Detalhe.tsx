@@ -310,7 +310,7 @@ export default function PlanoAcaoDetalhe() {
   const excluir = async () => {
     if (!can("excluir") || isNew) return;
     if (!confirm("Excluir logicamente esta ação?")) return;
-    const { error } = await supabase.from("plano_acao").update({ deleted_at: new Date().toISOString(), atualizado_por: user?.id ?? null }).eq("id", id!);
+    const { error } = await supabase.rpc("excluir_plano_acao", { _id: id! } as any);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else { toast({ title: "Excluída" }); nav("/app/plano-acoes"); }
   };
