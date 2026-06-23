@@ -1061,3 +1061,53 @@ END $$;
 
 NOTIFY pgrst, 'reload schema';
 
+-- =========================================================================
+-- JURÍDICO — Patrimônio: funde 4 filhas-sidecar em JUR_PATRIMONIO_ITENS (017)
+--   CONTATOS + ACESSOS + DOCUMENTOS + HISTORICO -> 1 tabela (coluna `kind`).
+--   OBRIGACOES fica separada (núcleo financeiro). Filhas de patrimônio: 5 -> 2.
+-- Idempotente: backfill some ao re-rodar (origens dropadas).
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public."JUR_PATRIMONIO_ITENS" (
+  id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  patrimonio_id bigint REFERENCES public."JUR_PATRIMONIOS"(id) ON DELETE CASCADE,
+  kind          text NOT NULL,        -- 'contato' | 'acesso' | 'documento' | 'historico'
+  tipo          text, nome text, telefone text, email text, observacao text,
+  servico       text, link text, usuario text, local_senha text,
+  storage_path  text, versao int, criado_por text,
+  acao          text, detalhe text, autor text
+);
+CREATE INDEX IF NOT EXISTS jur_pat_itens_idx ON public."JUR_PATRIMONIO_ITENS"(patrimonio_id, kind);
+
+DO $$
+BEGIN
+  IF to_regclass('public."JUR_PATRIMONIO_CONTATOS"') IS NOT NULL THEN
+    INSERT INTO public."JUR_PATRIMONIO_ITENS" (patrimonio_id, kind, tipo, nome, telefone, email, observacao, created_at)
+    SELECT patrimonio_id, 'contato', tipo, nome, telefone, email, observacao, created_at FROM public."JUR_PATRIMONIO_CONTATOS";
+    DROP TABLE public."JUR_PATRIMONIO_CONTATOS";
+  END IF;
+  IF to_regclass('public."JUR_PATRIMONIO_ACESSOS"') IS NOT NULL THEN
+    INSERT INTO public."JUR_PATRIMONIO_ITENS" (patrimonio_id, kind, servico, link, usuario, local_senha, observacao, created_at)
+    SELECT patrimonio_id, 'acesso', servico, link, usuario, local_senha, observacao, created_at FROM public."JUR_PATRIMONIO_ACESSOS";
+    DROP TABLE public."JUR_PATRIMONIO_ACESSOS";
+  END IF;
+  IF to_regclass('public."JUR_PATRIMONIO_DOCUMENTOS"') IS NOT NULL THEN
+    INSERT INTO public."JUR_PATRIMONIO_ITENS" (patrimonio_id, kind, tipo, nome, storage_path, versao, criado_por, created_at)
+    SELECT patrimonio_id, 'documento', tipo, nome, storage_path, versao, criado_por, created_at FROM public."JUR_PATRIMONIO_DOCUMENTOS";
+    DROP TABLE public."JUR_PATRIMONIO_DOCUMENTOS";
+  END IF;
+  IF to_regclass('public."JUR_PATRIMONIO_HISTORICO"') IS NOT NULL THEN
+    INSERT INTO public."JUR_PATRIMONIO_ITENS" (patrimonio_id, kind, acao, detalhe, autor, created_at)
+    SELECT patrimonio_id, 'historico', acao, detalhe, autor, created_at FROM public."JUR_PATRIMONIO_HISTORICO";
+    DROP TABLE public."JUR_PATRIMONIO_HISTORICO";
+  END IF;
+END $$;
+
+ALTER TABLE public."JUR_PATRIMONIO_ITENS" ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public."JUR_PATRIMONIO_ITENS" TO authenticated;
+DROP POLICY IF EXISTS "JUR_PATRIMONIO_ITENS_all_auth" ON public."JUR_PATRIMONIO_ITENS";
+CREATE POLICY "JUR_PATRIMONIO_ITENS_all_auth" ON public."JUR_PATRIMONIO_ITENS"
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';
+

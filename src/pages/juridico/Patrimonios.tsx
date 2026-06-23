@@ -109,7 +109,7 @@ export default function Patrimonios() {
   }, []);
 
   const logHist = async (patId: number, acao: string, detalhe?: string) => {
-    await (supabase as any).from("JUR_PATRIMONIO_HISTORICO").insert({ patrimonio_id: patId, acao, detalhe, autor });
+    await (supabase as any).from("JUR_PATRIMONIO_ITENS").insert({ patrimonio_id: patId, kind: "historico", acao, detalhe, autor });
   };
 
   // ── Patrimônio: salvar ─────────────────────────────────────────
@@ -135,7 +135,7 @@ export default function Patrimonios() {
     if (!editId) return;
     if (!confirm(`Excluir o patrimônio "${pat.descricao}" e TODOS os dados vinculados (obrigações, contas, acessos, contatos, documentos, histórico e comentários)? Esta ação não pode ser desfeita.`)) return;
     // Remove os arquivos do storage (as linhas do banco somem por CASCADE, os arquivos não).
-    const { data: dd } = await (supabase as any).from("JUR_PATRIMONIO_DOCUMENTOS").select("storage_path").eq("patrimonio_id", editId);
+    const { data: dd } = await (supabase as any).from("JUR_PATRIMONIO_ITENS").select("storage_path").eq("kind", "documento").eq("patrimonio_id", editId);
     const paths = (dd ?? []).map((x: any) => x.storage_path).filter(Boolean);
     if (paths.length) await supabase.storage.from("juridico-docs").remove(paths);
     const { error } = await (supabase as any).from("JUR_PATRIMONIOS").delete().eq("id", editId);
@@ -149,16 +149,16 @@ export default function Patrimonios() {
     setObrs([]); setAcessos([]); setContatos([]); setDocs([]); setHist([]); setComentarios([]);
     const [o, a, c, d, h, cm] = await Promise.all([
       (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").select("*").eq("patrimonio_id", p.id).order("vencimento", { ascending: true }),
-      (supabase as any).from("JUR_PATRIMONIO_ACESSOS").select("*").eq("patrimonio_id", p.id).order("id"),
-      (supabase as any).from("JUR_PATRIMONIO_CONTATOS").select("*").eq("patrimonio_id", p.id).order("id"),
-      (supabase as any).from("JUR_PATRIMONIO_DOCUMENTOS").select("*").eq("patrimonio_id", p.id).order("created_at", { ascending: false }),
-      (supabase as any).from("JUR_PATRIMONIO_HISTORICO").select("*").eq("patrimonio_id", p.id).order("created_at", { ascending: false }).limit(50),
+      (supabase as any).from("JUR_PATRIMONIO_ITENS").select("*").eq("kind", "acesso").eq("patrimonio_id", p.id).order("id"),
+      (supabase as any).from("JUR_PATRIMONIO_ITENS").select("*").eq("kind", "contato").eq("patrimonio_id", p.id).order("id"),
+      (supabase as any).from("JUR_PATRIMONIO_ITENS").select("*").eq("kind", "documento").eq("patrimonio_id", p.id).order("created_at", { ascending: false }),
+      (supabase as any).from("JUR_PATRIMONIO_ITENS").select("*").eq("kind", "historico").eq("patrimonio_id", p.id).order("created_at", { ascending: false }).limit(50),
       (supabase as any).from("SISTEMA_COMENTARIOS").select("*").eq("modulo", "patrimonio").eq("entidade_id", String(p.id)).order("created_at", { ascending: false }),
     ]);
     setObrs(o.data ?? []); setAcessos(a.data ?? []); setContatos(c.data ?? []); setDocs(d.data ?? []); setHist(h.data ?? []); setComentarios(cm.data ?? []);
   };
   const recarregarObrs = async () => { if (!sel) return; const { data } = await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").select("*").eq("patrimonio_id", sel.id).order("vencimento"); setObrs(data ?? []); load(); };
-  const recarregarHist = async () => { if (!sel) return; const { data } = await (supabase as any).from("JUR_PATRIMONIO_HISTORICO").select("*").eq("patrimonio_id", sel.id).order("created_at", { ascending: false }).limit(50); setHist(data ?? []); };
+  const recarregarHist = async () => { if (!sel) return; const { data } = await (supabase as any).from("JUR_PATRIMONIO_ITENS").select("*").eq("kind", "historico").eq("patrimonio_id", sel.id).order("created_at", { ascending: false }).limit(50); setHist(data ?? []); };
   const recarregarComentarios = async () => { if (!sel) return; const { data } = await (supabase as any).from("SISTEMA_COMENTARIOS").select("*").eq("modulo", "patrimonio").eq("entidade_id", String(sel.id)).order("created_at", { ascending: false }); setComentarios(data ?? []); };
 
   // ── Obrigação ──────────────────────────────────────────────────
@@ -222,18 +222,18 @@ export default function Patrimonios() {
   // ── Acessos / Contatos (add inline) ────────────────────────────
   const addAcesso = async () => {
     if (!sel) return;
-    const { data } = await (supabase as any).from("JUR_PATRIMONIO_ACESSOS").insert({ patrimonio_id: sel.id, servico: "", link: "", usuario: "", local_senha: "" }).select("*").single();
+    const { data } = await (supabase as any).from("JUR_PATRIMONIO_ITENS").insert({ patrimonio_id: sel.id, kind: "acesso", servico: "", link: "", usuario: "", local_senha: "" }).select("*").single();
     if (data) setAcessos(a => [...a, data]);
   };
-  const salvarAcesso = async (a: Acesso) => { await (supabase as any).from("JUR_PATRIMONIO_ACESSOS").update({ servico: a.servico, link: a.link, usuario: a.usuario, local_senha: a.local_senha, observacao: a.observacao }).eq("id", a.id); };
-  const excluirAcesso = async (id: number) => { await (supabase as any).from("JUR_PATRIMONIO_ACESSOS").delete().eq("id", id); setAcessos(a => a.filter(x => x.id !== id)); };
+  const salvarAcesso = async (a: Acesso) => { await (supabase as any).from("JUR_PATRIMONIO_ITENS").update({ servico: a.servico, link: a.link, usuario: a.usuario, local_senha: a.local_senha, observacao: a.observacao }).eq("id", a.id); };
+  const excluirAcesso = async (id: number) => { await (supabase as any).from("JUR_PATRIMONIO_ITENS").delete().eq("id", id); setAcessos(a => a.filter(x => x.id !== id)); };
   const addContato = async () => {
     if (!sel) return;
-    const { data } = await (supabase as any).from("JUR_PATRIMONIO_CONTATOS").insert({ patrimonio_id: sel.id, tipo: "", nome: "", telefone: "", email: "" }).select("*").single();
+    const { data } = await (supabase as any).from("JUR_PATRIMONIO_ITENS").insert({ patrimonio_id: sel.id, kind: "contato", tipo: "", nome: "", telefone: "", email: "" }).select("*").single();
     if (data) setContatos(c => [...c, data]);
   };
-  const salvarContato = async (c: Contato) => { await (supabase as any).from("JUR_PATRIMONIO_CONTATOS").update({ tipo: c.tipo, nome: c.nome, telefone: c.telefone, email: c.email, observacao: c.observacao }).eq("id", c.id); };
-  const excluirContato = async (id: number) => { await (supabase as any).from("JUR_PATRIMONIO_CONTATOS").delete().eq("id", id); setContatos(c => c.filter(x => x.id !== id)); };
+  const salvarContato = async (c: Contato) => { await (supabase as any).from("JUR_PATRIMONIO_ITENS").update({ tipo: c.tipo, nome: c.nome, telefone: c.telefone, email: c.email, observacao: c.observacao }).eq("id", c.id); };
+  const excluirContato = async (id: number) => { await (supabase as any).from("JUR_PATRIMONIO_ITENS").delete().eq("id", id); setContatos(c => c.filter(x => x.id !== id)); };
 
   // ── Documentos ─────────────────────────────────────────────────
   const uploadDoc = async (file: File, tipo: string) => {
@@ -242,7 +242,7 @@ export default function Patrimonios() {
     const path = `${sel.id}/${Date.now()}_${safe}`;
     const { error: up } = await supabase.storage.from("juridico-docs").upload(path, file, { upsert: false });
     if (up) { toast("Falha no upload: " + up.message, "err"); return; }
-    const { data } = await (supabase as any).from("JUR_PATRIMONIO_DOCUMENTOS").insert({ patrimonio_id: sel.id, tipo, nome: file.name, storage_path: path, criado_por: autor }).select("*").single();
+    const { data } = await (supabase as any).from("JUR_PATRIMONIO_ITENS").insert({ patrimonio_id: sel.id, kind: "documento", tipo, nome: file.name, storage_path: path, criado_por: autor }).select("*").single();
     if (data) setDocs(d => [data, ...d]);
     await logHist(sel.id, "Documento anexado", `${tipo}: ${file.name}`); recarregarHist();
     toast("Documento anexado.", "ok");
@@ -256,7 +256,7 @@ export default function Patrimonios() {
   const excluirDoc = async (d: Documento) => {
     if (!confirm("Excluir este documento?")) return;
     if (d.storage_path) await supabase.storage.from("juridico-docs").remove([d.storage_path]);
-    await (supabase as any).from("JUR_PATRIMONIO_DOCUMENTOS").delete().eq("id", d.id);
+    await (supabase as any).from("JUR_PATRIMONIO_ITENS").delete().eq("id", d.id);
     setDocs(x => x.filter(i => i.id !== d.id));
   };
 
