@@ -1111,3 +1111,29 @@ CREATE POLICY "JUR_PATRIMONIO_ITENS_all_auth" ON public."JUR_PATRIMONIO_ITENS"
 
 NOTIFY pgrst, 'reload schema';
 
+-- =========================================================================
+-- JURÍDICO — Processos: colunas de valor bigint/integer -> numeric (018)
+--   (guardam centavos; bigint quebrava carga e gravação pela tela). Idempotente.
+-- =========================================================================
+DO $$
+DECLARE c text;
+BEGIN
+  IF to_regclass('public."JUR_PROCESSOS"') IS NOT NULL THEN
+    FOREACH c IN ARRAY ARRAY[
+      'valor_pericia_empresa','valor_pedidos','valor_acordo','valor_sentenca','valor_final',
+      'valor_deposito_recursal','valor_seguro_garantia','valor_custas_processuais',
+      'valor_pericia_contabil','valor_outros_custos','demais_encargos','valor_causa'
+    ] LOOP
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='JUR_PROCESSOS'
+          AND column_name=c AND data_type IN ('bigint','integer')
+      ) THEN
+        EXECUTE format('ALTER TABLE public."JUR_PROCESSOS" ALTER COLUMN %I TYPE numeric USING %I::numeric', c, c);
+      END IF;
+    END LOOP;
+  END IF;
+END $$;
+
+NOTIFY pgrst, 'reload schema';
+
