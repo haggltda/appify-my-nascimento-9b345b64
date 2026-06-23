@@ -311,7 +311,14 @@ export default function SolicitacoesErp() {
     toast({ title: "Anexo enviado" });
   };
 
-  const getDownloadUrl = (path: string) => supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  const handleDownloadAnexo = async (path: string) => {
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) {
+      toast({ title: "Erro ao abrir anexo", description: error?.message, variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
 
   const comentar = async () => {
     if (!novoComentario.trim() || !cardDetalhe) return;
@@ -476,9 +483,9 @@ export default function SolicitacoesErp() {
                       {anexos.map((a) => (
                         <div key={a.id} className="flex items-center justify-between rounded border border-border px-2 py-1.5 text-xs">
                           <span className="truncate" title={a.nome_arquivo}>{a.nome_arquivo}</span>
-                          <a href={getDownloadUrl(a.storage_path)} target="_blank" rel="noopener noreferrer" className="ml-2 shrink-0 text-primary hover:underline">
+                          <button type="button" onClick={() => handleDownloadAnexo(a.storage_path)} className="ml-2 shrink-0 text-primary hover:underline">
                             <Download className="h-3.5 w-3.5" />
-                          </a>
+                          </button>
                         </div>
                       ))}
                       {anexos.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhum anexo ainda.</p>}
