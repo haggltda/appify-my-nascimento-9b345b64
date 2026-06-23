@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAccessibleMenus } from "@/hooks/useAccessibleMenus";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,16 +43,24 @@ interface Comentario {
 
 const BUCKET = "sistema-solicitacoes";
 
+// Cicla a mesma paleta de 6 cores já usada antes — só repete a partir da 7ª coluna.
+const PALETA_CORES = ["muted", "primary", "accent", "info", "warning", "success"] as const;
+
 const ETAPAS: Array<{ key: string; label: string; cor: string }> = [
-  { key: "solicitacoes", label: "Solicitações", cor: "muted" },
-  { key: "aprovado_presidencia", label: "Aprovado Presidência", cor: "primary" },
-  { key: "projetos_definicao_responsavel", label: "Projetos e Definição de Responsável", cor: "accent" },
-  { key: "em_andamento", label: "Em Andamento", cor: "info" },
-  { key: "validacao_presidencia", label: "Validação Presidência", cor: "primary" },
-  { key: "teste_setor_responsavel", label: "Teste com Setor Responsável", cor: "warning" },
-  { key: "treinamentos", label: "Treinamentos", cor: "accent" },
-  { key: "implantacao", label: "Implantação", cor: "success" },
-];
+  { key: "registro_oficial", label: "Solicitações Registro Oficial" },
+  { key: "triagem_inicial_comite", label: "Triagem Inicial - Comitê" },
+  { key: "projeto", label: "Projeto" },
+  { key: "aprovacoes_priorizacao", label: "Aprovações e Priorização" },
+  { key: "definicao_responsavel", label: "Definição de Responsável" },
+  { key: "desenvolvimento_ajustes", label: "Desenvolvimento e Ajustes" },
+  { key: "validacao", label: "Validação" },
+  { key: "homologacao_tecnica", label: "Homologação Técnica" },
+  { key: "homologacao_usuario", label: "Homologação do Usuário" },
+  { key: "treinamentos", label: "Treinamentos" },
+  { key: "implantacao", label: "Implantação" },
+  { key: "acompanhamento_assistido", label: "Acompanhamento Assistido" },
+  { key: "encerramento", label: "Encerramento" },
+].map((etapa, i) => ({ ...etapa, cor: PALETA_CORES[i % PALETA_CORES.length] }));
 
 // Classes Tailwind por token de cor — precisam estar escritas por extenso
 // (não construídas via template string) pro JIT do Tailwind conseguir detectar.
@@ -74,19 +81,6 @@ const COR_BORDER: Record<string, string> = {
   success: "border-l-success",
 };
 
-// Fluxo linear: cada etapa só avança pra próxima exata, e só quem tem o
-// toggle daquela transição ligado (em /app/administracao?tab=modulos,
-// módulo "Sistemas") pode mover. Reforçado também no banco via trigger.
-const PROXIMA_ETAPA: Record<string, { para: string; codigo: string }> = {
-  solicitacoes: { para: "aprovado_presidencia", codigo: "sistemas_mover_solicitacoes_aprovado_presidencia" },
-  aprovado_presidencia: { para: "projetos_definicao_responsavel", codigo: "sistemas_mover_aprovado_presidencia_projetos" },
-  projetos_definicao_responsavel: { para: "em_andamento", codigo: "sistemas_mover_projetos_em_andamento" },
-  em_andamento: { para: "validacao_presidencia", codigo: "sistemas_mover_em_andamento_validacao_presidencia" },
-  validacao_presidencia: { para: "teste_setor_responsavel", codigo: "sistemas_mover_validacao_presidencia_teste_setor" },
-  teste_setor_responsavel: { para: "treinamentos", codigo: "sistemas_mover_teste_setor_treinamentos" },
-  treinamentos: { para: "implantacao", codigo: "sistemas_mover_treinamentos_implantacao" },
-};
-
 function iniciais(nome: string): string {
   return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 }
@@ -101,7 +95,6 @@ export default function SolicitacoesErp() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const { data: access } = useAccessibleMenus("visualizar");
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novoDescricao, setNovoDescricao] = useState("");
@@ -114,13 +107,6 @@ export default function SolicitacoesErp() {
   const [novoComentario, setNovoComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [progressoInput, setProgressoInput] = useState(0);
-
-  const podeCriar = access?.codes.has("sistemas_criar_solicitacao") ?? false;
-  const podeMover = (codigo: string) => access?.codes.has(codigo) ?? false;
-  // Definir responsável só é permitido na etapa "Projetos e Definição de
-  // Responsável", por quem pode mover o card dela pra "Em Andamento" —
-  // mesma regra reforçada no banco pelo trigger.
-  const podeDefinirResponsavel = podeMover("sistemas_mover_projetos_em_andamento");
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["sistema_solicitacao"],
@@ -220,17 +206,7 @@ export default function SolicitacoesErp() {
     e.preventDefault();
     const id = e.dataTransfer.getData("text/plain");
     const card = rows.find((r) => r.id === id);
-    if (!card) return;
-
-    const transicao = PROXIMA_ETAPA[card.etapa];
-    if (!transicao || transicao.para !== colunaDestino) {
-      toast({ title: "Transição não permitida", description: "Cards só avançam para a próxima etapa do fluxo.", variant: "destructive" });
-      return;
-    }
-    if (!podeMover(transicao.codigo)) {
-      toast({ title: "Sem permissão", description: "Você não pode mover cards desta etapa.", variant: "destructive" });
-      return;
-    }
+    if (!card || card.etapa === colunaDestino) return;
 
     const { error } = await (supabase as any).from("sistema_solicitacao").update({ etapa: colunaDestino }).eq("id", id);
     if (error) {
@@ -340,15 +316,13 @@ export default function SolicitacoesErp() {
     <div>
       <PageHeader
         title="Solicitações ERP"
-        subtitle="Fluxo de demandas de sistemas — arraste o card para a próxima etapa."
+        subtitle="Fluxo de demandas de sistemas — arraste o card entre as etapas."
         module="Sistemas"
         breadcrumb={["Solicitações ERP"]}
         actions={
-          podeCriar ? (
-            <Button onClick={() => setNovoOpen(true)} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Nova Solicitação
-            </Button>
-          ) : undefined
+          <Button onClick={() => setNovoOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" /> Nova Solicitação
+          </Button>
         }
       />
 
@@ -371,16 +345,14 @@ export default function SolicitacoesErp() {
             </div>
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {grouped.get(etapa.key)?.map((card) => {
-                const transicao = PROXIMA_ETAPA[card.etapa];
-                const arrastavel = !!transicao && podeMover(transicao.codigo);
                 const responsavelNome = nomeUsuario(card.responsavel_user_id);
                 return (
                   <Card
                     key={card.id}
-                    draggable={arrastavel}
+                    draggable
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", card.id)}
                     onClick={() => { setDetalheId(card.id); setProgressoInput(card.progresso_pct); }}
-                    className={`border-l-4 p-3 ${COR_BORDER[etapa.cor]} ${arrastavel ? "cursor-grab" : "cursor-pointer"}`}
+                    className={`cursor-grab border-l-4 p-3 ${COR_BORDER[etapa.cor]}`}
                   >
                     <p className="text-xs font-medium">{card.titulo}</p>
                     {card.descricao && (
@@ -468,13 +440,7 @@ export default function SolicitacoesErp() {
                       options={usuarios.map((u) => ({ value: u.id, label: u.display_name }))}
                       placeholder="Sem responsável"
                       searchPlaceholder="Buscar usuário..."
-                      disabled={!podeDefinirResponsavel || cardDetalhe.etapa !== "projetos_definicao_responsavel"}
                     />
-                    {cardDetalhe.etapa !== "projetos_definicao_responsavel" && (
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        Só pode ser definido com o card em "Projetos e Definição de Responsável".
-                      </p>
-                    )}
                   </div>
 
                   <div>
