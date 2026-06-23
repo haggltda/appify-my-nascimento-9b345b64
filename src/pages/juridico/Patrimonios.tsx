@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import Contas from "./Contas";
 
 // =====================================================================
 // JURÍDICO — Gestão Patrimonial e Obrigações
-// Patrimônios (imóveis, veículos...) + obrigações (despesas/seguros) +
-// acessos (portais), contatos, documentos e histórico.
+// Patrimônios (imóveis, veículos...) + obrigações/contas (despesas, seguros,
+// água, luz...) + acessos (portais), contatos, documentos, histórico e
+// comentários do setor Jurídico.
 // =====================================================================
 
 interface Patrimonio {
   id: number; codigo?: string; tipo: string; descricao: string; localizacao?: string;
   placa?: string; cidade?: string; empresa?: string; responsavel?: string;
   centro_custo?: string; status: string; observacoes?: string; created_at?: string;
+  transferida?: boolean; proprietario?: string; empresa_pagadora?: string;
 }
 interface Obrigacao {
   id: number; patrimonio_id: number; categoria: string; descricao?: string; valor?: number;
@@ -24,15 +25,16 @@ interface Acesso { id: number; patrimonio_id: number; servico?: string; link?: s
 interface Contato { id: number; patrimonio_id: number; tipo?: string; nome?: string; telefone?: string; email?: string; observacao?: string; }
 interface Documento { id: number; patrimonio_id: number; tipo?: string; nome?: string; storage_path?: string; criado_por?: string; created_at?: string; }
 interface Historico { id: number; patrimonio_id: number; acao: string; detalhe?: string; autor?: string; created_at?: string; }
+interface Comentario { id: number; entidade_id?: string; texto: string; autor_nome?: string; created_at?: string; }
+interface EmpJuridico { id: number; nome: string; }
 
 const TIPOS = ["Imóvel", "Veículo", "Terreno", "Equipamento", "Outros"];
-const CATEGORIAS = ["IPTU", "Condomínio", "Energia", "Água", "Internet", "Seguro", "Aluguel", "IPVA", "Licenciamento", "Manutenção", "Rastreamento", "Outros"];
+const CATEGORIAS = ["IPTU", "Condomínio", "Energia", "Água", "Luz", "Internet", "Telefone", "Seguro", "Aluguel", "Imposto", "IPVA", "Licenciamento", "Manutenção", "Rastreamento", "Outros"];
 const PERIODICIDADES = ["Mensal", "Bimestral", "Trimestral", "Semestral", "Anual", "Único"];
 
 const fmtDt = (s?: string) => { if (!s) return "—"; const d = new Date(s.length <= 10 ? s + "T12:00:00" : s); return isNaN(+d) ? s : d.toLocaleDateString("pt-BR"); };
 const money = (v?: number | null) => (v == null || isNaN(Number(v))) ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const hoje = () => new Date().toISOString().slice(0, 10);
-const diasAte = (d?: string) => { if (!d) return null; const t = new Date(d + "T12:00:00").getTime(); if (isNaN(t)) return null; return Math.ceil((t - Date.now()) / 86400000); };
 // Status efetivo da obrigação (deriva "Vencido" quando passou do vencimento e não foi pago).
 const statusObr = (o: Obrigacao): "Pago" | "Vencido" | "Pendente" => {
   if (o.status === "Pago") return "Pago";
@@ -40,7 +42,7 @@ const statusObr = (o: Obrigacao): "Pago" | "Vencido" | "Pendente" => {
   return "Pendente";
 };
 
-const PATRIM_RESET = { codigo: "", tipo: "Imóvel", descricao: "", localizacao: "", placa: "", cidade: "", empresa: "", responsavel: "", centro_custo: "", status: "Ativo", observacoes: "" };
+const PATRIM_RESET = { codigo: "", tipo: "Imóvel", descricao: "", localizacao: "", placa: "", cidade: "", transferida: "Não", empresa: "", empresa_pagadora: "", proprietario: "", responsavel: "", centro_custo: "", status: "Ativo", observacoes: "" };
 const OBR_RESET = { categoria: "Energia", descricao: "", valor: "", vencimento: "", periodicidade: "Mensal", forma_pagamento: "", responsavel: "", seguradora: "", apolice: "", vigencia_inicio: "", vigencia_fim: "", premio: "", parcelas: "" };
 
 export default function Patrimonios() {
@@ -52,6 +54,8 @@ export default function Patrimonios() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [fTipo, setFTipo] = useState("");
+  const [soPendentesTransf, setSoPendentesTransf] = useState(false);
+  const [viewPag, setViewPag] = useState<"painel" | "lista">("painel");
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
 
   // modal patrimônio
@@ -67,6 +71,11 @@ export default function Patrimonios() {
   const [contatos, setContatos] = useState<Contato[]>([]);
   const [docs, setDocs] = useState<Documento[]>([]);
   const [hist, setHist] = useState<Historico[]>([]);
+  const [comentarios, setComentarios] = useState<Comentario[]>([]);
+  const [novoComentario, setNovoComentario] = useState("");
+
+  // empregados do setor Jurídico (Trabalhando) — opções de "Responsável"
+  const [empsJuridico, setEmpsJuridico] = useState<EmpJuridico[]>([]);
 
   // sub-modal obrigação
   const [modalObr, setModalObr] = useState(false);
@@ -80,22 +89,35 @@ export default function Patrimonios() {
     setLoading(true);
     const [{ data: p }, { data: o }] = await Promise.all([
       (supabase as any).from("JUR_PATRIMONIOS").select("*").order("created_at", { ascending: false }),
-      (supabase as any).from("JUR_OBRIGACOES").select("id,patrimonio_id,categoria,valor,vencimento,status,pago_em,vigencia_fim"),
+      (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").select("id,patrimonio_id,categoria,valor,vencimento,status,pago_em,vigencia_fim"),
     ]);
     setPats(p ?? []); setObrAll(o ?? []); setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  // Empregados do setor Jurídico que estão Trabalhando (para o select de responsável).
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("EMPREGADOS")
+        .select('"ID","Nome"')
+        .eq("Setor_ERP", "JURIDICO")
+        .eq("Situação", "Trabalhando")
+        .order('"Nome"');
+      setEmpsJuridico((data ?? []).map((e: any) => ({ id: e["ID"], nome: e["Nome"] ?? "" })).filter((e: EmpJuridico) => e.nome));
+    })();
+  }, []);
+
   const logHist = async (patId: number, acao: string, detalhe?: string) => {
-    await (supabase as any).from("JUR_HISTORICO").insert({ patrimonio_id: patId, acao, detalhe, autor });
+    await (supabase as any).from("JUR_PATRIMONIO_HISTORICO").insert({ patrimonio_id: patId, acao, detalhe, autor });
   };
 
   // ── Patrimônio: salvar ─────────────────────────────────────────
   const abrirNovoPat = () => { setEditId(null); setPat({ ...PATRIM_RESET }); setModalPat(true); };
-  const abrirEditarPat = (p: Patrimonio) => { setEditId(p.id); setPat({ ...PATRIM_RESET, ...p } as any); setModalPat(true); };
+  const abrirEditarPat = (p: Patrimonio) => { setEditId(p.id); setPat({ ...PATRIM_RESET, ...p, transferida: p.transferida ? "Sim" : "Não" } as any); setModalPat(true); };
   const salvarPat = async () => {
     if (!pat.descricao.trim()) { toast("Informe a descrição.", "err"); return; }
-    const payload = { ...pat, updated_at: new Date().toISOString() };
+    const payload = { ...pat, transferida: pat.transferida === "Sim", updated_at: new Date().toISOString() };
     if (editId) {
       const { error } = await (supabase as any).from("JUR_PATRIMONIOS").update(payload).eq("id", editId);
       if (error) { toast("Erro: " + error.message, "err"); return; }
@@ -109,22 +131,35 @@ export default function Patrimonios() {
     }
     setModalPat(false); load();
   };
+  const excluirPat = async () => {
+    if (!editId) return;
+    if (!confirm(`Excluir o patrimônio "${pat.descricao}" e TODOS os dados vinculados (obrigações, contas, acessos, contatos, documentos, histórico e comentários)? Esta ação não pode ser desfeita.`)) return;
+    // Remove os arquivos do storage (as linhas do banco somem por CASCADE, os arquivos não).
+    const { data: dd } = await (supabase as any).from("JUR_PATRIMONIO_DOCUMENTOS").select("storage_path").eq("patrimonio_id", editId);
+    const paths = (dd ?? []).map((x: any) => x.storage_path).filter(Boolean);
+    if (paths.length) await supabase.storage.from("juridico-docs").remove(paths);
+    const { error } = await (supabase as any).from("JUR_PATRIMONIOS").delete().eq("id", editId);
+    if (error) { toast("Erro: " + error.message, "err"); return; }
+    setModalPat(false); setSel(null); toast("Patrimônio excluído.", "ok"); load();
+  };
 
   // ── Drawer: abrir e carregar relacionados ──────────────────────
   const abrirDrawer = async (p: Patrimonio) => {
-    setSel(p); setTab("obrigacoes");
-    setObrs([]); setAcessos([]); setContatos([]); setDocs([]); setHist([]);
-    const [o, a, c, d, h] = await Promise.all([
-      (supabase as any).from("JUR_OBRIGACOES").select("*").eq("patrimonio_id", p.id).order("vencimento", { ascending: true }),
-      (supabase as any).from("JUR_ACESSOS").select("*").eq("patrimonio_id", p.id).order("id"),
-      (supabase as any).from("JUR_CONTATOS").select("*").eq("patrimonio_id", p.id).order("id"),
-      (supabase as any).from("JUR_DOCUMENTOS").select("*").eq("patrimonio_id", p.id).order("created_at", { ascending: false }),
-      (supabase as any).from("JUR_HISTORICO").select("*").eq("patrimonio_id", p.id).order("created_at", { ascending: false }).limit(50),
+    setSel(p); setTab("obrigacoes"); setNovoComentario("");
+    setObrs([]); setAcessos([]); setContatos([]); setDocs([]); setHist([]); setComentarios([]);
+    const [o, a, c, d, h, cm] = await Promise.all([
+      (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").select("*").eq("patrimonio_id", p.id).order("vencimento", { ascending: true }),
+      (supabase as any).from("JUR_PATRIMONIO_ACESSOS").select("*").eq("patrimonio_id", p.id).order("id"),
+      (supabase as any).from("JUR_PATRIMONIO_CONTATOS").select("*").eq("patrimonio_id", p.id).order("id"),
+      (supabase as any).from("JUR_PATRIMONIO_DOCUMENTOS").select("*").eq("patrimonio_id", p.id).order("created_at", { ascending: false }),
+      (supabase as any).from("JUR_PATRIMONIO_HISTORICO").select("*").eq("patrimonio_id", p.id).order("created_at", { ascending: false }).limit(50),
+      (supabase as any).from("SISTEMA_COMENTARIOS").select("*").eq("modulo", "patrimonio").eq("entidade_id", String(p.id)).order("created_at", { ascending: false }),
     ]);
-    setObrs(o.data ?? []); setAcessos(a.data ?? []); setContatos(c.data ?? []); setDocs(d.data ?? []); setHist(h.data ?? []);
+    setObrs(o.data ?? []); setAcessos(a.data ?? []); setContatos(c.data ?? []); setDocs(d.data ?? []); setHist(h.data ?? []); setComentarios(cm.data ?? []);
   };
-  const recarregarObrs = async () => { if (!sel) return; const { data } = await (supabase as any).from("JUR_OBRIGACOES").select("*").eq("patrimonio_id", sel.id).order("vencimento"); setObrs(data ?? []); load(); };
-  const recarregarHist = async () => { if (!sel) return; const { data } = await (supabase as any).from("JUR_HISTORICO").select("*").eq("patrimonio_id", sel.id).order("created_at", { ascending: false }).limit(50); setHist(data ?? []); };
+  const recarregarObrs = async () => { if (!sel) return; const { data } = await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").select("*").eq("patrimonio_id", sel.id).order("vencimento"); setObrs(data ?? []); load(); };
+  const recarregarHist = async () => { if (!sel) return; const { data } = await (supabase as any).from("JUR_PATRIMONIO_HISTORICO").select("*").eq("patrimonio_id", sel.id).order("created_at", { ascending: false }).limit(50); setHist(data ?? []); };
+  const recarregarComentarios = async () => { if (!sel) return; const { data } = await (supabase as any).from("SISTEMA_COMENTARIOS").select("*").eq("modulo", "patrimonio").eq("entidade_id", String(sel.id)).order("created_at", { ascending: false }); setComentarios(data ?? []); };
 
   // ── Obrigação ──────────────────────────────────────────────────
   const abrirNovaObr = () => { setObrEditId(null); setObr({ ...OBR_RESET }); setModalObr(true); };
@@ -146,11 +181,11 @@ export default function Patrimonios() {
       premio: obr.premio ? Number(obr.premio) : null, parcelas: obr.parcelas || null,
     };
     if (obrEditId) {
-      const { error } = await (supabase as any).from("JUR_OBRIGACOES").update(payload).eq("id", obrEditId);
+      const { error } = await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").update(payload).eq("id", obrEditId);
       if (error) { toast("Erro: " + error.message, "err"); return; }
       await logHist(sel.id, "Obrigação atualizada", `${obr.categoria}`);
     } else {
-      const { error } = await (supabase as any).from("JUR_OBRIGACOES").insert({ ...payload, status: "Pendente" });
+      const { error } = await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").insert({ ...payload, status: "Pendente" });
       if (error) { toast("Erro: " + error.message, "err"); return; }
       await logHist(sel.id, "Obrigação cadastrada", `${obr.categoria}${obr.vencimento ? " · venc. " + fmtDt(obr.vencimento) : ""}`);
     }
@@ -158,32 +193,47 @@ export default function Patrimonios() {
   };
   const marcarPago = async (o: Obrigacao) => {
     if (!sel) return;
-    const { error } = await (supabase as any).from("JUR_OBRIGACOES").update({ status: "Pago", pago_em: hoje() }).eq("id", o.id);
+    const { error } = await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").update({ status: "Pago", pago_em: hoje() }).eq("id", o.id);
     if (error) { toast("Erro: " + error.message, "err"); return; }
     await logHist(sel.id, "Obrigação paga", `${o.categoria} · ${money(o.valor)}`);
     toast("Marcada como paga.", "ok"); recarregarObrs(); recarregarHist();
   };
   const excluirObr = async (o: Obrigacao) => {
     if (!confirm("Excluir esta obrigação?")) return;
-    await (supabase as any).from("JUR_OBRIGACOES").delete().eq("id", o.id);
+    await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").delete().eq("id", o.id);
     recarregarObrs();
+  };
+
+  // ── Comentários (setor Jurídico) ───────────────────────────────
+  const addComentario = async () => {
+    if (!sel) return;
+    const texto = novoComentario.trim();
+    if (!texto) return;
+    const { error } = await (supabase as any).from("SISTEMA_COMENTARIOS").insert({ modulo: "patrimonio", entidade_id: String(sel.id), texto, autor_nome: autor });
+    if (error) { toast("Erro: " + error.message, "err"); return; }
+    setNovoComentario(""); toast("Comentário adicionado.", "ok"); recarregarComentarios();
+  };
+  const excluirComentario = async (c: Comentario) => {
+    if (!confirm("Excluir este comentário?")) return;
+    await (supabase as any).from("SISTEMA_COMENTARIOS").delete().eq("id", c.id);
+    setComentarios(x => x.filter(i => i.id !== c.id));
   };
 
   // ── Acessos / Contatos (add inline) ────────────────────────────
   const addAcesso = async () => {
     if (!sel) return;
-    const { data } = await (supabase as any).from("JUR_ACESSOS").insert({ patrimonio_id: sel.id, servico: "", link: "", usuario: "", local_senha: "" }).select("*").single();
+    const { data } = await (supabase as any).from("JUR_PATRIMONIO_ACESSOS").insert({ patrimonio_id: sel.id, servico: "", link: "", usuario: "", local_senha: "" }).select("*").single();
     if (data) setAcessos(a => [...a, data]);
   };
-  const salvarAcesso = async (a: Acesso) => { await (supabase as any).from("JUR_ACESSOS").update({ servico: a.servico, link: a.link, usuario: a.usuario, local_senha: a.local_senha, observacao: a.observacao }).eq("id", a.id); };
-  const excluirAcesso = async (id: number) => { await (supabase as any).from("JUR_ACESSOS").delete().eq("id", id); setAcessos(a => a.filter(x => x.id !== id)); };
+  const salvarAcesso = async (a: Acesso) => { await (supabase as any).from("JUR_PATRIMONIO_ACESSOS").update({ servico: a.servico, link: a.link, usuario: a.usuario, local_senha: a.local_senha, observacao: a.observacao }).eq("id", a.id); };
+  const excluirAcesso = async (id: number) => { await (supabase as any).from("JUR_PATRIMONIO_ACESSOS").delete().eq("id", id); setAcessos(a => a.filter(x => x.id !== id)); };
   const addContato = async () => {
     if (!sel) return;
-    const { data } = await (supabase as any).from("JUR_CONTATOS").insert({ patrimonio_id: sel.id, tipo: "", nome: "", telefone: "", email: "" }).select("*").single();
+    const { data } = await (supabase as any).from("JUR_PATRIMONIO_CONTATOS").insert({ patrimonio_id: sel.id, tipo: "", nome: "", telefone: "", email: "" }).select("*").single();
     if (data) setContatos(c => [...c, data]);
   };
-  const salvarContato = async (c: Contato) => { await (supabase as any).from("JUR_CONTATOS").update({ tipo: c.tipo, nome: c.nome, telefone: c.telefone, email: c.email, observacao: c.observacao }).eq("id", c.id); };
-  const excluirContato = async (id: number) => { await (supabase as any).from("JUR_CONTATOS").delete().eq("id", id); setContatos(c => c.filter(x => x.id !== id)); };
+  const salvarContato = async (c: Contato) => { await (supabase as any).from("JUR_PATRIMONIO_CONTATOS").update({ tipo: c.tipo, nome: c.nome, telefone: c.telefone, email: c.email, observacao: c.observacao }).eq("id", c.id); };
+  const excluirContato = async (id: number) => { await (supabase as any).from("JUR_PATRIMONIO_CONTATOS").delete().eq("id", id); setContatos(c => c.filter(x => x.id !== id)); };
 
   // ── Documentos ─────────────────────────────────────────────────
   const uploadDoc = async (file: File, tipo: string) => {
@@ -192,7 +242,7 @@ export default function Patrimonios() {
     const path = `${sel.id}/${Date.now()}_${safe}`;
     const { error: up } = await supabase.storage.from("juridico-docs").upload(path, file, { upsert: false });
     if (up) { toast("Falha no upload: " + up.message, "err"); return; }
-    const { data } = await (supabase as any).from("JUR_DOCUMENTOS").insert({ patrimonio_id: sel.id, tipo, nome: file.name, storage_path: path, criado_por: autor }).select("*").single();
+    const { data } = await (supabase as any).from("JUR_PATRIMONIO_DOCUMENTOS").insert({ patrimonio_id: sel.id, tipo, nome: file.name, storage_path: path, criado_por: autor }).select("*").single();
     if (data) setDocs(d => [data, ...d]);
     await logHist(sel.id, "Documento anexado", `${tipo}: ${file.name}`); recarregarHist();
     toast("Documento anexado.", "ok");
@@ -206,7 +256,7 @@ export default function Patrimonios() {
   const excluirDoc = async (d: Documento) => {
     if (!confirm("Excluir este documento?")) return;
     if (d.storage_path) await supabase.storage.from("juridico-docs").remove([d.storage_path]);
-    await (supabase as any).from("JUR_DOCUMENTOS").delete().eq("id", d.id);
+    await (supabase as any).from("JUR_PATRIMONIO_DOCUMENTOS").delete().eq("id", d.id);
     setDocs(x => x.filter(i => i.id !== d.id));
   };
 
@@ -214,13 +264,31 @@ export default function Patrimonios() {
   const ativos = pats.filter(p => p.status === "Ativo").length;
   const naoPagas = obrAll.filter(o => o.status !== "Pago");
   const vencidas = naoPagas.filter(o => o.vencimento && o.vencimento < hoje()).length;
-  const prox30 = naoPagas.filter(o => { const d = diasAte(o.vencimento); return d != null && d >= 0 && d <= 30; }).length;
   const mesAtual = hoje().slice(0, 7);
   const pagoMes = obrAll.filter(o => o.status === "Pago" && (o.pago_em || "").slice(0, 7) === mesAtual).reduce((s, o) => s + (Number(o.valor) || 0), 0);
+  const pendentesTransf = pats.filter(p => !p.transferida).length;
+  const totalPrevisto = naoPagas.reduce((s, o) => s + (Number(o.valor) || 0), 0);
+
+  // ── Dashboard: agregações ──────────────────────────────────────
+  const porTipo = TIPOS.map(t => ({ tipo: t, n: pats.filter(p => p.tipo === t).length })).filter(x => x.n > 0);
+  const maxTipo = Math.max(1, ...porTipo.map(x => x.n));
+  const catMap: Record<string, number> = {};
+  obrAll.forEach(o => { const k = o.categoria || "Outros"; catMap[k] = (catMap[k] || 0) + (Number(o.valor) || 0); });
+  const porCategoria = Object.entries(catMap).map(([categoria, valor]) => ({ categoria, valor })).filter(x => x.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 8);
+  const maxCat = Math.max(1, ...porCategoria.map(x => x.valor));
+  const obrPorPat = pats.map(p => {
+    const os = obrAll.filter(o => o.patrimonio_id === p.id);
+    const naoPg = os.filter(o => o.status !== "Pago");
+    const venc = naoPg.filter(o => o.vencimento && o.vencimento < hoje()).length;
+    const prev = naoPg.reduce((s, o) => s + (Number(o.valor) || 0), 0);
+    const pg = os.filter(o => o.status === "Pago").reduce((s, o) => s + (Number(o.valor) || 0), 0);
+    return { p, n: os.length, venc, prev, pg };
+  }).filter(x => x.n > 0).sort((a, b) => b.venc - a.venc || b.prev - a.prev);
 
   const listaFiltrada = pats.filter(p => {
     if (fTipo && p.tipo !== fTipo) return false;
-    if (busca) { const q = busca.toLowerCase(); return [p.descricao, p.codigo, p.localizacao, p.placa, p.cidade, p.empresa, p.responsavel].some(x => (x || "").toLowerCase().includes(q)); }
+    if (soPendentesTransf && p.transferida) return false;
+    if (busca) { const q = busca.toLowerCase(); return [p.descricao, p.codigo, p.localizacao, p.placa, p.cidade, p.empresa, p.responsavel, p.proprietario, p.empresa_pagadora].some(x => (x || "").toLowerCase().includes(q)); }
     return true;
   });
 
@@ -228,6 +296,17 @@ export default function Patrimonios() {
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 18px", flex: 1, minWidth: 150, boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px" }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color: cor, marginTop: 4 }}>{valor}</div>
+    </div>
+  );
+  const barRow = (label: string, val: number, max: number, cor: string, right: string) => (
+    <div style={{ marginBottom: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4, gap: 8 }}>
+        <span style={{ color: "#475569", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        <span style={{ color: "#0f172a", fontWeight: 800, whiteSpace: "nowrap" }}>{right}</span>
+      </div>
+      <div style={{ height: 10, background: "#eef2f7", borderRadius: 6, overflow: "hidden" }}>
+        <div style={{ width: `${Math.max(3, Math.round((val / max) * 100))}%`, height: "100%", background: cor, borderRadius: 6 }} />
+      </div>
     </div>
   );
 
@@ -262,52 +341,110 @@ export default function Patrimonios() {
         {/* Indicadores */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
           {card("Patrimônios ativos", ativos, "#0f3171")}
+          {card("Pendentes transferência", pendentesTransf, pendentesTransf > 0 ? "#ea580c" : "#16a34a")}
           {card("Obrigações vencidas", vencidas, vencidas > 0 ? "#dc2626" : "#16a34a")}
-          {card("Vencem em 30 dias", prox30, prox30 > 0 ? "#ea580c" : "#16a34a")}
+          {card("A pagar (em aberto)", money(totalPrevisto), "#0f3171")}
           {card("Pago no mês", money(pagoMes), "#15803d")}
         </div>
 
-        {/* Filtros */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <input className="jp-fi" style={{ maxWidth: 320 }} placeholder="Buscar por descrição, código, placa, cidade…" value={busca} onChange={e => setBusca(e.target.value)} />
-          <select className="jp-fi" style={{ maxWidth: 180 }} value={fTipo} onChange={e => setFTipo(e.target.value)}>
-            <option value="">Todos os tipos</option>
-            {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
+        {/* Toggle de visão */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+          <button className="jp-btn" onClick={() => setViewPag("painel")} style={{ background: viewPag === "painel" ? "#0f3171" : "#fff", color: viewPag === "painel" ? "#fff" : "#64748b", border: "1px solid " + (viewPag === "painel" ? "#0f3171" : "#e2e8f0") }}>📊 Painel</button>
+          <button className="jp-btn" onClick={() => setViewPag("lista")} style={{ background: viewPag === "lista" ? "#0f3171" : "#fff", color: viewPag === "lista" ? "#fff" : "#64748b", border: "1px solid " + (viewPag === "lista" ? "#0f3171" : "#e2e8f0") }}>📋 Lista de patrimônios</button>
         </div>
 
-        {/* Lista */}
-        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
-          {loading ? (
-            <div style={{ padding: 50, textAlign: "center", color: "#94a3b8" }}>Carregando…</div>
-          ) : listaFiltrada.length === 0 ? (
-            <div style={{ padding: 50, textAlign: "center", color: "#94a3b8" }}>Nenhum patrimônio. Clique em "+ Novo Patrimônio".</div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", color: "#94a3b8", fontSize: 11, textTransform: "uppercase", letterSpacing: ".5px" }}>
-                  <th style={{ textAlign: "left", padding: "10px 14px" }}>Patrimônio</th>
-                  <th style={{ textAlign: "left", padding: "10px 14px" }}>Tipo</th>
-                  <th style={{ textAlign: "left", padding: "10px 14px" }}>Localização</th>
-                  <th style={{ textAlign: "left", padding: "10px 14px" }}>Empresa</th>
-                  <th style={{ textAlign: "left", padding: "10px 14px" }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {listaFiltrada.map(p => (
-                  <tr key={p.id} onClick={() => abrirDrawer(p)} style={{ borderTop: "1px solid #eef2f7", cursor: "pointer" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#f8fbff")} onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
-                    <td style={{ padding: "11px 14px", fontWeight: 700, color: "#0f172a" }}>{p.descricao}{p.codigo ? <span style={{ color: "#94a3b8", fontWeight: 500 }}> · {p.codigo}</span> : ""}</td>
-                    <td style={{ padding: "11px 14px", color: "#475569" }}>{p.tipo}</td>
-                    <td style={{ padding: "11px 14px", color: "#475569" }}>{[p.localizacao, p.cidade].filter(Boolean).join(" · ") || p.placa || "—"}</td>
-                    <td style={{ padding: "11px 14px", color: "#475569" }}>{p.empresa || "—"}</td>
-                    <td style={{ padding: "11px 14px" }}><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: p.status === "Ativo" ? "#dcfce7" : "#f1f5f9", color: p.status === "Ativo" ? "#15803d" : "#64748b" }}>{p.status}</span></td>
+        {/* ── PAINEL (dashboard) ── */}
+        {viewPag === "painel" && (<>
+          <div className="jp-row" style={{ marginBottom: 16 }}>
+            <div style={{ flex: 1, minWidth: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#0f3171", marginBottom: 14 }}>Patrimônios por tipo</div>
+              {porTipo.length === 0 ? <div style={{ color: "#94a3b8", fontSize: 13, padding: "8px 0" }}>Sem dados.</div> : porTipo.map(x => <div key={x.tipo}>{barRow(x.tipo, x.n, maxTipo, "#0f3171", String(x.n))}</div>)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#0f3171", marginBottom: 14 }}>Obrigações por categoria (R$)</div>
+              {porCategoria.length === 0 ? <div style={{ color: "#94a3b8", fontSize: 13, padding: "8px 0" }}>Sem obrigações lançadas.</div> : porCategoria.map(x => <div key={x.categoria}>{barRow(x.categoria, x.valor, maxCat, "#7c3aed", money(x.valor))}</div>)}
+            </div>
+          </div>
+
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+            <div style={{ padding: "14px 18px", fontSize: 13, fontWeight: 800, color: "#0f3171", borderBottom: "1px solid #eef2f7" }}>Contas / Obrigações por patrimônio</div>
+            {loading ? <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>Carregando…</div>
+              : obrPorPat.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>Nenhuma conta/obrigação lançada ainda.</div>
+                : (
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc", color: "#94a3b8", fontSize: 11, textTransform: "uppercase", letterSpacing: ".5px" }}>
+                        <th style={{ textAlign: "left", padding: "10px 14px" }}>Patrimônio</th>
+                        <th style={{ textAlign: "left", padding: "10px 14px" }}>Tipo</th>
+                        <th style={{ textAlign: "center", padding: "10px 14px" }}>Itens</th>
+                        <th style={{ textAlign: "right", padding: "10px 14px" }}>A pagar</th>
+                        <th style={{ textAlign: "right", padding: "10px 14px" }}>Pago</th>
+                        <th style={{ textAlign: "center", padding: "10px 14px" }}>Vencidas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {obrPorPat.map(x => (
+                        <tr key={x.p.id} onClick={() => abrirDrawer(x.p)} style={{ borderTop: "1px solid #eef2f7", cursor: "pointer" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#f8fbff")} onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
+                          <td style={{ padding: "11px 14px", fontWeight: 700, color: "#0f172a" }}>{x.p.descricao}</td>
+                          <td style={{ padding: "11px 14px", color: "#475569" }}>{x.p.tipo}</td>
+                          <td style={{ padding: "11px 14px", color: "#475569", textAlign: "center" }}>{x.n}</td>
+                          <td style={{ padding: "11px 14px", color: "#0f172a", fontWeight: 700, textAlign: "right" }}>{money(x.prev)}</td>
+                          <td style={{ padding: "11px 14px", color: "#15803d", textAlign: "right" }}>{money(x.pg)}</td>
+                          <td style={{ padding: "11px 14px", textAlign: "center" }}>{x.venc > 0 ? <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: "#fee2e2", color: "#dc2626" }}>{x.venc}</span> : <span style={{ color: "#94a3b8" }}>—</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+          </div>
+        </>)}
+
+        {/* ── LISTA ── */}
+        {viewPag === "lista" && (<>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <input className="jp-fi" style={{ maxWidth: 320 }} placeholder="Buscar por descrição, código, placa, cidade, proprietário…" value={busca} onChange={e => setBusca(e.target.value)} />
+            <select className="jp-fi" style={{ maxWidth: 180 }} value={fTipo} onChange={e => setFTipo(e.target.value)}>
+              <option value="">Todos os tipos</option>
+              {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <button className="jp-btn" onClick={() => setSoPendentesTransf(v => !v)} style={{ background: soPendentesTransf ? "#fff7ed" : "#fff", color: soPendentesTransf ? "#ea580c" : "#64748b", border: "1px solid " + (soPendentesTransf ? "#fed7aa" : "#e2e8f0") }}>{soPendentesTransf ? "✓ " : ""}Pendentes de transferência</button>
+          </div>
+
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+            {loading ? (
+              <div style={{ padding: 50, textAlign: "center", color: "#94a3b8" }}>Carregando…</div>
+            ) : listaFiltrada.length === 0 ? (
+              <div style={{ padding: 50, textAlign: "center", color: "#94a3b8" }}>Nenhum patrimônio. Clique em "+ Novo Patrimônio".</div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", color: "#94a3b8", fontSize: 11, textTransform: "uppercase", letterSpacing: ".5px" }}>
+                    <th style={{ textAlign: "left", padding: "10px 14px" }}>Patrimônio</th>
+                    <th style={{ textAlign: "left", padding: "10px 14px" }}>Tipo</th>
+                    <th style={{ textAlign: "left", padding: "10px 14px" }}>Localização</th>
+                    <th style={{ textAlign: "left", padding: "10px 14px" }}>Empresa</th>
+                    <th style={{ textAlign: "left", padding: "10px 14px" }}>Transferência</th>
+                    <th style={{ textAlign: "left", padding: "10px 14px" }}>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                </thead>
+                <tbody>
+                  {listaFiltrada.map(p => (
+                    <tr key={p.id} onClick={() => abrirDrawer(p)} style={{ borderTop: "1px solid #eef2f7", cursor: "pointer" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#f8fbff")} onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
+                      <td style={{ padding: "11px 14px", fontWeight: 700, color: "#0f172a" }}>{p.descricao}{p.codigo ? <span style={{ color: "#94a3b8", fontWeight: 500 }}> · {p.codigo}</span> : ""}</td>
+                      <td style={{ padding: "11px 14px", color: "#475569" }}>{p.tipo}</td>
+                      <td style={{ padding: "11px 14px", color: "#475569" }}>{[p.localizacao, p.cidade].filter(Boolean).join(" · ") || p.placa || "—"}</td>
+                      <td style={{ padding: "11px 14px", color: "#475569" }}>{p.empresa || "—"}</td>
+                      <td style={{ padding: "11px 14px" }}>{p.transferida ? <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: "#dcfce7", color: "#15803d" }}>Transferida</span> : <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: "#fff7ed", color: "#ea580c" }}>Pendente</span>}</td>
+                      <td style={{ padding: "11px 14px" }}><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: p.status === "Ativo" ? "#dcfce7" : "#f1f5f9", color: p.status === "Ativo" ? "#15803d" : "#64748b" }}>{p.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>)}
       </div>
 
       {/* ── Modal Patrimônio ── */}
@@ -323,14 +460,22 @@ export default function Patrimonios() {
               <div className="jp-fg"><label>Status</label><select className="jp-fi" value={pat.status} onChange={e => setPat(v => ({ ...v, status: e.target.value }))}><option>Ativo</option><option>Inativo</option></select></div>
               <div className="jp-fg"><label>{pat.tipo === "Veículo" ? "Placa" : "Endereço / Localização"}</label><input className="jp-fi" value={pat.tipo === "Veículo" ? pat.placa : pat.localizacao} onChange={e => setPat(v => pat.tipo === "Veículo" ? { ...v, placa: e.target.value } : { ...v, localizacao: e.target.value })} /></div>
               <div className="jp-fg"><label>Cidade</label><input className="jp-fi" value={pat.cidade} onChange={e => setPat(v => ({ ...v, cidade: e.target.value }))} /></div>
+              <div className="jp-fg"><label>Já transferida pra essa empresa?</label><select className="jp-fi" value={pat.transferida} onChange={e => setPat(v => ({ ...v, transferida: e.target.value }))}><option>Não</option><option>Sim</option></select></div>
               <div className="jp-fg"><label>Empresa</label><input className="jp-fi" value={pat.empresa} onChange={e => setPat(v => ({ ...v, empresa: e.target.value }))} placeholder="HAGG, CANAÃ…" /></div>
+              <div className="jp-fg"><label>Empresa que pagará</label><input className="jp-fi" value={pat.empresa_pagadora} onChange={e => setPat(v => ({ ...v, empresa_pagadora: e.target.value }))} placeholder="Quem paga as contas/obrigações" /></div>
+              <div className="jp-fg"><label>Proprietário</label><input className="jp-fi" value={pat.proprietario} onChange={e => setPat(v => ({ ...v, proprietario: e.target.value }))} placeholder="Nome do proprietário do bem" /></div>
               <div className="jp-fg"><label>Responsável interno</label><input className="jp-fi" value={pat.responsavel} onChange={e => setPat(v => ({ ...v, responsavel: e.target.value }))} /></div>
               <div className="jp-fg"><label>Centro de custo</label><input className="jp-fi" value={pat.centro_custo} onChange={e => setPat(v => ({ ...v, centro_custo: e.target.value }))} /></div>
             </div>
             <div className="jp-fg"><label>Observações</label><textarea className="jp-fi" rows={2} value={pat.observacoes} onChange={e => setPat(v => ({ ...v, observacoes: e.target.value }))} /></div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 6 }}>
-              <button className="jp-btn" onClick={() => setModalPat(false)} style={{ background: "#fff", border: "1px solid #e2e8f0", color: "#475569" }}>Cancelar</button>
-              <button className="jp-btn" onClick={salvarPat} style={{ background: "#0f3171", color: "#fff" }}>Salvar</button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 6 }}>
+              <div>
+                {editId && <button className="jp-btn" onClick={excluirPat} style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca" }}>Excluir patrimônio</button>}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="jp-btn" onClick={() => setModalPat(false)} style={{ background: "#fff", border: "1px solid #e2e8f0", color: "#475569" }}>Cancelar</button>
+                <button className="jp-btn" onClick={salvarPat} style={{ background: "#0f3171", color: "#fff" }}>Salvar</button>
+              </div>
             </div>
           </div>
         </div>
@@ -352,7 +497,7 @@ export default function Patrimonios() {
             </div>
 
             <div style={{ display: "flex", gap: 2, padding: "0 16px", borderBottom: "1px solid #e2e8f0", background: "#fff", flexWrap: "wrap" }}>
-              {[["obrigacoes", "Obrigações"], ["contas", "Contas"], ["acessos", "Acessos"], ["contatos", "Contatos"], ["documentos", "Documentos"], ["historico", "Histórico"]].map(([k, l]) => (
+              {[["obrigacoes", "Contas / Obrigações"], ["acessos", "Acessos"], ["contatos", "Contatos"], ["documentos", "Documentos"], ["historico", "Histórico"], ["comentarios", "Comentários"]].map(([k, l]) => (
                 <button key={k} className={`jp-tab${tab === k ? " on" : ""}`} onClick={() => setTab(k)}>{l}</button>
               ))}
             </div>
@@ -390,9 +535,6 @@ export default function Patrimonios() {
                   );
                 })}
               </>)}
-
-              {/* CONTAS (submódulo embutido no patrimônio) */}
-              {tab === "contas" && <Contas patrimonioId={sel.id} />}
 
               {/* ACESSOS */}
               {tab === "acessos" && (<>
@@ -466,6 +608,28 @@ export default function Patrimonios() {
                   ))}
                 </div>
               )}
+
+              {/* COMENTÁRIOS (setor Jurídico) */}
+              {tab === "comentarios" && (<>
+                <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 11, padding: 12, marginBottom: 14 }}>
+                  <textarea className="jp-fi" rows={3} placeholder="Escreva um comentário do Jurídico sobre este patrimônio / suas obrigações…" value={novoComentario} onChange={e => setNovoComentario(e.target.value)} />
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                    <button className="jp-btn" onClick={addComentario} disabled={!novoComentario.trim()} style={{ background: novoComentario.trim() ? "#0f3171" : "#cbd5e1", color: "#fff" }}>Comentar</button>
+                  </div>
+                </div>
+                {comentarios.length === 0 ? <div style={{ color: "#94a3b8", fontSize: 13, padding: 20, textAlign: "center" }}>Nenhum comentário ainda.</div> : comentarios.map(c => (
+                  <div key={c.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 11, padding: "12px 14px", marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 5 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "#0f3171" }}>{c.autor_nome || "Jurídico"}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>{fmtDt(c.created_at)}</span>
+                        <button className="jp-btn" onClick={() => excluirComentario(c)} style={{ background: "none", color: "#dc2626", padding: "2px 6px" }}>Excluir</button>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#0f172a", whiteSpace: "pre-wrap" }}>{c.texto}</div>
+                  </div>
+                ))}
+              </>)}
             </div>
           </div>
         </div>
@@ -483,7 +647,13 @@ export default function Patrimonios() {
               <div className="jp-fg"><label>Vencimento</label><input className="jp-fi" type="date" value={obr.vencimento} onChange={e => setObr(v => ({ ...v, vencimento: e.target.value }))} /></div>
               <div className="jp-fg"><label>Periodicidade</label><select className="jp-fi" value={obr.periodicidade} onChange={e => setObr(v => ({ ...v, periodicidade: e.target.value }))}>{PERIODICIDADES.map(p => <option key={p}>{p}</option>)}</select></div>
               <div className="jp-fg"><label>Forma de pagamento</label><input className="jp-fi" value={obr.forma_pagamento} onChange={e => setObr(v => ({ ...v, forma_pagamento: e.target.value }))} placeholder="Boleto, Débito em conta…" /></div>
-              <div className="jp-fg"><label>Responsável</label><input className="jp-fi" value={obr.responsavel} onChange={e => setObr(v => ({ ...v, responsavel: e.target.value }))} /></div>
+              <div className="jp-fg"><label>Responsável (Jurídico)</label>
+                <select className="jp-fi" value={obr.responsavel} onChange={e => setObr(v => ({ ...v, responsavel: e.target.value }))}>
+                  <option value="">Selecione…</option>
+                  {obr.responsavel && !empsJuridico.some(e => e.nome === obr.responsavel) && <option value={obr.responsavel}>{obr.responsavel}</option>}
+                  {empsJuridico.map(e => <option key={e.id} value={e.nome}>{e.nome}</option>)}
+                </select>
+              </div>
             </div>
             <div className="jp-fg"><label>Descrição</label><input className="jp-fi" value={obr.descricao} onChange={e => setObr(v => ({ ...v, descricao: e.target.value }))} /></div>
             {obr.categoria === "Seguro" && (

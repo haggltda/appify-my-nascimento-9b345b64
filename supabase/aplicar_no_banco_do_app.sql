@@ -806,3 +806,258 @@ END $$;
 
 NOTIFY pgrst, 'reload schema';
 
+-- =========================================================================
+-- JURÍDICO — Comentários por patrimônio (aba "Comentários", ao lado de Histórico)
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public."JUR_COMENTARIOS" (
+  id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  patrimonio_id bigint REFERENCES public."JUR_PATRIMONIOS"(id) ON DELETE CASCADE,
+  texto         text NOT NULL,
+  autor         text
+);
+CREATE INDEX IF NOT EXISTS jur_coment_pat_idx ON public."JUR_COMENTARIOS"(patrimonio_id);
+ALTER TABLE public."JUR_COMENTARIOS" ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public."JUR_COMENTARIOS" TO authenticated;
+DROP POLICY IF EXISTS "JUR_COMENTARIOS_all_auth" ON public."JUR_COMENTARIOS";
+CREATE POLICY "JUR_COMENTARIOS_all_auth" ON public."JUR_COMENTARIOS"
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- =========================================================================
+-- JURÍDICO — Patrimônio: novos campos + fusão Contas → Obrigações
+-- =========================================================================
+ALTER TABLE public."JUR_PATRIMONIOS" ADD COLUMN IF NOT EXISTS transferida      boolean NOT NULL DEFAULT false;
+ALTER TABLE public."JUR_PATRIMONIOS" ADD COLUMN IF NOT EXISTS proprietario     text;
+ALTER TABLE public."JUR_PATRIMONIOS" ADD COLUMN IF NOT EXISTS empresa_pagadora text;
+
+INSERT INTO public."JUR_OBRIGACOES"
+  (patrimonio_id, categoria, descricao, valor, vencimento, periodicidade, responsavel, status, created_at)
+SELECT
+  c.patrimonio_id,
+  COALESCE(NULLIF(btrim(c.categoria), ''), 'Outros'),
+  c.descricao, c.valor, c.data_inicio,
+  CASE WHEN c.possui_recorrencia THEN 'Mensal' ELSE 'Único' END,
+  c.responsavel, 'Pendente', c.created_at
+FROM public."JUR_CONTAS" c
+WHERE c.patrimonio_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM public."JUR_OBRIGACOES" o
+    WHERE o.patrimonio_id = c.patrimonio_id
+      AND COALESCE(o.descricao, '') = COALESCE(c.descricao, '')
+      AND o.categoria = COALESCE(NULLIF(btrim(c.categoria), ''), 'Outros')
+      AND o.valor IS NOT DISTINCT FROM c.valor
+  );
+
+NOTIFY pgrst, 'reload schema';
+
+-- =========================================================================
+-- JURÍDICO — Central de Dúvidas Jurídicas (base de conhecimento Q&A)
+-- Todos perguntam/leem; só Jurídico (Trabalhando) responde (via is_juridico_ativo).
+-- =========================================================================
+CREATE OR REPLACE FUNCTION public.is_juridico_ativo()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public."EMPREGADOS" e
+    WHERE e.auth_user_id = auth.uid()
+      AND e."Setor_ERP" = 'JURIDICO'
+      AND e."Situação"  = 'Trabalhando'
+  );
+$$;
+REVOKE EXECUTE ON FUNCTION public.is_juridico_ativo() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.is_juridico_ativo() FROM anon;
+GRANT  EXECUTE ON FUNCTION public.is_juridico_ativo() TO authenticated;
+
+CREATE TABLE IF NOT EXISTS public."JUR_DUVIDAS" (
+  id             bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  autor_id       uuid DEFAULT auth.uid(),
+  autor_nome     text,
+  titulo         text NOT NULL,
+  pergunta       text NOT NULL,
+  categoria      text,
+  status         text NOT NULL DEFAULT 'Aberta',
+  resposta       text,
+  respondido_por text,
+  respondido_em  timestamptz,
+  publicada      boolean NOT NULL DEFAULT true
+);
+CREATE INDEX IF NOT EXISTS jur_duvidas_status_idx ON public."JUR_DUVIDAS"(status);
+CREATE INDEX IF NOT EXISTS jur_duvidas_autor_idx  ON public."JUR_DUVIDAS"(autor_id);
+CREATE INDEX IF NOT EXISTS jur_duvidas_criado_idx ON public."JUR_DUVIDAS"(created_at DESC);
+ALTER TABLE public."JUR_DUVIDAS" ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public."JUR_DUVIDAS" TO authenticated;
+DROP POLICY IF EXISTS jur_duvidas_select ON public."JUR_DUVIDAS";
+CREATE POLICY jur_duvidas_select ON public."JUR_DUVIDAS" FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS jur_duvidas_insert ON public."JUR_DUVIDAS";
+CREATE POLICY jur_duvidas_insert ON public."JUR_DUVIDAS" FOR INSERT TO authenticated WITH CHECK (autor_id = auth.uid());
+DROP POLICY IF EXISTS jur_duvidas_update ON public."JUR_DUVIDAS";
+CREATE POLICY jur_duvidas_update ON public."JUR_DUVIDAS" FOR UPDATE TO authenticated USING (public.is_juridico_ativo()) WITH CHECK (public.is_juridico_ativo());
+DROP POLICY IF EXISTS jur_duvidas_delete ON public."JUR_DUVIDAS";
+CREATE POLICY jur_duvidas_delete ON public."JUR_DUVIDAS" FOR DELETE TO authenticated USING (public.is_juridico_ativo());
+
+NOTIFY pgrst, 'reload schema';
+
+-- =========================================================================
+-- JURÍDICO — Sistema de Processos (RLS/grants das tabelas migradas do Flask)
+-- Leitura: autenticados; escrita: só Jurídico (is_juridico_ativo).
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public."SISTEMA_JURIDICO_COMENTARIOS" (
+  id              bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  numero_processo text NOT NULL,
+  autor           text NOT NULL DEFAULT 'Usuário',
+  comentario      text NOT NULL,
+  criado_em       timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_jur_coment_numero ON public."SISTEMA_JURIDICO_COMENTARIOS"(numero_processo);
+
+DO $$
+DECLARE t text; seqname text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['SISTEMA_JURIDICORT','SISTEMA_JURIDICORT_dort','SISTEMA_JURIDICO_COMENTARIOS'] LOOP
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=t) THEN
+      EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated', t);
+      seqname := pg_get_serial_sequence('public."'||t||'"', 'id');
+      IF seqname IS NOT NULL THEN
+        EXECUTE format('GRANT USAGE, SELECT ON SEQUENCE %s TO authenticated', seqname);
+      END IF;
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t||'_select', t);
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t||'_write', t);
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t||'_all_auth', t);
+      EXECUTE format('CREATE POLICY %I ON public.%I FOR ALL TO authenticated USING (true) WITH CHECK (true)', t||'_all_auth', t);
+    END IF;
+  END LOOP;
+END $$;
+
+NOTIFY pgrst, 'reload schema';
+
+-- =========================================================================
+-- CONSOLIDAÇÃO E RENOMEAÇÃO DE TABELAS (016)
+--   1. Dropa mortas JUR_CONTAS / JUR_CONTA_LANCAMENTOS (já fundidas em Obrigações).
+--   2. SISTEMA_COMENTARIOS = feed único (patrimônio/processo/férias/bonif) + drop dos 4.
+--   3. Renomeia filhas de patrimônio -> JUR_PATRIMONIO_* e Flask -> JUR_PROCESSOS*.
+-- Idempotente. Renames via to_regclass; backfill some ao re-rodar (origens dropadas).
+-- =========================================================================
+
+-- 1. Contas (mortas) → Obrigações, depois drop ----------------------------
+DO $$
+BEGIN
+  IF to_regclass('public."JUR_CONTAS"') IS NOT NULL
+     AND to_regclass('public."JUR_OBRIGACOES"') IS NOT NULL THEN
+    INSERT INTO public."JUR_OBRIGACOES"
+      (patrimonio_id, categoria, descricao, valor, vencimento, periodicidade, responsavel, status, created_at)
+    SELECT c.patrimonio_id, COALESCE(NULLIF(btrim(c.categoria), ''), 'Outros'),
+           c.descricao, c.valor, c.data_inicio,
+           CASE WHEN c.possui_recorrencia THEN 'Mensal' ELSE 'Único' END,
+           c.responsavel, 'Pendente', c.created_at
+    FROM public."JUR_CONTAS" c
+    WHERE c.patrimonio_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM public."JUR_OBRIGACOES" o
+        WHERE o.patrimonio_id = c.patrimonio_id
+          AND COALESCE(o.descricao, '') = COALESCE(c.descricao, '')
+          AND o.categoria = COALESCE(NULLIF(btrim(c.categoria), ''), 'Outros')
+          AND o.valor IS NOT DISTINCT FROM c.valor);
+  END IF;
+END $$;
+DROP TABLE IF EXISTS public."JUR_CONTA_LANCAMENTOS";
+DROP TABLE IF EXISTS public."JUR_CONTAS";
+
+-- 2. Feed único de comentários --------------------------------------------
+CREATE TABLE IF NOT EXISTS public."SISTEMA_COMENTARIOS" (
+  id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  modulo      text NOT NULL,
+  entidade_id text NOT NULL,
+  autor_nome  text,
+  autor_cpf   text,
+  texto       text NOT NULL
+);
+CREATE INDEX IF NOT EXISTS sistema_coment_ent_idx ON public."SISTEMA_COMENTARIOS"(modulo, entidade_id);
+
+DO $$
+BEGIN
+  IF to_regclass('public."JUR_COMENTARIOS"') IS NOT NULL THEN
+    INSERT INTO public."SISTEMA_COMENTARIOS" (modulo, entidade_id, autor_nome, texto, created_at)
+    SELECT 'patrimonio', c.patrimonio_id::text, c.autor, c.texto, c.created_at
+      FROM public."JUR_COMENTARIOS" c WHERE c.patrimonio_id IS NOT NULL;
+    DROP TABLE public."JUR_COMENTARIOS";
+  END IF;
+  IF to_regclass('public."SISTEMA_JURIDICO_COMENTARIOS"') IS NOT NULL THEN
+    INSERT INTO public."SISTEMA_COMENTARIOS" (modulo, entidade_id, autor_nome, texto, created_at)
+    SELECT 'processo', c.numero_processo, c.autor, c.comentario, c.criado_em
+      FROM public."SISTEMA_JURIDICO_COMENTARIOS" c WHERE c.numero_processo IS NOT NULL;
+    DROP TABLE public."SISTEMA_JURIDICO_COMENTARIOS";
+  END IF;
+  IF to_regclass('public."SISTEMA_SOL_FERIAS_CHAT"') IS NOT NULL THEN
+    INSERT INTO public."SISTEMA_COMENTARIOS" (modulo, entidade_id, autor_nome, autor_cpf, texto, created_at)
+    SELECT 'ferias', c.solicitacao_id::text, c.autor_nome, c.autor_cpf, c.mensagem, c.criado_em
+      FROM public."SISTEMA_SOL_FERIAS_CHAT" c WHERE c.solicitacao_id IS NOT NULL;
+    DROP TABLE public."SISTEMA_SOL_FERIAS_CHAT";
+  END IF;
+  IF to_regclass('public."SISTEMA_SOL_BONIF_CHAT"') IS NOT NULL THEN
+    INSERT INTO public."SISTEMA_COMENTARIOS" (modulo, entidade_id, autor_nome, autor_cpf, texto, created_at)
+    SELECT 'bonificacao', c.solicitacao_id::text, c.autor_nome, c.autor_cpf, c.mensagem, c.criado_em
+      FROM public."SISTEMA_SOL_BONIF_CHAT" c WHERE c.solicitacao_id IS NOT NULL;
+    DROP TABLE public."SISTEMA_SOL_BONIF_CHAT";
+  END IF;
+END $$;
+
+ALTER TABLE public."SISTEMA_COMENTARIOS" ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public."SISTEMA_COMENTARIOS" TO authenticated;
+DROP POLICY IF EXISTS "SISTEMA_COMENTARIOS_all_auth" ON public."SISTEMA_COMENTARIOS";
+CREATE POLICY "SISTEMA_COMENTARIOS_all_auth" ON public."SISTEMA_COMENTARIOS"
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 3. Renomeia tabelas p/ nomes autoexplicativos ---------------------------
+DO $$
+BEGIN
+  IF to_regclass('public."JUR_OBRIGACOES"') IS NOT NULL AND to_regclass('public."JUR_PATRIMONIO_OBRIGACOES"') IS NULL THEN
+    ALTER TABLE public."JUR_OBRIGACOES" RENAME TO "JUR_PATRIMONIO_OBRIGACOES";
+    DROP POLICY IF EXISTS "JUR_OBRIGACOES_all_auth" ON public."JUR_PATRIMONIO_OBRIGACOES";
+  END IF;
+  IF to_regclass('public."JUR_DOCUMENTOS"') IS NOT NULL AND to_regclass('public."JUR_PATRIMONIO_DOCUMENTOS"') IS NULL THEN
+    ALTER TABLE public."JUR_DOCUMENTOS" RENAME TO "JUR_PATRIMONIO_DOCUMENTOS";
+    DROP POLICY IF EXISTS "JUR_DOCUMENTOS_all_auth" ON public."JUR_PATRIMONIO_DOCUMENTOS";
+  END IF;
+  IF to_regclass('public."JUR_CONTATOS"') IS NOT NULL AND to_regclass('public."JUR_PATRIMONIO_CONTATOS"') IS NULL THEN
+    ALTER TABLE public."JUR_CONTATOS" RENAME TO "JUR_PATRIMONIO_CONTATOS";
+    DROP POLICY IF EXISTS "JUR_CONTATOS_all_auth" ON public."JUR_PATRIMONIO_CONTATOS";
+  END IF;
+  IF to_regclass('public."JUR_ACESSOS"') IS NOT NULL AND to_regclass('public."JUR_PATRIMONIO_ACESSOS"') IS NULL THEN
+    ALTER TABLE public."JUR_ACESSOS" RENAME TO "JUR_PATRIMONIO_ACESSOS";
+    DROP POLICY IF EXISTS "JUR_ACESSOS_all_auth" ON public."JUR_PATRIMONIO_ACESSOS";
+  END IF;
+  IF to_regclass('public."JUR_HISTORICO"') IS NOT NULL AND to_regclass('public."JUR_PATRIMONIO_HISTORICO"') IS NULL THEN
+    ALTER TABLE public."JUR_HISTORICO" RENAME TO "JUR_PATRIMONIO_HISTORICO";
+    DROP POLICY IF EXISTS "JUR_HISTORICO_all_auth" ON public."JUR_PATRIMONIO_HISTORICO";
+  END IF;
+  IF to_regclass('public."SISTEMA_JURIDICORT"') IS NOT NULL AND to_regclass('public."JUR_PROCESSOS"') IS NULL THEN
+    ALTER TABLE public."SISTEMA_JURIDICORT" RENAME TO "JUR_PROCESSOS";
+    DROP POLICY IF EXISTS "SISTEMA_JURIDICORT_all_auth" ON public."JUR_PROCESSOS";
+  END IF;
+  IF to_regclass('public."SISTEMA_JURIDICORT_dort"') IS NOT NULL AND to_regclass('public."JUR_PROCESSOS_DORT"') IS NULL THEN
+    ALTER TABLE public."SISTEMA_JURIDICORT_dort" RENAME TO "JUR_PROCESSOS_DORT";
+    DROP POLICY IF EXISTS "SISTEMA_JURIDICORT_dort_all_auth" ON public."JUR_PROCESSOS_DORT";
+  END IF;
+END $$;
+
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'JUR_PATRIMONIO_OBRIGACOES','JUR_PATRIMONIO_DOCUMENTOS','JUR_PATRIMONIO_CONTATOS',
+    'JUR_PATRIMONIO_ACESSOS','JUR_PATRIMONIO_HISTORICO','JUR_PROCESSOS','JUR_PROCESSOS_DORT'
+  ] LOOP
+    IF to_regclass('public."'||t||'"') IS NOT NULL THEN
+      EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated', t);
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t || '_all_auth', t);
+      EXECUTE format('CREATE POLICY %I ON public.%I FOR ALL TO authenticated USING (true) WITH CHECK (true)', t || '_all_auth', t);
+    END IF;
+  END LOOP;
+END $$;
+
+NOTIFY pgrst, 'reload schema';
+

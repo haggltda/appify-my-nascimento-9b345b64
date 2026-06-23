@@ -380,16 +380,32 @@ const sistemasModule: ModuleDef = {
 const juridicoModule: ModuleDef = {
   id: "juridico",
   label: "Jurídico",
-  description: "Patrimônios e obrigações",
+  description: "Patrimônios, obrigações e dúvidas",
   icon: Scale,
   basePath: "/app/juridico/patrimonios",
   status: "active",
   groups: [
     {
+      label: "Processos",
+      defaultOpen: true,
+      items: [
+        { label: "Dashboard - Processos", to: "/app/juridico/processos/dashboard", icon: BarChart3 },
+        { label: "Processos", to: "/app/juridico/processos", icon: Scale },
+        { label: "Audiências", to: "/app/juridico/processos/audiencias", icon: CalendarRange },
+      ],
+    },
+    {
       label: "Gestão Patrimonial",
       defaultOpen: true,
       items: [
         { label: "Patrimônios", to: "/app/juridico/patrimonios", icon: Building2 },
+      ],
+    },
+    {
+      label: "Conhecimento",
+      defaultOpen: true,
+      items: [
+        { label: "Dúvidas Jurídicas", to: "/app/juridico/duvidas", icon: BookOpen },
       ],
     },
   ],
@@ -492,7 +508,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/duvidas", "/app/juridico/processos", "/app/juridico/processos/dashboard", "/app/juridico/processos/audiencias"];
   const visibleModules = useMemo(() => {
     if (!access) return allModules;
     const canSee = (to: string) => {

@@ -31,9 +31,13 @@ function badgeStatusCls(st: string) {
     Reprovada: "bg-red-100 text-red-700 border-red-200",
     Cancelada: "bg-slate-100 text-slate-600 border-slate-200",
     Contratado: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    Respondida: "bg-green-100 text-green-700 border-green-200",
+    Aberta: "bg-orange-100 text-orange-700 border-orange-200",
   };
   return m[st] ?? "bg-blue-100 text-blue-700 border-blue-200";
 }
+
+const CATEGORIAS_DUVIDA = ["Trabalhista", "Contratos", "Processos", "Tributário", "Cível", "Administrativo", "Compliance", "LGPD", "Outros"];
 function brToISO(d?: string): string | null {
   const m = String(d ?? "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
@@ -88,6 +92,10 @@ export default function MinhasSolicitacoes() {
   const [modalFerias, setModalFerias] = useState(false);
   const [ferias, setFerias] = useState({ ...FERIAS_RESET });
 
+  // Modal dúvida jurídica
+  const [modalDuvida, setModalDuvida] = useState(false);
+  const [duvida, setDuvida] = useState({ titulo: "", categoria: "", pergunta: "" });
+
   // Histórico unificado
   const [minhasSols, setMinhasSols] = useState<SolItem[]>([]);
   const [loadingSols, setLoadingSols] = useState(false);
@@ -125,6 +133,9 @@ export default function MinhasSolicitacoes() {
     if (vg.error) vg = await vagaQuery("id, cargo, contrato, status, created_at, nome_substituido, quantidade_vagas, motivo_vaga");
 
     const fr = await (supabase as any).from("SISTEMA_SOLICITACOES_FERIAS").select("id, colaborador_nome, status, criado_em").eq("solicitante_email", email).order("criado_em", { ascending: false }).limit(30);
+    const dv = user?.id
+      ? await (supabase as any).from("JUR_DUVIDAS").select("id, titulo, status, created_at, respondido_em").eq("autor_id", user.id).order("created_at", { ascending: false }).limit(30)
+      : { data: [] };
     const itens: SolItem[] = [
       ...(vg.data ?? []).map((r: any) => ({
         tipo: "Vaga", icon: "🎯", id: r.id,
@@ -135,12 +146,27 @@ export default function MinhasSolicitacoes() {
         statusDesde: r.status_changed_at || r.created_at,
       })),
       ...(fr.data ?? []).map((r: any) => ({ tipo: "Férias", icon: "📅", id: r.id, titulo: `Férias — ${r.colaborador_nome || ""}`, status: r.status, data: r.criado_em, statusDesde: r.criado_em })),
+      ...(dv.data ?? []).map((r: any) => ({ tipo: "Dúvida", icon: "⚖️", id: r.id, titulo: `Dúvida — ${r.titulo || ""}`, status: r.status, data: r.created_at, statusDesde: r.respondido_em || r.created_at })),
     ].sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
     setLoadingSols(false);
     setMinhasSols(itens);
-  }, [user?.email]);
+  }, [user?.email, user?.id]);
 
   useEffect(() => { carregarMinhasSols(); }, [carregarMinhasSols]);
+
+  // ── Dúvida Jurídica ─────────────────────────────────────────────────
+  const abrirModalDuvida = () => { setModalDuvida(true); setDuvida({ titulo: "", categoria: "", pergunta: "" }); };
+  const submitDuvida = async () => {
+    if (!duvida.titulo.trim() || !duvida.pergunta.trim()) { toast("Preencha o assunto e a dúvida.", "err"); return; }
+    const payload = {
+      titulo: duvida.titulo.trim(), pergunta: duvida.pergunta.trim(), categoria: duvida.categoria || null,
+      autor_id: user?.id ?? null, autor_nome: displayName || user?.email || "", status: "Aberta",
+    };
+    const { error, data } = await (supabase as any).from("JUR_DUVIDAS").insert(payload).select("id").single();
+    if (error) { toast("Erro ao enviar dúvida: " + error.message, "err"); return; }
+    toast(`Dúvida enviada ao Jurídico! (#${data?.id})`, "ok");
+    setModalDuvida(false); setDuvida({ titulo: "", categoria: "", pergunta: "" }); carregarMinhasSols();
+  };
 
   // ── Contratos ───────────────────────────────────────────────────────
   const carregarContratos = async () => {
@@ -312,6 +338,7 @@ export default function MinhasSolicitacoes() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
             <button onClick={abrirModalVaga} className="ini-sol-create"><span className="icon">🎯</span><span>Solicitar Vaga</span></button>
             <button onClick={abrirModalFerias} className="ini-sol-create"><span className="icon">📅</span><span>Solicitar Férias</span></button>
+            <button onClick={abrirModalDuvida} className="ini-sol-create"><span className="icon">⚖️</span><span>Dúvida Jurídica</span></button>
             <button className="ini-sol-create" style={{ opacity: .5, cursor: "not-allowed" }} disabled title="Em breve"><span className="icon">⚠️</span><span>Advertência</span></button>
             <button className="ini-sol-create" style={{ opacity: .5, cursor: "not-allowed" }} disabled title="Em breve"><span className="icon">🚪</span><span>Solicitar Demissão</span></button>
           </div>
@@ -323,7 +350,7 @@ export default function MinhasSolicitacoes() {
         <div className="ini-card-hd">
           <h3>🗂 Histórico & Status</h3>
           <div style={{ display: "flex", gap: 6 }}>
-            {["", "Vaga", "Férias"].map(f => (
+            {["", "Vaga", "Férias", "Dúvida"].map(f => (
               <button key={f || "all"} onClick={() => setFiltro(f)}
                 style={{ padding: "4px 10px", borderRadius: 16, fontSize: 11, fontWeight: 700, cursor: "pointer",
                   border: `1px solid ${filtro === f ? "#0f3171" : "#e2e8f0"}`, background: filtro === f ? "#0f3171" : "#fff", color: filtro === f ? "#fff" : "#475569" }}>
@@ -530,6 +557,24 @@ export default function MinhasSolicitacoes() {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, paddingTop: 14, borderTop: "1px solid #e2e8f0" }}>
               <button onClick={() => setModalFerias(false)} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
               <button onClick={submitFerias} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Solicitar Férias</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Dúvida Jurídica ── */}
+      {modalDuvida && (
+        <div className="ini-modal-ov">
+          <div className="ini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <button onClick={() => setModalDuvida(false)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>⚖️ Dúvida Jurídica</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>O Jurídico responde e a resposta fica guardada na biblioteca de dúvidas (Jurídico → Dúvidas Jurídicas).</div>
+            <div className="ini-fg"><label>Assunto / título *</label><input className="ini-fi" placeholder="Ex.: Prazo para resposta de notificação" value={duvida.titulo} onChange={e => setDuvida(d => ({ ...d, titulo: e.target.value }))} /></div>
+            <div className="ini-fg"><label>Categoria</label><select className="ini-fi" value={duvida.categoria} onChange={e => setDuvida(d => ({ ...d, categoria: e.target.value }))}><option value="">— Selecione —</option>{CATEGORIAS_DUVIDA.map(c => <option key={c}>{c}</option>)}</select></div>
+            <div className="ini-fg"><label>Sua dúvida *</label><textarea className="ini-fi" rows={5} placeholder="Descreva sua dúvida sobre o processo, lei, contrato…" value={duvida.pergunta} onChange={e => setDuvida(d => ({ ...d, pergunta: e.target.value }))} /></div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, paddingTop: 14, borderTop: "1px solid #e2e8f0" }}>
+              <button onClick={() => setModalDuvida(false)} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={submitDuvida} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Enviar dúvida</button>
             </div>
           </div>
         </div>
