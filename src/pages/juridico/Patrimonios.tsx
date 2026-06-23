@@ -292,12 +292,16 @@ export default function Patrimonios() {
     return true;
   });
 
-  const card = (label: string, valor: string | number, cor: string) => (
-    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 18px", flex: 1, minWidth: 150, boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px" }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: cor, marginTop: 4 }}>{valor}</div>
-    </div>
-  );
+  const card = (label: string, valor: string | number, cor: string) => {
+    const txt = String(valor);
+    const fs = txt.length > 16 ? 17 : txt.length > 12 ? 21 : 26;   // encolhe p/ valores longos (ex.: bilhões)
+    return (
+      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 18px", flex: 1, minWidth: 150, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px" }}>{label}</div>
+        <div style={{ fontSize: fs, fontWeight: 800, color: cor, marginTop: 4, overflowWrap: "anywhere" }}>{valor}</div>
+      </div>
+    );
+  };
   const barRow = (label: string, val: number, max: number, cor: string, right: string) => (
     <div style={{ marginBottom: 11 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4, gap: 8 }}>
