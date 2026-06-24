@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useContext } from "react";
+import { EmpresaAtivaContext } from "@/context/EmpresaAtivaContext";
+import { Building2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +47,9 @@ export function ImportGradeDialog({
   empresaId,
   onImported,
 }: ImportGradeDialogProps) {
+  const empresaCtx = useContext(EmpresaAtivaContext);
+  const empresaSigla = empresaCtx?.empresa?.sigla ?? "—";
+
   const {
     criarLote,
     anexarLinhas,
@@ -223,12 +228,20 @@ export function ImportGradeDialog({
     >
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Importar Grade 2026</DialogTitle>
-          <DialogDescription>
-            Carga validada por lote. As linhas são verificadas antes de gravar em{" "}
-            <code>public.licitacao</code>. Responsáveis existentes não são sobrescritos;
-            responsável textual vira pendência.
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle>Importar Grade 2026</DialogTitle>
+              <DialogDescription>
+                Carga validada por lote. As linhas são verificadas antes de gravar em{" "}
+                <code>public.licitacao</code>. Responsáveis existentes não são sobrescritos;
+                responsável textual vira pendência.
+              </DialogDescription>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              <Building2 className="h-3.5 w-3.5" />
+              {empresaSigla}
+            </span>
+          </div>
         </DialogHeader>
 
         {erroFatal && (
@@ -241,9 +254,6 @@ export function ImportGradeDialog({
           <div className="space-y-2 text-sm">
             <p>
               Total de linhas a enviar: <strong>{totalLinhas}</strong>
-            </p>
-            <p className="text-muted-foreground">
-              Empresa ativa: <code>{empresaId ?? "—"}</code>
             </p>
             {pendenciasPrevistas.length > 0 && (
               <p className="text-xs text-amber-700 dark:text-amber-400">

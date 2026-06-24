@@ -39,6 +39,8 @@ import {
   DatabaseZap,
   TableProperties,
   Laptop2,
+  Wrench,
+  FileOutput,
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
@@ -178,6 +180,13 @@ const controladoriaOrcModule: ModuleDef = {
         { label: "OBZ — Versões", to: "/app/co/obz-versoes", icon: Calculator },
         { label: "DRE Gerencial", to: "/app/co/dre-gerencial", icon: TrendingUp },
         { label: "Orçamento Completo", to: "/app/co/orcamento-completo", icon: Calculator },
+      ],
+    },
+    {
+      label: "Ferramentas",
+      defaultOpen: true,
+      items: [
+        { label: "Gerador de POPs", to: "/app/co/gerador-pops", icon: FileOutput },
       ],
     },
   ],

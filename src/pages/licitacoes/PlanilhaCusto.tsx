@@ -2,21 +2,21 @@ import React, { useState, useRef } from "react";
 import { toast } from "sonner";
 import {
   Search, Plus, Upload, Trash2, Pencil, ChevronDown, ChevronUp,
-  FileSpreadsheet, X, Download, Eye, DatabaseZap,
+  FileSpreadsheet, X, Download, Eye, DatabaseZap, Building2, RefreshCw,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   usePlanilhaCustos, useSavePlanilhaCusto, useDeletePlanilhaCusto,
-  useBulkInsertPlanilhaCusto, formatBRL, type PlanilhaCustoRow,
+  useBulkInsertPlanilhaCusto, useEncerrarContrato, formatBRL, type PlanilhaCustoRow,
 } from "@/hooks/usePlanilhaCusto";
 import { importarPlanilha, type PlanilhaCustoImportada } from "@/utils/planilhaCustoImporter";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-type FormData = Omit<PlanilhaCustoRow, "id" | "empresa_id" | "created_at" | "updated_at">;
+type FormData = Omit<PlanilhaCustoRow, "id" | "empresa_id" | "created_at" | "updated_at" | "encerrado" | "data_encerramento">;
 
 const EMPTY_FORM: FormData = {
   orexec: "EXECUTADO", cliente: "", contrato: "", posto: "", servico: "",
@@ -73,6 +73,8 @@ function computeVigenciaStatus(rows: PlanilhaCustoRow[]): Map<string, string> {
   // Atribui status por linha
   const result = new Map<string, string>();
   for (const r of rows) {
+    // Contrato encerrado manualmente → sempre HISTÓRICO
+    if (r.encerrado) { result.set(r.id, "HISTÓRICO"); continue; }
     if (!r.data_vigencia) { result.set(r.id, "—"); continue; }
     const key = `${r.contrato}||${r.posto}`;
     const rowDate = new Date(r.data_vigencia + "T00:00:00");
@@ -117,6 +119,7 @@ export default function PlanilhaCusto() {
   const [contratosOpen, setContratosOpen] = useState(false);
   const [clientesOpen, setClientesOpen] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
+  const [updateFromRow, setUpdateFromRow] = useState<PlanilhaCustoRow | undefined>();
   const { empresa } = useEmpresaAtiva();
 
   const { data: rows = [], isLoading } = usePlanilhaCustos();
@@ -149,6 +152,15 @@ export default function PlanilhaCusto() {
 
   function openEdit(id: string) {
     setEditId(id);
+    setUpdateFromRow(undefined);
+    setDrawerOpen(true);
+  }
+
+  function openUpdate(id: string) {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    setEditId(null);
+    setUpdateFromRow(row);
     setDrawerOpen(true);
   }
 
@@ -311,6 +323,13 @@ export default function PlanilhaCusto() {
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
+                        onClick={() => openUpdate(r.id)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-warning/10 hover:text-warning"
+                        title="Atualizar vigência"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </button>
+                      <button
                         onClick={() => handleDelete(r.id)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         title="Excluir"
@@ -375,7 +394,7 @@ export default function PlanilhaCusto() {
       {/* Modal de inserção/edição */}
       <Dialog open={drawerOpen} onOpenChange={(o) => !o && setDrawerOpen(false)}>
         <DialogContent className="max-w-7xl max-h-[92vh] overflow-y-auto p-0">
-          {drawerOpen && <FormDrawer editRow={editRow} onClose={() => setDrawerOpen(false)} />}
+          {drawerOpen && <FormDrawer editRow={editRow} updateFromRow={updateFromRow} onClose={() => setDrawerOpen(false)} />}
         </DialogContent>
       </Dialog>
 
@@ -402,14 +421,14 @@ export default function PlanilhaCusto() {
       {/* Modal de breakdown por contrato */}
       <Dialog open={contratosOpen} onOpenChange={(o) => !o && setContratosOpen(false)}>
         <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
-          <ContratosModal rows={rows} />
+          <ContratosModal rows={rows} statusMap={statusMap} />
         </DialogContent>
       </Dialog>
 
       {/* Modal de breakdown por cliente */}
       <Dialog open={clientesOpen} onOpenChange={(o) => !o && setClientesOpen(false)}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-          <ClientesModal rows={rows} />
+          <ClientesModal rows={rows} statusMap={statusMap} />
         </DialogContent>
       </Dialog>
     </div>
@@ -418,9 +437,15 @@ export default function PlanilhaCusto() {
 
 // ─── Modal de Breakdown por Contrato ─────────────────────────────────────────
 
-function ContratosModal({ rows }: { rows: PlanilhaCustoRow[] }) {
+function ContratosModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusMap: Map<string, string> }) {
   const [search, setSearch] = useState("");
   const [expandido, setExpandido] = useState<string | null>(null);
+  const [encerrandoContrato, setEncerrandoContrato] = useState<string | null>(null);
+  const [dataEncerramento, setDataEncerramento] = useState("");
+  const encerrar = useEncerrarContrato();
+
+  // Apenas linhas vigentes para o resumo financeiro
+  const rowsVigentes = rows.filter((r) => statusMap.get(r.id) === "EM VIGÊNCIA");
 
   type ContratoItem = {
     cliente: string; contrato: string;
@@ -428,7 +453,7 @@ function ContratosModal({ rows }: { rows: PlanilhaCustoRow[] }) {
     postoRows: PlanilhaCustoRow[];
   };
 
-  const byContrato = rows.reduce<Record<string, ContratoItem>>((acc, r) => {
+  const byContrato = rowsVigentes.reduce<Record<string, ContratoItem>>((acc, r) => {
     const key = r.contrato;
     if (!acc[key]) acc[key] = { cliente: r.cliente, contrato: r.contrato, orcado: 0, executado: 0, postos: 0, postoRows: [] };
     const total = r.total_por_empregado * (r.qt_postos || 1);
@@ -453,7 +478,7 @@ function ContratosModal({ rows }: { rows: PlanilhaCustoRow[] }) {
     <div>
       <div className="mb-4">
         <h2 className="text-base font-semibold">Breakdown por Contrato</h2>
-        <p className="text-xs text-muted-foreground">Total × Postos por contrato · clique em ⚠ para ver divergências por posto</p>
+        <p className="text-xs text-muted-foreground">Total × Postos por contrato · apenas registros <span className="font-semibold text-success">VIGENTES</span> · clique em ⚠ para ver divergências por posto</p>
       </div>
 
       <div className="relative mb-3 w-full max-w-sm">
@@ -500,19 +525,28 @@ function ContratosModal({ rows }: { rows: PlanilhaCustoRow[] }) {
                     <td className="px-3 py-2 text-right text-xs">{c.postos}</td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-info">{c.orcado ? formatBRL(c.orcado) : "—"}</td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-success">{c.executado ? formatBRL(c.executado) : "—"}</td>
-                    <td className={`px-3 py-2 text-right font-mono text-xs font-semibold ${diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                    <td className={`px-3 py-2 text-right font-mono text-xs font-semibold whitespace-nowrap ${diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
                       {c.orcado && c.executado ? (diff > 0 ? "+" : "") + formatBRL(diff) : "—"}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      {temDivergencia && (
+                      <div className="flex items-center justify-end gap-1.5">
+                        {temDivergencia && (
+                          <button
+                            onClick={() => setExpandido(aberto ? null : c.contrato)}
+                            title="Ver divergência por posto"
+                            className={`inline-flex h-7 min-w-[80px] items-center justify-center gap-1 whitespace-nowrap rounded px-2 text-[11px] font-medium transition-colors ${aberto ? "bg-warning/20 text-warning-foreground" : "bg-warning/10 text-warning hover:bg-warning/20"}`}
+                          >
+                            ⚠ Detalhes
+                          </button>
+                        )}
                         <button
-                          onClick={() => setExpandido(aberto ? null : c.contrato)}
-                          title="Ver divergência por posto"
-                          className={`inline-flex h-7 min-w-[80px] items-center justify-center gap-1 whitespace-nowrap rounded px-2 text-[11px] font-medium transition-colors ${aberto ? "bg-warning/20 text-warning-foreground" : "bg-warning/10 text-warning hover:bg-warning/20"}`}
+                          onClick={() => { setEncerrandoContrato(c.contrato); setDataEncerramento(""); }}
+                          title="Encerrar contrato"
+                          className="inline-flex h-7 items-center justify-center gap-1 whitespace-nowrap rounded border border-destructive/30 px-2 text-[11px] font-medium text-destructive hover:bg-destructive/10 transition-colors"
                         >
-                          ⚠ Detalhes
+                          Encerrar
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                   {aberto && (
@@ -542,7 +576,7 @@ function ContratosModal({ rows }: { rows: PlanilhaCustoRow[] }) {
                                   <td className={`py-0.5 text-right ${postoDiverge ? "text-warning font-semibold" : ""}`}>{p.postos_exec || "—"}</td>
                                   <td className="py-0.5 text-right font-mono text-info">{p.orcado ? formatBRL(p.orcado) : "—"}</td>
                                   <td className="py-0.5 text-right font-mono text-success">{p.executado ? formatBRL(p.executado) : "—"}</td>
-                                  <td className={`py-0.5 text-right font-mono ${d > 0 ? "text-success" : d < 0 ? "text-destructive" : ""}`}>
+                                  <td className={`py-0.5 text-right font-mono whitespace-nowrap ${d > 0 ? "text-success" : d < 0 ? "text-destructive" : ""}`}>
                                     {diverge ? (d > 0 ? "+" : "") + formatBRL(d) : "—"}
                                   </td>
                                 </tr>
@@ -568,16 +602,62 @@ function ContratosModal({ rows }: { rows: PlanilhaCustoRow[] }) {
           </tfoot>
         </table>
       </div>
+
+      {/* Mini-modal de encerramento */}
+      <Dialog open={!!encerrandoContrato} onOpenChange={(o) => !o && setEncerrandoContrato(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Encerrar Contrato</DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">{encerrandoContrato}</p>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Todos os registros deste contrato serão marcados como <strong>HISTÓRICO</strong>. Informe a data de encerramento.
+          </p>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Data de Encerramento <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="date"
+              value={dataEncerramento}
+              onChange={(e) => setDataEncerramento(e.target.value)}
+              className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              onClick={() => setEncerrandoContrato(null)}
+              className="inline-flex h-9 items-center rounded-md border border-border px-4 text-sm hover:bg-muted"
+            >
+              Cancelar
+            </button>
+            <button
+              disabled={!dataEncerramento || encerrar.isPending}
+              onClick={async () => {
+                if (!encerrandoContrato || !dataEncerramento) return;
+                await encerrar.mutateAsync({ contrato: encerrandoContrato, data_encerramento: dataEncerramento });
+                toast.success(`Contrato "${encerrandoContrato}" encerrado.`);
+                setEncerrandoContrato(null);
+              }}
+              className="inline-flex h-9 items-center rounded-md bg-destructive px-4 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+            >
+              {encerrar.isPending ? "Encerrando…" : "Confirmar Encerramento"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 // ─── Modal de Breakdown por Cliente ──────────────────────────────────────────
 
-function ClientesModal({ rows }: { rows: PlanilhaCustoRow[] }) {
+function ClientesModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusMap: Map<string, string> }) {
   const [search, setSearch] = useState("");
 
-  const byCliente = rows.reduce<Record<string, {
+  const rowsVigentes = rows.filter((r) => statusMap.get(r.id) === "EM VIGÊNCIA");
+
+  const byCliente = rowsVigentes.reduce<Record<string, {
     cliente: string; contratos: Set<string>;
     orcado: number; executado: number; postos: number;
   }>>((acc, r) => {
@@ -602,7 +682,7 @@ function ClientesModal({ rows }: { rows: PlanilhaCustoRow[] }) {
     <div>
       <div className="mb-4">
         <h2 className="text-base font-semibold">Breakdown por Cliente</h2>
-        <p className="text-xs text-muted-foreground">Total × Postos agrupado por cliente · Orçado e Executado separados</p>
+        <p className="text-xs text-muted-foreground">Total × Postos agrupado por cliente · apenas registros <span className="font-semibold text-success">VIGENTES</span> · Orçado e Executado separados</p>
       </div>
 
       <div className="relative mb-3 w-full max-w-sm">
@@ -634,7 +714,7 @@ function ClientesModal({ rows }: { rows: PlanilhaCustoRow[] }) {
                   <td className="px-3 py-2 text-right text-xs">{c.postos}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs text-info">{c.orcado ? formatBRL(c.orcado) : "—"}</td>
                   <td className="px-3 py-2 text-right font-mono text-xs text-success">{c.executado ? formatBRL(c.executado) : "—"}</td>
-                  <td className={`px-3 py-2 text-right font-mono text-xs font-semibold ${diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                  <td className={`px-3 py-2 text-right font-mono text-xs font-semibold whitespace-nowrap ${diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
                     {c.orcado && c.executado ? (diff > 0 ? "+" : "") + formatBRL(diff) : "—"}
                   </td>
                 </tr>
@@ -659,67 +739,75 @@ function ClientesModal({ rows }: { rows: PlanilhaCustoRow[] }) {
 
 function FormDrawer({
   editRow,
+  updateFromRow,
   onClose,
 }: {
   editRow?: PlanilhaCustoRow;
+  updateFromRow?: PlanilhaCustoRow;
   onClose: () => void;
 }) {
   const save = useSavePlanilhaCusto();
+  const { empresa } = useEmpresaAtiva();
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // updateFromRow = clonar registro com nova vigência (INSERT, sem id)
+  const sourceRow = editRow ?? updateFromRow;
+
   const [form, setForm] = useState<FormData>(() =>
-    editRow
+    sourceRow
       ? {
-          orexec: editRow.orexec, cliente: editRow.cliente, contrato: editRow.contrato,
-          posto: editRow.posto, servico: editRow.servico ?? "", sindicato: editRow.sindicato ?? "",
-          data_vigencia: editRow.data_vigencia ?? "", qt_postos: editRow.qt_postos,
-          arquivo_origem: editRow.arquivo_origem ?? "",
-          salario: editRow.salario, insalubridade: editRow.insalubridade,
-          periculosidade: editRow.periculosidade, lideranca: editRow.lideranca,
-          adicional_noturno_reduzido: editRow.adicional_noturno_reduzido,
-          adicional_noturno: editRow.adicional_noturno, adicional_extra: editRow.adicional_extra,
-          dsr: editRow.dsr, decimo_terceiro: editRow.decimo_terceiro,
-          adicional_ferias: editRow.adicional_ferias, incidencia_enc_41: editRow.incidencia_enc_41,
-          inss: editRow.inss, salario_educacao: editRow.salario_educacao, rat_fap: editRow.rat_fap,
-          sesi: editRow.sesi, senai: editRow.senai, sebrae: editRow.sebrae, incra: editRow.incra,
-          fgts: editRow.fgts, seguro_acidente_trabalho: editRow.seguro_acidente_trabalho,
-          transporte: editRow.transporte, aux_alimentacao: editRow.aux_alimentacao,
-          aux_alimentacao_desconto: editRow.aux_alimentacao_desconto,
-          aux_refeicao: editRow.aux_refeicao, beneficio_familiar: editRow.beneficio_familiar,
-          aux_lanche: editRow.aux_lanche, seguro_vida: editRow.seguro_vida,
-          abono_indenizatorio: editRow.abono_indenizatorio, aux_educacao: editRow.aux_educacao,
-          cesta_basica: editRow.cesta_basica, assistencia_medica: editRow.assistencia_medica,
-          hospedagem: editRow.hospedagem, odontologico: editRow.odontologico,
-          manutencao_profissional: editRow.manutencao_profissional, cafe: editRow.cafe,
-          almoco: editRow.almoco, janta: editRow.janta, ceia: editRow.ceia,
-          funeral: editRow.funeral, assiduidade: editRow.assiduidade,
-          beneficio_trabalhador: editRow.beneficio_trabalhador, patronal: editRow.patronal,
-          fundo_assistencial: editRow.fundo_assistencial, fundo_profissional: editRow.fundo_profissional,
-          natalidade: editRow.natalidade, deducoes: editRow.deducoes,
-          outros_1: editRow.outros_1, outros_1_descricao: editRow.outros_1_descricao ?? "",
-          outros_2: editRow.outros_2, outros_2_descricao: editRow.outros_2_descricao ?? "",
-          outros_3: editRow.outros_3, outros_3_descricao: editRow.outros_3_descricao ?? "",
-          aviso_indenizado: editRow.aviso_indenizado, incidencia_fgts: editRow.incidencia_fgts,
-          multa_rescisoria: editRow.multa_rescisoria, aviso_trabalhado: editRow.aviso_trabalhado,
-          incidencia_aviso_trabalhado: editRow.incidencia_aviso_trabalhado,
-          multa_aviso_indenizado: editRow.multa_aviso_indenizado,
-          contratualidade: editRow.contratualidade, sub_ferias: editRow.sub_ferias,
-          sub_ausencias_legais: editRow.sub_ausencias_legais,
-          sub_paternidade: editRow.sub_paternidade,
-          sub_acidente_trabalho: editRow.sub_acidente_trabalho,
-          sub_maternidade: editRow.sub_maternidade, sub_doenca: editRow.sub_doenca,
-          sub_repouso: editRow.sub_repouso, incidencia_maternidade: editRow.incidencia_maternidade,
-          incidencia_enc_reposicao: editRow.incidencia_enc_reposicao,
-          incidencia_enc_reposicao_2: editRow.incidencia_enc_reposicao_2,
-          incidencia_enc_reposicao_3: editRow.incidencia_enc_reposicao_3,
-          incidencia_enc_reposicao_4: editRow.incidencia_enc_reposicao_4,
-          uniforme: editRow.uniforme, epi: editRow.epi, epc: editRow.epc,
-          materiais: editRow.materiais, equipamentos: editRow.equipamentos,
-          relogio_digital: editRow.relogio_digital, ponto_eletronico: editRow.ponto_eletronico,
-          outros_insumos: editRow.outros_insumos, custos_indiretos: editRow.custos_indiretos,
-          lucro: editRow.lucro, cofins: editRow.cofins, pis: editRow.pis,
-          irpj_csll: editRow.irpj_csll, iss: editRow.iss,
-          total_por_empregado: editRow.total_por_empregado,
+          orexec: sourceRow.orexec, cliente: sourceRow.cliente, contrato: sourceRow.contrato,
+          posto: sourceRow.posto, servico: sourceRow.servico ?? "", sindicato: sourceRow.sindicato ?? "",
+          // No modo atualização (updateFromRow), data_vigencia fica vazia para o usuário preencher obrigatoriamente
+          data_vigencia: editRow ? (sourceRow.data_vigencia ?? "") : "",
+          qt_postos: sourceRow.qt_postos,
+          arquivo_origem: sourceRow.arquivo_origem ?? "",
+          salario: sourceRow.salario, insalubridade: sourceRow.insalubridade,
+          periculosidade: sourceRow.periculosidade, lideranca: sourceRow.lideranca,
+          adicional_noturno_reduzido: sourceRow.adicional_noturno_reduzido,
+          adicional_noturno: sourceRow.adicional_noturno, adicional_extra: sourceRow.adicional_extra,
+          dsr: sourceRow.dsr, decimo_terceiro: sourceRow.decimo_terceiro,
+          adicional_ferias: sourceRow.adicional_ferias, incidencia_enc_41: sourceRow.incidencia_enc_41,
+          inss: sourceRow.inss, salario_educacao: sourceRow.salario_educacao, rat_fap: sourceRow.rat_fap,
+          sesi: sourceRow.sesi, senai: sourceRow.senai, sebrae: sourceRow.sebrae, incra: sourceRow.incra,
+          fgts: sourceRow.fgts, seguro_acidente_trabalho: sourceRow.seguro_acidente_trabalho,
+          transporte: sourceRow.transporte, aux_alimentacao: sourceRow.aux_alimentacao,
+          aux_alimentacao_desconto: sourceRow.aux_alimentacao_desconto,
+          aux_refeicao: sourceRow.aux_refeicao, beneficio_familiar: sourceRow.beneficio_familiar,
+          aux_lanche: sourceRow.aux_lanche, seguro_vida: sourceRow.seguro_vida,
+          abono_indenizatorio: sourceRow.abono_indenizatorio, aux_educacao: sourceRow.aux_educacao,
+          cesta_basica: sourceRow.cesta_basica, assistencia_medica: sourceRow.assistencia_medica,
+          hospedagem: sourceRow.hospedagem, odontologico: sourceRow.odontologico,
+          manutencao_profissional: sourceRow.manutencao_profissional, cafe: sourceRow.cafe,
+          almoco: sourceRow.almoco, janta: sourceRow.janta, ceia: sourceRow.ceia,
+          funeral: sourceRow.funeral, assiduidade: sourceRow.assiduidade,
+          beneficio_trabalhador: sourceRow.beneficio_trabalhador, patronal: sourceRow.patronal,
+          fundo_assistencial: sourceRow.fundo_assistencial, fundo_profissional: sourceRow.fundo_profissional,
+          natalidade: sourceRow.natalidade, deducoes: sourceRow.deducoes,
+          outros_1: sourceRow.outros_1, outros_1_descricao: sourceRow.outros_1_descricao ?? "",
+          outros_2: sourceRow.outros_2, outros_2_descricao: sourceRow.outros_2_descricao ?? "",
+          outros_3: sourceRow.outros_3, outros_3_descricao: sourceRow.outros_3_descricao ?? "",
+          aviso_indenizado: sourceRow.aviso_indenizado, incidencia_fgts: sourceRow.incidencia_fgts,
+          multa_rescisoria: sourceRow.multa_rescisoria, aviso_trabalhado: sourceRow.aviso_trabalhado,
+          incidencia_aviso_trabalhado: sourceRow.incidencia_aviso_trabalhado,
+          multa_aviso_indenizado: sourceRow.multa_aviso_indenizado,
+          contratualidade: sourceRow.contratualidade, sub_ferias: sourceRow.sub_ferias,
+          sub_ausencias_legais: sourceRow.sub_ausencias_legais,
+          sub_paternidade: sourceRow.sub_paternidade,
+          sub_acidente_trabalho: sourceRow.sub_acidente_trabalho,
+          sub_maternidade: sourceRow.sub_maternidade, sub_doenca: sourceRow.sub_doenca,
+          sub_repouso: sourceRow.sub_repouso, incidencia_maternidade: sourceRow.incidencia_maternidade,
+          incidencia_enc_reposicao: sourceRow.incidencia_enc_reposicao,
+          incidencia_enc_reposicao_2: sourceRow.incidencia_enc_reposicao_2,
+          incidencia_enc_reposicao_3: sourceRow.incidencia_enc_reposicao_3,
+          incidencia_enc_reposicao_4: sourceRow.incidencia_enc_reposicao_4,
+          uniforme: sourceRow.uniforme, epi: sourceRow.epi, epc: sourceRow.epc,
+          materiais: sourceRow.materiais, equipamentos: sourceRow.equipamentos,
+          relogio_digital: sourceRow.relogio_digital, ponto_eletronico: sourceRow.ponto_eletronico,
+          outros_insumos: sourceRow.outros_insumos, custos_indiretos: sourceRow.custos_indiretos,
+          lucro: sourceRow.lucro, cofins: sourceRow.cofins, pis: sourceRow.pis,
+          irpj_csll: sourceRow.irpj_csll, iss: sourceRow.iss,
+          total_por_empregado: sourceRow.total_por_empregado,
         }
       : { ...EMPTY_FORM },
   );
@@ -896,6 +984,10 @@ function FormDrawer({
       toast.error("Preencha Cliente, Contrato e Posto.");
       return;
     }
+    if (updateFromRow && !form.data_vigencia) {
+      toast.error("Informe a nova Data de Vigência para registrar a atualização.");
+      return;
+    }
     try {
       const payload = {
         ...form,
@@ -908,7 +1000,7 @@ function FormDrawer({
         servico: form.servico || null,
       };
       await save.mutateAsync({ ...(editRow ? { id: editRow.id } : {}), ...payload });
-      toast.success(editRow ? "Registro atualizado." : "Registro lançado com sucesso.");
+      toast.success(editRow ? "Registro atualizado." : updateFromRow ? "Nova vigência lançada com sucesso." : "Registro lançado com sucesso.");
       onClose();
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
@@ -962,12 +1054,18 @@ function FormDrawer({
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div>
             <h2 className="text-base font-semibold">
-              {editRow ? "Editar Planilha de Custo" : "Inserir Dados"}
+              {editRow ? "Editar Planilha de Custo" : updateFromRow ? "Atualizar Vigência" : "Inserir Dados"}
             </h2>
             <p className="text-xs text-muted-foreground">
-              Inclusão e/ou Atualização do Banco de Dados
+              {updateFromRow
+                ? `Clonando: ${updateFromRow.posto} · ${updateFromRow.contrato} — informe a nova data de vigência`
+                : "Inclusão e/ou Atualização do Banco de Dados"}
             </p>
           </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <Building2 className="h-3.5 w-3.5" />
+            {empresa.sigla}
+          </span>
         </div>
 
         {/* Botão importar planilha */}
