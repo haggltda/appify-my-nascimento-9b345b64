@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAccessibleMenus } from "@/hooks/useAccessibleMenus";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,59 +12,32 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Paperclip, Download, UserCircle2, Send } from "lucide-react";
+import { Plus, UserCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-
-interface Solicitacao {
-  id: string;
-  titulo: string;
-  descricao: string | null;
-  etapa: string;
-  responsavel_user_id: string | null;
-  progresso_pct: number;
-  data_inicio: string | null;
-  data_fim: string | null;
-  created_at: string;
-}
-
-interface Anexo {
-  id: string;
-  storage_path: string;
-  nome_arquivo: string;
-  created_at: string;
-}
-
-interface Comentario {
-  id: string;
-  autor_id: string;
-  texto: string;
-  created_at: string;
-}
+import {
+  ETAPAS, nomeUsuario, iniciais, fmtData,
+  type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis,
+} from "./etapas/types";
+import { Historico } from "./etapas/Historico";
+import { RegistroOficialPanel } from "./etapas/RegistroOficialPanel";
+import { TriagemComitePanel } from "./etapas/TriagemComitePanel";
+import { ProjetoPanel } from "./etapas/ProjetoPanel";
+import { AprovacoesPriorizacaoPanel } from "./etapas/AprovacoesPriorizacaoPanel";
+import { DefinicaoResponsavelPanel } from "./etapas/DefinicaoResponsavelPanel";
+import { DesenvolvimentoAjustesPanel } from "./etapas/DesenvolvimentoAjustesPanel";
+import { HomologacaoTecnicaPanel } from "./etapas/HomologacaoTecnicaPanel";
+import { HomologacaoUsuarioPanel } from "./etapas/HomologacaoUsuarioPanel";
+import { TreinamentosPanel } from "./etapas/TreinamentosPanel";
+import { ImplantacaoPanel } from "./etapas/ImplantacaoPanel";
+import { AcompanhamentoAssistidoPanel } from "./etapas/AcompanhamentoAssistidoPanel";
+import { EncerramentoPanel } from "./etapas/EncerramentoPanel";
 
 const BUCKET = "sistema-solicitacoes";
 
-// Cicla a mesma paleta de 6 cores já usada antes — só repete a partir da 7ª coluna.
 const PALETA_CORES = ["muted", "primary", "accent", "info", "warning", "success"] as const;
+const ETAPAS_COR = ETAPAS.map((e, i) => ({ ...e, cor: PALETA_CORES[i % PALETA_CORES.length] }));
 
-const ETAPAS: Array<{ key: string; label: string; cor: string }> = [
-  { key: "registro_oficial", label: "Solicitações Registro Oficial" },
-  { key: "triagem_inicial_comite", label: "Triagem Inicial - Comitê" },
-  { key: "projeto", label: "Projeto" },
-  { key: "aprovacoes_priorizacao", label: "Aprovações e Priorização" },
-  { key: "definicao_responsavel", label: "Definição de Responsável" },
-  { key: "desenvolvimento_ajustes", label: "Desenvolvimento e Ajustes" },
-  { key: "validacao", label: "Validação" },
-  { key: "homologacao_tecnica", label: "Homologação Técnica" },
-  { key: "homologacao_usuario", label: "Homologação do Usuário" },
-  { key: "treinamentos", label: "Treinamentos" },
-  { key: "implantacao", label: "Implantação" },
-  { key: "acompanhamento_assistido", label: "Acompanhamento Assistido" },
-  { key: "encerramento", label: "Encerramento" },
-].map((etapa, i) => ({ ...etapa, cor: PALETA_CORES[i % PALETA_CORES.length] }));
-
-// Classes Tailwind por token de cor — precisam estar escritas por extenso
-// (não construídas via template string) pro JIT do Tailwind conseguir detectar.
 const COR_DOT: Record<string, string> = {
   muted: "bg-muted-foreground/40",
   primary: "bg-primary",
@@ -81,20 +55,26 @@ const COR_BORDER: Record<string, string> = {
   success: "border-l-success",
 };
 
-function iniciais(nome: string): string {
-  return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
-}
-
-function fmtData(data: string | null): string | null {
-  if (!data) return null;
-  const [ano, mes, dia] = data.split("-");
-  return `${dia}/${mes}/${ano}`;
-}
+const PAINEIS: Record<string, (props: any) => JSX.Element> = {
+  registro_oficial: RegistroOficialPanel,
+  triagem_inicial_comite: TriagemComitePanel,
+  projeto: ProjetoPanel,
+  aprovacoes_priorizacao: AprovacoesPriorizacaoPanel,
+  definicao_responsavel: DefinicaoResponsavelPanel,
+  desenvolvimento_ajustes: DesenvolvimentoAjustesPanel,
+  homologacao_tecnica: HomologacaoTecnicaPanel,
+  homologacao_usuario: HomologacaoUsuarioPanel,
+  treinamentos: TreinamentosPanel,
+  implantacao: ImplantacaoPanel,
+  acompanhamento_assistido: AcompanhamentoAssistidoPanel,
+  encerramento: EncerramentoPanel,
+};
 
 export default function SolicitacoesErp() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { data: access } = useAccessibleMenus("visualizar");
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novoDescricao, setNovoDescricao] = useState("");
@@ -102,20 +82,32 @@ export default function SolicitacoesErp() {
   const [novoArquivo, setNovoArquivo] = useState<File | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [enviandoAnexo, setEnviandoAnexo] = useState(false);
+  const [aba, setAba] = useState<"detalhes" | "historico">("detalhes");
   const [novoComentario, setNovoComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
-  const [progressoInput, setProgressoInput] = useState(0);
+  const [filtroResponsavelDev, setFiltroResponsavelDev] = useState<string | null>(null);
+
+  const papeis: Papeis = {
+    comite: access?.codes.has("sistemas_comite") ?? false,
+    controladoria: access?.codes.has("sistemas_controladoria") ?? false,
+    gerenteSistemas: access?.codes.has("sistemas_gerente_sistemas") ?? false,
+    desenvolvedores: access?.codes.has("sistemas_desenvolvedores") ?? false,
+    criarSolicitacao: access?.codes.has("sistemas_criar_solicitacao") ?? false,
+    convidado: access?.codes.has("sistemas_convidado") ?? false,
+    verTodas: access?.codes.has("sistemas_ver_todas_solicitacoes") ?? false,
+  };
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["sistema_solicitacao"],
     queryFn: async () => {
-      // Tabela nova — ainda não regenerada em integrations/supabase/types.ts
-      // (mesmo padrão usado em rh/Ferias.tsx pra tabelas recém-criadas).
       const { data, error } = await (supabase as any)
         .from("sistema_solicitacao")
-        .select("id, titulo, descricao, etapa, responsavel_user_id, progresso_pct, data_inicio, data_fim, created_at")
+        .select(
+          "id, titulo, descricao, etapa, recusado, prioridade, responsavel_user_id, progresso_pct, data_inicio, data_fim, " +
+          "levantamento_funcional_texto, levantamento_funcional_prazo, documentacao_tecnica_texto, documentacao_tecnica_prazo, " +
+          "analise_tecnica_texto, analise_tecnica_prazo, treinamento_data, implantacao_status, finalizado, etapa_entrada_em, " +
+          "criado_por, created_at",
+        )
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Solicitacao[];
@@ -130,12 +122,22 @@ export default function SolicitacoesErp() {
       return (data ?? []) as Array<{ id: string; display_name: string }>;
     },
   });
-  const nomeUsuario = (id: string | null) => usuarios.find((u) => u.id === id)?.display_name ?? null;
+
+  const { data: convidaveis = [] } = useQuery({
+    queryKey: ["sistemas-usuarios-convidaveis"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("listar_usuarios_convidaveis");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; display_name: string }>;
+    },
+  });
 
   const grouped = useMemo(() => {
     const m = new Map<string, Solicitacao[]>();
     ETAPAS.forEach((e) => m.set(e.key, []));
     rows.forEach((r) => m.get(r.etapa)?.push(r));
+    // Recusados sempre por último na coluna.
+    m.forEach((lista) => lista.sort((a, b) => (a.recusado === b.recusado ? 0 : a.recusado ? 1 : -1)));
     return m;
   }, [rows]);
 
@@ -147,7 +149,7 @@ export default function SolicitacoesErp() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("sistema_solicitacao_anexo")
-        .select("id, storage_path, nome_arquivo, created_at")
+        .select("id, storage_path, nome_arquivo, campo, created_at")
         .eq("solicitacao_id", detalheId)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -161,13 +163,145 @@ export default function SolicitacoesErp() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("sistema_solicitacao_comentario")
-        .select("id, autor_id, texto, created_at")
+        .select("id, autor_id, texto, tipo, created_at")
         .eq("solicitacao_id", detalheId)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Comentario[];
     },
   });
+
+  const { data: convidados = [] } = useQuery({
+    queryKey: ["sistema_solicitacao_convidado", detalheId],
+    enabled: !!detalheId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("sistema_solicitacao_convidado")
+        .select("id, user_id, created_at")
+        .eq("solicitacao_id", detalheId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Convidado[];
+    },
+  });
+
+  const invalidarCard = () => {
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao_log", detalheId] });
+  };
+
+  const updateCard = async (id: string, patch: Record<string, unknown>): Promise<boolean> => {
+    const { error } = await (supabase as any).from("sistema_solicitacao").update(patch).eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+      return false;
+    }
+    invalidarCard();
+    return true;
+  };
+
+  const update = (patch: Record<string, unknown>): Promise<boolean> =>
+    cardDetalhe ? updateCard(cardDetalhe.id, patch) : Promise.resolve(false);
+
+  const voltarParaSolicitacoes = (id: string) => updateCard(id, { etapa: "registro_oficial", recusado: false });
+
+  const excluirCardId = async (id: string) => {
+    const { error } = await (supabase as any).from("sistema_solicitacao").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
+    toast({ title: "Solicitação excluída" });
+  };
+
+  const comentar = async (texto: string, tipo?: string): Promise<boolean> => {
+    if (!cardDetalhe || !texto.trim()) return false;
+    const { error } = await (supabase as any).from("sistema_solicitacao_comentario").insert({
+      solicitacao_id: cardDetalhe.id,
+      texto: texto.trim(),
+      tipo: tipo ?? null,
+    });
+    if (error) {
+      toast({ title: "Erro ao comentar", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao_comentario", cardDetalhe.id] });
+    return true;
+  };
+
+  const uploadAnexo = async (solicitacaoId: string, file: File, campo?: string): Promise<string | null> => {
+    const path = `${solicitacaoId}/${Date.now()}-${file.name}`;
+    const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+    if (up.error) return up.error.message;
+    const { error } = await (supabase as any).from("sistema_solicitacao_anexo").insert({
+      solicitacao_id: solicitacaoId,
+      storage_path: path,
+      nome_arquivo: file.name,
+      mime_type: file.type || null,
+      tamanho_bytes: file.size,
+      campo: campo ?? null,
+    });
+    return error?.message ?? null;
+  };
+
+  const anexar = async (file: File, campo?: string): Promise<boolean> => {
+    if (!cardDetalhe) return false;
+    const erro = await uploadAnexo(cardDetalhe.id, file, campo);
+    if (erro) {
+      toast({ title: "Erro ao enviar anexo", description: erro, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao_anexo", cardDetalhe.id] });
+    toast({ title: "Anexo enviado" });
+    return true;
+  };
+
+  const downloadAnexo = async (path: string) => {
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) {
+      toast({ title: "Erro ao abrir anexo", description: error?.message, variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const adicionarConvidado = async (userId: string): Promise<boolean> => {
+    if (!cardDetalhe) return false;
+    const { error } = await (supabase as any).from("sistema_solicitacao_convidado").insert({
+      solicitacao_id: cardDetalhe.id,
+      user_id: userId,
+    });
+    if (error) {
+      toast({ title: "Erro ao adicionar convidado", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao_convidado", cardDetalhe.id] });
+    return true;
+  };
+
+  const removerConvidado = async (convidadoId: string): Promise<boolean> => {
+    const { error } = await (supabase as any).from("sistema_solicitacao_convidado").delete().eq("id", convidadoId);
+    if (error) {
+      toast({ title: "Erro ao remover convidado", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao_convidado", detalheId] });
+    return true;
+  };
+
+  const excluirCard = async (): Promise<boolean> => {
+    if (!cardDetalhe) return false;
+    const { error } = await (supabase as any).from("sistema_solicitacao").delete().eq("id", cardDetalhe.id);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      return false;
+    }
+    setDetalheId(null);
+    qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
+    toast({ title: "Solicitação excluída" });
+    return true;
+  };
 
   const criar = async () => {
     if (!novoTitulo.trim() || !novaDataInicio) return;
@@ -187,9 +321,9 @@ export default function SolicitacoesErp() {
       return;
     }
     if (novoArquivo) {
-      const { error: anexoError } = await uploadAnexo(data.id, novoArquivo);
-      if (anexoError) {
-        toast({ title: "Solicitação criada, mas o anexo falhou", description: anexoError, variant: "destructive" });
+      const erro = await uploadAnexo(data.id, novoArquivo);
+      if (erro) {
+        toast({ title: "Solicitação criada, mas o anexo falhou", description: erro, variant: "destructive" });
       }
     }
     setSalvando(false);
@@ -202,140 +336,45 @@ export default function SolicitacoesErp() {
     toast({ title: "Solicitação criada" });
   };
 
-  const onDrop = async (e: React.DragEvent, colunaDestino: string) => {
-    e.preventDefault();
-    const id = e.dataTransfer.getData("text/plain");
-    const card = rows.find((r) => r.id === id);
-    if (!card || card.etapa === colunaDestino) return;
-
-    const { error } = await (supabase as any).from("sistema_solicitacao").update({ etapa: colunaDestino }).eq("id", id);
-    if (error) {
-      toast({ title: "Erro ao mover", description: error.message, variant: "destructive" });
-    } else {
-      qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
-    }
-  };
-
-  const definirResponsavel = async (userId: string) => {
-    if (!cardDetalhe) return;
-    const { error } = await (supabase as any)
-      .from("sistema_solicitacao")
-      .update({ responsavel_user_id: userId })
-      .eq("id", cardDetalhe.id);
-    if (error) {
-      toast({ title: "Erro ao definir responsável", description: error.message, variant: "destructive" });
-      return;
-    }
-    qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
-  };
-
-  // Mesma regra pra progresso e pra data final: só quem é o responsável
-  // atual da solicitação (não importa o código de permissão).
-  const souResponsavelAtual = !!user?.id && !!cardDetalhe && user.id === cardDetalhe.responsavel_user_id;
-
-  const salvarProgresso = async (pct: number) => {
-    if (!cardDetalhe) return;
-    const { error } = await (supabase as any)
-      .from("sistema_solicitacao")
-      .update({ progresso_pct: pct })
-      .eq("id", cardDetalhe.id);
-    if (error) {
-      toast({ title: "Erro ao atualizar progresso", description: error.message, variant: "destructive" });
-      return;
-    }
-    qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
-  };
-
-  const salvarDataFim = async (data: string) => {
-    if (!cardDetalhe) return;
-    const { error } = await (supabase as any)
-      .from("sistema_solicitacao")
-      .update({ data_fim: data || null })
-      .eq("id", cardDetalhe.id);
-    if (error) {
-      toast({ title: "Erro ao atualizar data final", description: error.message, variant: "destructive" });
-      return;
-    }
-    qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
-  };
-
-  const uploadAnexo = async (solicitacaoId: string, file: File): Promise<{ error: string | null }> => {
-    const path = `${solicitacaoId}/${Date.now()}-${file.name}`;
-    const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
-    if (up.error) return { error: up.error.message };
-    const { error } = await (supabase as any).from("sistema_solicitacao_anexo").insert({
-      solicitacao_id: solicitacaoId,
-      storage_path: path,
-      nome_arquivo: file.name,
-      mime_type: file.type || null,
-      tamanho_bytes: file.size,
-    });
-    return { error: error?.message ?? null };
-  };
-
-  const anexar = async () => {
-    if (!pendingFile || !cardDetalhe) return;
-    setEnviandoAnexo(true);
-    const { error } = await uploadAnexo(cardDetalhe.id, pendingFile);
-    setEnviandoAnexo(false);
-    if (error) {
-      toast({ title: "Erro ao enviar anexo", description: error, variant: "destructive" });
-      return;
-    }
-    setPendingFile(null);
-    qc.invalidateQueries({ queryKey: ["sistema_solicitacao_anexo", cardDetalhe.id] });
-    toast({ title: "Anexo enviado" });
-  };
-
-  const handleDownloadAnexo = async (path: string) => {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60);
-    if (error || !data?.signedUrl) {
-      toast({ title: "Erro ao abrir anexo", description: error?.message, variant: "destructive" });
-      return;
-    }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
-  };
-
-  const comentar = async () => {
-    if (!novoComentario.trim() || !cardDetalhe) return;
+  const comentarGeral = async () => {
+    if (!novoComentario.trim()) return;
     setEnviandoComentario(true);
-    const { error } = await (supabase as any).from("sistema_solicitacao_comentario").insert({
-      solicitacao_id: cardDetalhe.id,
-      texto: novoComentario.trim(),
-    });
+    const ok = await comentar(novoComentario);
     setEnviandoComentario(false);
-    if (error) {
-      toast({ title: "Erro ao comentar", description: error.message, variant: "destructive" });
-      return;
-    }
-    setNovoComentario("");
-    qc.invalidateQueries({ queryKey: ["sistema_solicitacao_comentario", cardDetalhe.id] });
+    if (ok) setNovoComentario("");
   };
+
+  const PainelEtapa = cardDetalhe ? PAINEIS[cardDetalhe.etapa] : null;
+  const totalNaColuna = cardDetalhe ? (grouped.get(cardDetalhe.etapa)?.length ?? 0) : 0;
+  const prioridadesUsadas = cardDetalhe
+    ? (grouped.get("aprovacoes_priorizacao") ?? [])
+        .filter((c) => c.id !== cardDetalhe.id && c.prioridade != null)
+        .map((c) => c.prioridade as number)
+    : [];
+  const anexosGerais = anexos.filter((a) => !a.campo);
+  const comentariosGerais = comentarios.filter((c) => !c.tipo);
 
   return (
     <div>
       <PageHeader
         title="Solicitações ERP"
-        subtitle="Fluxo de demandas de sistemas — arraste o card entre as etapas."
+        subtitle="Fluxo de demandas de sistemas — 12 etapas, papéis configuráveis em Administração."
         module="Sistemas"
         breadcrumb={["Solicitações ERP"]}
         actions={
-          <Button onClick={() => setNovoOpen(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Nova Solicitação
-          </Button>
+          papeis.criarSolicitacao ? (
+            <Button onClick={() => setNovoOpen(true)} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Nova Solicitação
+            </Button>
+          ) : undefined
         }
       />
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 
       <div className="-mb-4 flex h-[calc(100vh-170px)] min-h-[420px] gap-3 overflow-x-auto pb-0 sm:-mb-6 lg:-mb-8">
-        {ETAPAS.map((etapa) => (
-          <div
-            key={etapa.key}
-            className="flex h-full min-w-[260px] flex-1 flex-col overflow-hidden"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => onDrop(e, etapa.key)}
-          >
+        {ETAPAS_COR.map((etapa) => (
+          <div key={etapa.key} className="flex h-full min-w-[260px] flex-1 flex-col overflow-hidden">
             <div className="mb-2 flex shrink-0 items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
               <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider">
                 <span className={`h-2 w-2 rounded-full ${COR_DOT[etapa.cor]}`} />
@@ -343,16 +382,36 @@ export default function SolicitacoesErp() {
               </span>
               <Badge variant="outline" className="text-[10px]">{grouped.get(etapa.key)?.length ?? 0}</Badge>
             </div>
+            {etapa.key === "desenvolvimento_ajustes" && (
+              <div className="mb-2 shrink-0">
+                <SearchableSelect
+                  value={filtroResponsavelDev}
+                  onChange={setFiltroResponsavelDev}
+                  options={usuarios.map((u) => ({ value: u.id, label: u.display_name }))}
+                  placeholder="Filtrar por responsável…"
+                  searchPlaceholder="Buscar usuário..."
+                />
+              </div>
+            )}
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-              {grouped.get(etapa.key)?.map((card) => {
-                const responsavelNome = nomeUsuario(card.responsavel_user_id);
+              {(etapa.key === "desenvolvimento_ajustes" && filtroResponsavelDev
+                ? grouped.get(etapa.key)?.filter((c) => c.responsavel_user_id === filtroResponsavelDev)
+                : grouped.get(etapa.key)
+              )?.map((card) => {
+                const responsavelNome = nomeUsuario(usuarios, card.responsavel_user_id);
+                const estadoRecusadoControladoria = card.recusado && papeis.controladoria;
+                const estadoRecusadoComum = card.recusado && !papeis.controladoria;
                 return (
                   <Card
                     key={card.id}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData("text/plain", card.id)}
-                    onClick={() => { setDetalheId(card.id); setProgressoInput(card.progresso_pct); }}
-                    className={`cursor-grab border-l-4 p-3 ${COR_BORDER[etapa.cor]}`}
+                    onClick={() => { if (!estadoRecusadoComum) { setDetalheId(card.id); setAba("detalhes"); } }}
+                    className={[
+                      "border-l-4 p-3",
+                      COR_BORDER[etapa.cor],
+                      estadoRecusadoComum ? "cursor-default opacity-40" : "cursor-pointer",
+                      estadoRecusadoControladoria ? "bg-warning/20 border-warning" : "",
+                      card.finalizado ? "opacity-50" : "",
+                    ].join(" ")}
                   >
                     <p className="text-xs font-medium">{card.titulo}</p>
                     {card.descricao && (
@@ -367,6 +426,9 @@ export default function SolicitacoesErp() {
                       <span className="truncate text-[10px] text-muted-foreground">
                         {responsavelNome ?? "Sem responsável"}
                       </span>
+                      {card.prioridade != null && (
+                        <Badge variant="outline" className="ml-auto text-[9px]">P{card.prioridade}</Badge>
+                      )}
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <Progress value={card.progresso_pct} className="h-1.5 flex-1" />
@@ -376,6 +438,19 @@ export default function SolicitacoesErp() {
                       Início: {fmtData(card.data_inicio) ?? "—"}
                       {card.data_fim && <> · Fim: {fmtData(card.data_fim)}</>}
                     </div>
+                    {card.recusado && (
+                      <p className="mt-1.5 text-[10px] font-medium text-warning-foreground">Recusado</p>
+                    )}
+                    {estadoRecusadoControladoria && (
+                      <div className="mt-2 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button size="sm" variant="outline" className="h-7 flex-1 text-[11px]" onClick={() => voltarParaSolicitacoes(card.id)}>
+                          Voltar para Solicitações
+                        </Button>
+                        <Button size="sm" variant="destructive" className="h-7 flex-1 text-[11px]" onClick={() => excluirCardId(card.id)}>
+                          Excluir
+                        </Button>
+                      </div>
+                    )}
                   </Card>
                 );
               })}
@@ -419,149 +494,119 @@ export default function SolicitacoesErp() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!detalheId} onOpenChange={(open) => { if (!open) { setDetalheId(null); setPendingFile(null); setNovoComentario(""); setProgressoInput(0); } }}>
-        <DialogContent className="max-w-3xl sm:max-w-3xl">
-          {cardDetalhe && (
+      <Dialog open={!!detalheId} onOpenChange={(open) => { if (!open) { setDetalheId(null); setNovoComentario(""); } }}>
+        <DialogContent className="max-w-4xl sm:max-w-4xl">
+          {cardDetalhe && PainelEtapa && (
             <>
               <DialogHeader>
-                <DialogTitle>{cardDetalhe.titulo}</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  {cardDetalhe.titulo}
+                  {cardDetalhe.recusado && <Badge variant="outline" className="text-warning-foreground">Recusado</Badge>}
+                  {cardDetalhe.finalizado && <Badge variant="outline">Finalizado</Badge>}
+                </DialogTitle>
               </DialogHeader>
-              <div className="grid gap-6 md:grid-cols-[1fr_280px]">
-                <div className="space-y-4">
-                  {cardDetalhe.descricao && (
-                    <p className="text-sm text-muted-foreground">{cardDetalhe.descricao}</p>
-                  )}
 
-                  <div>
-                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Responsável</p>
-                    <SearchableSelect
-                      value={cardDetalhe.responsavel_user_id}
-                      onChange={definirResponsavel}
-                      options={usuarios.map((u) => ({ value: u.id, label: u.display_name }))}
-                      placeholder="Sem responsável"
-                      searchPlaceholder="Buscar usuário..."
-                    />
-                  </div>
-
-                  <div>
-                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Anexos</p>
-                    <div className="space-y-1">
-                      {anexos.map((a) => (
-                        <div key={a.id} className="flex items-center justify-between rounded border border-border px-2 py-1.5 text-xs">
-                          <span className="truncate" title={a.nome_arquivo}>{a.nome_arquivo}</span>
-                          <button type="button" onClick={() => handleDownloadAnexo(a.storage_path)} className="ml-2 shrink-0 text-primary hover:underline">
-                            <Download className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                      {anexos.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhum anexo ainda.</p>}
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <Input
-                        type="file"
-                        onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
-                        className="flex-1 cursor-pointer text-xs"
-                      />
-                      {pendingFile && (
-                        <Button size="sm" onClick={anexar} disabled={enviandoAnexo} className="gap-1.5">
-                          <Paperclip className="h-3.5 w-3.5" />
-                          {enviandoAnexo ? "Enviando…" : "Anexar"}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Progresso</p>
-                    <Progress value={progressoInput} className="h-2.5" />
-                    <div className="mt-2 flex items-center gap-2">
-                      <label className="text-xs text-muted-foreground">
-                        Digite a porcentagem concluída dessa demanda:
-                      </label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={progressoInput}
-                        disabled={!souResponsavelAtual}
-                        onChange={(e) => setProgressoInput(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-                        onBlur={() => salvarProgresso(progressoInput)}
-                        onKeyDown={(e) => e.key === "Enter" && salvarProgresso(progressoInput)}
-                        className="w-20 text-xs"
-                      />
-                      <span className="text-xs text-muted-foreground">%</span>
-                    </div>
-                    {!souResponsavelAtual && (
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        Só o responsável pela demanda pode atualizar o progresso.
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Datas</p>
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <label className="mb-1 block text-[11px] text-muted-foreground">Data de início</label>
-                        <p className="text-xs">
-                          {cardDetalhe.data_inicio ? new Date(`${cardDetalhe.data_inicio}T00:00:00`).toLocaleDateString("pt-BR") : "—"}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[11px] text-muted-foreground">Data final</label>
-                        <Input
-                          type="date"
-                          value={cardDetalhe.data_fim ?? ""}
-                          disabled={!souResponsavelAtual}
-                          onChange={(e) => salvarDataFim(e.target.value)}
-                          className="w-40 text-xs"
-                        />
-                      </div>
-                    </div>
-                    {!souResponsavelAtual && (
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        Só o responsável pela demanda pode preencher a data final.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex h-[420px] min-h-0 flex-col border-l border-border pl-4">
-                  <p className="mb-2 shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comentários</p>
-                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-                    {comentarios.map((c) => {
-                      const nome = nomeUsuario(c.autor_id) ?? "Usuário";
-                      return (
-                        <div key={c.id} className="flex items-start gap-2">
-                          <Avatar className="h-6 w-6 shrink-0">
-                            <AvatarFallback className="text-[9px]">{iniciais(nome)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="text-[11px]">
-                              <span className="font-medium">{nome}</span>
-                              <span className="ml-1.5 text-muted-foreground">{new Date(c.created_at).toLocaleString("pt-BR")}</span>
-                            </p>
-                            <p className="break-words text-xs">{c.texto}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {comentarios.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhum comentário ainda.</p>}
-                  </div>
-                  <div className="mt-3 flex shrink-0 items-center gap-2">
-                    <Input
-                      placeholder="Comentar..."
-                      value={novoComentario}
-                      onChange={(e) => setNovoComentario(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && comentar()}
-                      className="text-xs"
-                    />
-                    <Button size="icon" variant="ghost" onClick={comentar} disabled={!novoComentario.trim() || enviandoComentario}>
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+              <div className="flex gap-2 border-b border-border pb-2">
+                <button
+                  onClick={() => setAba("detalhes")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium ${aba === "detalhes" ? "bg-muted" : "text-muted-foreground"}`}
+                >
+                  Detalhes
+                </button>
+                <button
+                  onClick={() => setAba("historico")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium ${aba === "historico" ? "bg-muted" : "text-muted-foreground"}`}
+                >
+                  Histórico
+                </button>
               </div>
+
+              {aba === "historico" && (
+                <div className="max-h-[420px] overflow-y-auto py-2">
+                  <Historico solicitacaoId={cardDetalhe.id} usuarios={usuarios} />
+                </div>
+              )}
+
+              {aba === "detalhes" && (
+                <div className="grid gap-6 md:grid-cols-[1fr_280px]">
+                  <div className="space-y-4">
+                    {cardDetalhe.descricao && (
+                      <p className="text-sm text-muted-foreground">{cardDetalhe.descricao}</p>
+                    )}
+
+                    <PainelEtapa
+                      card={cardDetalhe}
+                      papeis={papeis}
+                      userId={user?.id ?? null}
+                      usuarios={usuarios}
+                      convidaveis={convidaveis}
+                      anexos={anexos}
+                      comentarios={comentarios}
+                      convidados={convidados}
+                      totalNaColuna={totalNaColuna}
+                      prioridadesUsadas={prioridadesUsadas}
+                      onUpdate={update}
+                      onComentar={comentar}
+                      onAnexar={anexar}
+                      onDownloadAnexo={downloadAnexo}
+                      onAdicionarConvidado={adicionarConvidado}
+                      onRemoverConvidado={removerConvidado}
+                      onExcluir={excluirCard}
+                    />
+
+                    <div>
+                      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Anexos gerais</p>
+                      <div className="space-y-1">
+                        {anexosGerais.map((a) => (
+                          <div key={a.id} className="flex items-center justify-between rounded border border-border px-2 py-1.5 text-xs">
+                            <span className="truncate" title={a.nome_arquivo}>{a.nome_arquivo}</span>
+                            <button type="button" onClick={() => downloadAnexo(a.storage_path)} className="ml-2 shrink-0 text-primary hover:underline">
+                              abrir
+                            </button>
+                          </div>
+                        ))}
+                        {anexosGerais.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhum anexo geral ainda.</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex h-[420px] min-h-0 flex-col border-l border-border pl-4">
+                    <p className="mb-2 shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comentários</p>
+                    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                      {comentariosGerais.map((c) => {
+                        const nome = nomeUsuario(usuarios, c.autor_id) ?? "Usuário";
+                        return (
+                          <div key={c.id} className="flex items-start gap-2">
+                            <Avatar className="h-6 w-6 shrink-0">
+                              <AvatarFallback className="text-[9px]">{iniciais(nome)}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-[11px]">
+                                <span className="font-medium">{nome}</span>
+                                <span className="ml-1.5 text-muted-foreground">{new Date(c.created_at).toLocaleString("pt-BR")}</span>
+                              </p>
+                              <p className="break-words text-xs">{c.texto}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {comentariosGerais.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhum comentário ainda.</p>}
+                    </div>
+                    <div className="mt-3 flex shrink-0 items-center gap-2">
+                      <Input
+                        placeholder="Comentar..."
+                        value={novoComentario}
+                        onChange={(e) => setNovoComentario(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && comentarGeral()}
+                        className="text-xs"
+                      />
+                      <Button size="sm" variant="ghost" onClick={comentarGeral} disabled={!novoComentario.trim() || enviandoComentario}>
+                        Enviar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </DialogContent>
