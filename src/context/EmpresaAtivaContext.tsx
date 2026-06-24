@@ -10,7 +10,7 @@ interface EmpresaAtivaContextValue {
   loading: boolean;
 }
 
-const EmpresaAtivaContext = createContext<EmpresaAtivaContextValue | null>(null);
+export const EmpresaAtivaContext = createContext<EmpresaAtivaContextValue | null>(null);
 
 const LS_KEY = "gn:empresa_ativa";
 
