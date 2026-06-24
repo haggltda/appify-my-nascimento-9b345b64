@@ -55,6 +55,29 @@ const COR_BORDER: Record<string, string> = {
   success: "border-l-success",
 };
 
+function DescricaoExpandivel({ texto }: { texto: string }) {
+  const [expandido, setExpandido] = useState(false);
+  const longa = texto.length > 220;
+  return (
+    <div>
+      <p
+        className={`whitespace-pre-wrap break-words text-sm text-muted-foreground ${!expandido && longa ? "line-clamp-4" : ""}`}
+      >
+        {texto}
+      </p>
+      {longa && (
+        <button
+          type="button"
+          onClick={() => setExpandido((v) => !v)}
+          className="mt-1 text-xs font-medium text-primary hover:underline"
+        >
+          {expandido ? "ver menos" : "ver mais"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 const PAINEIS: Record<string, (props: any) => JSX.Element> = {
   registro_oficial: RegistroOficialPanel,
   triagem_inicial_comite: TriagemComitePanel,
@@ -191,12 +214,24 @@ export default function SolicitacoesErp() {
   };
 
   const updateCard = async (id: string, patch: Record<string, unknown>): Promise<boolean> => {
+    const cardAntes = rows.find((r) => r.id === id);
     const { error } = await (supabase as any).from("sistema_solicitacao").update(patch).eq("id", id);
     if (error) {
       toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
       return false;
     }
     invalidarCard();
+
+    if (typeof patch.etapa === "string" && cardAntes && patch.etapa !== cardAntes.etapa) {
+      const novaEtapaLabel = ETAPAS.find((e) => e.key === patch.etapa)?.label ?? String(patch.etapa);
+      toast({ title: "Card movido", description: `Etapa: ${novaEtapaLabel}` });
+      if (detalheId === id) setDetalheId(null);
+    } else if ("recusado" in patch) {
+      toast({ title: patch.recusado ? "Card recusado" : "Card reativado" });
+    } else if ("finalizado" in patch) {
+      toast({ title: patch.finalizado ? "Demanda finalizada" : "Demanda reaberta" });
+    }
+
     return true;
   };
 
@@ -530,9 +565,7 @@ export default function SolicitacoesErp() {
               {aba === "detalhes" && (
                 <div className="grid gap-6 md:grid-cols-[1fr_280px]">
                   <div className="space-y-4">
-                    {cardDetalhe.descricao && (
-                      <p className="text-sm text-muted-foreground">{cardDetalhe.descricao}</p>
-                    )}
+                    {cardDetalhe.descricao && <DescricaoExpandivel texto={cardDetalhe.descricao} />}
 
                     <PainelEtapa
                       card={cardDetalhe}
