@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { usePlanoAcoes } from "@/hooks/usePlanoAcoes";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { usePlanoAcaoFilterOptions, matchResponsavel } from "@/hooks/usePlanoAcaoFilterOptions";
 import { STATUS_LABELS, STATUS_COR, PRIORIDADE_LABEL, PRIORIDADE_COR, STATUS_ORDEM, PRIORIDADES } from "@/types/planoAcao";
-import { Plus, Search, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
+import { Plus, Search, AlertTriangle, Clock, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
 
 const fmtDate = (s: string | null) => {
   if (!s) return "—";
@@ -32,8 +32,8 @@ export default function PlanoAcoesLista() {
   const fPrior  = searchParams.get("prior")  ?? "__all";
   const fComite = searchParams.get("comite") ?? "__all";
   const fArea   = searchParams.get("area")   ?? "__all";
-  const fSetor  = searchParams.get("setor")  ?? "__all";
   const fResp   = searchParams.get("resp")   ?? "__all";
+  const [dateSort, setDateSort] = useState<"recent" | "oldest" | null>(null);
 
   const setFilter = (key: string, value: string) => {
     setSearchParams(prev => {
@@ -44,7 +44,7 @@ export default function PlanoAcoesLista() {
     }, { replace: true });
   };
 
-  const { comites, areas, setores, responsaveis } = usePlanoAcaoFilterOptions(rows);
+  const { comites, areas, responsaveis } = usePlanoAcaoFilterOptions(rows);
 
   // Na montagem: se a URL não tem filtros, tenta restaurar do sessionStorage
   // Isso garante persistência mesmo ao navegar pelo Sidebar (que não passa params)
@@ -67,24 +67,30 @@ export default function PlanoAcoesLista() {
     if (isLoading || rows.length === 0) return;
     if (fComite !== "__all" && !comites.some(o => o.value === fComite)) setFilter("comite", "__all");
     if (fArea   !== "__all" && !areas.some(o => o.value === fArea))     setFilter("area",   "__all");
-    if (fSetor  !== "__all" && !setores.some(o => o.value === fSetor))  setFilter("setor",  "__all");
     if (fResp   !== "__all" && !responsaveis.some(o => o.value === fResp)) setFilter("resp", "__all");
-  }, [comites, areas, setores, responsaveis, isLoading, rows.length]);
+  }, [comites, areas, responsaveis, isLoading, rows.length]);
 
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return rows.filter(r => {
+    const base = rows.filter(r => {
       if (fStatus !== "__all" && r.status_normalizado !== fStatus) return false;
       if (fPrior  !== "__all" && r.prioridade_normalizada !== fPrior) return false;
       if (fComite !== "__all" && r.comite !== fComite) return false;
       if (fArea   !== "__all" && r.area !== fArea) return false;
-      if (fSetor  !== "__all" && r.setor !== fSetor) return false;
       if (!matchResponsavel(r, fResp)) return false;
       if (!q) return true;
       return [r.titulo, r.problema, r.acao, r.responsavel_nome_origem, r.id_importacao]
         .filter(Boolean).some(s => (s as string).toLowerCase().includes(q));
     });
-  }, [rows, busca, fStatus, fPrior, fComite, fArea, fSetor, fResp]);
+    if (!dateSort) return base;
+    const sorted = [...base];
+    sorted.sort((a, b) => {
+      const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return dateSort === "recent" ? tb - ta : ta - tb;
+    });
+    return sorted;
+  }, [rows, busca, fStatus, fPrior, fComite, fArea, fResp, dateSort]);
 
   if (lp) return null;
   if (!can("visualizar")) return <ForbiddenCard />;
@@ -132,8 +138,7 @@ export default function PlanoAcoesLista() {
             </SelectContent>
           </Select>
           <SearchableSelect value={fComite === "__all" ? "" : fComite} onChange={v => setFilter("comite", v || "__all")} options={comites} placeholder="Todos os comitês" searchPlaceholder="Buscar comitê..." allowClear />
-          <SearchableSelect value={fArea === "__all" ? "" : fArea}     onChange={v => setFilter("area",   v || "__all")} options={areas}   placeholder="Todas as áreas"    searchPlaceholder="Buscar área..."   allowClear />
-          <SearchableSelect value={fSetor === "__all" ? "" : fSetor}   onChange={v => setFilter("setor",  v || "__all")} options={setores} placeholder="Todos os setores"  searchPlaceholder="Buscar setor..."  allowClear />
+          <SearchableSelect value={fArea === "__all" ? "" : fArea}     onChange={v => setFilter("area",   v || "__all")} options={areas}   placeholder="Todos os setores"  searchPlaceholder="Buscar setor..."  allowClear />
           <SearchableSelect value={fResp  === "__all" ? "" : fResp}    onChange={v => setFilter("resp",   v || "__all")} options={responsaveis} placeholder="Todos os responsáveis" searchPlaceholder="Buscar responsável..." allowClear />
         </div>
         <div className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
@@ -158,7 +163,17 @@ export default function PlanoAcoesLista() {
                 <th className="p-2">Prior.</th>
                 <th className="p-2">Status</th>
                 <th className="p-2">Pend.</th>
-                <th className="p-2">Atualizada</th>
+                <th className="p-2">
+                  <button
+                    type="button"
+                    onClick={() => setDateSort(d => d === "recent" ? "oldest" : "recent")}
+                    className="flex items-center gap-1 hover:text-foreground"
+                    title={dateSort === "recent" ? "Mostrando mais recentes — clique para mais antigas" : "Mostrando mais antigas — clique para mais recentes"}
+                  >
+                    Atualizada
+                    {dateSort === "recent" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>
