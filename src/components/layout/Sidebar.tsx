@@ -41,6 +41,7 @@ import {
   Laptop2,
   Wrench,
   FileOutput,
+  Headset,
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
@@ -386,6 +387,25 @@ const sistemasModule: ModuleDef = {
   ],
 };
 
+// Central de Serviços — em construção
+const centralServicosModule: ModuleDef = {
+  id: "central_servicos",
+  label: "Central de Serviços",
+  description: "Em construção",
+  icon: Headset,
+  basePath: "/app/central-servicos",
+  status: "active",
+  groups: [
+    {
+      label: "Central de Serviços",
+      defaultOpen: true,
+      items: [
+        { label: "Central de Serviços", to: "/app/central-servicos", icon: Headset },
+      ],
+    },
+  ],
+};
+
 // Jurídico — Gestão Patrimonial e Obrigações
 const juridicoModule: ModuleDef = {
   id: "juridico",
@@ -478,6 +498,7 @@ const erpModules: ModuleDef[] = [
   recrutamentoModule,
   encarregadosModule,
   sistemasModule,
+  centralServicosModule,
   juridicoModule,
   biModule,
 ];

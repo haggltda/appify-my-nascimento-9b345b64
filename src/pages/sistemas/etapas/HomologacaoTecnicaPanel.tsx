@@ -3,13 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, ArrowLeft } from "lucide-react";
-import type { EtapaPanelProps } from "./types";
+import { APROVACOES_HOMOLOGACAO_TECNICA, type EtapaPanelProps } from "./types";
 
-const APROVACOES: Array<{ campo: "homologacao_aprov_1" | "homologacao_aprov_2" | "homologacao_aprov_3"; nome: string }> = [
-  { campo: "homologacao_aprov_1", nome: "Érica Souza Ávila" },
-  { campo: "homologacao_aprov_2", nome: "Yuri Rosa" },
-  { campo: "homologacao_aprov_3", nome: "Iury de Jesus Silva" },
-];
+const APROVACOES = Object.entries(APROVACOES_HOMOLOGACAO_TECNICA).map(([campo, nome]) => ({
+  campo: campo as keyof typeof APROVACOES_HOMOLOGACAO_TECNICA,
+  nome,
+}));
 
 export function HomologacaoTecnicaPanel({ card, papeis, onUpdate, onComentar }: EtapaPanelProps) {
   const [justificativa, setJustificativa] = useState("");

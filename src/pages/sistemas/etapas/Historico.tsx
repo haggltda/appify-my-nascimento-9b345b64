@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ETAPAS, nomeUsuario, type Usuario } from "./types";
+import { APROVACOES_HOMOLOGACAO_TECNICA, ETAPAS, nomeUsuario, type Usuario } from "./types";
 
 interface LogRow {
   id: string;
@@ -24,6 +24,9 @@ const ACAO_LABEL: Record<string, (l: LogRow) => string> = {
   definir_prazo: (l) => `definiu o prazo para ${l.detalhe}`,
   definir_status_implantacao: (l) => `marcou implantação como "${l.detalhe}"`,
   finalizado: (l) => (l.detalhe === "true" ? "finalizou a demanda" : "reabriu a demanda"),
+  aprovacao_homologacao_1: (l) => `${l.detalhe === "true" ? "marcou" : "desmarcou"} o botão "${APROVACOES_HOMOLOGACAO_TECNICA.homologacao_aprov_1}"`,
+  aprovacao_homologacao_2: (l) => `${l.detalhe === "true" ? "marcou" : "desmarcou"} o botão "${APROVACOES_HOMOLOGACAO_TECNICA.homologacao_aprov_2}"`,
+  aprovacao_homologacao_3: (l) => `${l.detalhe === "true" ? "marcou" : "desmarcou"} o botão "${APROVACOES_HOMOLOGACAO_TECNICA.homologacao_aprov_3}"`,
 };
 
 export function Historico({ solicitacaoId, usuarios }: { solicitacaoId: string; usuarios: Usuario[] }) {
