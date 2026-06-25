@@ -8,11 +8,17 @@ import type { EtapaPanelProps } from "./types";
 export function TreinamentosPanel({ card, papeis, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
   const [faltouFuncoes, setFaltouFuncoes] = useState("");
   const [encontradoBug, setEncontradoBug] = useState("");
-  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [arquivos, setArquivos] = useState<File[]>([]);
   const podeAgir = papeis.comite || papeis.controladoria;
   const anexosTreinamento = anexos.filter((a) => a.campo === "treinamento");
 
   const algumPreenchido = !!faltouFuncoes.trim() || !!encontradoBug.trim();
+
+  const enviarAnexos = async () => {
+    const pendentes = arquivos;
+    setArquivos([]);
+    for (const f of pendentes) await onAnexar(f, "treinamento");
+  };
 
   const salvar = async () => {
     if (faltouFuncoes.trim()) {
@@ -47,10 +53,15 @@ export function TreinamentosPanel({ card, papeis, anexos, onUpdate, onComentar, 
         ))}
         {podeAgir && (
           <div className="flex items-center gap-2">
-            <Input type="file" className="h-8 flex-1 cursor-pointer text-[11px]" onChange={(e) => setArquivo(e.target.files?.[0] ?? null)} />
-            {arquivo && (
-              <Button size="sm" className="h-8 gap-1" onClick={() => { onAnexar(arquivo, "treinamento"); setArquivo(null); }}>
-                <Paperclip className="h-3 w-3" /> Anexar
+            <Input
+              type="file"
+              multiple
+              className="h-8 flex-1 cursor-pointer text-[11px]"
+              onChange={(e) => setArquivos(Array.from(e.target.files ?? []))}
+            />
+            {arquivos.length > 0 && (
+              <Button size="sm" className="h-8 gap-1" onClick={enviarAnexos}>
+                <Paperclip className="h-3 w-3" /> Anexar ({arquivos.length})
               </Button>
             )}
           </div>
