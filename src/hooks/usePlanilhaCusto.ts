@@ -107,6 +107,8 @@ export type PlanilhaCustoRow = {
   irpj_csll: number;
   iss: number;
   total_por_empregado: number;
+  encerrado: boolean;
+  data_encerramento: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -179,6 +181,20 @@ export function useDeletePlanilhaCusto() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any).from("planilha_custo").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["planilha_custo"] }),
+  });
+}
+
+export function useEncerrarContrato() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ contrato, data_encerramento }: { contrato: string; data_encerramento: string }) => {
+      const { error } = await (supabase as any)
+        .from("planilha_custo")
+        .update({ encerrado: true, data_encerramento, updated_at: new Date().toISOString() })
+        .eq("contrato", contrato);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["planilha_custo"] }),
