@@ -39,15 +39,20 @@ import {
   DatabaseZap,
   TableProperties,
   Laptop2,
+  Wrench,
+  FileOutput,
+  Headset,
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
+import { useGradeAtivaCount } from "@/hooks/useGradeAtivaCount";
+import { EmpresaAtivaContext } from "@/context/EmpresaAtivaContext";
 import { Inbox } from "lucide-react";
 import { Target } from "lucide-react";
 import { GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useContext } from "react";
 
 interface NavItem {
   label: string;
@@ -78,7 +83,6 @@ const licitacoesModule: ModuleDef = {
   description: "Edital → Contrato",
   icon: Briefcase,
   basePath: "/app",
-  badge: "32",
   status: "active",
   groups: [
     {
@@ -86,7 +90,7 @@ const licitacoesModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Painel Executivo", to: "/app/painel-executivo", icon: LayoutDashboard },
-        { label: "Grade de Licitações", to: "/app/pipeline", icon: FolderKanban, badge: "32" },
+        { label: "Grade de Licitações", to: "/app/pipeline", icon: FolderKanban, badge: "__grade_ativa__" },
       ],
     },
     {
@@ -177,6 +181,13 @@ const controladoriaOrcModule: ModuleDef = {
         { label: "OBZ — Versões", to: "/app/co/obz-versoes", icon: Calculator },
         { label: "DRE Gerencial", to: "/app/co/dre-gerencial", icon: TrendingUp },
         { label: "Orçamento Completo", to: "/app/co/orcamento-completo", icon: Calculator },
+      ],
+    },
+    {
+      label: "Ferramentas",
+      defaultOpen: true,
+      items: [
+        { label: "Gerador de POPs", to: "/app/co/gerador-pops", icon: FileOutput },
       ],
     },
   ],
@@ -357,7 +368,7 @@ const encarregadosModule: ModuleDef = {
   ],
 };
 
-// Sistemas — demandas de sistemas (kanban de 8 etapas)
+// Sistemas — demandas de sistemas (kanban de 13 etapas, acesso livre)
 const sistemasModule: ModuleDef = {
   id: "sistemas",
   label: "Sistemas",
@@ -371,6 +382,26 @@ const sistemasModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Solicitações ERP", to: "/app/sistemas/solicitacoes-erp", icon: Laptop2 },
+      ],
+    },
+  ],
+};
+
+// Central de Serviços — atendimento + orientações ao colaborador
+const centralServicosModule: ModuleDef = {
+  id: "central_servicos",
+  label: "Central de Serviços",
+  description: "Atendimento e orientações ao colaborador",
+  icon: Headset,
+  basePath: "/app/central-servicos",
+  status: "active",
+  groups: [
+    {
+      label: "Central de Serviços",
+      defaultOpen: true,
+      items: [
+        { label: "Central de Serviços", to: "/app/central-servicos", icon: Headset },
+        { label: "Orientações Jurídicas", to: "/app/central-servicos/orientacoes-juridicas", icon: BookOpen },
       ],
     },
   ],
@@ -418,24 +449,6 @@ const juridicoModule: ModuleDef = {
   ],
 };
 
-// Central de Serviços
-const centralServicosModule: ModuleDef = {
-  id: "central-de-servicos",
-  label: "Central de Serviços",
-  description: "Orientações jurídicas e serviços ao colaborador",
-  icon: Sparkles,
-  basePath: "/app/central-de-servicos/orientacoes-juridicas",
-  status: "active",
-  groups: [
-    {
-      label: "Atendimento",
-      defaultOpen: true,
-      items: [
-        { label: "Orientações Jurídicas", to: "/app/central-de-servicos/orientacoes-juridicas", icon: BookOpen },
-      ],
-    },
-  ],
-};
 
 // BI
 const biModule: ModuleDef = {
@@ -526,6 +539,8 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const { perms } = usePlanoAcaoPermissao();
   const { temAlcada, pendentes } = useTemAlcada();
   const { data: access } = useAccessibleMenus("visualizar");
+  const empresaCtx = useContext(EmpresaAtivaContext);
+  const { data: gradeAtivaCount } = useGradeAtivaCount(empresaCtx?.empresa?.id ?? null);
 
   const allModules = [
     ...erpModules,
@@ -535,25 +550,40 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/duvidas", "/app/juridico/processos", "/app/juridico/processos/dashboard", "/app/juridico/processos/audiencias", "/app/juridico/advertencias", "/app/central-de-servicos/orientacoes-juridicas"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/duvidas", "/app/juridico/processos", "/app/juridico/processos/dashboard", "/app/juridico/processos/audiencias", "/app/juridico/advertencias", "/app/sistemas/solicitacoes-erp", "/app/central-servicos/orientacoes-juridicas"];
   const visibleModules = useMemo(() => {
-    if (!access) return allModules;
-    const canSee = (to: string) => {
-      const code = matchMenuCode(to, access.routes);
-      if (code) return access.codes.has(code);
-      // Sem código: só visível se estiver na allowlist técnica da Sidebar.
-      return SIDEBAR_TECHNICAL_ALLOWLIST.includes(to);
+    const resolvedBadge = (badge: string | undefined) => {
+      if (badge === "__grade_ativa__") return gradeAtivaCount != null ? String(gradeAtivaCount) : undefined;
+      return badge;
     };
-    return allModules
-      .map((mod) => {
-        if (!mod.groups) return mod;
-        const groups = mod.groups
-          .map((g) => ({ ...g, items: g.items.filter((i) => canSee(i.to)) }))
-          .filter((g) => g.items.length > 0);
-        return { ...mod, groups };
-      })
-      .filter((mod) => !mod.groups || mod.groups.length > 0);
-  }, [allModules, access]);
+
+    const base = !access ? allModules : (() => {
+      const canSee = (to: string) => {
+        const code = matchMenuCode(to, access.routes);
+        if (code) return access.codes.has(code);
+        return SIDEBAR_TECHNICAL_ALLOWLIST.includes(to);
+      };
+      return allModules
+        .map((mod) => {
+          if (!mod.groups) return mod;
+          const groups = mod.groups
+            .map((g) => ({ ...g, items: g.items.filter((i) => canSee(i.to)) }))
+            .filter((g) => g.items.length > 0);
+          return { ...mod, groups };
+        })
+        .filter((mod) => !mod.groups || mod.groups.length > 0);
+    })();
+
+    // Resolve sentinels de badge dinâmico
+    return base.map((mod) => ({
+      ...mod,
+      badge: resolvedBadge(mod.badge),
+      groups: mod.groups?.map((g) => ({
+        ...g,
+        items: g.items.map((item) => ({ ...item, badge: resolvedBadge(item.badge) })),
+      })),
+    }));
+  }, [allModules, access, gradeAtivaCount]);
 
   // Módulo ativo = aquele cujo ITEM (link real) casa com a rota atual.
   // Detecção por basePath não serve porque o Licitações usa basePath "/app"

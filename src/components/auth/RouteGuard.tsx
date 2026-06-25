@@ -32,6 +32,7 @@ const TECHNICAL_ALLOWLIST = [
   "/app/meu-perfil",                 // Perfil do próprio usuário logado
   "/app/co/orcamento-completo",      // TODO B2.x: cadastrar em app_menu
   "/app/contabil/razao-detalhado",   // TODO B2.x: cadastrar em app_menu
+  "/app/sistemas/solicitacoes-erp",  // Liberado a qualquer autenticado — sem permissão por usuário
 ];
 
 function inAllowlist(pathname: string): boolean {

@@ -310,7 +310,7 @@ export default function PlanoAcaoDetalhe() {
   const excluir = async () => {
     if (!can("excluir") || isNew) return;
     if (!confirm("Excluir logicamente esta ação?")) return;
-    const { error } = await supabase.from("plano_acao").update({ deleted_at: new Date().toISOString(), atualizado_por: user?.id ?? null }).eq("id", id!);
+    const { error } = await supabase.rpc("excluir_plano_acao", { _id: id! } as any);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else { toast({ title: "Excluída" }); nav("/app/plano-acoes"); }
   };
@@ -325,7 +325,14 @@ export default function PlanoAcaoDetalhe() {
     else { setNovoComent(""); await loadExtras(id!); }
   };
 
-  const getPublicUrl = (path: string) => supabase.storage.from("anexos").getPublicUrl(path).data.publicUrl;
+  const handleDownloadAnexo = async (path: string) => {
+    const { data, error } = await supabase.storage.from("anexos").createSignedUrl(path, 60);
+    if (error || !data?.signedUrl) {
+      toast({ title: "Erro ao abrir anexo", description: error?.message, variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div>
@@ -527,9 +534,9 @@ export default function PlanoAcaoDetalhe() {
                 {anexos.map(ax => (
                   <div key={ax.id} className="flex items-center justify-between rounded border border-border px-2 py-1.5 text-xs">
                     <span className="truncate max-w-[160px]" title={ax.nome_arquivo}>{ax.nome_arquivo}</span>
-                    <a href={getPublicUrl(ax.storage_path)} target="_blank" rel="noopener noreferrer" className="ml-2 shrink-0 text-primary hover:underline">
+                    <button type="button" onClick={() => handleDownloadAnexo(ax.storage_path)} className="ml-2 shrink-0 text-primary hover:underline">
                       <Download className="h-3.5 w-3.5" />
-                    </a>
+                    </button>
                   </div>
                 ))}
                 {anexos.length === 0 && <p className="text-xs text-muted-foreground">Sem anexos.</p>}

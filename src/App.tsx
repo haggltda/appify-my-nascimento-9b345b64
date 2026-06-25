@@ -124,6 +124,7 @@ import Ajuda from "./pages/ajuda/Ajuda";
 import AjudaTopico from "./pages/ajuda/AjudaTopico";
 import InboxAprovacoes from "./pages/aprovacoes/Inbox";
 import SolicitacoesErp from "./pages/sistemas/SolicitacoesErp";
+import CentralServicos from "./pages/central-servicos/CentralServicos";
 
 const queryClient = new QueryClient();
 
@@ -152,6 +153,8 @@ const App = () => (
             <Route path="encarregados/minhas-solicitacoes" element={<MinhasSolicitacoes />} />
             {/* Sistemas */}
             <Route path="sistemas/solicitacoes-erp" element={<SolicitacoesErp />} />
+            {/* Central de Serviços */}
+            <Route path="central-servicos" element={<CentralServicos />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
             <Route path="presidencia" element={<Presidencia />} />
             <Route path="pipeline" element={<Pipeline />} />
@@ -252,8 +255,7 @@ const App = () => (
             <Route path="juridico/processos/audiencias" element={<Processos view="audiencias" />} />
             <Route path="juridico/advertencias" element={<Advertencias />} />
             <Route path="juridico/duvidas" element={<CentralDuvidas />} />
-            <Route path="central-de-servicos" element={<Navigate to="/app/central-de-servicos/orientacoes-juridicas" replace />} />
-            <Route path="central-de-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
+            <Route path="central-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}
