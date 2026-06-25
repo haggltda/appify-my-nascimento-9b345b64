@@ -1,12 +1,20 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import type { EtapaPanelProps } from "./types";
 
-export function HomologacaoTecnicaPanel({ papeis, onUpdate, onComentar }: EtapaPanelProps) {
+const APROVACOES: Array<{ campo: "homologacao_aprov_1" | "homologacao_aprov_2" | "homologacao_aprov_3"; nome: string }> = [
+  { campo: "homologacao_aprov_1", nome: "Érica Souza Ávila" },
+  { campo: "homologacao_aprov_2", nome: "Yuri Rosa" },
+  { campo: "homologacao_aprov_3", nome: "Iury de Jesus Silva" },
+];
+
+export function HomologacaoTecnicaPanel({ card, papeis, onUpdate, onComentar }: EtapaPanelProps) {
   const [justificativa, setJustificativa] = useState("");
   const podeAgir = papeis.comite || papeis.controladoria || papeis.desenvolvedores;
+  const todasAprovadas = APROVACOES.every((a) => card[a.campo]);
 
   const voltar = async () => {
     if (!justificativa.trim()) return;
@@ -20,9 +28,28 @@ export function HomologacaoTecnicaPanel({ papeis, onUpdate, onComentar }: EtapaP
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">Comitê, Controladoria e Desenvolvedores validam se a demanda está ok.</p>
-      <Button className="gap-1.5" disabled={!podeAgir} onClick={() => onUpdate({ etapa: "homologacao_usuario" })}>
+
+      <div className="space-y-2 rounded-md border border-border p-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Aguardando Aprovações Necessárias</p>
+        {APROVACOES.map((a) => (
+          <label key={a.campo} className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={card[a.campo]}
+              disabled={!papeis.comite}
+              onCheckedChange={(checked) => onUpdate({ [a.campo]: checked === true })}
+            />
+            {a.nome}
+          </label>
+        ))}
+        {!papeis.comite && <p className="text-[11px] text-muted-foreground">Só o Comitê marca essas aprovações.</p>}
+      </div>
+
+      <Button className="gap-1.5" disabled={!podeAgir || !todasAprovadas} onClick={() => onUpdate({ etapa: "homologacao_usuario" })}>
         <ArrowRight className="h-3.5 w-3.5" /> Avançar para Homologação do Usuário
       </Button>
+      {podeAgir && !todasAprovadas && (
+        <p className="text-[11px] text-muted-foreground">As 3 aprovações precisam estar marcadas para avançar.</p>
+      )}
 
       <div className="space-y-2 rounded-md border border-border p-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Voltar para Desenvolvimento e Ajustes</p>

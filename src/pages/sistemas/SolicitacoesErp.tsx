@@ -101,7 +101,6 @@ export default function SolicitacoesErp() {
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novoDescricao, setNovoDescricao] = useState("");
-  const [novaDataInicio, setNovaDataInicio] = useState("");
   const [novoArquivo, setNovoArquivo] = useState<File | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
@@ -129,7 +128,7 @@ export default function SolicitacoesErp() {
           "id, titulo, descricao, etapa, recusado, prioridade, responsavel_user_id, progresso_pct, data_inicio, data_fim, " +
           "levantamento_funcional_texto, levantamento_funcional_prazo, documentacao_tecnica_texto, documentacao_tecnica_prazo, " +
           "analise_tecnica_texto, analise_tecnica_prazo, treinamento_data, implantacao_status, finalizado, etapa_entrada_em, " +
-          "criado_por, created_at",
+          "homologacao_aprov_1, homologacao_aprov_2, homologacao_aprov_3, criado_por, created_at",
         )
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -339,14 +338,13 @@ export default function SolicitacoesErp() {
   };
 
   const criar = async () => {
-    if (!novoTitulo.trim() || !novaDataInicio) return;
+    if (!novoTitulo.trim()) return;
     setSalvando(true);
     const { data, error } = await (supabase as any)
       .from("sistema_solicitacao")
       .insert({
         titulo: novoTitulo.trim(),
         descricao: novoDescricao.trim() || null,
-        data_inicio: novaDataInicio,
       })
       .select("id")
       .single();
@@ -365,7 +363,6 @@ export default function SolicitacoesErp() {
     setNovoOpen(false);
     setNovoTitulo("");
     setNovoDescricao("");
-    setNovaDataInicio("");
     setNovoArquivo(null);
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
     toast({ title: "Solicitação criada" });
@@ -421,16 +418,20 @@ export default function SolicitacoesErp() {
               <div className="mb-2 shrink-0">
                 <SearchableSelect
                   value={filtroResponsavelDev}
-                  onChange={setFiltroResponsavelDev}
-                  options={usuarios.map((u) => ({ value: u.id, label: u.display_name }))}
+                  onChange={(v) => setFiltroResponsavelDev(v || null)}
+                  options={[{ value: "", label: "Ver todos" }, ...usuarios.map((u) => ({ value: u.id, label: u.display_name }))]}
                   placeholder="Filtrar por responsável…"
                   searchPlaceholder="Buscar usuário..."
+                  allowClear
+                  clearValue=""
                 />
               </div>
             )}
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {(etapa.key === "desenvolvimento_ajustes" && filtroResponsavelDev
                 ? grouped.get(etapa.key)?.filter((c) => c.responsavel_user_id === filtroResponsavelDev)
+                : etapa.key === "aprovacoes_priorizacao"
+                ? [...(grouped.get(etapa.key) ?? [])].sort((a, b) => (a.prioridade ?? Infinity) - (b.prioridade ?? Infinity))
                 : grouped.get(etapa.key)
               )?.map((card) => {
                 const responsavelNome = nomeUsuario(usuarios, card.responsavel_user_id);
@@ -441,14 +442,17 @@ export default function SolicitacoesErp() {
                     key={card.id}
                     onClick={() => { if (!estadoRecusadoComum) { setDetalheId(card.id); setAba("detalhes"); } }}
                     className={[
-                      "border-l-4 p-3",
+                      "relative border-l-4 p-3",
                       COR_BORDER[etapa.cor],
                       estadoRecusadoComum ? "cursor-default opacity-40" : "cursor-pointer",
                       estadoRecusadoControladoria ? "bg-warning/20 border-warning" : "",
                       card.finalizado ? "opacity-50" : "",
                     ].join(" ")}
                   >
-                    <p className="text-xs font-medium">{card.titulo}</p>
+                    {card.prioridade != null && (
+                      <Badge variant="outline" className="absolute right-2 top-2 text-[9px]">P{card.prioridade}</Badge>
+                    )}
+                    <p className="pr-8 text-xs font-medium">{card.titulo}</p>
                     {card.descricao && (
                       <p className="mt-1 line-clamp-3 text-[11px] text-muted-foreground">{card.descricao}</p>
                     )}
@@ -461,9 +465,6 @@ export default function SolicitacoesErp() {
                       <span className="truncate text-[10px] text-muted-foreground">
                         {responsavelNome ?? "Sem responsável"}
                       </span>
-                      {card.prioridade != null && (
-                        <Badge variant="outline" className="ml-auto text-[9px]">P{card.prioridade}</Badge>
-                      )}
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <Progress value={card.progresso_pct} className="h-1.5 flex-1" />
@@ -508,10 +509,6 @@ export default function SolicitacoesErp() {
             <Input placeholder="Título" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} />
             <Textarea placeholder="Descrição (opcional)" value={novoDescricao} onChange={(e) => setNovoDescricao(e.target.value)} />
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Data de início</label>
-              <Input type="date" value={novaDataInicio} onChange={(e) => setNovaDataInicio(e.target.value)} />
-            </div>
-            <div>
               <label className="mb-1 block text-xs text-muted-foreground">Anexo (opcional)</label>
               <Input
                 type="file"
@@ -522,7 +519,7 @@ export default function SolicitacoesErp() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovoArquivo(null); }}>Cancelar</Button>
-            <Button onClick={criar} disabled={!novoTitulo.trim() || !novaDataInicio || salvando}>
+            <Button onClick={criar} disabled={!novoTitulo.trim() || salvando}>
               {salvando ? "Salvando…" : "Criar"}
             </Button>
           </DialogFooter>

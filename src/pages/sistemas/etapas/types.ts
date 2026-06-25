@@ -18,6 +18,9 @@ export interface Solicitacao {
   treinamento_data: string | null;
   implantacao_status: string | null;
   finalizado: boolean;
+  homologacao_aprov_1: boolean;
+  homologacao_aprov_2: boolean;
+  homologacao_aprov_3: boolean;
   etapa_entrada_em: string;
   criado_por: string;
   created_at: string;
