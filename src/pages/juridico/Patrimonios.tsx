@@ -20,6 +20,7 @@ interface Obrigacao {
   vencimento?: string; periodicidade?: string; forma_pagamento?: string; responsavel?: string;
   status: string; pago_em?: string; seguradora?: string; apolice?: string;
   vigencia_inicio?: string; vigencia_fim?: string; premio?: number; parcelas?: string;
+  onde_pagar?: string; comprovante_path?: string; comprovante_nome?: string;
 }
 interface Acesso { id: number; patrimonio_id: number; servico?: string; link?: string; usuario?: string; local_senha?: string; observacao?: string; }
 interface Contato { id: number; patrimonio_id: number; tipo?: string; nome?: string; telefone?: string; email?: string; observacao?: string; }
@@ -35,6 +36,11 @@ const PERIODICIDADES = ["Mensal", "Bimestral", "Trimestral", "Semestral", "Anual
 const fmtDt = (s?: string) => { if (!s) return "—"; const d = new Date(s.length <= 10 ? s + "T12:00:00" : s); return isNaN(+d) ? s : d.toLocaleDateString("pt-BR"); };
 const money = (v?: number | null) => (v == null || isNaN(Number(v))) ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const hoje = () => new Date().toISOString().slice(0, 10);
+// Recorrência das contas: passo em meses por periodicidade + navegação por mês.
+const PERIOD_STEP: Record<string, number> = { Mensal: 1, Bimestral: 2, Trimestral: 3, Semestral: 6, Anual: 12 };
+const addMonthsISO = (iso: string, n: number) => { const d = new Date(iso + "T12:00:00"); d.setMonth(d.getMonth() + n); return d.toISOString().slice(0, 10); };
+const MESES_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const mesLabel = (ym: string) => { const [y, m] = String(ym).split("-"); return `${MESES_PT[+m - 1] ?? m}/${y}`; };
 // Status efetivo da obrigação (deriva "Vencido" quando passou do vencimento e não foi pago).
 const statusObr = (o: Obrigacao): "Pago" | "Vencido" | "Pendente" => {
   if (o.status === "Pago") return "Pago";
@@ -43,7 +49,8 @@ const statusObr = (o: Obrigacao): "Pago" | "Vencido" | "Pendente" => {
 };
 
 const PATRIM_RESET = { codigo: "", tipo: "Imóvel", descricao: "", localizacao: "", placa: "", cidade: "", transferida: "Não", empresa: "", empresa_pagadora: "", proprietario: "", responsavel: "", centro_custo: "", status: "Ativo", observacoes: "" };
-const OBR_RESET = { categoria: "Energia", descricao: "", valor: "", vencimento: "", periodicidade: "Mensal", forma_pagamento: "", responsavel: "", seguradora: "", apolice: "", vigencia_inicio: "", vigencia_fim: "", premio: "", parcelas: "" };
+const OBR_RESET = { categoria: "Energia", descricao: "", valor: "", vencimento: "", periodicidade: "Mensal", repetir: "0", onde_pagar: "", forma_pagamento: "", responsavel: "", seguradora: "", apolice: "", vigencia_inicio: "", vigencia_fim: "", premio: "", parcelas: "" };
+const ehLink = (s?: string) => !!s && /^https?:\/\//i.test(s.trim());
 
 export default function Patrimonios() {
   const { user } = useAuth();
@@ -55,7 +62,8 @@ export default function Patrimonios() {
   const [busca, setBusca] = useState("");
   const [fTipo, setFTipo] = useState("");
   const [soPendentesTransf, setSoPendentesTransf] = useState(false);
-  const [viewPag, setViewPag] = useState<"painel" | "lista">("painel");
+  const [viewPag, setViewPag] = useState<"painel" | "lista" | "contas">("painel");
+  const [mesContas, setMesContas] = useState<string>(hoje().slice(0, 7));
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
 
   // modal patrimônio
@@ -67,6 +75,7 @@ export default function Patrimonios() {
   const [sel, setSel] = useState<Patrimonio | null>(null);
   const [tab, setTab] = useState("obrigacoes");
   const [obrs, setObrs] = useState<Obrigacao[]>([]);
+  const [mesObr, setMesObr] = useState<string>(""); // "" = todos os meses
   const [acessos, setAcessos] = useState<Acesso[]>([]);
   const [contatos, setContatos] = useState<Contato[]>([]);
   const [docs, setDocs] = useState<Documento[]>([]);
@@ -81,6 +90,8 @@ export default function Patrimonios() {
   const [modalObr, setModalObr] = useState(false);
   const [obrEditId, setObrEditId] = useState<number | null>(null);
   const [obr, setObr] = useState({ ...OBR_RESET });
+  const [pagarAlvo, setPagarAlvo] = useState<Obrigacao | null>(null);
+  const [pagarFile, setPagarFile] = useState<File | null>(null);
 
   const toast = (msg: string, t = "info") => { const id = Date.now() + Math.random(); setToasts(x => [...x, { id, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== id)), 3200); };
 
@@ -89,7 +100,7 @@ export default function Patrimonios() {
     setLoading(true);
     const [{ data: p }, { data: o }] = await Promise.all([
       (supabase as any).from("JUR_PATRIMONIOS").select("*").order("created_at", { ascending: false }),
-      (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").select("id,patrimonio_id,categoria,valor,vencimento,status,pago_em,vigencia_fim"),
+      (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").select("id,patrimonio_id,categoria,descricao,valor,vencimento,status,pago_em,vigencia_fim,onde_pagar,comprovante_path,comprovante_nome"),
     ]);
     setPats(p ?? []); setObrAll(o ?? []); setLoading(false);
   }, []);
@@ -113,7 +124,11 @@ export default function Patrimonios() {
   };
 
   // ── Patrimônio: salvar ─────────────────────────────────────────
-  const abrirNovoPat = () => { setEditId(null); setPat({ ...PATRIM_RESET }); setModalPat(true); };
+  const proximoCodigo = () => {
+    const nums = pats.map(p => parseInt(String(p.codigo || "").replace(/\D/g, ""), 10)).filter(n => !isNaN(n));
+    return String((nums.length ? Math.max(...nums) : 0) + 1);
+  };
+  const abrirNovoPat = () => { setEditId(null); setPat({ ...PATRIM_RESET, codigo: proximoCodigo() }); setModalPat(true); };
   const abrirEditarPat = (p: Patrimonio) => { setEditId(p.id); setPat({ ...PATRIM_RESET, ...p, transferida: p.transferida ? "Sim" : "Não" } as any); setModalPat(true); };
   const salvarPat = async () => {
     if (!pat.descricao.trim()) { toast("Informe a descrição.", "err"); return; }
@@ -175,11 +190,15 @@ export default function Patrimonios() {
       patrimonio_id: sel.id, categoria: obr.categoria, descricao: obr.descricao || null,
       valor: obr.valor ? Number(obr.valor) : null, vencimento: obr.vencimento || null,
       periodicidade: obr.periodicidade || null, forma_pagamento: obr.forma_pagamento || null,
+      onde_pagar: obr.onde_pagar || null,
       responsavel: obr.responsavel || null, updated_at: new Date().toISOString(),
       seguradora: obr.seguradora || null, apolice: obr.apolice || null,
       vigencia_inicio: obr.vigencia_inicio || null, vigencia_fim: obr.vigencia_fim || null,
       premio: obr.premio ? Number(obr.premio) : null, parcelas: obr.parcelas || null,
     };
+    const step = PERIOD_STEP[obr.periodicidade] || 0;
+    const reps = parseInt(obr.repetir, 10) || 0;
+    // 1) Cria ou atualiza a conta base.
     if (obrEditId) {
       const { error } = await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").update(payload).eq("id", obrEditId);
       if (error) { toast("Erro: " + error.message, "err"); return; }
@@ -189,19 +208,57 @@ export default function Patrimonios() {
       if (error) { toast("Erro: " + error.message, "err"); return; }
       await logHist(sel.id, "Obrigação cadastrada", `${obr.categoria}${obr.vencimento ? " · venc. " + fmtDt(obr.vencimento) : ""}`);
     }
+    // 2) Recorrência: cria as contas dos próximos meses (pula os que já existem).
+    if (step > 0 && obr.vencimento && reps > 0) {
+      const jaTem = new Set(obrs.filter(o => o.id !== obrEditId && o.categoria === obr.categoria && String(o.descricao || "") === String(obr.descricao || "")).map(o => o.vencimento));
+      jaTem.add(obr.vencimento);
+      const novas: any[] = [];
+      for (let i = 1; i <= reps; i++) { const v = addMonthsISO(obr.vencimento, i * step); if (!jaTem.has(v)) { novas.push({ ...payload, vencimento: v, status: "Pendente" }); jaTem.add(v); } }
+      if (novas.length) {
+        const { error } = await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").insert(novas);
+        if (error) { toast("Erro ao gerar recorrência: " + error.message, "err"); return; }
+        await logHist(sel.id, "Contas recorrentes geradas", `${obr.categoria} · ${novas.length} meses (${obr.periodicidade})`);
+      }
+      setMesObr(obr.vencimento.slice(0, 7));
+    }
     setModalObr(false); toast("Obrigação salva.", "ok"); recarregarObrs(); recarregarHist();
   };
-  const marcarPago = async (o: Obrigacao) => {
-    if (!sel) return;
-    const { error } = await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").update({ status: "Pago", pago_em: hoje() }).eq("id", o.id);
+  // Pagar (com comprovante opcional). Funciona com ou sem patrimônio aberto.
+  const abrirPagar = (o: Obrigacao) => { setPagarAlvo(o); setPagarFile(null); };
+  // "Pagar": se houver link cadastrado, abre o link de pagamento; em seguida pede o comprovante.
+  const pagarConta = (o: Obrigacao) => { if (ehLink(o.onde_pagar)) window.open(o.onde_pagar!.trim(), "_blank", "noopener"); abrirPagar(o); };
+  const confirmarPagar = async () => {
+    const o = pagarAlvo; if (!o) return;
+    if (!pagarFile) { toast("Anexe o comprovante para registrar o pagamento.", "err"); return; }
+    let cPath: string | null = null, cNome: string | null = null;
+    if (pagarFile) {
+      const safe = pagarFile.name.replace(/[^\w.\-]+/g, "_");
+      const path = `${o.patrimonio_id}/comprovantes/${Date.now()}_${safe}`;
+      const { error: up } = await supabase.storage.from("juridico-docs").upload(path, pagarFile, { upsert: false });
+      if (up) { toast("Falha no upload do comprovante: " + up.message, "err"); return; }
+      cPath = path; cNome = pagarFile.name;
+    }
+    const patch: any = { status: "Pago", pago_em: hoje() };
+    if (cPath) { patch.comprovante_path = cPath; patch.comprovante_nome = cNome; }
+    const { error } = await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").update(patch).eq("id", o.id);
     if (error) { toast("Erro: " + error.message, "err"); return; }
-    await logHist(sel.id, "Obrigação paga", `${o.categoria} · ${money(o.valor)}`);
-    toast("Marcada como paga.", "ok"); recarregarObrs(); recarregarHist();
+    await logHist(o.patrimonio_id, "Obrigação paga", `${o.categoria} · ${money(o.valor)}`);
+    if (cNome) await logHist(o.patrimonio_id, "Comprovante anexado", `${o.categoria} · ${cNome}`);
+    setPagarAlvo(null); setPagarFile(null);
+    toast("Pagamento registrado.", "ok"); load(); if (sel) { recarregarObrs(); recarregarHist(); }
+  };
+  const verComprovante = async (o: Obrigacao) => {
+    if (!o.comprovante_path) return;
+    const { data, error } = await supabase.storage.from("juridico-docs").createSignedUrl(o.comprovante_path, 3600);
+    if (error || !data?.signedUrl) { toast("Não foi possível abrir o comprovante.", "err"); return; }
+    window.open(data.signedUrl, "_blank", "noopener");
   };
   const excluirObr = async (o: Obrigacao) => {
+    if (o.status === "Pago" && o.comprovante_path) { toast("Conta paga com comprovante não pode ser excluída.", "err"); return; }
     if (!confirm("Excluir esta obrigação?")) return;
+    await logHist(o.patrimonio_id, "Obrigação excluída", `${o.categoria}${o.vencimento ? " · venc. " + fmtDt(o.vencimento) : ""} · ${money(o.valor)}`);
     await (supabase as any).from("JUR_PATRIMONIO_OBRIGACOES").delete().eq("id", o.id);
-    recarregarObrs();
+    recarregarObrs(); if (sel) recarregarHist();
   };
 
   // ── Comentários (setor Jurídico) ───────────────────────────────
@@ -268,6 +325,9 @@ export default function Patrimonios() {
   const pagoMes = obrAll.filter(o => o.status === "Pago" && (o.pago_em || "").slice(0, 7) === mesAtual).reduce((s, o) => s + (Number(o.valor) || 0), 0);
   const pendentesTransf = pats.filter(p => !p.transferida).length;
   const totalPrevisto = naoPagas.reduce((s, o) => s + (Number(o.valor) || 0), 0);
+  // Alerta: contas em aberto vencidas OU vencendo nos próximos 10 dias.
+  const em10dias = (() => { const d = new Date(hoje() + "T00:00:00"); d.setDate(d.getDate() + 10); return d.toISOString().slice(0, 10); })();
+  const contasAlerta = naoPagas.filter(o => o.vencimento && o.vencimento <= em10dias).sort((a, b) => String(a.vencimento || "").localeCompare(String(b.vencimento || "")));
 
   // ── Dashboard: agregações ──────────────────────────────────────
   const porTipo = TIPOS.map(t => ({ tipo: t, n: pats.filter(p => p.tipo === t).length })).filter(x => x.n > 0);
@@ -351,10 +411,44 @@ export default function Patrimonios() {
           {card("Pago no mês", money(pagoMes), "#15803d")}
         </div>
 
+        {/* Alerta: contas vencendo (≤10 dias) ou vencidas */}
+        {contasAlerta.length > 0 && (
+          <div style={{ background: "linear-gradient(135deg,#fff7ed,#ffffff)", border: "1px solid #fed7aa", borderRadius: 14, padding: "14px 16px", marginBottom: 16, boxShadow: "0 8px 24px rgba(234,88,12,.08)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 18 }}>⏰</span>
+              <span style={{ fontWeight: 800, color: "#9a3412" }}>{contasAlerta.length} conta(s) a vencer / vencida(s)</span>
+              <span style={{ fontSize: 12, color: "#c2410c" }}>(vencidas ou vencendo nos próximos 10 dias)</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {contasAlerta.slice(0, 6).map(o => {
+                const venc = o.vencimento!;
+                const dias = Math.round((new Date(venc + "T00:00:00").getTime() - new Date(hoje() + "T00:00:00").getTime()) / 86400000);
+                const atrasada = dias < 0;
+                const patN = pats.find(p => p.id === o.patrimonio_id)?.descricao || "—";
+                return (
+                  <div key={o.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", background: "#fff", border: "1px solid #fee2d5", borderRadius: 10, padding: "8px 12px" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ fontWeight: 700, color: "#0f172a" }}>{patN}</span>
+                      <span style={{ color: "#64748b" }}> · {o.categoria}{o.descricao ? ` · ${o.descricao}` : ""}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 800, color: "#0f172a" }}>{money(o.valor)}</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 10px", borderRadius: 20, background: atrasada ? "#fee2e2" : "#ffedd5", color: atrasada ? "#dc2626" : "#ea580c" }}>{atrasada ? `Vencida há ${Math.abs(dias)}d` : dias === 0 ? "Vence hoje" : `Vence em ${dias}d`} · {fmtDt(venc)}</span>
+                      <button className="jp-btn" onClick={() => pagarConta(o)} style={{ background: "#0f3171", color: "#fff", border: "1px solid #0f3171", padding: "4px 12px", fontWeight: 700 }}>{ehLink(o.onde_pagar) ? "🔗 Pagar" : "Pagar"}</button>
+                    </div>
+                  </div>
+                );
+              })}
+              {contasAlerta.length > 6 && <div style={{ fontSize: 12, color: "#9a3412", fontWeight: 600 }}>+{contasAlerta.length - 6} outra(s). Veja em “Listagem de Contas”.</div>}
+            </div>
+          </div>
+        )}
+
         {/* Toggle de visão */}
         <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
           <button className="jp-btn" onClick={() => setViewPag("painel")} style={{ background: viewPag === "painel" ? "#0f3171" : "#fff", color: viewPag === "painel" ? "#fff" : "#64748b", border: "1px solid " + (viewPag === "painel" ? "#0f3171" : "#e2e8f0") }}>📊 Painel</button>
           <button className="jp-btn" onClick={() => setViewPag("lista")} style={{ background: viewPag === "lista" ? "#0f3171" : "#fff", color: viewPag === "lista" ? "#fff" : "#64748b", border: "1px solid " + (viewPag === "lista" ? "#0f3171" : "#e2e8f0") }}>📋 Lista de patrimônios</button>
+          <button className="jp-btn" onClick={() => setViewPag("contas")} style={{ background: viewPag === "contas" ? "#0f3171" : "#fff", color: viewPag === "contas" ? "#fff" : "#64748b", border: "1px solid " + (viewPag === "contas" ? "#0f3171" : "#e2e8f0") }}>📑 Listagem de Contas</button>
         </div>
 
         {/* ── PAINEL (dashboard) ── */}
@@ -449,6 +543,49 @@ export default function Patrimonios() {
             )}
           </div>
         </>)}
+
+        {/* ── LISTAGEM DE CONTAS (todas as contas do mês, por categoria) ── */}
+        {viewPag === "contas" && (() => {
+          const contasMes = mesContas ? obrAll.filter(o => (o.vencimento || "").slice(0, 7) === mesContas) : obrAll;
+          const navMesC = (delta: number) => setMesContas(addMonthsISO((mesContas || hoje().slice(0, 7)) + "-01", delta).slice(0, 7));
+          const patNome = (id: number) => pats.find(p => p.id === id)?.descricao || "—";
+          const grupos = new Map<string, Obrigacao[]>();
+          for (const o of contasMes) { const k = o.categoria || "Outros"; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k)!.push(o); }
+          const cats = [...grupos.entries()].map(([cat, items]) => ({ cat, items, total: items.reduce((s, o) => s + (Number(o.valor) || 0), 0) })).sort((a, b) => b.total - a.total);
+          const totalMes = contasMes.reduce((s, o) => s + (Number(o.valor) || 0), 0);
+          return (<>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              <button className="jp-btn" onClick={() => navMesC(-1)} style={{ background: "#eef4ff", color: "#0f3171", padding: "8px 11px" }}>‹</button>
+              <span style={{ fontWeight: 700, color: "#0f172a", minWidth: 130, textAlign: "center" }}>{mesContas ? mesLabel(mesContas) : "Todos os meses"}</span>
+              <button className="jp-btn" onClick={() => navMesC(1)} style={{ background: "#eef4ff", color: "#0f3171", padding: "8px 11px" }}>›</button>
+              <button className="jp-btn" onClick={() => setMesContas("")} style={{ background: mesContas ? "#fff" : "#0f3171", color: mesContas ? "#64748b" : "#fff", border: "1px solid " + (mesContas ? "#e2e8f0" : "#0f3171") }}>Todos</button>
+              <span style={{ marginLeft: "auto", fontSize: 13, fontWeight: 800, color: "#0f172a" }}>Total: {money(totalMes)}</span>
+            </div>
+            {cats.length === 0 ? (
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 46, textAlign: "center", color: "#94a3b8", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>Nenhuma conta {mesContas ? `em ${mesLabel(mesContas)}` : "cadastrada"}.</div>
+            ) : cats.map(g => (
+              <div key={g.cat} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.05)", marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 16px", background: "#f8fafc", borderBottom: "1px solid #eef2f7" }}>
+                  <span style={{ fontWeight: 800, color: "#0f3171" }}>{g.cat} <span style={{ color: "#94a3b8", fontWeight: 600 }}>· {g.items.length} conta(s)</span></span>
+                  <span style={{ fontWeight: 800, color: "#0f172a" }}>{money(g.total)}</span>
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <tbody>
+                    {[...g.items].sort((a, b) => String(a.vencimento || "").localeCompare(String(b.vencimento || ""))).map(o => { const st = statusObr(o); const cor = st === "Pago" ? "#16a34a" : st === "Vencido" ? "#dc2626" : "#ea580c"; return (
+                      <tr key={o.id} style={{ borderTop: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "10px 16px" }}><div style={{ fontWeight: 700, color: "#0f172a" }}>{patNome(o.patrimonio_id)}</div>{o.descricao && <div style={{ fontSize: 11.5, color: "#94a3b8" }}>{o.descricao}</div>}{o.onde_pagar && (ehLink(o.onde_pagar) ? <a href={o.onde_pagar} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: "#0f3171", fontWeight: 700, textDecoration: "none" }}>🔗 Pagar aqui</a> : <div style={{ fontSize: 11.5, color: "#94a3b8" }}>📍 {o.onde_pagar}</div>)}</td>
+                        <td style={{ padding: "10px 14px", color: "#475569", whiteSpace: "nowrap" }}>{o.vencimento ? "Venc. " + fmtDt(o.vencimento) : "—"}</td>
+                        <td style={{ padding: "10px 14px", fontWeight: 700, color: "#0f172a", textAlign: "right", whiteSpace: "nowrap" }}>{money(o.valor)}</td>
+                        <td style={{ padding: "10px 14px", textAlign: "center" }}><span style={{ fontSize: 11, fontWeight: 800, padding: "2px 10px", borderRadius: 20, background: cor + "20", color: cor }}>{st}</span></td>
+                        <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}><div style={{ display: "inline-flex", gap: 6 }}>{o.comprovante_path && <button className="jp-btn" title="Ver comprovante" onClick={() => verComprovante(o)} style={{ background: "#eef4ff", color: "#0f3171", border: "1px solid #dbe4f0", padding: "5px 9px" }}>📎</button>}{st !== "Pago" && <button className="jp-btn" title={ehLink(o.onde_pagar) ? "Abre o link de pagamento e pede o comprovante" : "Pedir comprovante e marcar como paga"} onClick={() => pagarConta(o)} style={{ background: "#0f3171", color: "#fff", border: "1px solid #0f3171", padding: "5px 13px", fontWeight: 700 }}>{ehLink(o.onde_pagar) ? "🔗 Pagar" : "Pagar"}</button>}</div></td>
+                      </tr>
+                    ); })}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </>);
+        })()}
       </div>
 
       {/* ── Modal Patrimônio ── */}
@@ -459,7 +596,7 @@ export default function Patrimonios() {
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 14 }}>{editId ? "Editar Patrimônio" : "Novo Patrimônio"}</div>
             <div className="jp-grid2">
               <div className="jp-fg"><label>Descrição *</label><input className="jp-fi" value={pat.descricao} onChange={e => setPat(v => ({ ...v, descricao: e.target.value }))} placeholder="Ex.: Casa 22, Veículo ABC1D23" /></div>
-              <div className="jp-fg"><label>Código</label><input className="jp-fi" value={pat.codigo} onChange={e => setPat(v => ({ ...v, codigo: e.target.value }))} /></div>
+              <div className="jp-fg"><label>Código (automático)</label><input className="jp-fi" readOnly value={pat.codigo} style={{ background: "#f8fafc", color: "#475569", cursor: "not-allowed" }} /></div>
               <div className="jp-fg"><label>Tipo</label><select className="jp-fi" value={pat.tipo} onChange={e => setPat(v => ({ ...v, tipo: e.target.value }))}>{TIPOS.map(t => <option key={t}>{t}</option>)}</select></div>
               <div className="jp-fg"><label>Status</label><select className="jp-fi" value={pat.status} onChange={e => setPat(v => ({ ...v, status: e.target.value }))}><option>Ativo</option><option>Inativo</option></select></div>
               <div className="jp-fg"><label>{pat.tipo === "Veículo" ? "Placa" : "Endereço / Localização"}</label><input className="jp-fi" value={pat.tipo === "Veículo" ? pat.placa : pat.localizacao} onChange={e => setPat(v => pat.tipo === "Veículo" ? { ...v, placa: e.target.value } : { ...v, localizacao: e.target.value })} /></div>
@@ -467,9 +604,10 @@ export default function Patrimonios() {
               <div className="jp-fg"><label>Já transferida pra essa empresa?</label><select className="jp-fi" value={pat.transferida} onChange={e => setPat(v => ({ ...v, transferida: e.target.value }))}><option>Não</option><option>Sim</option></select></div>
               <div className="jp-fg"><label>Empresa</label><input className="jp-fi" value={pat.empresa} onChange={e => setPat(v => ({ ...v, empresa: e.target.value }))} placeholder="HAGG, CANAÃ…" /></div>
               <div className="jp-fg"><label>Empresa que pagará</label><input className="jp-fi" value={pat.empresa_pagadora} onChange={e => setPat(v => ({ ...v, empresa_pagadora: e.target.value }))} placeholder="Quem paga as contas/obrigações" /></div>
-              <div className="jp-fg"><label>Proprietário</label><input className="jp-fi" value={pat.proprietario} onChange={e => setPat(v => ({ ...v, proprietario: e.target.value }))} placeholder="Nome do proprietário do bem" /></div>
+              {pat.transferida === "Não" && (
+                <div className="jp-fg"><label>Nome de quem está o {pat.tipo}</label><input className="jp-fi" value={pat.proprietario} onChange={e => setPat(v => ({ ...v, proprietario: e.target.value }))} placeholder={`Quem está com o ${String(pat.tipo).toLowerCase()} atualmente`} /></div>
+              )}
               <div className="jp-fg"><label>Responsável interno</label><input className="jp-fi" value={pat.responsavel} onChange={e => setPat(v => ({ ...v, responsavel: e.target.value }))} /></div>
-              <div className="jp-fg"><label>Centro de custo</label><input className="jp-fi" value={pat.centro_custo} onChange={e => setPat(v => ({ ...v, centro_custo: e.target.value }))} /></div>
             </div>
             <div className="jp-fg"><label>Observações</label><textarea className="jp-fi" rows={2} value={pat.observacoes} onChange={e => setPat(v => ({ ...v, observacoes: e.target.value }))} /></div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 6 }}>
@@ -508,11 +646,18 @@ export default function Patrimonios() {
 
             <div style={{ flex: 1, overflowY: "auto", padding: 18 }}>
               {/* OBRIGAÇÕES */}
-              {tab === "obrigacoes" && (<>
-                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-                  <button className="jp-btn" onClick={abrirNovaObr} style={{ background: "#0f3171", color: "#fff" }}>+ Nova obrigação</button>
+              {tab === "obrigacoes" && (() => {
+                const obrsFiltradas = mesObr ? obrs.filter(o => (o.vencimento || "").slice(0, 7) === mesObr) : obrs;
+                const navMes = (delta: number) => setMesObr(addMonthsISO((mesObr || hoje().slice(0, 7)) + "-01", delta).slice(0, 7));
+                return (<>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+                  <button className="jp-btn" onClick={() => navMes(-1)} style={{ background: "#f1f5f9", color: "#475569", padding: "6px 11px" }}>‹</button>
+                  <span style={{ fontWeight: 700, color: "#0f172a", minWidth: 120, textAlign: "center", fontSize: 13 }}>{mesObr ? mesLabel(mesObr) : "Todos os meses"}</span>
+                  <button className="jp-btn" onClick={() => navMes(1)} style={{ background: "#f1f5f9", color: "#475569", padding: "6px 11px" }}>›</button>
+                  <button className="jp-btn" onClick={() => setMesObr("")} style={{ background: mesObr ? "#f1f5f9" : "#0f3171", color: mesObr ? "#475569" : "#fff", padding: "6px 12px" }}>Todos</button>
+                  <button className="jp-btn" onClick={abrirNovaObr} style={{ marginLeft: "auto", background: "#0f3171", color: "#fff" }}>+ Nova obrigação</button>
                 </div>
-                {obrs.length === 0 ? <div style={{ color: "#94a3b8", fontSize: 13, padding: 20, textAlign: "center" }}>Nenhuma obrigação cadastrada.</div> : obrs.map(o => {
+                {obrsFiltradas.length === 0 ? <div style={{ color: "#94a3b8", fontSize: 13, padding: 20, textAlign: "center" }}>{mesObr ? `Nenhuma conta em ${mesLabel(mesObr)}.` : "Nenhuma obrigação cadastrada."}</div> : obrsFiltradas.map(o => {
                   const st = statusObr(o); const cor = st === "Pago" ? "#16a34a" : st === "Vencido" ? "#dc2626" : "#ea580c";
                   return (
                     <div key={o.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 11, padding: "12px 14px", marginBottom: 8 }}>
@@ -525,20 +670,26 @@ export default function Patrimonios() {
                             {o.vencimento && <span>Venc.: {fmtDt(o.vencimento)}</span>}
                             {o.periodicidade && <span>{o.periodicidade}</span>}
                             {o.forma_pagamento && <span>{o.forma_pagamento}</span>}
+                            {o.onde_pagar && (ehLink(o.onde_pagar)
+                              ? <a href={o.onde_pagar} target="_blank" rel="noopener noreferrer" style={{ color: "#0f3171", fontWeight: 700, textDecoration: "none" }}>🔗 Pagar aqui</a>
+                              : <span title="Local para pagar">📍 {o.onde_pagar}</span>)}
                             {o.categoria === "Seguro" && o.vigencia_fim && <span>Vigência até {fmtDt(o.vigencia_fim)}</span>}
                           </div>
                         </div>
                         <span style={{ fontSize: 11, fontWeight: 800, height: "fit-content", padding: "2px 10px", borderRadius: 20, background: cor + "20", color: cor }}>{st}</span>
                       </div>
-                      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                        {st !== "Pago" && <button className="jp-btn" onClick={() => marcarPago(o)} style={{ background: "rgba(22,163,74,.1)", color: "#15803d", border: "1px solid rgba(22,163,74,.25)", padding: "5px 11px" }}>✓ Marcar pago</button>}
+                      <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                        {st !== "Pago" && <button className="jp-btn" onClick={() => pagarConta(o)} style={{ background: "#0f3171", color: "#fff", border: "1px solid #0f3171", padding: "5px 11px", fontWeight: 700 }}>{ehLink(o.onde_pagar) ? "🔗 Pagar" : "Pagar"}</button>}
+                        {o.comprovante_path && <button className="jp-btn" onClick={() => verComprovante(o)} style={{ background: "#eef4ff", color: "#0f3171", border: "1px solid #dbe4f0", padding: "5px 11px" }}>📎 Comprovante</button>}
                         <button className="jp-btn" onClick={() => abrirEditarObr(o)} style={{ background: "#f1f5f9", color: "#475569", padding: "5px 11px" }}>Editar</button>
-                        <button className="jp-btn" onClick={() => excluirObr(o)} style={{ background: "none", color: "#dc2626", padding: "5px 8px" }}>Excluir</button>
+                        {(o.status === "Pago" && o.comprovante_path)
+                          ? <span title="Conta paga com comprovante não pode ser excluída — registrada no histórico." style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#94a3b8", padding: "5px 8px" }}>🔒 Bloqueada</span>
+                          : <button className="jp-btn" onClick={() => excluirObr(o)} style={{ background: "none", color: "#dc2626", padding: "5px 8px" }}>Excluir</button>}
                       </div>
                     </div>
                   );
                 })}
-              </>)}
+              </>); })()}
 
               {/* ACESSOS */}
               {tab === "acessos" && (<>
@@ -650,6 +801,9 @@ export default function Patrimonios() {
               <div className="jp-fg"><label>Valor (R$)</label><input className="jp-fi" type="number" step="0.01" value={obr.valor} onChange={e => setObr(v => ({ ...v, valor: e.target.value }))} /></div>
               <div className="jp-fg"><label>Vencimento</label><input className="jp-fi" type="date" value={obr.vencimento} onChange={e => setObr(v => ({ ...v, vencimento: e.target.value }))} /></div>
               <div className="jp-fg"><label>Periodicidade</label><select className="jp-fi" value={obr.periodicidade} onChange={e => setObr(v => ({ ...v, periodicidade: e.target.value }))}>{PERIODICIDADES.map(p => <option key={p}>{p}</option>)}</select></div>
+              {!!PERIOD_STEP[obr.periodicidade] && (
+                <div className="jp-fg"><label>Gerar nos próximos meses</label><input className="jp-fi" type="number" min={0} max={36} value={obr.repetir} onChange={e => setObr(v => ({ ...v, repetir: e.target.value }))} placeholder="0 = só este mês; 11 = ano todo" /><div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 3 }}>“{obr.periodicidade}” é só o rótulo — informe quantos meses gerar pra criar as contas dos próximos meses (não duplica os que já existem).</div></div>
+              )}
               <div className="jp-fg"><label>Forma de pagamento</label><input className="jp-fi" value={obr.forma_pagamento} onChange={e => setObr(v => ({ ...v, forma_pagamento: e.target.value }))} placeholder="Boleto, Débito em conta…" /></div>
               <div className="jp-fg"><label>Responsável (Jurídico)</label>
                 <select className="jp-fi" value={obr.responsavel} onChange={e => setObr(v => ({ ...v, responsavel: e.target.value }))}>
@@ -660,6 +814,7 @@ export default function Patrimonios() {
               </div>
             </div>
             <div className="jp-fg"><label>Descrição</label><input className="jp-fi" value={obr.descricao} onChange={e => setObr(v => ({ ...v, descricao: e.target.value }))} /></div>
+            <div className="jp-fg"><label>Caminho para pagar (link ou local no servidor)</label><input className="jp-fi" value={obr.onde_pagar} onChange={e => setObr(v => ({ ...v, onde_pagar: e.target.value }))} placeholder="https://…  ou  \\servidor\contas\agua" /><div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 3 }}>Se for um link (https://…) vira botão clicável na conta; senão fica como referência do local.</div></div>
             {obr.categoria === "Seguro" && (
               <div style={{ borderTop: "1px dashed #e2e8f0", marginTop: 6, paddingTop: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", marginBottom: 8 }}>Dados do seguro</div>
@@ -676,6 +831,22 @@ export default function Patrimonios() {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
               <button className="jp-btn" onClick={() => setModalObr(false)} style={{ background: "#fff", border: "1px solid #e2e8f0", color: "#475569" }}>Cancelar</button>
               <button className="jp-btn" onClick={salvarObr} style={{ background: "#0f3171", color: "#fff" }}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Registrar pagamento (com comprovante) ── */}
+      {pagarAlvo && (
+        <div className="jp-ov" onClick={e => { if (e.target === e.currentTarget) setPagarAlvo(null); }}>
+          <div className="jp-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <button onClick={() => setPagarAlvo(null)} style={{ position: "absolute", top: 14, right: 16, border: "none", background: "none", fontSize: 20, color: "#94a3b8", cursor: "pointer" }}>✕</button>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Registrar pagamento</div>
+            <div style={{ fontSize: 12.5, color: "#64748b", marginBottom: 14 }}>{pagarAlvo.categoria}{pagarAlvo.descricao ? " · " + pagarAlvo.descricao : ""} · <b>{money(pagarAlvo.valor)}</b>{pagarAlvo.vencimento ? " · venc. " + fmtDt(pagarAlvo.vencimento) : ""}</div>
+            <div className="jp-fg"><label>Comprovante (PDF ou imagem) *</label><input className="jp-fi" type="file" accept="image/*,application/pdf" onChange={e => setPagarFile(e.target.files?.[0] || null)} style={{ padding: 8 }} /><div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 4 }}>Obrigatório para confirmar o pagamento. Depois de anexado, a conta fica <b>bloqueada para exclusão</b> e tudo fica no histórico.</div></div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+              <button className="jp-btn" onClick={() => setPagarAlvo(null)} style={{ background: "#fff", border: "1px solid #e2e8f0", color: "#475569" }}>Cancelar</button>
+              <button className="jp-btn" onClick={confirmarPagar} disabled={!pagarFile} style={{ background: pagarFile ? "#15803d" : "#cbd5e1", color: "#fff", cursor: pagarFile ? "pointer" : "not-allowed" }}>Pagar e anexar comprovante</button>
             </div>
           </div>
         </div>

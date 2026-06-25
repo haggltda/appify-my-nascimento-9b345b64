@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
@@ -16,16 +16,19 @@ const VAL_FIELDS = ["valor_pedidos", "valor_acordo", "valor_sentenca", "valor_fi
 interface MotivoItem { ordem: number; motivo: string; valor_pedidos: number; valor_acordo: number; valor_sentenca: number; valor_final: number; valor_outros_custos: number; valor_deposito_recursal: number; valor_custas_processuais: number; }
 interface Audiencia { ordem: number; data: string; tipo_audiencia?: string; modalidade_audiencia?: string; horario?: string; }
 interface Processo {
-  numero_processo: string; reclamante: string; reclamada: string; comarca: string; municipio_origem: string;
+  id: number;
+  numero_processo: string; reclamante: string; reclamada: string; comarca: string; municipio_origem: string; reclamante_vinculado_cpf: string;
   status: string; ano_processo: number; origem: string; contrato: string;
   valor_causa: number; valor_pedidos: number; valor_acordo: number; valor_sentenca: number;
   valor_final: number; valor_outros_custos: number; valor_deposito_recursal: number; valor_custas_processuais: number;
   motivos: string; motivo_items: MotivoItem[]; houve_acordo: string; status_sentenca: string;
+  status_recursos: string; havera_pericia: string; motivo_acordo: string; motivos_outros_custos: string;
   data_entrada_reclamatoria: string; tipo_audiencia: string; modalidade_audiencia: string; audiencias: Audiencia[];
 }
 interface Comentario { id: number; entidade_id?: string; autor_nome?: string; texto: string; created_at?: string; }
 
 const STATUS_OPC = ["EM ANDAMENTO", "INDEFINIDO", "ARQUIVADO"];
+const PAGE_SIZE = 50;
 const PALETTE = ["#f97316", "#14b8a6", "#eab308", "#a78bfa", "#2563eb", "#dc2626", "#16a34a", "#0f3171", "#ec4899", "#0891b2"];
 
 const toFloat = (v: any) => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
@@ -36,6 +39,54 @@ const hojeISO = () => new Date().toISOString().slice(0, 10);
 const anoDoNumero = (n: string) => { const m = String(n || "").match(/\.(\d{4})\.\d\.\d{2}\./); return m ? Number(m[1]) : null; };
 const custoTotal = (p: any) => p.valor_final > 0 ? p.valor_final : p.valor_acordo + p.valor_sentenca + p.valor_outros_custos + p.valor_deposito_recursal + p.valor_custas_processuais;
 const motivoTotal = (i: MotivoItem) => VAL_FIELDS.reduce((s, k) => s + toFloat(i[k]), 0);
+
+// Vínculo reclamante ⇄ EMPREGADOS. Lê a tabela direto (mesmo padrão do Recrutamento).
+const EMP_COLS = '"ID","Nome","CPF","Situação","Descrição do Local","Admissão","Data Afastamento","Valor Salário","PIS","C.Custo","Titulo C.Custo","Título do Cargo","Nome da Empresa","Nome Filial"';
+const EMP_STOP = new Set(["DE", "DA", "DO", "DOS", "DAS", "E", "DI", "DU", "DAS", "OS"]);
+
+// Input de moeda pt-BR: mostra 9.021,90 (formata no blur, deixa digitar livre).
+function MoedaInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const fmt = (n: number) => n ? n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+  const [txt, setTxt] = useState(fmt(value));
+  const focused = useRef(false);
+  useEffect(() => { if (!focused.current) setTxt(fmt(value)); }, [value]);
+  return <input className="jpr-fi" style={{ height: 34 }} inputMode="decimal" value={txt}
+    onFocus={() => { focused.current = true; }}
+    onChange={e => { setTxt(e.target.value); const n = parseFloat(e.target.value.replace(/\./g, "").replace(",", ".")); onChange(isNaN(n) ? 0 : n); }}
+    onBlur={() => { focused.current = false; setTxt(fmt(value)); }} />;
+}
+
+// Combobox "select-only": dá pra digitar para PESQUISAR, mas só escolher um motivo
+// já existente (evita digitar qualquer coisa / criar duplicados). Para um motivo
+// realmente novo, há o botão deliberado "Criar novo motivo".
+function MotivoSelect({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const filtered = q.trim() ? options.filter(o => o.toLowerCase().includes(q.trim().toLowerCase())) : options;
+  return (
+    <div style={{ position: "relative", flex: 1, minWidth: 0 }} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setOpen(false); setQ(""); } }}>
+      <button type="button" className="jpr-fi" onClick={() => setOpen(o => !o)} style={{ width: "100%", textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "#fff" }}>
+        <span style={{ color: value ? "#0f172a" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value || "Selecione o motivo…"}</span>
+        <span style={{ color: "#94a3b8", fontSize: 11 }}>▼</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 50, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 16px 40px rgba(15,23,42,.14)", overflow: "hidden" }}>
+          <div style={{ padding: 8, borderBottom: "1px solid #f1f5f9" }}>
+            <input autoFocus className="jpr-fi" placeholder="Digite para pesquisar…" value={q} onChange={e => setQ(e.target.value)} style={{ width: "100%" }} />
+          </div>
+          <div style={{ maxHeight: 220, overflowY: "auto" }}>
+            {filtered.length === 0
+              ? <div style={{ padding: "10px 12px", fontSize: 12, color: "#94a3b8" }}>Nenhum motivo encontrado.</div>
+              : filtered.map(o => (
+                <button type="button" key={o} onClick={() => { onChange(o); setOpen(false); setQ(""); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", border: "none", background: o === value ? "#eef4ff" : "#fff", color: "#0f172a", fontSize: 12.5, cursor: "pointer" }} onMouseEnter={e => (e.currentTarget.style.background = "#f8fbff")} onMouseLeave={e => (e.currentTarget.style.background = o === value ? "#eef4ff" : "#fff")}>{o}</button>
+              ))}
+          </div>
+          <button type="button" onClick={() => { const v = window.prompt("Novo motivo (use o nome correto — vira opção para todos):")?.trim(); if (v) { onChange(v); setOpen(false); setQ(""); } }} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 12px", border: "none", borderTop: "1px solid #f1f5f9", background: "#fff", color: "#0f3171", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>➕ Criar novo motivo…</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function parseAudiencias(rs: any[]): Audiencia[] {
   for (const r of rs) {
@@ -49,8 +100,12 @@ function parseAudiencias(rs: any[]): Audiencia[] {
   }
   const out: Audiencia[] = [];
   const pick = (k: string) => { for (const r of rs) { const v = r[k]; if (v) return String(v).slice(0, 10); } return null; };
-  const d = pick("data_audiencia_designada") || pick("data_audiencia_instrucao") || pick("primeira_audiencia") || pick("data_primeira_audiencia");
-  if (d) out.push({ ordem: 1, data: d, tipo_audiencia: rs[0]?.tipo_audiencia || "Audiência", modalidade_audiencia: rs[0]?.modalidade_audiencia });
+  // Sem audiencias_json: usa a 1ª data preenchida (mesma prioridade de antes) e
+  // infere o tipo pelo campo de origem — ex.: data_audiencia_instrucao → "Instrução".
+  const fontes: [string, string][] = [["data_audiencia_designada", ""], ["data_audiencia_instrucao", "Instrução"], ["primeira_audiencia", "1ª Audiência"], ["data_primeira_audiencia", "1ª Audiência"]];
+  let d: string | null = null, inferido = "";
+  for (const [k, t] of fontes) { const v = pick(k); if (v) { d = v; inferido = t; break; } }
+  if (d) out.push({ ordem: 1, data: d, tipo_audiencia: rs[0]?.tipo_audiencia || inferido || "Audiência", modalidade_audiencia: rs[0]?.modalidade_audiencia });
   return out;
 }
 function agrupar(rows: any[]): Processo[] {
@@ -64,14 +119,18 @@ function agrupar(rows: any[]): Processo[] {
     const first = (k: string) => { for (const r of rs) { const v = String(r[k] ?? "").trim(); if (v) return v; } return ""; };
     const sum = (k: string) => rs.reduce((s, r) => s + toFloat(r[k]), 0);
     const maxN = (k: string) => rs.reduce((m, r) => Math.max(m, Number(r[k]) || 0), 0);
+    const minId = rs.reduce((m, r) => Math.min(m, Number(r.id) || Infinity), Infinity);
     const motivo_items: MotivoItem[] = rs.map((r, i) => { const o: any = { ordem: Number(r.motivo_ordem ?? i + 1), motivo: String(r.motivos ?? "").trim() || "Sem motivo" }; VAL_FIELDS.forEach(k => o[k] = toFloat(r[k])); return o; });
     out.push({
+      id: Number.isFinite(minId) ? minId : 0,
       numero_processo: numero, reclamante: first("reclamante"), reclamada: first("reclamada"), comarca: first("comarca"), municipio_origem: first("municipio_origem"),
+      reclamante_vinculado_cpf: first("reclamante_vinculado_cpf"),
       status: (first("status") || "EM ANDAMENTO").toUpperCase(), ano_processo: maxN("ano_processo"), origem: first("origem").toLowerCase(), contrato: first("contrato"),
       valor_causa: sum("valor_causa"), valor_pedidos: sum("valor_pedidos"), valor_acordo: sum("valor_acordo"), valor_sentenca: sum("valor_sentenca"),
       valor_final: sum("valor_final"), valor_outros_custos: sum("valor_outros_custos"), valor_deposito_recursal: sum("valor_deposito_recursal"), valor_custas_processuais: sum("valor_custas_processuais"),
       motivos: rs.map(r => String(r.motivos ?? "").trim() || "Sem motivo").join(" • "), motivo_items,
       houve_acordo: first("houve_acordo"), status_sentenca: first("status_sentenca"), data_entrada_reclamatoria: first("data_entrada_reclamatoria"),
+      status_recursos: first("status_recursos"), havera_pericia: first("havera_pericia"), motivo_acordo: first("motivo_acordo"), motivos_outros_custos: first("motivos_outros_custos"),
       tipo_audiencia: first("tipo_audiencia"), modalidade_audiencia: first("modalidade_audiencia"), audiencias: parseAudiencias(rs),
     });
   }
@@ -80,7 +139,18 @@ function agrupar(rows: any[]): Processo[] {
 }
 
 const ativo = (p: Processo) => p.status !== "ARQUIVADO";
-const FORM_RESET = () => ({ numero_processo: "", reclamante: "", reclamada: "", status: "EM ANDAMENTO", comarca: "", municipio_origem: "", data_entrada_reclamatoria: "", contrato: "" });
+const FORM_RESET = () => ({ numero_processo: "", reclamante: "", reclamada: "", status: "EM ANDAMENTO", comarca: "", municipio_origem: "", data_entrada_reclamatoria: "", contrato: "", reclamante_vinculado_cpf: "", status_sentenca: "", status_recursos: "", houve_acordo: "Não", motivo_acordo: "", havera_pericia: "Não", motivos_outros_custos: "" });
+const STATUS_SENTENCA_OPC = ["", "PROCEDENTE", "IMPROCEDENTE", "PARCIALMENTE PROCEDENTE", "EM ANDAMENTO", "ACORDO", "EXTINTO", "ARQUIVADO"];
+const STATUS_RECURSO_OPC = ["", "SEM RECURSO", "EM ANDAMENTO", "PROVIDO", "IMPROVIDO", "ARQUIVADO"];
+// Salário vem de EMPREGADOS como texto pt-BR ("2.002,6900"): normaliza e devolve número.
+const parseSalario = (v: any): number | null => {
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return isNaN(v) ? null : v;
+  let s = String(v).trim().replace(/[^\d.,-]/g, "");
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+};
 const MOTIVO_RESET = (): MotivoItem => ({ ordem: 1, motivo: "", valor_pedidos: 0, valor_acordo: 0, valor_sentenca: 0, valor_final: 0, valor_outros_custos: 0, valor_deposito_recursal: 0, valor_custas_processuais: 0 });
 
 const TITULOS: Record<string, string> = { dashboard: "📊 Dashboard - Processos", processos: "📁 Processos", audiencias: "📅 Audiências" };
@@ -95,6 +165,15 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
   const [erro, setErro] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("");
+  const [fMotivo, setFMotivo] = useState("");
+  const [pagina, setPagina] = useState(1);
+  // filtros da agenda de Audiências
+  const [aStatus, setAStatus] = useState("");
+  const [aModal, setAModal] = useState("");
+  const [aTipo, setATipo] = useState("");
+  const [aSit, setASit] = useState("fut");
+  const [aMes, setAMes] = useState(hojeISO().slice(0, 7)); // padrão: mês atual
+  const [audAjuda, setAudAjuda] = useState(false);
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
 
   const [sel, setSel] = useState<Processo | null>(null);
@@ -106,6 +185,12 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
   const [form, setForm] = useState(FORM_RESET());
   const [motivos, setMotivos] = useState<MotivoItem[]>([MOTIVO_RESET()]);
   const [auds, setAuds] = useState<Audiencia[]>([]);
+  // vínculo do reclamante com EMPREGADOS
+  const [empBusca, setEmpBusca] = useState("");
+  const [empResultados, setEmpResultados] = useState<any[]>([]);
+  const [empLoading, setEmpLoading] = useState(false);
+  const [empSelKey, setEmpSelKey] = useState<string | null>(null);
+  const [detalheEmp, setDetalheEmp] = useState<any | null>(null);
 
   const toast = (msg: string, t = "info") => { const id = Date.now() + Math.random(); setToasts(x => [...x, { id, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== id)), 3600); };
 
@@ -140,21 +225,67 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
   const porReclamada = useMemo(() => {
     const acc = new Map<string, any>();
     for (const p of processos) { const e = p.reclamada || "Não informado"; const s = acc.get(e) || { empresa: e, num: 0, total: 0 }; s.num++; s.total += custoTotal(p); acc.set(e, s); }
-    return [...acc.values()].sort((a, b) => b.total - a.total).slice(0, 8);
+    return [...acc.values()].sort((a, b) => b.num - a.num).slice(0, 8);
   }, [processos]);
   const audiencias = useMemo(() => {
     const out: any[] = []; const hoje = hojeISO();
-    for (const p of processos) for (const a of p.audiencias) { if (!a.data) continue; out.push({ numero: p.numero_processo, reclamante: p.reclamante, reclamada: p.reclamada, data: a.data, tipo: a.tipo_audiencia, modalidade: a.modalidade_audiencia, status: p.status, futuro: a.data >= hoje }); }
+    for (const p of processos) for (const a of p.audiencias) { if (!a.data) continue; out.push({ p, data: a.data, horario: a.horario || "", tipo: a.tipo_audiencia || "Audiência", modalidade: a.modalidade_audiencia || "", futuro: a.data >= hoje }); }
     out.sort((a, b) => (a.futuro === b.futuro ? (a.futuro ? a.data.localeCompare(b.data) : b.data.localeCompare(a.data)) : (a.futuro ? -1 : 1)));
     return out;
   }, [processos]);
+  const audTipos = useMemo(() => [...new Set(audiencias.map(a => String(a.tipo || "Audiência")))].sort(), [audiencias]);
+  const audStats = useMemo(() => ({ total: audiencias.length, fut: audiencias.filter(a => a.futuro).length, past: audiencias.filter(a => !a.futuro).length }), [audiencias]);
+  const audPorMes = useMemo(() => {
+    const acc = new Map<string, number>();
+    for (const a of audiencias) { if (!a.futuro || !a.data) continue; const ym = String(a.data).slice(0, 7); acc.set(ym, (acc.get(ym) || 0) + 1); }
+    return [...acc.entries()].sort((x, y) => x[0].localeCompare(y[0])).slice(0, 12).map(([ym, n]) => { const [y, m] = ym.split("-"); return { mes: `${m}/${y.slice(2)}`, audiencias: n }; });
+  }, [audiencias]);
+  const audPorTipo = useMemo(() => {
+    const acc = new Map<string, number>();
+    for (const a of audiencias) { if (!a.futuro) continue; const t = String(a.tipo || "Audiência"); acc.set(t, (acc.get(t) || 0) + 1); }
+    return [...acc.entries()].map(([tipo, n]) => ({ tipo, n })).sort((x, y) => y.n - x.n);
+  }, [audiencias]);
+  const audMeses = useMemo(() => [...new Set(audiencias.map(a => String(a.data || "").slice(0, 7)).filter(Boolean))].sort().reverse(), [audiencias]);
+  // Opções do seletor: meses com audiência + o mês selecionado (mesmo vazio) + o atual.
+  const audMesesOpts = useMemo(() => { const s = new Set(audMeses); s.add(hojeISO().slice(0, 7)); if (aMes) s.add(aMes); return [...s].sort().reverse(); }, [audMeses, aMes]);
+  const audFiltradas = useMemo(() => audiencias.filter(a => {
+    if (aStatus && a.p.status !== aStatus) return false;
+    if (aModal && String(a.modalidade || "") !== aModal) return false;
+    if (aTipo && String(a.tipo || "Audiência") !== aTipo) return false;
+    if (aSit === "fut" && !a.futuro) return false;
+    if (aSit === "past" && a.futuro) return false;
+    if (aMes && String(a.data || "").slice(0, 7) !== aMes) return false;
+    return true;
+  }), [audiencias, aStatus, aModal, aTipo, aSit, aMes]);
+  // motivo "predominante" = o 1º motivo do processo (o que aparece na coluna Motivos)
+  const SEM_MOTIVO = ["", "Sem motivo", "Não especificado"];
+  const ehSemMotivo = (p: Processo) => SEM_MOTIVO.includes((p.motivo_items[0]?.motivo || "").trim());
   const filtrados = useMemo(() => processos.filter(p => {
     if (fStatus && p.status !== fStatus) return false;
-    if (busca) { const q = busca.toLowerCase(); return [p.numero_processo, p.reclamante, p.reclamada, p.motivos, p.comarca, String(p.ano_processo)].some(x => String(x || "").toLowerCase().includes(q)); }
+    if (fMotivo) {
+      if (fMotivo === "__SEM__") { if (!ehSemMotivo(p)) return false; }
+      else if ((p.motivo_items[0]?.motivo || "").trim() !== fMotivo) return false;
+    }
+    if (busca) { const q = busca.toLowerCase(); return [p.numero_processo, String(p.id), p.reclamante, p.reclamada, p.motivos, p.comarca, String(p.ano_processo)].some(x => String(x || "").toLowerCase().includes(q)); }
     return true;
-  }), [processos, busca, fStatus]);
+  }), [processos, busca, fStatus, fMotivo]);
+  // opções do filtro: motivos predominantes distintos (ordenados por frequência) + "(Sem motivo)"
+  const motivosPredominantes = useMemo(() => {
+    const c = new Map<string, number>();
+    for (const p of processos) { const m = (p.motivo_items[0]?.motivo || "").trim(); if (m && !SEM_MOTIVO.includes(m)) c.set(m, (c.get(m) || 0) + 1); }
+    return [...c.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([m, n]) => ({ m, n }));
+  }, [processos]);
+  const semMotivoCount = useMemo(() => processos.filter(ehSemMotivo).length, [processos]);
   const motivosNoRecorte = useMemo(() => filtrados.reduce((s, p) => s + p.motivo_items.length, 0), [filtrados]);
+  // listas para os dropdowns (todos os motivos e reclamadas já usados)
+  const motivosDistintos = useMemo(() => [...new Set(rows.map(r => String(r.motivos || "").trim()).filter(Boolean))].sort(), [rows]);
+  const reclamadasDistintas = useMemo(() => [...new Set(rows.map(r => String(r.reclamada || "").trim()).filter(Boolean))].sort(), [rows]);
   const statusPredominante = useMemo(() => { const c: Record<string, number> = {}; filtrados.forEach(p => c[p.status] = (c[p.status] || 0) + 1); return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || "—"; }, [filtrados]);
+  // paginação da lista de processos (50 por página)
+  useEffect(() => { setPagina(1); }, [busca, fStatus, fMotivo]);
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const visiveis = useMemo(() => filtrados.slice((paginaAtual - 1) * PAGE_SIZE, paginaAtual * PAGE_SIZE), [filtrados, paginaAtual]);
 
   // ── comentários ────────────────────────────────────────────────
   const abrirDetalhe = async (p: Processo) => {
@@ -170,12 +301,53 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
   };
   const delComent = async (c: Comentario) => { if (!confirm("Excluir este comentário?")) return; const { error } = await (supabase as any).from("SISTEMA_COMENTARIOS").delete().eq("id", c.id); if (error) { toast("Erro: " + error.message, "err"); return; } setComents(x => x.filter(i => i.id !== c.id)); };
 
+  // ── Vínculo do reclamante com EMPREGADOS ───────────────────────
+  // Busca por nome tolerante (mesmo grafado errado): casa TODAS as palavras
+  // significativas (ignora DE/DA/DO…), em qualquer ordem e situação.
+  const buscarEmpregados = async (term: string) => {
+    const tokens = String(term || "").toUpperCase().split(/\s+/).filter(t => t.length >= 3 && !EMP_STOP.has(t));
+    if (!tokens.length) { setEmpResultados([]); toast("Digite ao menos um nome/sobrenome.", "err"); return; }
+    setEmpLoading(true); setEmpSelKey(null);
+    let q = (supabase as any).from("EMPREGADOS").select(EMP_COLS);
+    for (const t of tokens) q = q.ilike("Nome", `%${t}%`);
+    const { data, error } = await q.order('"Nome"').limit(30);
+    setEmpLoading(false);
+    if (error) { toast("EMPREGADOS: " + error.message, "err"); return; }
+    setEmpResultados(data ?? []);
+  };
+  const confirmarVinculo = async (emp: any) => {
+    const cpf = emp["CPF"] || "";
+    const local = emp["Descrição do Local"] || "";
+    setForm(v => ({ ...v, reclamante_vinculado_cpf: cpf, municipio_origem: local || v.municipio_origem }));
+    setEmpResultados([]); setEmpSelKey(null);
+    // Processo já existente: grava o vínculo na hora (não depende do "Salvar processo").
+    if (editNumero) {
+      const patch: any = { reclamante_vinculado_cpf: cpf || null };
+      if (local) patch.municipio_origem = local;
+      const { error } = await (supabase as any).from("JUR_PROCESSOS").update(patch).eq("numero_processo", editNumero);
+      if (error) { toast("Erro ao salvar vínculo: " + error.message, "err"); return; }
+      await load();
+      toast("Vínculo salvo: " + (emp["Nome"] || cpf) + ".", "ok");
+    } else {
+      toast("Vínculo definido. Clique em “Salvar processo” para gravar.", "ok");
+    }
+  };
+  const desvincular = () => setForm(v => ({ ...v, reclamante_vinculado_cpf: "" }));
+  const verDetalhesReclamante = async (cpf: string) => {
+    if (!cpf) return;
+    setDetalheEmp({ _loading: true, CPF: cpf });
+    const { data, error } = await (supabase as any).from("EMPREGADOS").select(EMP_COLS).eq("CPF", cpf).limit(1);
+    if (error) { toast("EMPREGADOS: " + error.message, "err"); setDetalheEmp(null); return; }
+    setDetalheEmp((data && data[0]) || { _vazio: true, CPF: cpf });
+  };
+
   // ── CRUD ───────────────────────────────────────────────────────
-  const abrirNovo = () => { setEditNumero(null); setForm(FORM_RESET()); setMotivos([MOTIVO_RESET()]); setAuds([]); setModal(true); };
+  const abrirNovo = () => { setEditNumero(null); setForm(FORM_RESET()); setMotivos([MOTIVO_RESET()]); setAuds([]); setEmpBusca(""); setEmpResultados([]); setEmpSelKey(null); setModal(true); };
   const abrirEditar = (p: Processo) => {
     setEditNumero(p.numero_processo);
-    setForm({ numero_processo: p.numero_processo, reclamante: p.reclamante, reclamada: p.reclamada, status: p.status, comarca: p.comarca, municipio_origem: p.municipio_origem, data_entrada_reclamatoria: (p.data_entrada_reclamatoria || "").slice(0, 10), contrato: p.contrato });
-    setMotivos(p.motivo_items.length ? p.motivo_items.map(m => ({ ...m })) : [MOTIVO_RESET()]); setAuds(p.audiencias.map(a => ({ ...a }))); setModal(true);
+    setForm({ numero_processo: p.numero_processo, reclamante: p.reclamante, reclamada: p.reclamada, status: p.status, comarca: p.comarca, municipio_origem: p.municipio_origem, data_entrada_reclamatoria: (p.data_entrada_reclamatoria || "").slice(0, 10), contrato: p.contrato, reclamante_vinculado_cpf: p.reclamante_vinculado_cpf || "", status_sentenca: p.status_sentenca || "", status_recursos: p.status_recursos || "", houve_acordo: p.houve_acordo || "Não", motivo_acordo: p.motivo_acordo || "", havera_pericia: p.havera_pericia || "Não", motivos_outros_custos: p.motivos_outros_custos || "" });
+    setMotivos(p.motivo_items.length ? p.motivo_items.map(m => ({ ...m })) : [MOTIVO_RESET()]); setAuds(p.audiencias.map(a => ({ ...a })));
+    setEmpBusca(p.reclamante || ""); setEmpResultados([]); setEmpSelKey(null); setModal(true);
   };
   const salvar = async () => {
     const numero = form.numero_processo.replace(/\s+/g, "").trim();
@@ -183,7 +355,7 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
     if (!form.reclamante.trim()) { toast("Informe o reclamante.", "err"); return; }
     const dataEntrada = form.data_entrada_reclamatoria || null;
     const ano = (dataEntrada ? Number(dataEntrada.slice(0, 4)) : null) || anoDoNumero(numero) || null;
-    const audsJson = auds.length ? JSON.stringify(auds.map((a, i) => ({ ordem: i + 1, data: a.data, tipo_audiencia: a.tipo_audiencia || "Audiência", modalidade_audiencia: a.modalidade_audiencia, horario: a.horario }))) : null;
+    const audsJson = auds.length ? JSON.stringify(auds.map((a, i) => ({ ordem: i + 1, data: a.data, tipo_audiencia: a.tipo_audiencia || "Instrução", modalidade_audiencia: a.modalidade_audiencia, horario: a.horario || null }))) : null;
     const primeira = auds.length ? auds.map(a => a.data).filter(Boolean).sort()[0] || null : null;
     const lista = motivos.length ? motivos : [MOTIVO_RESET()];
     const novas = lista.map((m, idx) => ({
@@ -191,8 +363,11 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
       status: form.status, ano_processo: ano, motivo_ordem: idx + 1,
       valor_pedidos: m.valor_pedidos || 0, valor_acordo: m.valor_acordo || 0, valor_sentenca: m.valor_sentenca || 0, valor_final: m.valor_final || 0,
       valor_outros_custos: m.valor_outros_custos || 0, valor_deposito_recursal: m.valor_deposito_recursal || 0, valor_custas_processuais: m.valor_custas_processuais || 0,
-      houve_acordo: m.valor_acordo > 0 ? "Sim" : "Não", comarca: form.comarca.trim() || null, municipio_origem: form.municipio_origem.trim() || null,
+      houve_acordo: form.houve_acordo || (m.valor_acordo > 0 ? "Sim" : "Não"), comarca: form.comarca.trim() || null, municipio_origem: form.municipio_origem.trim() || null,
       contrato: form.contrato.trim() || null, data_entrada_reclamatoria: dataEntrada, primeira_audiencia: primeira, data_primeira_audiencia: primeira,
+      reclamante_vinculado_cpf: form.reclamante_vinculado_cpf || null,
+      status_sentenca: form.status_sentenca || null, status_recursos: form.status_recursos || null,
+      motivo_acordo: form.motivo_acordo.trim() || null, havera_pericia: form.havera_pericia || null, motivos_outros_custos: form.motivos_outros_custos.trim() || null,
       audiencias_json: audsJson, tipo_audiencia: auds[0]?.tipo_audiencia || null, modalidade_audiencia: auds[0]?.modalidade_audiencia || null, updated_at: new Date().toISOString(),
     }));
     if (editNumero && editNumero !== numero && processos.some(p => p.numero_processo === numero)) { toast("Já existe outro processo com esse número.", "err"); return; }
@@ -219,6 +394,20 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
     </div>
   );
   const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 8px 24px rgba(15,23,42,.05)" };
+  const fld = (label: string, value: string) => (
+    <div style={{ background: "#f8fafc", border: "1px solid #eef2f7", borderRadius: 9, padding: "7px 10px" }}>
+      <div style={{ fontSize: 9.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".4px" }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "#334155", marginTop: 2, lineHeight: 1.25 }}>{value || "—"}</div>
+    </div>
+  );
+  const mini = (label: string, value: string, cor: string) => (
+    <div style={{ background: "#f8fafc", border: "1px solid #eef2f7", borderRadius: 9, padding: "7px 8px" }}>
+      <div style={{ fontSize: 9.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>{label}</div>
+      <div style={{ fontSize: 11.5, fontWeight: 800, color: cor, marginTop: 2 }}>{value}</div>
+    </div>
+  );
+  const limparAud = () => { setAStatus(""); setAModal(""); setATipo(""); setASit(""); setAMes(""); };
+  const navAudMes = (delta: number) => { const cur = aMes || hojeISO().slice(0, 7); const d = new Date(cur + "-01T12:00:00"); d.setMonth(d.getMonth() + delta); setAMes(d.toISOString().slice(0, 7)); };
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
@@ -232,12 +421,24 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
         .jpr-modal{background:#fff;border-radius:16px;padding:22px;width:100%;max-width:780px;max-height:94vh;overflow-y:auto;position:relative;box-shadow:0 16px 40px rgba(15,23,42,.18)}
         .jpr-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
         @media(max-width:760px){.jpr-grid2{grid-template-columns:1fr}}
+        .jaud-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+        .jaud-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;box-shadow:0 8px 24px rgba(15,23,42,.05);display:flex;flex-direction:column}
+        .jaud-badge{font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:20px;letter-spacing:.3px;white-space:nowrap}
+        .jaud-2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
+        .jaud-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:7px}
       `}</style>
 
       {/* Topbar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 16, background: "linear-gradient(135deg,#fff,#f8fbff)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: "#0f3171" }}>{TITULOS[view]}</div>
         {view === "processos" && <button className="jpr-btn" onClick={abrirNovo} style={{ background: "#0f3171", color: "#fff", boxShadow: "0 10px 22px rgba(15,49,113,.18)" }}>+ Novo Processo</button>}
+        {view === "audiencias" && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#15803d", background: "#dcfce7", border: "1px solid #bbf7d0", borderRadius: 20, padding: "5px 11px" }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />Ao vivo</span>
+            <button className="jpr-btn" onClick={() => load()} style={{ background: "#0f3171", color: "#fff" }}>↻ Atualizar</button>
+            <button className="jpr-btn" onClick={() => setAudAjuda(v => !v)} style={{ background: "#eef4ff", color: "#0f3171" }}>❔ Como Usar</button>
+          </div>
+        )}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "18px 24px 28px" }}>
@@ -272,14 +473,14 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
               </div>
               <div style={card}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>Por Empresa (Reclamada)</div>
-                <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 10 }}>Distribuição do custo total</div>
+                <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 10 }}>Quantidade de processos por empresa</div>
                 {porReclamada.length === 0 ? <div style={{ color: "#94a3b8", fontSize: 13, padding: 30, textAlign: "center" }}>Sem dados.</div> : (
                   <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
-                      <Pie data={porReclamada} dataKey="total" nameKey="empresa" innerRadius={62} outerRadius={95} paddingAngle={2}>
+                      <Pie data={porReclamada} dataKey="num" nameKey="empresa" innerRadius={62} outerRadius={95} paddingAngle={2}>
                         {porReclamada.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
                       </Pie>
-                      <Tooltip formatter={(v: any) => money(Number(v))} />
+                      <Tooltip formatter={(v: any) => `${v} processo(s)`} />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -304,6 +505,39 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
                 </ResponsiveContainer>
               )}
             </div>
+            {/* Audiências */}
+            <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginTop: 16 }} className="jpr-grid2">
+              <div style={card}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>Audiências por mês</div>
+                <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 10 }}>Agenda futura — quantidade por mês</div>
+                {audPorMes.length === 0 ? <div style={{ color: "#94a3b8", fontSize: 13, padding: 30, textAlign: "center" }}>Sem audiências futuras.</div> : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={audPorMes} margin={{ left: 10, right: 10 }}>
+                      <CartesianGrid vertical={false} stroke="#eef2f7" />
+                      <XAxis dataKey="mes" tick={{ fontSize: 10.5, fill: "#475569" }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#94a3b8" }} />
+                      <Tooltip formatter={(v: any) => [`${v} audiência(s)`, "Total"]} />
+                      <Bar dataKey="audiencias" name="Audiências" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+              <div style={card}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>Audiências por tipo</div>
+                <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 10 }}>Agenda futura — distribuição por tipo</div>
+                {audPorTipo.length === 0 ? <div style={{ color: "#94a3b8", fontSize: 13, padding: 30, textAlign: "center" }}>Sem audiências futuras.</div> : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie data={audPorTipo} dataKey="n" nameKey="tipo" innerRadius={55} outerRadius={88} paddingAngle={2}>
+                        {audPorTipo.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+                      </Pie>
+                      <Tooltip formatter={(v: any) => `${v} audiência(s)`} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
           </>)}
 
           {/* ── PROCESSOS ── */}
@@ -321,17 +555,22 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
                 <select className="jpr-fi" style={{ maxWidth: 190 }} value={fStatus} onChange={e => setFStatus(e.target.value)}>
                   <option value="">Todos os status</option>{STATUS_OPC.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
-                {(busca || fStatus) && <button className="jpr-btn" onClick={() => { setBusca(""); setFStatus(""); }} style={{ background: "#f1f5f9", color: "#475569" }}>Limpar filtros</button>}
+                <select className="jpr-fi" style={{ maxWidth: 260 }} value={fMotivo} onChange={e => setFMotivo(e.target.value)}>
+                  <option value="">Todos os motivos (predominante)</option>
+                  {semMotivoCount > 0 && <option value="__SEM__">⚠️ Sem motivo · {semMotivoCount}</option>}
+                  {motivosPredominantes.map(x => <option key={x.m} value={x.m}>{x.m} · {x.n}</option>)}
+                </select>
+                {(busca || fStatus || fMotivo) && <button className="jpr-btn" onClick={() => { setBusca(""); setFStatus(""); setFMotivo(""); }} style={{ background: "#f1f5f9", color: "#475569" }}>Limpar filtros</button>}
               </div>
             </div>
             <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
-              {filtrados.length === 0 ? <div style={{ padding: 46, textAlign: "center", color: "#94a3b8" }}>Nenhum processo encontrado.</div> : (
+              {filtrados.length === 0 ? <div style={{ padding: 46, textAlign: "center", color: "#94a3b8" }}>Nenhum processo encontrado.</div> : (<>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead><tr style={{ background: "#f8fafc", color: "#94a3b8", fontSize: 11, textTransform: "uppercase", letterSpacing: ".5px", textAlign: "left" }}>
                     <th style={{ padding: "10px 14px" }}>Nº / Reclamante</th><th style={{ padding: "10px 14px" }}>Reclamada</th><th style={{ padding: "10px 14px" }}>Motivos</th>
                     <th style={{ padding: "10px 14px", textAlign: "right" }}>Total pedido</th><th style={{ padding: "10px 14px", textAlign: "right" }}>Custo final</th><th style={{ padding: "10px 14px" }}>Status</th><th style={{ padding: "10px 14px", textAlign: "right" }}>Ações</th>
                   </tr></thead>
-                  <tbody>{filtrados.map(p => { const sc = statusCor(p.status); return (
+                  <tbody>{visiveis.map(p => { const sc = statusCor(p.status); return (
                     <tr key={p.numero_processo} style={{ borderTop: "1px solid #eef2f7" }}>
                       <td style={{ padding: "10px 14px" }}><div style={{ fontWeight: 700, color: "#0f172a" }}>{p.reclamante || "—"}</div><div style={{ fontSize: 11.5, color: "#94a3b8" }}>{p.numero_processo}{p.ano_processo ? ` · ${p.ano_processo}` : ""}</div></td>
                       <td style={{ padding: "10px 14px", color: "#475569" }}>{p.reclamada || "—"}</td>
@@ -347,31 +586,98 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
                     </tr>
                   ); })}</tbody>
                 </table>
-              )}
+                {totalPaginas > 1 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderTop: "1px solid #eef2f7", fontSize: 12.5, color: "#475569", flexWrap: "wrap", gap: 8 }}>
+                    <span>Mostrando {(paginaAtual - 1) * PAGE_SIZE + 1}–{Math.min(paginaAtual * PAGE_SIZE, filtrados.length)} de {filtrados.length}</span>
+                    <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <button className="jpr-btn" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={paginaAtual <= 1} style={{ background: paginaAtual <= 1 ? "#f1f5f9" : "#eef4ff", color: paginaAtual <= 1 ? "#cbd5e1" : "#0f3171", cursor: paginaAtual <= 1 ? "default" : "pointer" }}>← Anterior</button>
+                      <span style={{ fontWeight: 700 }}>Página {paginaAtual} de {totalPaginas}</span>
+                      <button className="jpr-btn" onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual >= totalPaginas} style={{ background: paginaAtual >= totalPaginas ? "#f1f5f9" : "#eef4ff", color: paginaAtual >= totalPaginas ? "#cbd5e1" : "#0f3171", cursor: paginaAtual >= totalPaginas ? "default" : "pointer" }}>Próxima →</button>
+                    </span>
+                  </div>
+                )}
+              </>)}
             </div>
           </>)}
 
           {/* ── AUDIÊNCIAS ── */}
-          {view === "audiencias" && (
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
-              {audiencias.length === 0 ? <div style={{ padding: 46, textAlign: "center", color: "#94a3b8" }}>Nenhuma audiência registrada.</div> : (
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead><tr style={{ background: "#f8fafc", color: "#94a3b8", fontSize: 11, textTransform: "uppercase", letterSpacing: ".5px", textAlign: "left" }}>
-                    <th style={{ padding: "10px 14px" }}>Data</th><th style={{ padding: "10px 14px" }}>Processo / Reclamante</th><th style={{ padding: "10px 14px" }}>Reclamada</th><th style={{ padding: "10px 14px" }}>Tipo</th><th style={{ padding: "10px 14px" }}>Situação</th>
-                  </tr></thead>
-                  <tbody>{audiencias.map((a, i) => (
-                    <tr key={i} style={{ borderTop: "1px solid #eef2f7", background: a.futuro ? "#fff" : "#fcfcfd" }}>
-                      <td style={{ padding: "10px 14px", fontWeight: 700, color: a.futuro ? "#0f3171" : "#94a3b8" }}>{fmtDt(a.data)}</td>
-                      <td style={{ padding: "10px 14px" }}><div style={{ fontWeight: 600, color: "#0f172a" }}>{a.reclamante || "—"}</div><div style={{ fontSize: 11, color: "#94a3b8" }}>{a.numero}</div></td>
-                      <td style={{ padding: "10px 14px", color: "#475569" }}>{a.reclamada || "—"}</td>
-                      <td style={{ padding: "10px 14px", color: "#475569" }}>{a.tipo || "Audiência"}{a.modalidade ? ` · ${a.modalidade}` : ""}</td>
-                      <td style={{ padding: "10px 14px" }}><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: a.futuro ? "#dbeafe" : "#f1f5f9", color: a.futuro ? "#1d4ed8" : "#64748b" }}>{a.futuro ? "Em andamento" : "Já passou"}</span></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              )}
+          {view === "audiencias" && (<>
+            {audAjuda && (
+              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e40af", borderRadius: 12, padding: "12px 16px", fontSize: 12.5, marginBottom: 16, lineHeight: 1.5 }}>
+                <b>Como usar:</b> cada card é uma audiência da agenda. Use os filtros (status, modalidade, tipo e situação) para recortar; <b>Audiência em andamento</b> mostra as de hoje em diante e <b>Já passou</b> as vencidas. Clique em <b>Abrir processo</b> para ver motivos, valores e comentários.
+              </div>
+            )}
+
+            {/* indicadores */}
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+              {kpi("Total na agenda", audStats.total, "#0f3171", "Processos com 1ª audiência e/ou de instrução")}
+              {kpi("Em andamento", audStats.fut, "#2563eb", "Possuem audiência hoje ou futura")}
+              {kpi("Já passaram", audStats.past, "#64748b", "Datas de audiência já vencidas")}
             </div>
-          )}
+
+            {/* barra de filtros */}
+            <div style={{ ...card, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>Audiências — agenda jurídica</div>
+                  <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2, maxWidth: 560 }}>Aparecem apenas processos com data de 1ª audiência e/ou audiência de instrução, em formato de cards de acompanhamento.</div>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <select className="jpr-fi" style={{ maxWidth: 175 }} value={aStatus} onChange={e => setAStatus(e.target.value)}>
+                    <option value="">Todos os status</option>{STATUS_OPC.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select className="jpr-fi" style={{ maxWidth: 165 }} value={aModal} onChange={e => setAModal(e.target.value)}>
+                    <option value="">Presencial ou Online</option><option value="Presencial">Presencial</option><option value="Online">Online</option>
+                  </select>
+                  <select className="jpr-fi" style={{ maxWidth: 205 }} value={aTipo} onChange={e => setATipo(e.target.value)}>
+                    <option value="">Todos os tipos de audiência</option>{audTipos.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <select className="jpr-fi" style={{ maxWidth: 185 }} value={aSit} onChange={e => setASit(e.target.value)}>
+                    <option value="">Todas as situações</option><option value="fut">Audiência em andamento</option><option value="past">Já passou</option>
+                  </select>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <button className="jpr-btn" onClick={() => navAudMes(-1)} title="Mês anterior" style={{ background: "#eef4ff", color: "#0f3171", padding: "8px 11px" }}>‹</button>
+                    <select className="jpr-fi" style={{ maxWidth: 150 }} value={aMes} onChange={e => setAMes(e.target.value)}>
+                      <option value="">Todos os meses</option>
+                      {audMesesOpts.map(m => { const [y, mm] = m.split("-"); return <option key={m} value={m}>{["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][+mm - 1]}/{y}</option>; })}
+                    </select>
+                    <button className="jpr-btn" onClick={() => navAudMes(1)} title="Próximo mês" style={{ background: "#eef4ff", color: "#0f3171", padding: "8px 11px" }}>›</button>
+                  </div>
+                  {(aStatus || aModal || aTipo || aSit || aMes) && <button className="jpr-btn" onClick={limparAud} style={{ background: "#f1f5f9", color: "#475569" }}>Limpar filtros</button>}
+                </div>
+              </div>
+            </div>
+
+            {/* grid de cards */}
+            {audFiltradas.length === 0 ? (
+              <div style={{ ...card, padding: 46, textAlign: "center", color: "#94a3b8" }}>Nenhuma audiência encontrada.</div>
+            ) : (
+              <div className="jaud-grid">
+                {audFiltradas.map((a, i) => { const p = a.p as Processo; return (
+                  <div key={i} className="jaud-card" style={{ borderLeft: `4px solid ${a.futuro ? "#2563eb" : "#cbd5e1"}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 13.5, lineHeight: 1.25 }}>{p.reclamante || "—"}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Processo {p.numero_processo}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 4, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        {a.modalidade && <span className="jaud-badge" style={{ background: "#e0ecff", color: "#1d4ed8" }}>{String(a.modalidade).toUpperCase()}</span>}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: a.futuro ? "#eff6ff" : "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 9, padding: "9px 12px", margin: "10px 0" }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: a.futuro ? "#1d4ed8" : "#94a3b8", textTransform: "uppercase", letterSpacing: ".4px" }}>{a.tipo || "Audiência"}</span>
+                      <span style={{ fontSize: 13.5, fontWeight: 800, color: a.futuro ? "#0f3171" : "#94a3b8" }}>{fmtDt(a.data)}{a.horario ? ` · ${a.horario}` : ""}</span>
+                    </div>
+                    <div className="jaud-2">{fld("Comarca", p.comarca || p.municipio_origem || "—")}{fld("Modalidade", a.modalidade || "—")}</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+                      <span style={{ fontSize: 10.5, color: "#cbd5e1", fontWeight: 700 }}>ID {p.id}</span>
+                      <button className="jpr-btn" onClick={() => abrirDetalhe(p)} style={{ background: "#eef4ff", color: "#0f3171" }}>Abrir processo</button>
+                    </div>
+                  </div>
+                ); })}
+              </div>
+            )}
+          </>)}
         </>)}
       </div>
 
@@ -383,6 +689,15 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
             <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 700 }}>{sel.numero_processo}</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{sel.reclamante || "—"}</div>
             <div style={{ fontSize: 12.5, color: "#475569", marginTop: 2 }}>Reclamada: <b>{sel.reclamada || "—"}</b>{sel.comarca ? ` · ${sel.comarca}` : ""}{sel.ano_processo ? ` · ${sel.ano_processo}` : ""}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 10 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".4px" }}>Status do processo:</span>
+              {(() => { const sc = statusCor(sel.status); return <span style={{ fontSize: 12.5, fontWeight: 800, padding: "4px 13px", borderRadius: 20, background: sc.bg, color: sc.c }}>{sel.status}</span>; })()}
+              {sel.status_sentenca && <span style={{ fontSize: 11.5, fontWeight: 700, padding: "4px 11px", borderRadius: 20, background: "#eef2ff", color: "#4338ca" }}>Sentença: {sel.status_sentenca}</span>}
+              {sel.status_recursos && <span style={{ fontSize: 11.5, fontWeight: 700, padding: "4px 11px", borderRadius: 20, background: "#ecfeff", color: "#0e7490" }}>Recurso: {sel.status_recursos}</span>}
+            </div>
+            {sel.reclamante_vinculado_cpf
+              ? <div style={{ marginTop: 8 }}><button className="jpr-btn" onClick={() => verDetalhesReclamante(sel.reclamante_vinculado_cpf)} style={{ background: "#eef4ff", color: "#0f3171" }}>👤 Todos os detalhes do reclamante</button></div>
+              : <div style={{ marginTop: 8, fontSize: 11.5, color: "#94a3b8" }}>Reclamante não vinculado a um cadastro. Use “Editar” para vincular.</div>}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "14px 0" }}>
               {[["Pedidos", sel.valor_pedidos, "#ea580c"], ["Acordo", sel.valor_acordo, "#dc2626"], ["Sentença", sel.valor_sentenca, "#2563eb"], ["Custo final", custoTotal(sel), "#15803d"]].map(([l, v, c]: any) => (
                 <div key={l} style={{ flex: 1, minWidth: 120, background: "#f8fafc", border: "1px solid #eef2f7", borderRadius: 10, padding: "8px 11px" }}>
@@ -426,12 +741,58 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
               <div className="jpr-fg"><label>Nº do processo *</label><input className="jpr-fi" value={form.numero_processo} onChange={e => setForm(v => ({ ...v, numero_processo: e.target.value }))} placeholder="0000000-00.0000.5.00.0000" /></div>
               <div className="jpr-fg"><label>Status</label><select className="jpr-fi" value={form.status} onChange={e => setForm(v => ({ ...v, status: e.target.value }))}>{STATUS_OPC.map(s => <option key={s}>{s}</option>)}</select></div>
               <div className="jpr-fg"><label>Reclamante *</label><input className="jpr-fi" value={form.reclamante} onChange={e => setForm(v => ({ ...v, reclamante: e.target.value }))} /></div>
-              <div className="jpr-fg"><label>Reclamada</label><input className="jpr-fi" value={form.reclamada} onChange={e => setForm(v => ({ ...v, reclamada: e.target.value }))} placeholder="Empresa" /></div>
+              <div className="jpr-fg"><label>Reclamada</label><input className="jpr-fi" list="jpr-reclamadas" value={form.reclamada} onChange={e => setForm(v => ({ ...v, reclamada: e.target.value }))} placeholder="Empresa" /><datalist id="jpr-reclamadas">{reclamadasDistintas.map(r => <option key={r} value={r} />)}</datalist></div>
               <div className="jpr-fg"><label>Comarca</label><input className="jpr-fi" value={form.comarca} onChange={e => setForm(v => ({ ...v, comarca: e.target.value }))} /></div>
               <div className="jpr-fg"><label>Município de origem</label><input className="jpr-fi" value={form.municipio_origem} onChange={e => setForm(v => ({ ...v, municipio_origem: e.target.value }))} /></div>
               <div className="jpr-fg"><label>Data de entrada</label><input className="jpr-fi" type="date" value={form.data_entrada_reclamatoria} onChange={e => setForm(v => ({ ...v, data_entrada_reclamatoria: e.target.value }))} /></div>
               <div className="jpr-fg"><label>Contrato</label><input className="jpr-fi" value={form.contrato} onChange={e => setForm(v => ({ ...v, contrato: e.target.value }))} /></div>
             </div>
+
+            {/* Dados jurídicos do processo */}
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px", margin: "10px 0 6px" }}>Dados jurídicos</div>
+            <div className="jpr-grid2">
+              <div className="jpr-fg"><label>Status da sentença</label><select className="jpr-fi" value={form.status_sentenca} onChange={e => setForm(v => ({ ...v, status_sentenca: e.target.value }))}>{STATUS_SENTENCA_OPC.map(s => <option key={s} value={s}>{s || "— Selecione —"}</option>)}</select></div>
+              <div className="jpr-fg"><label>Status do recurso</label><select className="jpr-fi" value={form.status_recursos} onChange={e => setForm(v => ({ ...v, status_recursos: e.target.value }))}>{STATUS_RECURSO_OPC.map(s => <option key={s} value={s}>{s || "— Selecione —"}</option>)}</select></div>
+              <div className="jpr-fg"><label>Houve acordo?</label><select className="jpr-fi" value={form.houve_acordo} onChange={e => setForm(v => ({ ...v, houve_acordo: e.target.value }))}><option>Não</option><option>Sim</option></select></div>
+              {form.houve_acordo === "Sim" && <div className="jpr-fg"><label>Motivo do acordo</label><input className="jpr-fi" value={form.motivo_acordo} onChange={e => setForm(v => ({ ...v, motivo_acordo: e.target.value }))} placeholder="Ex.: Valor do acordo baixo" /></div>}
+              <div className="jpr-fg"><label>Haverá perícia?</label><select className="jpr-fi" value={form.havera_pericia} onChange={e => setForm(v => ({ ...v, havera_pericia: e.target.value }))}><option>Não</option><option>Sim</option></select></div>
+              <div className="jpr-fg"><label>Motivo de outros custos</label><input className="jpr-fi" value={form.motivos_outros_custos} onChange={e => setForm(v => ({ ...v, motivos_outros_custos: e.target.value }))} placeholder="Ex.: Honorários" /></div>
+            </div>
+
+            {/* Vínculo do reclamante com EMPREGADOS */}
+            <div style={{ border: "1px solid #e6eefc", background: "#f8fbff", borderRadius: 10, padding: 12, margin: "10px 0 6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px" }}>Vincular reclamante ao cadastro (EMPREGADOS)</div>
+                {form.reclamante_vinculado_cpf && <button className="jpr-btn" onClick={() => verDetalhesReclamante(form.reclamante_vinculado_cpf)} style={{ background: "#eef4ff", color: "#0f3171", padding: "5px 10px" }}>👤 Todos os detalhes</button>}
+              </div>
+              {form.reclamante_vinculado_cpf ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#15803d", background: "#dcfce7", border: "1px solid #bbf7d0", borderRadius: 20, padding: "4px 11px" }}>✓ Vinculado · CPF {form.reclamante_vinculado_cpf}</span>
+                  <button className="jpr-btn" onClick={desvincular} style={{ background: "none", color: "#dc2626" }}>Desvincular</button>
+                </div>
+              ) : (<>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input className="jpr-fi" placeholder="Buscar por nome no cadastro (mesmo grafado diferente)…" value={empBusca} onChange={e => setEmpBusca(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); buscarEmpregados(empBusca || form.reclamante); } }} />
+                  <button className="jpr-btn" onClick={() => buscarEmpregados(empBusca || form.reclamante)} style={{ background: "#0f3171", color: "#fff", whiteSpace: "nowrap" }}>Buscar</button>
+                </div>
+                {empLoading && <div style={{ fontSize: 12, color: "#94a3b8", padding: "8px 2px" }}>Buscando…</div>}
+                {!empLoading && empResultados.length > 0 && (
+                  <div style={{ marginTop: 8, maxHeight: 210, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff" }}>
+                    {empResultados.map((e, i) => { const cpf = e["CPF"]; const k = cpf || String(i); const on = empSelKey === k; return (
+                      <div key={k} onClick={() => setEmpSelKey(k)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "8px 11px", borderTop: i ? "1px solid #f1f5f9" : "none", cursor: "pointer", background: on ? "#eff6ff" : "#fff" }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{e["Nome"]}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8" }}>CPF {cpf || "—"} · {e["Situação"] || "—"} · {e["Descrição do Local"] || "—"}</div>
+                        </div>
+                        {on && <button className="jpr-btn" onClick={ev => { ev.stopPropagation(); confirmarVinculo(e); }} style={{ background: "#15803d", color: "#fff", whiteSpace: "nowrap" }}>Confirmar vínculo</button>}
+                      </div>
+                    ); })}
+                  </div>
+                )}
+                {!empLoading && empBusca && empResultados.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", padding: "8px 2px" }}>Nenhum colaborador encontrado. Tente outro nome/sobrenome.</div>}
+              </>)}
+            </div>
+
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "8px 0 6px" }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px" }}>Motivos e valores</div>
               <button className="jpr-btn" onClick={() => setMotivos(ms => [...ms, { ...MOTIVO_RESET(), ordem: ms.length + 1 }])} style={{ background: "#eef4ff", color: "#0f3171", padding: "5px 10px" }}>+ Motivo</button>
@@ -439,24 +800,25 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
             {motivos.map((m, i) => (
               <div key={i} style={{ border: "1px solid #eef2f7", borderRadius: 10, padding: 10, marginBottom: 8, background: "#fbfdff" }}>
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <input className="jpr-fi" placeholder="Motivo (ex.: Horas extras)" value={m.motivo} onChange={e => setMotivo(i, { motivo: e.target.value })} />
+                  <MotivoSelect value={m.motivo} options={motivosDistintos} onChange={v => setMotivo(i, { motivo: v })} />
                   {motivos.length > 1 && <button className="jpr-btn" onClick={() => setMotivos(ms => ms.filter((_, idx) => idx !== i))} style={{ background: "none", color: "#dc2626" }}>✕</button>}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
-                  {([["valor_pedidos", "Pedidos"], ["valor_acordo", "Acordo"], ["valor_sentenca", "Sentença"], ["valor_final", "Final"], ["valor_outros_custos", "Outros"], ["valor_deposito_recursal", "Depósito"], ["valor_custas_processuais", "Custas"]] as const).map(([k, l]) => (
-                    <div key={k}><label style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700 }}>{l}</label><input className="jpr-fi" style={{ height: 34 }} type="number" step="0.01" value={m[k] || ""} onChange={e => setMotivo(i, { [k]: toFloat(e.target.value) } as any)} /></div>
+                  {([["valor_pedidos", "Valor pedido"], ["valor_acordo", "Valor acordo"], ["valor_sentenca", "Valor sentença"], ["valor_final", "Valor final"], ["valor_outros_custos", "Outros custos"]] as const).map(([k, l]) => (
+                    <div key={k}><label style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700 }}>{l}</label><MoedaInput value={m[k] || 0} onChange={n => setMotivo(i, { [k]: n } as any)} /></div>
                   ))}
                 </div>
               </div>
             ))}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "10px 0 6px" }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px" }}>Audiências</div>
-              <button className="jpr-btn" onClick={() => setAuds(a => [...a, { ordem: a.length + 1, data: "", tipo_audiencia: "Instrução", modalidade_audiencia: "Presencial" }])} style={{ background: "#eef4ff", color: "#0f3171", padding: "5px 10px" }}>+ Audiência</button>
+              <button className="jpr-btn" onClick={() => setAuds(a => [...a, { ordem: a.length + 1, data: "", horario: "", tipo_audiencia: "Instrução", modalidade_audiencia: "Presencial" }])} style={{ background: "#eef4ff", color: "#0f3171", padding: "5px 10px" }}>+ Audiência</button>
             </div>
             {auds.map((a, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr auto", gap: 6, marginBottom: 6, alignItems: "center" }}>
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "1.1fr .8fr 1fr 1fr auto", gap: 6, marginBottom: 6, alignItems: "center" }}>
                 <input className="jpr-fi" type="date" value={a.data} onChange={e => setAuds(x => x.map((y, idx) => idx === i ? { ...y, data: e.target.value } : y))} />
-                <select className="jpr-fi" value={a.tipo_audiencia} onChange={e => setAuds(x => x.map((y, idx) => idx === i ? { ...y, tipo_audiencia: e.target.value } : y))}>{["Instrução", "Conciliação", "Una", "De instrução e julgamento", "Audiência"].map(o => <option key={o}>{o}</option>)}</select>
+                <input className="jpr-fi" type="time" value={a.horario || ""} onChange={e => setAuds(x => x.map((y, idx) => idx === i ? { ...y, horario: e.target.value } : y))} />
+                <select className="jpr-fi" value={a.tipo_audiencia} onChange={e => setAuds(x => x.map((y, idx) => idx === i ? { ...y, tipo_audiencia: e.target.value } : y))}>{["Instrução", "Conciliação", "Una", "De instrução e julgamento"].map(o => <option key={o}>{o}</option>)}</select>
                 <select className="jpr-fi" value={a.modalidade_audiencia} onChange={e => setAuds(x => x.map((y, idx) => idx === i ? { ...y, modalidade_audiencia: e.target.value } : y))}>{["Presencial", "Online"].map(o => <option key={o}>{o}</option>)}</select>
                 <button className="jpr-btn" onClick={() => setAuds(x => x.filter((_, idx) => idx !== i))} style={{ background: "none", color: "#dc2626" }}>✕</button>
               </div>
@@ -465,6 +827,33 @@ export default function Processos({ view = "processos" }: { view?: "dashboard" |
               <button className="jpr-btn" onClick={() => setModal(false)} style={{ background: "#fff", border: "1px solid #e2e8f0", color: "#475569" }}>Cancelar</button>
               <button className="jpr-btn" onClick={salvar} style={{ background: "#0f3171", color: "#fff" }}>Salvar processo</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Detalhes do reclamante (EMPREGADOS) ── */}
+      {detalheEmp && (
+        <div className="jpr-ov" onClick={e => { if (e.target === e.currentTarget) setDetalheEmp(null); }}>
+          <div className="jpr-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 620 }}>
+            <button onClick={() => setDetalheEmp(null)} style={{ position: "absolute", top: 14, right: 16, border: "none", background: "none", fontSize: 20, color: "#94a3b8", cursor: "pointer" }}>✕</button>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px" }}>Detalhes do reclamante</div>
+            {detalheEmp._loading ? <div style={{ padding: 34, textAlign: "center", color: "#94a3b8" }}>Carregando…</div>
+              : detalheEmp._vazio ? <div style={{ padding: 20, color: "#94a3b8", fontSize: 13 }}>Nenhum cadastro em EMPREGADOS com o CPF {detalheEmp.CPF}.</div>
+              : (<>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", marginTop: 2 }}>{detalheEmp["Nome"] || "—"}</div>
+                <div style={{ fontSize: 12.5, color: "#475569", marginBottom: 12 }}>{detalheEmp["Título do Cargo"] || "—"}{detalheEmp["Nome da Empresa"] ? ` · ${detalheEmp["Nome da Empresa"]}` : ""}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {fld("CPF", detalheEmp["CPF"] || "—")}
+                  {fld("PIS", detalheEmp["PIS"] || "—")}
+                  {fld("Situação", detalheEmp["Situação"] || "—")}
+                  {fld("Salário", (() => { const n = parseSalario(detalheEmp["Valor Salário"]); return n != null ? money(n) : "—"; })())}
+                  {fld("Admissão", detalheEmp["Admissão"] || "—")}
+                  {fld("Demissão / afastamento", detalheEmp["Data Afastamento"] || "—")}
+                  {fld("Centro de custo", [detalheEmp["C.Custo"], detalheEmp["Titulo C.Custo"]].filter(Boolean).join(" · ") || "—")}
+                  {fld("Município de origem (Descrição do Local)", detalheEmp["Descrição do Local"] || "—")}
+                  {fld("Filial", detalheEmp["Nome Filial"] || "—")}
+                </div>
+              </>)}
           </div>
         </div>
       )}
