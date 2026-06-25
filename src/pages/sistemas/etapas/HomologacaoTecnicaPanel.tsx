@@ -12,7 +12,8 @@ const APROVACOES = Object.entries(APROVACOES_HOMOLOGACAO_TECNICA).map(([campo, n
 
 export function HomologacaoTecnicaPanel({ card, papeis, onUpdate, onComentar }: EtapaPanelProps) {
   const [justificativa, setJustificativa] = useState("");
-  const podeAgir = papeis.comite || papeis.controladoria || papeis.desenvolvedores;
+  const podeVoltar = papeis.comite || papeis.controladoria || papeis.desenvolvedores;
+  const podeAvancar = papeis.gerenteSistemas || papeis.controladoria;
   const todasAprovadas = APROVACOES.every((a) => card[a.campo]);
 
   const voltar = async () => {
@@ -43,10 +44,11 @@ export function HomologacaoTecnicaPanel({ card, papeis, onUpdate, onComentar }: 
         {!papeis.comite && <p className="text-[11px] text-muted-foreground">Só o Comitê marca essas aprovações.</p>}
       </div>
 
-      <Button className="gap-1.5" disabled={!podeAgir || !todasAprovadas} onClick={() => onUpdate({ etapa: "homologacao_usuario" })}>
+      <Button className="gap-1.5" disabled={!podeAvancar || !todasAprovadas} onClick={() => onUpdate({ etapa: "homologacao_usuario" })}>
         <ArrowRight className="h-3.5 w-3.5" /> Avançar para Homologação do Usuário
       </Button>
-      {podeAgir && !todasAprovadas && (
+      {!podeAvancar && <p className="text-[11px] text-muted-foreground">Só Gerente de Sistemas ou Controladoria podem avançar esta etapa.</p>}
+      {podeAvancar && !todasAprovadas && (
         <p className="text-[11px] text-muted-foreground">As 3 aprovações precisam estar marcadas para avançar.</p>
       )}
 
@@ -55,15 +57,15 @@ export function HomologacaoTecnicaPanel({ card, papeis, onUpdate, onComentar }: 
         <Textarea
           placeholder="Justificativa do retorno (obrigatória)…"
           value={justificativa}
-          disabled={!podeAgir}
+          disabled={!podeVoltar}
           onChange={(e) => setJustificativa(e.target.value)}
           className="text-xs"
         />
-        <Button variant="outline" className="gap-1.5" disabled={!podeAgir || !justificativa.trim()} onClick={voltar}>
+        <Button variant="outline" className="gap-1.5" disabled={!podeVoltar || !justificativa.trim()} onClick={voltar}>
           <ArrowLeft className="h-3.5 w-3.5" /> Voltar com justificativa
         </Button>
       </div>
-      {!podeAgir && <p className="text-[11px] text-muted-foreground">Só Comitê, Controladoria ou Desenvolvedores agem nesta etapa.</p>}
+      {!podeVoltar && <p className="text-[11px] text-muted-foreground">Só Comitê, Controladoria ou Desenvolvedores agem nesta etapa.</p>}
     </div>
   );
 }

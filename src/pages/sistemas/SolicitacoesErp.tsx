@@ -16,7 +16,7 @@ import { Plus, UserCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  ETAPAS, nomeUsuario, iniciais, fmtData,
+  ETAPAS, CAMPOS_ABERTURA, nomeUsuario, iniciais, fmtData,
   type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis,
 } from "./etapas/types";
 import { Historico } from "./etapas/Historico";
@@ -78,6 +78,32 @@ function DescricaoExpandivel({ texto }: { texto: string }) {
   );
 }
 
+function DetalhesAberturaExpandivel({ card }: { card: Solicitacao }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="rounded-md border border-border">
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+      >
+        Detalhes da abertura
+        <span className="text-primary">{aberto ? "ver menos" : "ver mais"}</span>
+      </button>
+      {aberto && (
+        <div className="space-y-3 border-t border-border p-3">
+          {CAMPOS_ABERTURA.map((c) => (
+            <div key={c.key}>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <p className="whitespace-pre-wrap break-words text-sm">{(card[c.key] as string | null) || "—"}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const PAINEIS: Record<string, (props: any) => JSX.Element> = {
   registro_oficial: RegistroOficialPanel,
   triagem_inicial_comite: TriagemComitePanel,
@@ -102,6 +128,7 @@ export default function SolicitacoesErp() {
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novoDescricao, setNovoDescricao] = useState("");
   const [novoArquivo, setNovoArquivo] = useState<File | null>(null);
+  const [camposAbertura, setCamposAbertura] = useState<Record<string, string>>({});
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const [aba, setAba] = useState<"detalhes" | "historico">("detalhes");
@@ -128,7 +155,10 @@ export default function SolicitacoesErp() {
           "id, titulo, descricao, etapa, recusado, prioridade, responsavel_user_id, progresso_pct, data_inicio, data_fim, " +
           "levantamento_funcional_texto, levantamento_funcional_prazo, documentacao_tecnica_texto, documentacao_tecnica_prazo, " +
           "analise_tecnica_texto, analise_tecnica_prazo, treinamento_data, implantacao_status, finalizado, etapa_entrada_em, " +
-          "homologacao_aprov_1, homologacao_aprov_2, homologacao_aprov_3, criado_por, created_at",
+          "homologacao_aprov_1, homologacao_aprov_2, homologacao_aprov_3, complexidade, " +
+          "objetivo_solicitacao, problema_atual, justificativa, beneficio_esperado, impacto_operacional, impacto_financeiro, " +
+          "grau_urgencia, tipo_solicitacao, tipo_correcao, tipo_melhoria, tipo_novo_modulo, tipo_integracao, tipo_relatorio, " +
+          "tipo_automacao, tipo_alteracao_legal, criado_por, created_at",
         )
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -292,7 +322,7 @@ export default function SolicitacoesErp() {
   };
 
   const downloadAnexo = async (path: string) => {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60);
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
     if (error || !data?.signedUrl) {
       toast({ title: "Erro ao abrir anexo", description: error?.message, variant: "destructive" });
       return;
@@ -337,14 +367,19 @@ export default function SolicitacoesErp() {
     return true;
   };
 
+  const camposAberturaPreenchidos = CAMPOS_ABERTURA.every((c) => (camposAbertura[c.key] ?? "").trim());
+
   const criar = async () => {
-    if (!novoTitulo.trim()) return;
+    if (!novoTitulo.trim() || !camposAberturaPreenchidos) return;
     setSalvando(true);
+    const camposPayload: Record<string, string> = {};
+    CAMPOS_ABERTURA.forEach((c) => { camposPayload[c.key] = camposAbertura[c.key].trim(); });
     const { data, error } = await (supabase as any)
       .from("sistema_solicitacao")
       .insert({
         titulo: novoTitulo.trim(),
         descricao: novoDescricao.trim() || null,
+        ...camposPayload,
       })
       .select("id")
       .single();
@@ -364,6 +399,7 @@ export default function SolicitacoesErp() {
     setNovoTitulo("");
     setNovoDescricao("");
     setNovoArquivo(null);
+    setCamposAbertura({});
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
     toast({ title: "Solicitação criada" });
   };
@@ -449,7 +485,7 @@ export default function SolicitacoesErp() {
                       card.finalizado ? "opacity-50" : "",
                     ].join(" ")}
                   >
-                    {card.prioridade != null && (
+                    {card.prioridade != null && etapa.key !== "definicao_responsavel" && (
                       <Badge variant="outline" className="absolute right-2 top-2 text-[9px]">P{card.prioridade}</Badge>
                     )}
                     <p className="pr-8 text-xs font-medium">{card.titulo}</p>
@@ -501,7 +537,7 @@ export default function SolicitacoesErp() {
       </div>
 
       <Dialog open={novoOpen} onOpenChange={setNovoOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova Solicitação</DialogTitle>
           </DialogHeader>
@@ -516,10 +552,23 @@ export default function SolicitacoesErp() {
                 className="cursor-pointer text-xs"
               />
             </div>
+            <div className="space-y-3 border-t border-border pt-3">
+              {CAMPOS_ABERTURA.map((c) => (
+                <div key={c.key}>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{c.label}</label>
+                  <Textarea
+                    placeholder={c.placeholder}
+                    value={camposAbertura[c.key] ?? ""}
+                    onChange={(e) => setCamposAbertura((prev) => ({ ...prev, [c.key]: e.target.value }))}
+                    className="text-sm"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovoArquivo(null); }}>Cancelar</Button>
-            <Button onClick={criar} disabled={!novoTitulo.trim() || salvando}>
+            <Button onClick={criar} disabled={!novoTitulo.trim() || !camposAberturaPreenchidos || salvando}>
               {salvando ? "Salvando…" : "Criar"}
             </Button>
           </DialogFooter>
@@ -563,6 +612,8 @@ export default function SolicitacoesErp() {
                 <div className="grid gap-6 md:grid-cols-[1fr_280px]">
                   <div className="space-y-4">
                     {cardDetalhe.descricao && <DescricaoExpandivel texto={cardDetalhe.descricao} />}
+
+                    <DetalhesAberturaExpandivel card={cardDetalhe} />
 
                     <PainelEtapa
                       card={cardDetalhe}

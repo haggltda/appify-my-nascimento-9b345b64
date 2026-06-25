@@ -66,6 +66,7 @@ function CampoComAnexo({
 
 export function ProjetoPanel({ card, papeis, anexos, onUpdate, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
   const podeEditar = papeis.comite || papeis.desenvolvedores;
+  const podeAprovar = papeis.controladoria;
 
   return (
     <div className="space-y-3">
@@ -106,10 +107,11 @@ export function ProjetoPanel({ card, papeis, anexos, onUpdate, onAnexar, onDownl
         onDownloadAnexo={onDownloadAnexo}
       />
 
-      <Button className="gap-1.5" disabled={!podeEditar} onClick={() => onUpdate({ etapa: "aprovacoes_priorizacao" })}>
+      <Button className="gap-1.5" disabled={!podeAprovar} onClick={() => onUpdate({ etapa: "aprovacoes_priorizacao" })}>
         <ArrowRight className="h-3.5 w-3.5" /> Avançar para Aprovações e Priorização
       </Button>
-      {!podeEditar && <p className="text-[11px] text-muted-foreground">Só Comitê ou Desenvolvedores agem nesta etapa.</p>}
+      {!podeEditar && <p className="text-[11px] text-muted-foreground">Só Comitê ou Desenvolvedores editam os campos desta etapa.</p>}
+      {!podeAprovar && <p className="text-[11px] text-muted-foreground">Só Controladoria pode aprovar e avançar esta etapa.</p>}
     </div>
   );
 }
