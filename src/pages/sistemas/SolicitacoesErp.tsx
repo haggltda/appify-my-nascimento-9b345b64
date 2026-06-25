@@ -501,7 +501,7 @@ export default function SolicitacoesErp() {
       </div>
 
       <Dialog open={novoOpen} onOpenChange={setNovoOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Nova Solicitação</DialogTitle>
           </DialogHeader>
