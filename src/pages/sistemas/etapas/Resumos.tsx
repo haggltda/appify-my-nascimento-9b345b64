@@ -51,7 +51,7 @@ export function temDadoResumo(
         comentarios.some((c) => c.tipo === "faltou_funcoes" || c.tipo === "encontrado_bug")
       );
     case "implantacao":
-      return !!card.implantacao_status;
+      return !!card.implantacao_status || comentarios.some((c) => c.tipo === "implantacao_comentario");
     case "acompanhamento_assistido":
       return anexos.some((a) => a.campo === "acompanhamento");
     default:
@@ -85,7 +85,7 @@ function ListaAnexos({ anexos, campo, onDownloadAnexo }: { anexos: Anexo[]; camp
   );
 }
 
-function ComentariosTipados({ comentarios, tipos, usuarios }: { comentarios: Comentario[]; tipos: string[]; usuarios: Usuario[] }) {
+export function ComentariosTipados({ comentarios, tipos, usuarios }: { comentarios: Comentario[]; tipos: string[]; usuarios: Usuario[] }) {
   const lista = comentarios.filter((c) => c.tipo && tipos.includes(c.tipo));
   if (lista.length === 0) return null;
   return (
@@ -193,13 +193,14 @@ function ResumoTreinamentos({ card, anexos, comentarios, usuarios, onDownloadAne
 
 const IMPLANTACAO_LABEL: Record<string, string> = { sim: "Sim", nao: "Não", em_implantacao: "Em Implantação" };
 
-function ResumoImplantacao({ card }: ResumoProps) {
+function ResumoImplantacao({ card, comentarios, usuarios }: ResumoProps) {
   return (
     <Bloco etapaKey="implantacao">
       <p className="text-xs">
         <span className="font-medium">Implantado corretamente:</span>{" "}
         {card.implantacao_status ? IMPLANTACAO_LABEL[card.implantacao_status] ?? card.implantacao_status : "—"}
       </p>
+      <ComentariosTipados comentarios={comentarios} tipos={["implantacao_comentario"]} usuarios={usuarios} />
     </Bloco>
   );
 }

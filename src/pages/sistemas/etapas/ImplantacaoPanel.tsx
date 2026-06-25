@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { EtapaPanelProps } from "./types";
+import { nomeUsuario, type EtapaPanelProps } from "./types";
 
 const OPCOES = [
   { value: "sim", label: "Sim" },
@@ -11,14 +11,15 @@ const OPCOES = [
   { value: "em_implantacao", label: "Em Implantação" },
 ];
 
-export function ImplantacaoPanel({ card, papeis, onUpdate, onComentar }: EtapaPanelProps) {
+export function ImplantacaoPanel({ card, papeis, usuarios, comentarios, onUpdate, onComentar }: EtapaPanelProps) {
   const [comentario, setComentario] = useState("");
+  const comentariosImplantacao = comentarios.filter((c) => c.tipo === "implantacao_comentario");
 
   const selecionar = (status: string) => onUpdate({ implantacao_status: status });
 
   const salvarComentario = async () => {
     if (!comentario.trim()) return;
-    const ok = await onComentar(comentario);
+    const ok = await onComentar(comentario, "implantacao_comentario");
     if (ok) setComentario("");
   };
 
@@ -42,6 +43,18 @@ export function ImplantacaoPanel({ card, papeis, onUpdate, onComentar }: EtapaPa
 
       {(card.implantacao_status === "sim" || card.implantacao_status === "nao") && (
         <div className="space-y-2">
+          {comentariosImplantacao.length > 0 && (
+            <div className="space-y-1.5">
+              {comentariosImplantacao.map((c) => (
+                <div key={c.id} className="rounded border-l-2 border-l-muted-foreground bg-muted/30 px-2 py-1.5 text-[11px]">
+                  <p className="text-muted-foreground">
+                    {nomeUsuario(usuarios, c.autor_id) ?? "Usuário"} — {new Date(c.created_at).toLocaleString("pt-BR")}
+                  </p>
+                  <p className="mt-0.5">{c.texto}</p>
+                </div>
+              ))}
+            </div>
+          )}
           <Textarea
             placeholder="Comentário (opcional)…"
             value={comentario}

@@ -6,13 +6,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle2, Paperclip } from "lucide-react";
 import {
   PESQUISA_ENCERRAMENTO, PESQUISA_PODE_ENCERRAR_PERGUNTA, PESQUISA_PODE_ENCERRAR_OPCOES,
-  type EtapaPanelProps,
+  nomeUsuario, type EtapaPanelProps,
 } from "./types";
 
-export function EncerramentoPanel({ card, papeis, userId, convidados, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
+export function EncerramentoPanel({ card, papeis, userId, usuarios, convidados, anexos, comentarios, onUpdate, onComentar, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
   const [comentario, setComentario] = useState("");
   const [arquivos, setArquivos] = useState<File[]>([]);
   const anexosEncerramento = anexos.filter((a) => a.campo === "encerramento");
+  const comentariosEncerramento = comentarios.filter((c) => c.tipo === "encerramento_comentario");
 
   const enviarAnexos = async () => {
     const pendentes = arquivos;
@@ -30,7 +31,7 @@ export function EncerramentoPanel({ card, papeis, userId, convidados, anexos, on
 
   const salvarComentario = async () => {
     if (!comentario.trim()) return;
-    const ok = await onComentar(comentario);
+    const ok = await onComentar(comentario, "encerramento_comentario");
     if (ok) setComentario("");
   };
 
@@ -67,6 +68,18 @@ export function EncerramentoPanel({ card, papeis, userId, convidados, anexos, on
 
       <div className="space-y-2 rounded-md border border-border p-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comentário de conclusão</p>
+        {comentariosEncerramento.length > 0 && (
+          <div className="space-y-1.5">
+            {comentariosEncerramento.map((c) => (
+              <div key={c.id} className="rounded border-l-2 border-l-success bg-muted/30 px-2 py-1.5 text-[11px]">
+                <p className="text-muted-foreground">
+                  {nomeUsuario(usuarios, c.autor_id) ?? "Usuário"} — {new Date(c.created_at).toLocaleString("pt-BR")}
+                </p>
+                <p className="mt-0.5">{c.texto}</p>
+              </div>
+            ))}
+          </div>
+        )}
         <Textarea
           value={comentario}
           disabled={!papeis.controladoria}
