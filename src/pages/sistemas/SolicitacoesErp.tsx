@@ -158,7 +158,10 @@ export default function SolicitacoesErp() {
           "homologacao_aprov_1, homologacao_aprov_2, homologacao_aprov_3, complexidade, " +
           "objetivo_solicitacao, problema_atual, justificativa, beneficio_esperado, impacto_operacional, impacto_financeiro, " +
           "grau_urgencia, tipo_solicitacao, tipo_correcao, tipo_melhoria, tipo_novo_modulo, tipo_integracao, tipo_relatorio, " +
-          "tipo_automacao, tipo_alteracao_legal, criado_por, created_at",
+          "tipo_automacao, tipo_alteracao_legal, " +
+          "pesquisa_atendeu_necessidade, pesquisa_levantamento_claro, pesquisa_conducao_ti, " +
+          "pesquisa_treinamento_suporte, pesquisa_avaliacao_geral, pesquisa_pode_encerrar, " +
+          "criado_por, created_at",
         )
         .order("created_at", { ascending: true });
       if (error) throw error;

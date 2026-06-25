@@ -37,6 +37,12 @@ export interface Solicitacao {
   tipo_relatorio: string | null;
   tipo_automacao: string | null;
   tipo_alteracao_legal: string | null;
+  pesquisa_atendeu_necessidade: number | null;
+  pesquisa_levantamento_claro: number | null;
+  pesquisa_conducao_ti: number | null;
+  pesquisa_treinamento_suporte: number | null;
+  pesquisa_avaliacao_geral: number | null;
+  pesquisa_pode_encerrar: boolean | null;
   etapa_entrada_em: string;
   criado_por: string;
   created_at: string;
@@ -127,6 +133,47 @@ export const COMPLEXIDADE_LABEL: Record<string, string> = {
   media: "Média",
   grande: "Grande",
   projeto: "Projeto",
+};
+
+// Pesquisa de Avaliação da Demanda — respondida na etapa Encerramento por quem
+// criou, convidados, ou Controladoria. As 5 primeiras são escala 1-5; a última
+// é sim/não e só tem caráter informativo (não bloqueia o "Finalizar demanda").
+export const PESQUISA_ENCERRAMENTO: Array<{
+  key: "pesquisa_atendeu_necessidade" | "pesquisa_levantamento_claro" | "pesquisa_conducao_ti" | "pesquisa_treinamento_suporte" | "pesquisa_avaliacao_geral";
+  pergunta: string;
+  opcoes: string[];
+}> = [
+  {
+    key: "pesquisa_atendeu_necessidade",
+    pergunta: "A solução implantada atendeu à necessidade que originou a solicitação?",
+    opcoes: ["Não atendeu", "Atendeu pouco", "Atendeu parcialmente", "Atendeu", "Atendeu completamente"],
+  },
+  {
+    key: "pesquisa_levantamento_claro",
+    pergunta: "O levantamento da necessidade foi realizado de forma clara, permitindo que sua demanda fosse corretamente compreendida?",
+    opcoes: ["Muito insatisfatório", "Insatisfatório", "Regular", "Bom", "Excelente"],
+  },
+  {
+    key: "pesquisa_conducao_ti",
+    pergunta: "Como você avalia a condução do processo pela equipe de TI e Processos (comunicação, acompanhamento e suporte durante o desenvolvimento)?",
+    opcoes: ["Muito insatisfeito", "Insatisfeito", "Regular", "Satisfeito", "Muito satisfeito"],
+  },
+  {
+    key: "pesquisa_treinamento_suporte",
+    pergunta: "Como você avalia o treinamento e o suporte prestado durante a implantação da solução?",
+    opcoes: ["Muito insatisfatório", "Insatisfatório", "Regular", "Bom", "Excelente"],
+  },
+  {
+    key: "pesquisa_avaliacao_geral",
+    pergunta: "De forma geral, como você avalia todo o processo de atendimento da sua demanda, desde a solicitação até a implantação?",
+    opcoes: ["Muito insatisfeito", "Insatisfeito", "Regular", "Satisfeito", "Muito satisfeito"],
+  },
+];
+
+export const PESQUISA_PODE_ENCERRAR_PERGUNTA = "Você considera que esta demanda pode ser encerrada?";
+export const PESQUISA_PODE_ENCERRAR_OPCOES = {
+  sim: "Sim, a demanda foi plenamente atendida.",
+  nao: "Não, ainda existem ajustes necessários.",
 };
 
 // Comentários "tipados" (justificativa/ressalva/reprovação/etc.) ganham borda própria.
