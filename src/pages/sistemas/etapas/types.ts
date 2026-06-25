@@ -78,6 +78,14 @@ export const ETAPAS: Array<{ key: string; label: string }> = [
   { key: "encerramento", label: "Encerramento" },
 ];
 
+// Aprovações nominais da Homologação Técnica — nomes só aqui (front-end), as colunas
+// no banco (homologacao_aprov_1/2/3) são genéricas pra não acoplar schema a pessoas.
+export const APROVACOES_HOMOLOGACAO_TECNICA: Record<"homologacao_aprov_1" | "homologacao_aprov_2" | "homologacao_aprov_3", string> = {
+  homologacao_aprov_1: "Érica Souza Ávila",
+  homologacao_aprov_2: "Yuri Rosa",
+  homologacao_aprov_3: "Iury de Jesus Silva",
+};
+
 // Comentários "tipados" (justificativa/ressalva/reprovação/etc.) ganham borda própria.
 export const TIPO_COMENTARIO_LABEL: Record<string, string> = {
   justificativa_retorno: "Justificativa de retorno de etapa",
