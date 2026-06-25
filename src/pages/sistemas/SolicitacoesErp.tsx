@@ -127,7 +127,7 @@ export default function SolicitacoesErp() {
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novoDescricao, setNovoDescricao] = useState("");
-  const [novoArquivo, setNovoArquivo] = useState<File | null>(null);
+  const [novosArquivos, setNovosArquivos] = useState<File[]>([]);
   const [camposAbertura, setCamposAbertura] = useState<Record<string, string>>({});
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
@@ -391,17 +391,17 @@ export default function SolicitacoesErp() {
       toast({ title: "Erro ao criar solicitação", description: error.message, variant: "destructive" });
       return;
     }
-    if (novoArquivo) {
-      const erro = await uploadAnexo(data.id, novoArquivo);
+    for (const file of novosArquivos) {
+      const erro = await uploadAnexo(data.id, file);
       if (erro) {
-        toast({ title: "Solicitação criada, mas o anexo falhou", description: erro, variant: "destructive" });
+        toast({ title: `Solicitação criada, mas "${file.name}" falhou`, description: erro, variant: "destructive" });
       }
     }
     setSalvando(false);
     setNovoOpen(false);
     setNovoTitulo("");
     setNovoDescricao("");
-    setNovoArquivo(null);
+    setNovosArquivos([]);
     setCamposAbertura({});
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
     toast({ title: "Solicitação criada" });
@@ -548,12 +548,16 @@ export default function SolicitacoesErp() {
             <Input placeholder="Título" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} />
             <Textarea placeholder="Descrição (opcional)" value={novoDescricao} onChange={(e) => setNovoDescricao(e.target.value)} />
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Anexo (opcional)</label>
+              <label className="mb-1 block text-xs text-muted-foreground">Anexos (opcional)</label>
               <Input
                 type="file"
-                onChange={(e) => setNovoArquivo(e.target.files?.[0] ?? null)}
+                multiple
+                onChange={(e) => setNovosArquivos(Array.from(e.target.files ?? []))}
                 className="cursor-pointer text-xs"
               />
+              {novosArquivos.length > 0 && (
+                <p className="mt-1 text-[11px] text-muted-foreground">{novosArquivos.length} arquivo(s) selecionado(s).</p>
+              )}
             </div>
             <div className="space-y-3 border-t border-border pt-3">
               {CAMPOS_ABERTURA.map((c) => (
@@ -570,7 +574,7 @@ export default function SolicitacoesErp() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovoArquivo(null); }}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovosArquivos([]); }}>Cancelar</Button>
             <Button onClick={criar} disabled={!novoTitulo.trim() || !camposAberturaPreenchidos || salvando}>
               {salvando ? "Salvando…" : "Criar"}
             </Button>

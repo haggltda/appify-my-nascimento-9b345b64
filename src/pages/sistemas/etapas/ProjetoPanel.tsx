@@ -16,11 +16,17 @@ function CampoComAnexo({
   anexos: Anexo[];
   onSalvarTexto: (v: string) => void;
   onSalvarPrazo: (v: string) => void;
-  onAnexar: (file: File) => void;
+  onAnexar: (file: File) => Promise<boolean>;
   onDownloadAnexo: (path: string) => void;
 }) {
-  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [arquivos, setArquivos] = useState<File[]>([]);
   const doCampo = anexos.filter((a) => a.campo === campo);
+
+  const enviar = async () => {
+    const pendentes = arquivos;
+    setArquivos([]);
+    for (const f of pendentes) await onAnexar(f);
+  };
 
   return (
     <div className="space-y-2 rounded-md border border-border p-3">
@@ -52,10 +58,15 @@ function CampoComAnexo({
       </div>
       {podeEditar && (
         <div className="flex items-center gap-2">
-          <Input type="file" className="h-8 flex-1 cursor-pointer text-[11px]" onChange={(e) => setArquivo(e.target.files?.[0] ?? null)} />
-          {arquivo && (
-            <Button size="sm" className="h-8 gap-1" onClick={() => { onAnexar(arquivo); setArquivo(null); }}>
-              <Paperclip className="h-3 w-3" /> Anexar
+          <Input
+            type="file"
+            multiple
+            className="h-8 flex-1 cursor-pointer text-[11px]"
+            onChange={(e) => setArquivos(Array.from(e.target.files ?? []))}
+          />
+          {arquivos.length > 0 && (
+            <Button size="sm" className="h-8 gap-1" onClick={enviar}>
+              <Paperclip className="h-3 w-3" /> Anexar ({arquivos.length})
             </Button>
           )}
         </div>
