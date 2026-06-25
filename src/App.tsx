@@ -101,6 +101,8 @@ import Recrutamento from "./pages/rh/Recrutamento";
 import Patrimonios from "./pages/juridico/Patrimonios";
 import CentralDuvidas from "./pages/juridico/CentralDuvidas";
 import Processos from "./pages/juridico/Processos";
+import Advertencias from "./pages/juridico/Advertencias";
+import OrientacoesJuridicas from "./pages/central-servicos/OrientacoesJuridicas";
 import Ferias from "./pages/rh/Ferias";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
 import BIDashboard from "./pages/bi/Dashboard";
@@ -248,7 +250,10 @@ const App = () => (
             <Route path="juridico/processos/dashboard" element={<Processos view="dashboard" />} />
             <Route path="juridico/processos" element={<Processos view="processos" />} />
             <Route path="juridico/processos/audiencias" element={<Processos view="audiencias" />} />
+            <Route path="juridico/advertencias" element={<Advertencias />} />
             <Route path="juridico/duvidas" element={<CentralDuvidas />} />
+            <Route path="central-de-servicos" element={<Navigate to="/app/central-de-servicos/orientacoes-juridicas" replace />} />
+            <Route path="central-de-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}

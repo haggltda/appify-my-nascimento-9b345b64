@@ -395,6 +395,13 @@ const juridicoModule: ModuleDef = {
       ],
     },
     {
+      label: "Gestão de Advertências",
+      defaultOpen: true,
+      items: [
+        { label: "Advertências", to: "/app/juridico/advertencias", icon: Gavel },
+      ],
+    },
+    {
       label: "Gestão Patrimonial",
       defaultOpen: true,
       items: [
@@ -405,7 +412,26 @@ const juridicoModule: ModuleDef = {
       label: "Conhecimento",
       defaultOpen: true,
       items: [
-        { label: "Dúvidas Jurídicas", to: "/app/juridico/duvidas", icon: BookOpen },
+        { label: "Parecer Jurídico", to: "/app/juridico/duvidas", icon: BookOpen },
+      ],
+    },
+  ],
+};
+
+// Central de Serviços
+const centralServicosModule: ModuleDef = {
+  id: "central-de-servicos",
+  label: "Central de Serviços",
+  description: "Orientações jurídicas e serviços ao colaborador",
+  icon: Sparkles,
+  basePath: "/app/central-de-servicos/orientacoes-juridicas",
+  status: "active",
+  groups: [
+    {
+      label: "Atendimento",
+      defaultOpen: true,
+      items: [
+        { label: "Orientações Jurídicas", to: "/app/central-de-servicos/orientacoes-juridicas", icon: BookOpen },
       ],
     },
   ],
@@ -485,6 +511,7 @@ const erpModules: ModuleDef[] = [
   encarregadosModule,
   sistemasModule,
   juridicoModule,
+  centralServicosModule,
   biModule,
 ];
 
@@ -508,7 +535,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/duvidas", "/app/juridico/processos", "/app/juridico/processos/dashboard", "/app/juridico/processos/audiencias"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/duvidas", "/app/juridico/processos", "/app/juridico/processos/dashboard", "/app/juridico/processos/audiencias", "/app/juridico/advertencias", "/app/central-de-servicos/orientacoes-juridicas"];
   const visibleModules = useMemo(() => {
     if (!access) return allModules;
     const canSee = (to: string) => {
@@ -794,11 +821,16 @@ function SidebarGroup({ group }: { group: NavGroup }) {
       </button>
       {open && (
         <ul className="space-y-0.5">
-          {group.items.map((item) => (
+          {group.items.map((item) => {
+            // Match exato quando outro item do menu está aninhado sob esta rota
+            // (ex.: "Processos" é prefixo de "/processos/dashboard" e "/processos/audiencias");
+            // sem isso o item-pai acenderia junto com o filho.
+            const hasNested = group.items.some((o) => o.to !== item.to && o.to.startsWith(item.to + "/"));
+            return (
             <li key={item.to}>
               <NavLink
                 to={item.to}
-                end={item.to === "/app"}
+                end={item.to === "/app" || hasNested}
                 className={({ isActive }) =>
                   cn(
                     "group relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors",
@@ -822,7 +854,8 @@ function SidebarGroup({ group }: { group: NavGroup }) {
                 )}
               </NavLink>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>
