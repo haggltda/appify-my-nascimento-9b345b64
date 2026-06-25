@@ -120,6 +120,7 @@ import Ajuda from "./pages/ajuda/Ajuda";
 import AjudaTopico from "./pages/ajuda/AjudaTopico";
 import InboxAprovacoes from "./pages/aprovacoes/Inbox";
 import SolicitacoesErp from "./pages/sistemas/SolicitacoesErp";
+import CentralServicos from "./pages/central-servicos/CentralServicos";
 
 const queryClient = new QueryClient();
 
@@ -148,6 +149,8 @@ const App = () => (
             <Route path="encarregados/minhas-solicitacoes" element={<MinhasSolicitacoes />} />
             {/* Sistemas */}
             <Route path="sistemas/solicitacoes-erp" element={<SolicitacoesErp />} />
+            {/* Central de Serviços */}
+            <Route path="central-servicos" element={<CentralServicos />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
             <Route path="presidencia" element={<Presidencia />} />
             <Route path="pipeline" element={<Pipeline />} />
