@@ -298,7 +298,12 @@ export default function SolicitacoesErp() {
   };
 
   const uploadAnexo = async (solicitacaoId: string, file: File, campo?: string): Promise<string | null> => {
-    const path = `${solicitacaoId}/${Date.now()}-${file.name}`;
+    // A key do storage não aceita acentos/espaços/parênteses etc ("Invalid key") —
+    // sanitiza só o nome usado no path; o nome original fica intacto em nome_arquivo.
+    const nomeSanitizado = file.name
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${solicitacaoId}/${Date.now()}-${nomeSanitizado}`;
     const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
     if (up.error) return up.error.message;
     const { error } = await (supabase as any).from("sistema_solicitacao_anexo").insert({
@@ -316,11 +321,10 @@ export default function SolicitacoesErp() {
     if (!cardDetalhe) return false;
     const erro = await uploadAnexo(cardDetalhe.id, file, campo);
     if (erro) {
-      toast({ title: "Erro ao enviar anexo", description: erro, variant: "destructive" });
+      toast({ title: `Erro ao enviar "${file.name}"`, description: erro, variant: "destructive" });
       return false;
     }
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao_anexo", cardDetalhe.id] });
-    toast({ title: "Anexo enviado" });
     return true;
   };
 
@@ -391,11 +395,10 @@ export default function SolicitacoesErp() {
       toast({ title: "Erro ao criar solicitação", description: error.message, variant: "destructive" });
       return;
     }
+    const falhas: string[] = [];
     for (const file of novosArquivos) {
       const erro = await uploadAnexo(data.id, file);
-      if (erro) {
-        toast({ title: `Solicitação criada, mas "${file.name}" falhou`, description: erro, variant: "destructive" });
-      }
+      if (erro) falhas.push(file.name);
     }
     setSalvando(false);
     setNovoOpen(false);
@@ -404,7 +407,13 @@ export default function SolicitacoesErp() {
     setNovosArquivos([]);
     setCamposAbertura({});
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
-    toast({ title: "Solicitação criada" });
+    // Só 1 toast por vez no sistema — se algum anexo falhou, mostra isso em vez do
+    // "Solicitação criada" genérico, senão o erro fica mascarado pelo toast de sucesso.
+    if (falhas.length > 0) {
+      toast({ title: "Solicitação criada, mas houve erro nos anexos", description: `Falhou: ${falhas.join(", ")}`, variant: "destructive" });
+    } else {
+      toast({ title: "Solicitação criada" });
+    }
   };
 
   const comentarGeral = async () => {
