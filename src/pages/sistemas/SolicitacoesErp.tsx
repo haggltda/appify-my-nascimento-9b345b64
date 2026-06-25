@@ -20,6 +20,7 @@ import {
   type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis,
 } from "./etapas/types";
 import { Historico } from "./etapas/Historico";
+import { temDadoResumo, RESUMOS } from "./etapas/Resumos";
 import { RegistroOficialPanel } from "./etapas/RegistroOficialPanel";
 import { TriagemComitePanel } from "./etapas/TriagemComitePanel";
 import { ProjetoPanel } from "./etapas/ProjetoPanel";
@@ -631,25 +632,58 @@ export default function SolicitacoesErp() {
 
                     <DetalhesAberturaExpandivel card={cardDetalhe} />
 
-                    <PainelEtapa
-                      card={cardDetalhe}
-                      papeis={papeis}
-                      userId={user?.id ?? null}
-                      usuarios={usuarios}
-                      convidaveis={convidaveis}
-                      anexos={anexos}
-                      comentarios={comentarios}
-                      convidados={convidados}
-                      totalNaColuna={totalNaColuna}
-                      prioridadesUsadas={prioridadesUsadas}
-                      onUpdate={update}
-                      onComentar={comentar}
-                      onAnexar={anexar}
-                      onDownloadAnexo={downloadAnexo}
-                      onAdicionarConvidado={adicionarConvidado}
-                      onRemoverConvidado={removerConvidado}
-                      onExcluir={excluirCard}
-                    />
+                    {ETAPAS.map((etapa) => {
+                      if (etapa.key === cardDetalhe.etapa) {
+                        return (
+                          <PainelEtapa
+                            key={etapa.key}
+                            card={cardDetalhe}
+                            papeis={papeis}
+                            userId={user?.id ?? null}
+                            usuarios={usuarios}
+                            convidaveis={convidaveis}
+                            anexos={anexos}
+                            comentarios={comentarios}
+                            convidados={convidados}
+                            totalNaColuna={totalNaColuna}
+                            prioridadesUsadas={prioridadesUsadas}
+                            onUpdate={update}
+                            onComentar={comentar}
+                            onAnexar={anexar}
+                            onDownloadAnexo={downloadAnexo}
+                            onAdicionarConvidado={adicionarConvidado}
+                            onRemoverConvidado={removerConvidado}
+                            onExcluir={excluirCard}
+                          />
+                        );
+                      }
+                      if (!temDadoResumo(etapa.key, cardDetalhe, anexos, comentarios, convidados)) return null;
+                      const Resumo = RESUMOS[etapa.key];
+                      if (!Resumo) return null;
+                      return (
+                        <Resumo
+                          key={etapa.key}
+                          card={cardDetalhe}
+                          anexos={anexos}
+                          comentarios={comentarios}
+                          usuarios={usuarios}
+                          onDownloadAnexo={downloadAnexo}
+                        />
+                      );
+                    })}
+
+                    {convidados.length > 0 && cardDetalhe.etapa !== "registro_oficial" && (
+                      <div>
+                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Convidados</p>
+                        <div className="space-y-1">
+                          {convidados.map((c) => (
+                            <div key={c.id} className="rounded border border-border px-2 py-1.5 text-xs">
+                              {nomeUsuario(usuarios, c.user_id) ?? c.user_id}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Anexos gerais</p>
