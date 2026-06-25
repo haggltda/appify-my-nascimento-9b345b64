@@ -183,6 +183,8 @@ export const TIPO_COMENTARIO_LABEL: Record<string, string> = {
   reprovado: "Reprovado",
   faltou_funcoes: "Faltou função",
   encontrado_bug: "Bug encontrado",
+  implantacao_comentario: "Comentário de implantação",
+  encerramento_comentario: "Comentário de conclusão",
 };
 
 export const TIPO_COMENTARIO_BORDA: Record<string, string> = {
@@ -191,6 +193,8 @@ export const TIPO_COMENTARIO_BORDA: Record<string, string> = {
   reprovado: "border-l-destructive",
   faltou_funcoes: "border-l-warning",
   encontrado_bug: "border-l-destructive",
+  implantacao_comentario: "border-l-muted-foreground",
+  encerramento_comentario: "border-l-success",
 };
 
 export function nomeUsuario(usuarios: Usuario[], id: string | null): string | null {
