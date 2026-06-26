@@ -53,7 +53,7 @@ const ehTrabalhando = (e: any) => String(e?.["Situação"] ?? "").trim().toUpper
 const FULL = '"ID","Nome","CPF","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Empresa","Nome da Empresa","Filial","Nome Filial","Contrato","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
 const SAFE = '"ID","Nome","CPF","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
 
-const POR_PAGINA = 50;
+const PERFIS = ["PADRAO", "ENCARREGADO", "ADMINISTRATIVO", "DIRETORIA", "ADMIN"];
 const FAIXAS = [
   { label: "< 1 ano", min: 0, max: 1 },
   { label: "1–3 anos", min: 1, max: 3 },
@@ -83,14 +83,16 @@ export default function Colaboradores() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
+  const [setoresTabela, setSetoresTabela] = useState<string[]>([]);
   const [busca, setBusca] = useState("");
   const [fEmpresa, setFEmpresa] = useState("");
   const [fContrato, setFContrato] = useState("");
   const [fSituacao, setFSituacao] = useState("Trabalhando"); // padrão
   const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState(50); // 50 (padrão) ou 100
 
   const [editing, setEditing] = useState<any | null>(null);
-  const [form, setForm] = useState({ setor: "", lider: "", perfil: "", situacao: "", email: "" });
+  const [form, setForm] = useState({ setor: "", hierarquia: "", perfil: "", situacao: "", email: "" });
   const [toast, setToast] = useState<{ msg: string; tipo: "ok" | "err" } | null>(null);
   const aviso = (msg: string, tipo: "ok" | "err" = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3200); };
 
@@ -102,6 +104,16 @@ export default function Colaboradores() {
       const m: Record<string, string> = {};
       for (const c of ct.data) if (c.Filial != null) m[String(c.Filial)] = c["NOME CONTRATO"] || "";
       setContratoPorFilial(m);
+    }
+    // Setores válidos (tabela SETORES, se existir). Cai pros valores reais da EMPREGADOS se não houver.
+    const st = await (supabase as any).from("SETORES").select("*").limit(2000);
+    if (!st.error && Array.isArray(st.data)) {
+      const pick = (row: any) => {
+        for (const k of Object.keys(row)) if (/setor|nome|descri/i.test(k) && typeof row[k] === "string" && row[k].trim()) return row[k].trim();
+        for (const k of Object.keys(row)) if (typeof row[k] === "string" && row[k].trim()) return row[k].trim();
+        return "";
+      };
+      setSetoresTabela([...new Set(st.data.map(pick).filter(Boolean) as string[])]);
     }
     // EMPREGADOS em blocos (fallback de colunas p/ nunca dar tela vazia).
     const buscar = async (cols: string) => {
@@ -121,7 +133,7 @@ export default function Colaboradores() {
     setRows(res.data || []); setLoading(false);
   };
   useEffect(() => { load(); }, []);
-  useEffect(() => { setPagina(1); }, [busca, fEmpresa, fContrato, fSituacao]);
+  useEffect(() => { setPagina(1); }, [busca, fEmpresa, fContrato, fSituacao, porPagina]);
 
   const contratoDe = (e: any): string => contratoPorFilial[String(e?.["Filial"] ?? "")] || String(e?.["Contrato"] ?? "").trim() || "—";
 
@@ -129,6 +141,11 @@ export default function Colaboradores() {
   const empresas = useMemo(() => [...new Set(rows.map(empresaDe))].filter(x => x && x !== "—").sort(), [rows]);
   const contratos = useMemo(() => [...new Set(rows.map(contratoDe))].filter(x => x && x !== "—").sort(), [rows, contratoPorFilial]);
   const situacoes = useMemo(() => [...new Set(rows.map(e => String(e["Situação"] ?? "").trim()).filter(Boolean))].sort(), [rows]);
+  // opções de Setor: tabela SETORES ∪ valores reais da EMPREGADOS, sempre com PADRAO.
+  const setorOptions = useMemo(() => {
+    const reais = rows.map(e => String(e["Setor_ERP"] ?? "").trim()).filter(Boolean);
+    return [...new Set(["PADRAO", ...setoresTabela, ...reais])].sort();
+  }, [rows, setoresTabela]);
 
   const filtrados = useMemo(() => rows.filter(e => {
     if (fEmpresa && empresaDe(e) !== fEmpresa) return false;
@@ -177,19 +194,25 @@ export default function Colaboradores() {
   const maxTl = Math.max(1, ...timeline.flatMap(t => [t.adm, t.desl]));
 
   // paginação
-  const totalPag = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA));
-  const visiveis = filtrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+  const totalPag = Math.max(1, Math.ceil(filtrados.length / porPagina));
+  const visiveis = filtrados.slice((pagina - 1) * porPagina, pagina * porPagina);
 
   const limparFiltros = () => { setBusca(""); setFEmpresa(""); setFContrato(""); setFSituacao(""); };
 
   // ── Edição de campos RH na EMPREGADOS ────────────────────────────────
   const abrirEdit = (e: any) => {
     setEditing(e);
-    setForm({ setor: e["Setor_ERP"] ?? "", lider: e["LIDER"] ?? "", perfil: e["Perfil_ERP"] ?? "", situacao: e["Situação"] ?? "", email: e["email"] ?? "" });
+    setForm({
+      setor: String(e["Setor_ERP"] ?? "").trim() || "PADRAO",
+      hierarquia: String(e["Título do Cargo"] ?? "").trim() || String(e["LIDER"] ?? "").trim(), // puxa do cargo
+      perfil: String(e["Perfil_ERP"] ?? "").trim() || "PADRAO",
+      situacao: e["Situação"] ?? "",
+      email: e["email"] ?? "",
+    });
   };
   const salvarEdit = async () => {
     if (!editing) return;
-    const patch: any = { "Setor_ERP": form.setor || null, "LIDER": form.lider || null, "Perfil_ERP": form.perfil || null, "Situação": form.situacao || null, "email": form.email || null };
+    const patch: any = { "Setor_ERP": form.setor || null, "LIDER": form.hierarquia || null, "Perfil_ERP": form.perfil || null, "Situação": form.situacao || null, "email": form.email || null };
     const { error } = await (supabase as any).from("EMPREGADOS").update(patch).eq("ID", editing["ID"]);
     if (error) { aviso("Erro ao salvar: " + error.message, "err"); return; }
     setRows(rs => rs.map(r => r["ID"] === editing["ID"] ? { ...r, ...patch } : r));
@@ -281,9 +304,16 @@ export default function Colaboradores() {
 
       {/* Tabela */}
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #eef2f7" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 16px", borderBottom: "1px solid #eef2f7" }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{filtrados.length} colaborador(es)</span>
-          {erro && <span style={{ fontSize: 12, color: "#dc2626" }}>⚠ {erro}</span>}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {erro && <span style={{ fontSize: 12, color: "#dc2626" }}>⚠ {erro}</span>}
+            <span style={{ fontSize: 12, color: "#94a3b8" }}>Por página:</span>
+            <select className="col-fi" style={{ height: 32 }} value={porPagina} onChange={e => setPorPagina(Number(e.target.value))}>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
         </div>
         {loading ? (
           <div style={{ padding: 50, textAlign: "center", color: "#94a3b8" }}>Carregando colaboradores…</div>
@@ -339,9 +369,19 @@ export default function Colaboradores() {
             <div style={{ fontSize: 12.5, color: "#64748b", marginBottom: 4 }}>{editing["Título do Cargo"] || "—"} · {empresaDe(editing)} · {contratoDe(editing)}</div>
             <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 16 }}>Edição de campos de RH (não altera dados sincronizados como salário/admissão).</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Campo label="Setor (Setor_ERP)" value={form.setor} onChange={v => setForm(f => ({ ...f, setor: v }))} />
-              <Campo label="Líder" value={form.lider} onChange={v => setForm(f => ({ ...f, lider: v }))} />
-              <Campo label="Perfil (Perfil_ERP)" value={form.perfil} onChange={v => setForm(f => ({ ...f, perfil: v }))} />
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Setor</label>
+                <select className="col-fi" style={{ width: "100%" }} value={form.setor} onChange={e => setForm(f => ({ ...f, setor: e.target.value }))}>
+                  {[...new Set([form.setor, ...setorOptions])].filter(Boolean).map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <Campo label="Hierarquia" value={form.hierarquia} onChange={v => setForm(f => ({ ...f, hierarquia: v }))} />
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Perfil</label>
+                <select className="col-fi" style={{ width: "100%" }} value={form.perfil} onChange={e => setForm(f => ({ ...f, perfil: e.target.value }))}>
+                  {[...new Set([form.perfil, ...PERFIS])].filter(Boolean).map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Situação</label>
                 <select className="col-fi" style={{ width: "100%" }} value={form.situacao} onChange={e => setForm(f => ({ ...f, situacao: e.target.value }))}>
