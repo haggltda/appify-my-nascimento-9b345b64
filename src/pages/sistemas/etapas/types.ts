@@ -28,16 +28,8 @@ export interface Solicitacao {
   justificativa: string | null;
   beneficio_esperado: string | null;
   impacto_operacional: string | null;
-  impacto_financeiro: string | null;
   grau_urgencia: string | null;
   tipo_solicitacao: string | null;
-  tipo_correcao: string | null;
-  tipo_melhoria: string | null;
-  tipo_novo_modulo: string | null;
-  tipo_integracao: string | null;
-  tipo_relatorio: string | null;
-  tipo_automacao: string | null;
-  tipo_alteracao_legal: string | null;
   pesquisa_atendeu_necessidade: number | null;
   pesquisa_levantamento_claro: number | null;
   pesquisa_conducao_ti: number | null;
@@ -111,23 +103,26 @@ export const APROVACOES_HOMOLOGACAO_TECNICA: Record<"homologacao_aprov_1" | "hom
 
 // 15 campos de justificativa de negócio exigidos na abertura da solicitação —
 // todos com o mesmo formato (título + comentário com placeholder), sem select.
+// 6 campos de texto da abertura — o 7º campo ("Tipo da Solicitação") é um
+// dropdown fixo (TIPO_SOLICITACAO_LABEL), não entra nessa lista.
 export const CAMPOS_ABERTURA: Array<{ key: keyof Solicitacao; label: string; placeholder: string }> = [
   { key: "objetivo_solicitacao", label: "Objetivo da solicitação", placeholder: "Qual é o objetivo desta solicitação?" },
   { key: "problema_atual", label: "Problema atual", placeholder: "Descreva o problema que motivou esta solicitação." },
   { key: "justificativa", label: "Justificativa", placeholder: "Por que esta solicitação é necessária?" },
   { key: "beneficio_esperado", label: "Benefício esperado", placeholder: "Que benefício esta solicitação trará?" },
   { key: "impacto_operacional", label: "Impacto operacional", placeholder: "Qual o impacto na operação?" },
-  { key: "impacto_financeiro", label: "Impacto financeiro", placeholder: "Qual o impacto financeiro, quando houver?" },
   { key: "grau_urgencia", label: "Grau de urgência", placeholder: "Qual o grau de urgência desta solicitação?" },
-  { key: "tipo_solicitacao", label: "Tipo da solicitação", placeholder: "Descreva o tipo desta solicitação." },
-  { key: "tipo_correcao", label: "Correção", placeholder: "Detalhe, se aplicável." },
-  { key: "tipo_melhoria", label: "Melhoria", placeholder: "Detalhe, se aplicável." },
-  { key: "tipo_novo_modulo", label: "Novo módulo", placeholder: "Detalhe, se aplicável." },
-  { key: "tipo_integracao", label: "Integração", placeholder: "Detalhe, se aplicável." },
-  { key: "tipo_relatorio", label: "Relatório", placeholder: "Detalhe, se aplicável." },
-  { key: "tipo_automacao", label: "Automação", placeholder: "Detalhe, se aplicável." },
-  { key: "tipo_alteracao_legal", label: "Alteração legal", placeholder: "Detalhe, se aplicável." },
 ];
+
+export const TIPO_SOLICITACAO_LABEL: Record<string, string> = {
+  correcao: "Correção",
+  melhoria: "Melhoria",
+  novo_modulo: "Novo Módulo",
+  integracao: "Integração",
+  relatorio: "Relatório",
+  automacao: "Automação",
+  alteracao_legal: "Alteração Legal",
+};
 
 export const COMPLEXIDADE_LABEL: Record<string, string> = {
   pequena: "Pequena",
