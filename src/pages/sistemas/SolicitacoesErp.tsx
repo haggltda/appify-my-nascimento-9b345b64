@@ -12,11 +12,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, UserCircle2 } from "lucide-react";
+import { Plus, UserCircle2, CalendarClock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  ETAPAS, CAMPOS_ABERTURA, nomeUsuario, iniciais, fmtData,
+  ETAPAS, CAMPOS_ABERTURA, STATUS_DESENVOLVIMENTO_LABEL, STATUS_DESENVOLVIMENTO_COR, nomeUsuario, iniciais, fmtData,
   type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis,
 } from "./etapas/types";
 import { Historico } from "./etapas/Historico";
@@ -55,6 +55,14 @@ const COR_BORDER: Record<string, string> = {
   warning: "border-l-warning",
   success: "border-l-success",
 };
+
+const DIAS_PRAZO_ACOMPANHAMENTO = 10;
+const UM_DIA_MS = 24 * 60 * 60 * 1000;
+
+function diasRestantesAcompanhamento(etapaEntradaEm: string): number {
+  const prazoFinal = new Date(etapaEntradaEm).getTime() + DIAS_PRAZO_ACOMPANHAMENTO * UM_DIA_MS;
+  return Math.ceil((prazoFinal - Date.now()) / UM_DIA_MS);
+}
 
 function DescricaoExpandivel({ texto }: { texto: string }) {
   const [expandido, setExpandido] = useState(false);
@@ -154,6 +162,7 @@ export default function SolicitacoesErp() {
         .from("sistema_solicitacao")
         .select(
           "id, titulo, descricao, etapa, recusado, prioridade, responsavel_user_id, progresso_pct, data_inicio, data_fim, " +
+          "status_desenvolvimento, " +
           "levantamento_funcional_texto, levantamento_funcional_prazo, documentacao_tecnica_texto, documentacao_tecnica_prazo, " +
           "analise_tecnica_texto, analise_tecnica_prazo, treinamento_data, implantacao_status, finalizado, etapa_entrada_em, " +
           "homologacao_aprov_1, homologacao_aprov_2, homologacao_aprov_3, complexidade, " +
@@ -501,9 +510,34 @@ export default function SolicitacoesErp() {
                     {card.prioridade != null && etapa.key !== "definicao_responsavel" && (
                       <Badge variant="outline" className="absolute right-2 top-2 text-[9px]">P{card.prioridade}</Badge>
                     )}
+                    {etapa.key === "acompanhamento_assistido" && (() => {
+                      const dias = diasRestantesAcompanhamento(card.etapa_entrada_em);
+                      const expirado = dias < 0;
+                      return (
+                        <div
+                          className={[
+                            "absolute right-2 top-2 flex items-center gap-1 rounded-md border px-2 py-1",
+                            expirado ? "border-destructive/30 bg-destructive/15 text-destructive" : "border-warning/30 bg-warning/15 text-warning-foreground",
+                          ].join(" ")}
+                        >
+                          <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                          <div className="leading-tight">
+                            <p className="text-[10px] font-semibold">
+                              {expirado ? "Prazo expirado" : `${dias} dia${dias === 1 ? "" : "s"} restante${dias === 1 ? "" : "s"}`}
+                            </p>
+                            {!expirado && <p className="text-[9px]">de {DIAS_PRAZO_ACOMPANHAMENTO} dias</p>}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <p className="pr-8 text-xs font-medium">{card.titulo}</p>
                     {card.descricao && (
                       <p className="mt-1 line-clamp-3 text-[11px] text-muted-foreground">{card.descricao}</p>
+                    )}
+                    {card.status_desenvolvimento && (
+                      <Badge variant="outline" className={["mt-1.5 text-[9px]", STATUS_DESENVOLVIMENTO_COR[card.status_desenvolvimento] ?? ""].join(" ")}>
+                        {STATUS_DESENVOLVIMENTO_LABEL[card.status_desenvolvimento] ?? card.status_desenvolvimento}
+                      </Badge>
                     )}
                     <div className="mt-2 flex items-center gap-1.5">
                       <Avatar className="h-5 w-5">

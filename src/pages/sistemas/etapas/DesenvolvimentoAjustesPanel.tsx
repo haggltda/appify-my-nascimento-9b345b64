@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowRight } from "lucide-react";
-import type { EtapaPanelProps } from "./types";
+import { STATUS_DESENVOLVIMENTO_LABEL, type EtapaPanelProps } from "./types";
 
 export function DesenvolvimentoAjustesPanel({ card, papeis, onUpdate }: EtapaPanelProps) {
   const podeEditar = papeis.desenvolvedores || papeis.gerenteSistemas;
@@ -38,6 +39,23 @@ export function DesenvolvimentoAjustesPanel({ card, papeis, onUpdate }: EtapaPan
           onBlur={(e) => { if (e.target.value !== (card.data_fim ?? "")) onUpdate({ data_fim: e.target.value || null }); }}
           className="w-40 text-xs"
         />
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status de Desenvolvimento</label>
+        <Select
+          value={card.status_desenvolvimento ?? undefined}
+          onValueChange={(v) => onUpdate({ status_desenvolvimento: v })}
+          disabled={!podeEditar}
+        >
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="Selecionar status…" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(STATUS_DESENVOLVIMENTO_LABEL).map(([v, label]) => (
+              <SelectItem key={v} value={v}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <Button className="gap-1.5" disabled={!podeEditar} onClick={() => onUpdate({ etapa: "homologacao_tecnica" })}>
         <ArrowRight className="h-3.5 w-3.5" /> Avançar para Homologação Técnica

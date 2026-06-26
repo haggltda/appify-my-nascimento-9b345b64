@@ -32,13 +32,13 @@ export function AprovacoesPriorizacaoPanel({ card, papeis, totalNaColuna, priori
       </div>
       <Button
         className="gap-1.5"
-        disabled={!papeis.comite || card.prioridade !== 1}
+        disabled={!papeis.gerenteSistemas || card.prioridade !== 1}
         onClick={() => onUpdate({ etapa: "definicao_responsavel" })}
       >
         <ArrowRight className="h-3.5 w-3.5" /> Avançar para Definição de Responsável
       </Button>
-      {!papeis.comite && <p className="text-[11px] text-muted-foreground">Só o Comitê age nesta etapa.</p>}
-      {papeis.comite && card.prioridade !== 1 && (
+      {!papeis.gerenteSistemas && <p className="text-[11px] text-muted-foreground">Só o Gerente de Sistemas pode avançar esta etapa.</p>}
+      {papeis.gerenteSistemas && card.prioridade !== 1 && (
         <p className="text-[11px] text-muted-foreground">
           Só é possível avançar o card que estiver com prioridade 1. Avance-o primeiro.
         </p>
