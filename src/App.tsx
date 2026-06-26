@@ -79,6 +79,7 @@ import ConciliacaoFluxoCaixa from "./pages/financeiro/ConciliacaoFluxoCaixa";
 import OBZVersoes from "./pages/controladoria/OBZVersoes";
 import DREGerencial from "./pages/controladoria/DREGerencial";
 import OrcamentoCompleto from "./pages/controladoria/OrcamentoCompleto";
+import GeradorPops from "./pages/controladoria/GeradorPops";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
 import ContasBancariasEmpresa from "./pages/financeiro/ContasBancariasEmpresa";
 import IntegracaoBancaria from "./pages/financeiro/IntegracaoBancaria";
@@ -197,6 +198,7 @@ const App = () => (
             <Route path="co/obz-versoes" element={<OBZVersoes />} />
             <Route path="co/dre-gerencial" element={<DREGerencial />} />
             <Route path="co/orcamento-completo" element={<OrcamentoCompleto />} />
+            <Route path="co/gerador-pops" element={<GeradorPops />} />
             <Route path="orcamento" element={<Orcamento />} />
             {/* Suprimentos */}
             <Route path="suprimentos/fornecedores" element={<Fornecedores />} />
