@@ -49,6 +49,8 @@ export function useGrade(empresaId: string | null) {
   return useQuery({
     queryKey: QK(empresaId ?? ""),
     enabled: !!empresaId,
+    // Evita refetch enquanto o usuário está editando o formulário
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("grade")
@@ -92,6 +94,7 @@ export function useGradeUpdate(empresaId: string) {
         ["fase", "Fase"],
         ["data", "Data de Abertura"],
         ["posicao", "Posição"],
+        ["responsavel", "Responsável"],
       ] as const) {
         const prev = String(current[field as keyof GradeItem] ?? "");
         const next = String((changes as Record<string, unknown>)[field] ?? "");

@@ -645,6 +645,17 @@ function ImportModal({ empresaId, onClose }: { empresaId: string; onClose: () =>
 
 // ── Card ──────────────────────────────────────────────────────────────────
 
+function aberturaUrgencia(d: string | null): "critica" | "proxima" | "normal" | null {
+  if (!d) return null;
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const abertura = new Date(d + "T00:00:00");
+  const dias = Math.ceil((abertura.getTime() - hoje.getTime()) / 86_400_000);
+  if (dias < 0) return null;
+  if (dias <= 3) return "critica";
+  if (dias <= 7) return "proxima";
+  return "normal";
+}
+
 function GradeCard({
   item,
   canAlterar,
@@ -691,7 +702,21 @@ function GradeCard({
       {/* Meta */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         <span><span className="font-medium text-foreground">Cidade:</span> {item.cidade || "—"} {item.uf ? `/ ${item.uf}` : ""}</span>
-        <span><span className="font-medium text-foreground">Abertura:</span> {fmtDate(item.data)}</span>
+        <span className="flex items-center gap-1.5">
+          <span className="font-medium text-foreground">Abertura:</span>
+          <span className={(() => {
+            const base = "inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold";
+            const u = aberturaUrgencia(item.data);
+            if (!item.data) return "";
+            const passou = new Date(item.data + "T00:00:00") < new Date(new Date().setHours(0,0,0,0));
+            if (passou) return `${base} bg-muted text-muted-foreground`;
+            if (u === "critica") return `${base} bg-destructive/15 text-destructive`;
+            if (u === "proxima") return `${base} bg-warning/15 text-warning`;
+            return `${base} bg-success/15 text-success`;
+          })()}>
+            {fmtDate(item.data)}
+          </span>
+        </span>
         <span><span className="font-medium text-foreground">Responsável:</span> {item.responsavel || "—"}</span>
         <span><span className="font-medium text-foreground">Posição:</span> {item.posicao != null ? `${item.posicao}º` : "—"}</span>
         {item.valor_global && (
@@ -864,6 +889,13 @@ function GradeSheet({
                 <SelectTrigger className="h-9"><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_">— Sem responsável —</SelectItem>
+                  {/* Se o responsável atual não está na lista (nome antigo, usuário removido),
+                      mantém como opção para não perder o valor ao salvar */}
+                  {f.responsavel && !usuarios.some(
+                    (u) => (u.display_name ?? u.email ?? u.id) === f.responsavel
+                  ) && (
+                    <SelectItem value={f.responsavel}>{f.responsavel} (atual)</SelectItem>
+                  )}
                   {usuarios.map((u) => (
                     <SelectItem key={u.id} value={u.display_name ?? u.email ?? u.id}>
                       {u.display_name || u.email || u.id}
