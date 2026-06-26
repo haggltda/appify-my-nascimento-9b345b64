@@ -390,7 +390,7 @@ const sistemasModule: ModuleDef = {
   ],
 };
 
-// Central de Serviços — atendimento + orientações ao colaborador
+// Central de Serviços — sem submódulos: clicar abre o painel (hub) com os cards.
 const centralServicosModule: ModuleDef = {
   id: "central_servicos",
   label: "Central de Serviços",
@@ -399,15 +399,6 @@ const centralServicosModule: ModuleDef = {
   basePath: "/app/central-servicos",
   headerLink: "/app/central-servicos",
   status: "active",
-  groups: [
-    {
-      label: "Atendimento",
-      defaultOpen: true,
-      items: [
-        { label: "Orientações Jurídicas", to: "/app/central-servicos/orientacoes-juridicas", icon: BookOpen },
-      ],
-    },
-  ],
 };
 
 // Jurídico — Gestão Patrimonial e Obrigações
@@ -596,8 +587,8 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
     let bestId: string | null = null;
     let bestLen = -1;
     for (const m of visibleModules) {
-      if (m.status !== "active" || !m.groups) continue;
-      // Página-hub do módulo (headerLink) também ativa o módulo (ex.: /app/central-servicos).
+      if (m.status !== "active") continue;
+      // Página-hub do módulo (headerLink) ativa o módulo, mesmo sem submódulos (ex.: /app/central-servicos).
       if (m.headerLink && m.headerLink !== "/app") {
         const matchesHub =
           location.pathname === m.headerLink || location.pathname.startsWith(m.headerLink + "/");
@@ -606,6 +597,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
           bestId = m.id;
         }
       }
+      if (!m.groups) continue;
       for (const g of m.groups) {
         for (const item of g.items) {
           if (item.to === "/app") continue; // Início é página própria, não ativa nenhum módulo
