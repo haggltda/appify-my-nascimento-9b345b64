@@ -517,7 +517,7 @@ export default function SolicitacoesErp() {
                         <div
                           className={[
                             "absolute right-2 top-2 flex items-center gap-1 rounded-md border px-2 py-1",
-                            expirado ? "border-destructive/30 bg-destructive/15 text-destructive" : "border-warning/30 bg-warning/15 text-warning-foreground",
+                            expirado ? "border-destructive/30 bg-destructive/15 text-destructive" : "border-warning/30 bg-warning/15 text-warning",
                           ].join(" ")}
                         >
                           <CalendarClock className="h-3.5 w-3.5 shrink-0" />

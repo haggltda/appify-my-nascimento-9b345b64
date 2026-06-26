@@ -145,7 +145,7 @@ export const STATUS_DESENVOLVIMENTO_LABEL: Record<string, string> = {
 
 export const STATUS_DESENVOLVIMENTO_COR: Record<string, string> = {
   em_desenvolvimento: "bg-info/15 text-info border-info/30",
-  em_validacao: "bg-warning/15 text-warning-foreground border-warning/30",
+  em_validacao: "bg-warning/15 text-warning border-warning/30",
   em_correcao: "bg-destructive/15 text-destructive border-destructive/30",
   finalizado: "bg-success/15 text-success border-success/30",
 };
