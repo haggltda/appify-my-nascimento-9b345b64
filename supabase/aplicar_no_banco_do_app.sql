@@ -1346,3 +1346,12 @@ NOTIFY pgrst, 'reload schema';
 ALTER TABLE public."SISTEMA_SOLICITACOES_ADVERTENCIA" ADD COLUMN IF NOT EXISTS excecao               boolean NOT NULL DEFAULT false;
 ALTER TABLE public."SISTEMA_SOLICITACOES_ADVERTENCIA" ADD COLUMN IF NOT EXISTS justificativa_excecao text;
 NOTIFY pgrst, 'reload schema';
+
+-- =========================================================================
+-- RH — Colaboradores: UPDATE de campos RH na EMPREGADOS (025). Idempotente.
+-- =========================================================================
+ALTER TABLE public."EMPREGADOS" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS empregados_update_rh ON public."EMPREGADOS";
+CREATE POLICY empregados_update_rh ON public."EMPREGADOS"
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+NOTIFY pgrst, 'reload schema';
