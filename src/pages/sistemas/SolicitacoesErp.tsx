@@ -11,12 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, UserCircle2, CalendarClock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  ETAPAS, CAMPOS_ABERTURA, STATUS_DESENVOLVIMENTO_LABEL, STATUS_DESENVOLVIMENTO_COR, nomeUsuario, iniciais, fmtData,
+  ETAPAS, CAMPOS_ABERTURA, TIPO_SOLICITACAO_LABEL, STATUS_DESENVOLVIMENTO_LABEL, STATUS_DESENVOLVIMENTO_COR,
+  nomeUsuario, iniciais, fmtData,
   type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis,
 } from "./etapas/types";
 import { Historico } from "./etapas/Historico";
@@ -107,6 +109,10 @@ function DetalhesAberturaExpandivel({ card }: { card: Solicitacao }) {
               <p className="whitespace-pre-wrap break-words text-sm">{(card[c.key] as string | null) || "—"}</p>
             </div>
           ))}
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo da solicitação</p>
+            <p className="text-sm">{card.tipo_solicitacao ? TIPO_SOLICITACAO_LABEL[card.tipo_solicitacao] ?? card.tipo_solicitacao : "—"}</p>
+          </div>
         </div>
       )}
     </div>
@@ -138,6 +144,7 @@ export default function SolicitacoesErp() {
   const [novoDescricao, setNovoDescricao] = useState("");
   const [novosArquivos, setNovosArquivos] = useState<File[]>([]);
   const [camposAbertura, setCamposAbertura] = useState<Record<string, string>>({});
+  const [tipoSolicitacao, setTipoSolicitacao] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const [aba, setAba] = useState<"detalhes" | "historico">("detalhes");
@@ -166,9 +173,8 @@ export default function SolicitacoesErp() {
           "levantamento_funcional_texto, levantamento_funcional_prazo, documentacao_tecnica_texto, documentacao_tecnica_prazo, " +
           "analise_tecnica_texto, analise_tecnica_prazo, treinamento_data, implantacao_status, finalizado, etapa_entrada_em, " +
           "homologacao_aprov_1, homologacao_aprov_2, homologacao_aprov_3, complexidade, " +
-          "objetivo_solicitacao, problema_atual, justificativa, beneficio_esperado, impacto_operacional, impacto_financeiro, " +
-          "grau_urgencia, tipo_solicitacao, tipo_correcao, tipo_melhoria, tipo_novo_modulo, tipo_integracao, tipo_relatorio, " +
-          "tipo_automacao, tipo_alteracao_legal, " +
+          "objetivo_solicitacao, problema_atual, justificativa, beneficio_esperado, impacto_operacional, " +
+          "grau_urgencia, tipo_solicitacao, " +
           "pesquisa_atendeu_necessidade, pesquisa_levantamento_claro, pesquisa_conducao_ti, " +
           "pesquisa_treinamento_suporte, pesquisa_avaliacao_geral, pesquisa_pode_encerrar, " +
           "criado_por, created_at",
@@ -384,7 +390,7 @@ export default function SolicitacoesErp() {
     return true;
   };
 
-  const camposAberturaPreenchidos = CAMPOS_ABERTURA.every((c) => (camposAbertura[c.key] ?? "").trim());
+  const camposAberturaPreenchidos = CAMPOS_ABERTURA.every((c) => (camposAbertura[c.key] ?? "").trim()) && !!tipoSolicitacao;
 
   const criar = async () => {
     if (!novoTitulo.trim() || !camposAberturaPreenchidos) return;
@@ -397,6 +403,7 @@ export default function SolicitacoesErp() {
         titulo: novoTitulo.trim(),
         descricao: novoDescricao.trim() || null,
         ...camposPayload,
+        tipo_solicitacao: tipoSolicitacao,
       })
       .select("id")
       .single();
@@ -416,6 +423,7 @@ export default function SolicitacoesErp() {
     setNovoDescricao("");
     setNovosArquivos([]);
     setCamposAbertura({});
+    setTipoSolicitacao(null);
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
     // Só 1 toast por vez no sistema — se algum anexo falhou, mostra isso em vez do
     // "Solicitação criada" genérico, senão o erro fica mascarado pelo toast de sucesso.
@@ -615,10 +623,23 @@ export default function SolicitacoesErp() {
                   />
                 </div>
               ))}
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipo da solicitação</label>
+                <Select value={tipoSolicitacao ?? undefined} onValueChange={setTipoSolicitacao}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Selecionar tipo…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TIPO_SOLICITACAO_LABEL).map(([v, label]) => (
+                      <SelectItem key={v} value={v}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovosArquivos([]); }}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovosArquivos([]); setTipoSolicitacao(null); }}>Cancelar</Button>
             <Button onClick={criar} disabled={!novoTitulo.trim() || !camposAberturaPreenchidos || salvando}>
               {salvando ? "Salvando…" : "Criar"}
             </Button>
