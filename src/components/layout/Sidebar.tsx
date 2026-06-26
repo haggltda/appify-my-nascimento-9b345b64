@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import logoGN from "@/assets/logo-grupo-nascimento.png";
 import {
   LayoutDashboard,
@@ -74,6 +74,9 @@ interface ModuleDef {
   badge?: string;
   status: "active" | "soon";
   groups?: NavGroup[];
+  // Se definido, clicar no cabeçalho do módulo navega direto para esta rota
+  // (além de expandir os submódulos). Usado p/ módulos com página-hub própria.
+  headerLink?: string;
 }
 
 // Módulo Licitações — único navegável hoje
@@ -394,13 +397,13 @@ const centralServicosModule: ModuleDef = {
   description: "Atendimento e orientações ao colaborador",
   icon: Headset,
   basePath: "/app/central-servicos",
+  headerLink: "/app/central-servicos",
   status: "active",
   groups: [
     {
-      label: "Central de Serviços",
+      label: "Atendimento",
       defaultOpen: true,
       items: [
-        { label: "Central de Serviços", to: "/app/central-servicos", icon: Headset },
         { label: "Orientações Jurídicas", to: "/app/central-servicos/orientacoes-juridicas", icon: BookOpen },
       ],
     },
@@ -594,6 +597,15 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
     let bestLen = -1;
     for (const m of visibleModules) {
       if (m.status !== "active" || !m.groups) continue;
+      // Página-hub do módulo (headerLink) também ativa o módulo (ex.: /app/central-servicos).
+      if (m.headerLink && m.headerLink !== "/app") {
+        const matchesHub =
+          location.pathname === m.headerLink || location.pathname.startsWith(m.headerLink + "/");
+        if (matchesHub && m.headerLink.length > bestLen) {
+          bestLen = m.headerLink.length;
+          bestId = m.id;
+        }
+      }
       for (const g of m.groups) {
         for (const item of g.items) {
           if (item.to === "/app") continue; // Início é página própria, não ativa nenhum módulo
@@ -779,13 +791,14 @@ function ModuleEntry({
   const isActiveModule = active;
   const Icon = mod.icon;
   const disabled = mod.status === "soon";
+  const navigate = useNavigate();
 
   return (
     <div className="mb-1">
       <button
         type="button"
         disabled={disabled}
-        onClick={onToggle}
+        onClick={() => { if (mod.headerLink) navigate(mod.headerLink); onToggle(); }}
         className={cn(
           "group relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
           isActiveModule
