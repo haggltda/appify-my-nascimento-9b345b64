@@ -9,6 +9,7 @@ export interface Solicitacao {
   progresso_pct: number;
   data_inicio: string | null;
   data_fim: string | null;
+  status_desenvolvimento: string | null;
   levantamento_funcional_texto: string | null;
   levantamento_funcional_prazo: string | null;
   documentacao_tecnica_texto: string | null;
@@ -133,6 +134,20 @@ export const COMPLEXIDADE_LABEL: Record<string, string> = {
   media: "Média",
   grande: "Grande",
   projeto: "Projeto",
+};
+
+export const STATUS_DESENVOLVIMENTO_LABEL: Record<string, string> = {
+  em_desenvolvimento: "Em Desenvolvimento",
+  em_validacao: "Em Validação",
+  em_correcao: "Em Correção",
+  finalizado: "Finalizado",
+};
+
+export const STATUS_DESENVOLVIMENTO_COR: Record<string, string> = {
+  em_desenvolvimento: "bg-info/15 text-info border-info/30",
+  em_validacao: "bg-warning/15 text-warning-foreground border-warning/30",
+  em_correcao: "bg-destructive/15 text-destructive border-destructive/30",
+  finalizado: "bg-success/15 text-success border-success/30",
 };
 
 // Pesquisa de Avaliação da Demanda — respondida na etapa Encerramento por quem

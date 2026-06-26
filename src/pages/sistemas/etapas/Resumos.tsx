@@ -3,8 +3,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
-  APROVACOES_HOMOLOGACAO_TECNICA, COMPLEXIDADE_LABEL, ETAPAS, TIPO_COMENTARIO_BORDA, TIPO_COMENTARIO_LABEL,
-  fmtData, nomeUsuario,
+  APROVACOES_HOMOLOGACAO_TECNICA, COMPLEXIDADE_LABEL, ETAPAS, STATUS_DESENVOLVIMENTO_LABEL,
+  TIPO_COMENTARIO_BORDA, TIPO_COMENTARIO_LABEL, fmtData, nomeUsuario,
   type Anexo, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
 
@@ -36,7 +36,7 @@ export function temDadoResumo(
     case "definicao_responsavel":
       return !!card.responsavel_user_id || !!card.complexidade;
     case "desenvolvimento_ajustes":
-      return card.progresso_pct > 0 || !!card.data_fim;
+      return card.progresso_pct > 0 || !!card.data_fim || !!card.status_desenvolvimento;
     case "homologacao_tecnica":
       return (
         card.homologacao_aprov_1 || card.homologacao_aprov_2 || card.homologacao_aprov_3 ||
@@ -148,6 +148,12 @@ function ResumoDesenvolvimentoAjustes({ card }: ResumoProps) {
       <Progress value={card.progresso_pct} className="h-2" />
       <p className="text-[11px] text-muted-foreground">{card.progresso_pct}% concluído</p>
       {card.data_fim && <p className="text-[11px] text-muted-foreground">Prazo: {fmtData(card.data_fim)}</p>}
+      {card.status_desenvolvimento && (
+        <p className="text-xs">
+          <span className="font-medium">Status de Desenvolvimento:</span>{" "}
+          {STATUS_DESENVOLVIMENTO_LABEL[card.status_desenvolvimento] ?? card.status_desenvolvimento}
+        </p>
+      )}
     </Bloco>
   );
 }
