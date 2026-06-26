@@ -998,8 +998,11 @@ function ViewModal({ item, onClose }: { item: GradeItem; onClose: () => void }) 
               <div className="space-y-1.5">
                 {item.historico.map((h, i) => (
                   <div key={i} className="text-[11px] text-muted-foreground">
-                    <span className="font-medium text-foreground">{h.campo}</span>
-                    {" "}alterado de{" "}
+                    {h.usuario && (
+                      <span className="font-semibold text-primary">{h.usuario} </span>
+                    )}
+                    alterou <span className="font-medium text-foreground">{h.campo}</span>
+                    {" "}de{" "}
                     <span className="font-mono">{h.de}</span>
                     {" "}para{" "}
                     <span className="font-mono">{h.para}</span>

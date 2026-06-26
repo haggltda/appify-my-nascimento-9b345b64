@@ -7,7 +7,8 @@ import {
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   usePlanilhaCustos, useSavePlanilhaCusto, useDeletePlanilhaCusto,
-  useBulkInsertPlanilhaCusto, useEncerrarContrato, formatBRL, type PlanilhaCustoRow,
+  useBulkInsertPlanilhaCusto, useEncerrarContrato, useSalvarJustificativaDivergencia,
+  formatBRL, type PlanilhaCustoRow, type JustificativaEntry,
 } from "@/hooks/usePlanilhaCusto";
 import { importarPlanilha, type PlanilhaCustoImportada } from "@/utils/planilhaCustoImporter";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
@@ -442,24 +443,27 @@ function ContratosModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusM
   const [expandido, setExpandido] = useState<string | null>(null);
   const [encerrandoContrato, setEncerrandoContrato] = useState<string | null>(null);
   const [dataEncerramento, setDataEncerramento] = useState("");
+  const [justificandoContrato, setJustificandoContrato] = useState<string | null>(null);
+  const [textoJustificativa, setTextoJustificativa] = useState("");
   const encerrar = useEncerrarContrato();
+  const salvarJustificativa = useSalvarJustificativaDivergencia();
 
   // Apenas linhas vigentes para o resumo financeiro
   const rowsVigentes = rows.filter((r) => statusMap.get(r.id) === "EM VIGÊNCIA");
 
   type ContratoItem = {
     cliente: string; contrato: string;
-    orcado: number; executado: number; postos: number;
+    orcado: number; executado: number; postos_exec: number;
     postoRows: PlanilhaCustoRow[];
+    justificativas: JustificativaEntry[];
   };
 
   const byContrato = rowsVigentes.reduce<Record<string, ContratoItem>>((acc, r) => {
     const key = r.contrato;
-    if (!acc[key]) acc[key] = { cliente: r.cliente, contrato: r.contrato, orcado: 0, executado: 0, postos: 0, postoRows: [] };
+    if (!acc[key]) acc[key] = { cliente: r.cliente, contrato: r.contrato, orcado: 0, executado: 0, postos_exec: 0, postoRows: [], justificativas: r.justificativa_divergencia ?? [] };
     const total = r.total_por_empregado * (r.qt_postos || 1);
-    if (r.orexec === "EXECUTADO") acc[key].executado += total;
+    if (r.orexec === "EXECUTADO") { acc[key].executado += total; acc[key].postos_exec += r.qt_postos || 0; }
     else acc[key].orcado += total;
-    acc[key].postos += r.qt_postos || 0;
     acc[key].postoRows.push(r);
     return acc;
   }, {});
@@ -522,7 +526,7 @@ function ContratosModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusM
                   <tr className={`border-t border-border hover:bg-muted/20 ${aberto ? "bg-muted/10" : ""}`}>
                     <td className="px-3 py-2 text-xs text-muted-foreground">{c.cliente}</td>
                     <td className="px-3 py-2 text-sm font-medium">{c.contrato}</td>
-                    <td className="px-3 py-2 text-right text-xs">{c.postos}</td>
+                    <td className="px-3 py-2 text-right text-xs">{c.postos_exec || "—"}</td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-info">{c.orcado ? formatBRL(c.orcado) : "—"}</td>
                     <td className="px-3 py-2 text-right font-mono text-xs text-success">{c.executado ? formatBRL(c.executado) : "—"}</td>
                     <td className={`px-3 py-2 text-right font-mono text-xs font-semibold whitespace-nowrap ${diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
@@ -531,13 +535,22 @@ function ContratosModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusM
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         {temDivergencia && (
-                          <button
-                            onClick={() => setExpandido(aberto ? null : c.contrato)}
-                            title="Ver divergência por posto"
-                            className={`inline-flex h-7 min-w-[80px] items-center justify-center gap-1 whitespace-nowrap rounded px-2 text-[11px] font-medium transition-colors ${aberto ? "bg-warning/20 text-warning-foreground" : "bg-warning/10 text-warning hover:bg-warning/20"}`}
-                          >
-                            ⚠ Detalhes
-                          </button>
+                          <>
+                            <button
+                              onClick={() => setExpandido(aberto ? null : c.contrato)}
+                              title="Ver divergência por posto"
+                              className={`inline-flex h-7 min-w-[80px] items-center justify-center gap-1 whitespace-nowrap rounded px-2 text-[11px] font-medium transition-colors ${aberto ? "bg-warning/20 text-warning-foreground" : "bg-warning/10 text-warning hover:bg-warning/20"}`}
+                            >
+                              ⚠ Detalhes
+                            </button>
+                            <button
+                              onClick={() => { setJustificandoContrato(c.contrato); setTextoJustificativa(""); }}
+                              title="Justificar divergência"
+                              className="inline-flex h-7 items-center justify-center gap-1 whitespace-nowrap rounded border border-muted px-2 text-[11px] font-medium text-muted-foreground hover:bg-muted/40 transition-colors"
+                            >
+                              Justificar
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => { setEncerrandoContrato(c.contrato); setDataEncerramento(""); }}
@@ -553,6 +566,20 @@ function ContratosModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusM
                     <tr className="border-t border-warning/20 bg-warning/5">
                       <td colSpan={7} className="px-6 py-3">
                         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-warning">Divergência por posto</p>
+                        {c.justificativas.length > 0 && (
+                          <div className="mb-3 space-y-1 rounded border border-muted bg-background/60 p-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Justificativas</p>
+                            {c.justificativas.map((j, i) => (
+                              <div key={i} className="text-[11px] text-muted-foreground">
+                                <span className="font-semibold text-foreground">{j.usuario}</span>
+                                <span className="mx-1 opacity-50">·</span>
+                                <span className="opacity-60">{j.ts}</span>
+                                <span className="mx-1 opacity-50">—</span>
+                                {j.texto}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <table className="w-full text-xs">
                           <thead>
                             <tr className="text-[10px] font-semibold uppercase text-muted-foreground">
@@ -602,6 +629,53 @@ function ContratosModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusM
           </tfoot>
         </table>
       </div>
+
+      {/* Mini-modal de justificativa */}
+      <Dialog open={!!justificandoContrato} onOpenChange={(o) => !o && setJustificandoContrato(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Justificar Divergência</DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">{justificandoContrato}</p>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Descreva o motivo da divergência entre orçado e executado.
+          </p>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Justificativa <span className="text-destructive">*</span>
+            </label>
+            <textarea
+              className="w-full rounded border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+              rows={4}
+              placeholder="Descreva o motivo da divergência…"
+              value={textoJustificativa}
+              onChange={(e) => setTextoJustificativa(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              onClick={() => setJustificandoContrato(null)}
+              className="rounded border border-input px-3 py-1.5 text-sm hover:bg-muted/40 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              disabled={!textoJustificativa.trim() || salvarJustificativa.isPending}
+              onClick={() => {
+                const contrato = justificandoContrato!;
+                const rowsDoContrato = rows.filter((r) => r.contrato === contrato);
+                salvarJustificativa.mutate(
+                  { contrato, texto: textoJustificativa.trim(), rowsDoContrato },
+                  { onSuccess: () => { setJustificandoContrato(null); setTextoJustificativa(""); } }
+                );
+              }}
+              className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {salvarJustificativa.isPending ? "Salvando…" : "Salvar"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Mini-modal de encerramento */}
       <Dialog open={!!encerrandoContrato} onOpenChange={(o) => !o && setEncerrandoContrato(null)}>
