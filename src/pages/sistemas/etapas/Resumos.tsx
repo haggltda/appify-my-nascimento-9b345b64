@@ -3,7 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
-  APROVACOES_HOMOLOGACAO_TECNICA, COMPLEXIDADE_LABEL, ETAPAS, STATUS_DESENVOLVIMENTO_LABEL,
+  APROVACOES_TESTES_INTERNOS, COMPLEXIDADE_LABEL, CRITERIO_TRIAGEM_LABEL, ETAPAS, STATUS_DESENVOLVIMENTO_LABEL,
   TIPO_COMENTARIO_BORDA, TIPO_COMENTARIO_LABEL, fmtData, nomeUsuario,
   type Anexo, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
@@ -26,25 +26,31 @@ export function temDadoResumo(
   convidados: Convidado[],
 ): boolean {
   switch (etapaKey) {
-    case "projeto":
+    case "triagem_inicial":
+      return !!card.criterio_triagem;
+    case "analise_necessidade":
+      return !!card.analise_necessidade_texto || !!card.analise_necessidade_prazo || anexos.some((a) => a.campo === "analise_necessidade");
+    case "levantamento_funcional":
+      return !!card.levantamento_funcional_texto || !!card.levantamento_funcional_prazo || anexos.some((a) => a.campo === "levantamento_funcional");
+    case "documentacao_funcional":
+      return !!card.documentacao_tecnica_texto || !!card.documentacao_tecnica_prazo || anexos.some((a) => a.campo === "documentacao_tecnica");
+    case "analise_tecnica":
+      return !!card.analise_tecnica_texto || !!card.analise_tecnica_prazo || anexos.some((a) => a.campo === "analise_tecnica");
+    case "aprovacao_priorizacao":
+      return !!card.prioridade || !!card.responsavel_user_id || !!card.complexidade;
+    case "desenvolvimento":
       return (
-        !!card.levantamento_funcional_texto || !!card.levantamento_funcional_prazo ||
-        !!card.documentacao_tecnica_texto || !!card.documentacao_tecnica_prazo ||
-        !!card.analise_tecnica_texto || !!card.analise_tecnica_prazo ||
-        anexos.some((a) => a.campo === "levantamento_funcional" || a.campo === "documentacao_tecnica" || a.campo === "analise_tecnica")
+        card.progresso_pct > 0 || !!card.data_fim || !!card.status_desenvolvimento ||
+        comentarios.some((c) => c.tipo === "interromper_desenvolvimento" || c.tipo === "erro_documental")
       );
-    case "definicao_responsavel":
-      return !!card.responsavel_user_id || !!card.complexidade;
-    case "desenvolvimento_ajustes":
-      return card.progresso_pct > 0 || !!card.data_fim || !!card.status_desenvolvimento;
-    case "homologacao_tecnica":
+    case "testes_internos":
       return (
-        card.homologacao_aprov_1 || card.homologacao_aprov_2 || card.homologacao_aprov_3 ||
+        card.testes_interno_aprov_1 || card.testes_interno_aprov_2 || card.testes_interno_aprov_3 ||
         comentarios.some((c) => c.tipo === "justificativa_retorno")
       );
-    case "homologacao_usuario":
+    case "homologacao_area_solicitante":
       return comentarios.some((c) => c.tipo === "aprovado_ressalva" || c.tipo === "reprovado");
-    case "treinamentos":
+    case "treinamento":
       return (
         !!card.treinamento_data ||
         anexos.some((a) => a.campo === "treinamento") ||
@@ -114,22 +120,57 @@ function CampoTexto({ titulo, texto, prazo }: { titulo: string; texto: string | 
   );
 }
 
-function ResumoProjeto({ card, anexos, onDownloadAnexo }: ResumoProps) {
+function ResumoTriagemInicial({ card }: ResumoProps) {
   return (
-    <Bloco etapaKey="projeto">
+    <Bloco etapaKey="triagem_inicial">
+      <p className="text-xs">
+        <span className="font-medium">Critério:</span>{" "}
+        {card.criterio_triagem ? CRITERIO_TRIAGEM_LABEL[card.criterio_triagem] ?? card.criterio_triagem : "—"}
+      </p>
+    </Bloco>
+  );
+}
+
+function ResumoAnaliseNecessidade({ card, anexos, onDownloadAnexo }: ResumoProps) {
+  return (
+    <Bloco etapaKey="analise_necessidade">
+      <CampoTexto titulo="Análise da Necessidade" texto={card.analise_necessidade_texto} prazo={card.analise_necessidade_prazo} />
+      <ListaAnexos anexos={anexos} campo="analise_necessidade" onDownloadAnexo={onDownloadAnexo} />
+    </Bloco>
+  );
+}
+
+function ResumoLevantamentoFuncional({ card, anexos, onDownloadAnexo }: ResumoProps) {
+  return (
+    <Bloco etapaKey="levantamento_funcional">
       <CampoTexto titulo="Levantamento Funcional" texto={card.levantamento_funcional_texto} prazo={card.levantamento_funcional_prazo} />
       <ListaAnexos anexos={anexos} campo="levantamento_funcional" onDownloadAnexo={onDownloadAnexo} />
-      <CampoTexto titulo="Documentação Técnica" texto={card.documentacao_tecnica_texto} prazo={card.documentacao_tecnica_prazo} />
+    </Bloco>
+  );
+}
+
+function ResumoDocumentacaoFuncional({ card, anexos, onDownloadAnexo }: ResumoProps) {
+  return (
+    <Bloco etapaKey="documentacao_funcional">
+      <CampoTexto titulo="Documentação Funcional" texto={card.documentacao_tecnica_texto} prazo={card.documentacao_tecnica_prazo} />
       <ListaAnexos anexos={anexos} campo="documentacao_tecnica" onDownloadAnexo={onDownloadAnexo} />
+    </Bloco>
+  );
+}
+
+function ResumoAnaliseTecnica({ card, anexos, onDownloadAnexo }: ResumoProps) {
+  return (
+    <Bloco etapaKey="analise_tecnica">
       <CampoTexto titulo="Análise Técnica" texto={card.analise_tecnica_texto} prazo={card.analise_tecnica_prazo} />
       <ListaAnexos anexos={anexos} campo="analise_tecnica" onDownloadAnexo={onDownloadAnexo} />
     </Bloco>
   );
 }
 
-function ResumoDefinicaoResponsavel({ card, usuarios }: ResumoProps) {
+function ResumoAprovacaoPriorizacao({ card, usuarios }: ResumoProps) {
   return (
-    <Bloco etapaKey="definicao_responsavel">
+    <Bloco etapaKey="aprovacao_priorizacao">
+      {card.prioridade != null && <p className="text-xs"><span className="font-medium">Prioridade:</span> {card.prioridade}</p>}
       <p className="text-xs">
         <span className="font-medium">Responsável:</span>{" "}
         {nomeUsuario(usuarios, card.responsavel_user_id) ?? "—"}
@@ -142,9 +183,9 @@ function ResumoDefinicaoResponsavel({ card, usuarios }: ResumoProps) {
   );
 }
 
-function ResumoDesenvolvimentoAjustes({ card }: ResumoProps) {
+function ResumoDesenvolvimento({ card, comentarios, usuarios }: ResumoProps) {
   return (
-    <Bloco etapaKey="desenvolvimento_ajustes">
+    <Bloco etapaKey="desenvolvimento">
       <Progress value={card.progresso_pct} className="h-2" />
       <p className="text-[11px] text-muted-foreground">{card.progresso_pct}% concluído</p>
       {card.data_fim && <p className="text-[11px] text-muted-foreground">Prazo: {fmtData(card.data_fim)}</p>}
@@ -154,18 +195,19 @@ function ResumoDesenvolvimentoAjustes({ card }: ResumoProps) {
           {STATUS_DESENVOLVIMENTO_LABEL[card.status_desenvolvimento] ?? card.status_desenvolvimento}
         </p>
       )}
+      <ComentariosTipados comentarios={comentarios} tipos={["interromper_desenvolvimento", "erro_documental"]} usuarios={usuarios} />
     </Bloco>
   );
 }
 
-const APROVACOES = Object.entries(APROVACOES_HOMOLOGACAO_TECNICA).map(([campo, nome]) => ({
-  campo: campo as keyof typeof APROVACOES_HOMOLOGACAO_TECNICA,
+const APROVACOES = Object.entries(APROVACOES_TESTES_INTERNOS).map(([campo, nome]) => ({
+  campo: campo as keyof typeof APROVACOES_TESTES_INTERNOS,
   nome,
 }));
 
-function ResumoHomologacaoTecnica({ card, comentarios, usuarios }: ResumoProps) {
+function ResumoTestesInternos({ card, comentarios, usuarios }: ResumoProps) {
   return (
-    <Bloco etapaKey="homologacao_tecnica">
+    <Bloco etapaKey="testes_internos">
       <div className="space-y-1">
         {APROVACOES.map((a) => (
           <label key={a.campo} className="flex items-center gap-2 text-xs">
@@ -179,17 +221,17 @@ function ResumoHomologacaoTecnica({ card, comentarios, usuarios }: ResumoProps) 
   );
 }
 
-function ResumoHomologacaoUsuario({ comentarios, usuarios }: ResumoProps) {
+function ResumoHomologacaoAreaSolicitante({ comentarios, usuarios }: ResumoProps) {
   return (
-    <Bloco etapaKey="homologacao_usuario">
+    <Bloco etapaKey="homologacao_area_solicitante">
       <ComentariosTipados comentarios={comentarios} tipos={["aprovado_ressalva", "reprovado"]} usuarios={usuarios} />
     </Bloco>
   );
 }
 
-function ResumoTreinamentos({ card, anexos, comentarios, usuarios, onDownloadAnexo }: ResumoProps) {
+function ResumoTreinamento({ card, anexos, comentarios, usuarios, onDownloadAnexo }: ResumoProps) {
   return (
-    <Bloco etapaKey="treinamentos">
+    <Bloco etapaKey="treinamento">
       {card.treinamento_data && <p className="text-xs">Data do treinamento: {fmtData(card.treinamento_data)}</p>}
       <ListaAnexos anexos={anexos} campo="treinamento" onDownloadAnexo={onDownloadAnexo} />
       <ComentariosTipados comentarios={comentarios} tipos={["faltou_funcoes", "encontrado_bug"]} usuarios={usuarios} />
@@ -220,12 +262,16 @@ function ResumoAcompanhamentoAssistido({ anexos, onDownloadAnexo }: ResumoProps)
 }
 
 export const RESUMOS: Record<string, (props: ResumoProps) => JSX.Element> = {
-  projeto: ResumoProjeto,
-  definicao_responsavel: ResumoDefinicaoResponsavel,
-  desenvolvimento_ajustes: ResumoDesenvolvimentoAjustes,
-  homologacao_tecnica: ResumoHomologacaoTecnica,
-  homologacao_usuario: ResumoHomologacaoUsuario,
-  treinamentos: ResumoTreinamentos,
+  triagem_inicial: ResumoTriagemInicial,
+  analise_necessidade: ResumoAnaliseNecessidade,
+  levantamento_funcional: ResumoLevantamentoFuncional,
+  documentacao_funcional: ResumoDocumentacaoFuncional,
+  analise_tecnica: ResumoAnaliseTecnica,
+  aprovacao_priorizacao: ResumoAprovacaoPriorizacao,
+  desenvolvimento: ResumoDesenvolvimento,
+  testes_internos: ResumoTestesInternos,
+  homologacao_area_solicitante: ResumoHomologacaoAreaSolicitante,
+  treinamento: ResumoTreinamento,
   implantacao: ResumoImplantacao,
   acompanhamento_assistido: ResumoAcompanhamentoAssistido,
 };

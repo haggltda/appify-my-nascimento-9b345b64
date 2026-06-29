@@ -25,7 +25,7 @@ export function AcompanhamentoAssistidoPanel({ papeis, anexos, onUpdate, onComen
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Controladoria acompanha os usuários finais; Desenvolvedores ficam disponíveis por 10 dias pra arrumar bugs.
+        Gerente de Sistemas acompanha os usuários finais; Desenvolvedores ficam disponíveis por 10 dias úteis pra arrumar bugs.
       </p>
 
       <div className="space-y-2 rounded-md border border-border p-3">
@@ -34,11 +34,11 @@ export function AcompanhamentoAssistidoPanel({ papeis, anexos, onUpdate, onComen
         </p>
         <Textarea
           value={comentario}
-          disabled={!papeis.controladoria}
+          disabled={!papeis.gerenteSistemas}
           onChange={(e) => setComentario(e.target.value)}
           className="text-xs"
         />
-        <Button size="sm" variant="outline" disabled={!papeis.controladoria || !comentario.trim()} onClick={salvarComentario}>
+        <Button size="sm" variant="outline" disabled={!papeis.gerenteSistemas || !comentario.trim()} onClick={salvarComentario}>
           Salvar comentário
         </Button>
       </div>
@@ -51,7 +51,7 @@ export function AcompanhamentoAssistidoPanel({ papeis, anexos, onUpdate, onComen
             <button type="button" onClick={() => onDownloadAnexo(a.storage_path)} className="text-primary hover:underline">abrir</button>
           </div>
         ))}
-        {papeis.controladoria && (
+        {papeis.gerenteSistemas && (
           <div className="flex items-center gap-2">
             <Input
               type="file"
@@ -68,10 +68,10 @@ export function AcompanhamentoAssistidoPanel({ papeis, anexos, onUpdate, onComen
         )}
       </div>
 
-      <Button className="gap-1.5" disabled={!papeis.controladoria} onClick={() => onUpdate({ etapa: "encerramento" })}>
+      <Button className="gap-1.5" disabled={!papeis.gerenteSistemas} onClick={() => onUpdate({ etapa: "encerramento" })}>
         <ArrowRight className="h-3.5 w-3.5" /> Avançar para Encerramento
       </Button>
-      {!papeis.controladoria && <p className="text-[11px] text-muted-foreground">Só Controladoria age nesta etapa.</p>}
+      {!papeis.gerenteSistemas && <p className="text-[11px] text-muted-foreground">Só o Gerente de Sistemas age nesta etapa.</p>}
     </div>
   );
 }

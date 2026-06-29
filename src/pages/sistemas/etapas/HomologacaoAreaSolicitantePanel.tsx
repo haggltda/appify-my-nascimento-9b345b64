@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, AlertTriangle, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import type { EtapaPanelProps } from "./types";
 
-const DOIS_DIAS_MS = 2 * 24 * 60 * 60 * 1000;
-
-export function HomologacaoUsuarioPanel({ card, papeis, userId, convidados, onUpdate, onComentar }: EtapaPanelProps) {
+export function HomologacaoAreaSolicitantePanel({ card, papeis, userId, convidados, onUpdate, onComentar }: EtapaPanelProps) {
   const [comentarioRessalva, setComentarioRessalva] = useState("");
   const [comentarioReprovacao, setComentarioReprovacao] = useState("");
 
@@ -15,16 +13,12 @@ export function HomologacaoUsuarioPanel({ card, papeis, userId, convidados, onUp
     convidados.some((c) => c.user_id === userId) ||
     papeis.controladoria;
 
-  const prazoFinal = new Date(new Date(card.etapa_entrada_em).getTime() + DOIS_DIAS_MS);
-  const expirado = new Date() > prazoFinal;
-  const prazoFmt = `${String(prazoFinal.getDate()).padStart(2, "0")}/${String(prazoFinal.getMonth() + 1).padStart(2, "0")}/${prazoFinal.getFullYear()}`;
-
   const aprovarComRessalva = async () => {
     if (!comentarioRessalva.trim()) return;
     const ok = await onComentar(comentarioRessalva, "aprovado_ressalva");
     if (ok) {
       setComentarioRessalva("");
-      await onUpdate({ etapa: "triagem_inicial_comite" });
+      await onUpdate({ etapa: "triagem_inicial" });
     }
   };
 
@@ -33,28 +27,17 @@ export function HomologacaoUsuarioPanel({ card, papeis, userId, convidados, onUp
     const ok = await onComentar(comentarioReprovacao, "reprovado");
     if (ok) {
       setComentarioReprovacao("");
-      await onUpdate({ etapa: "desenvolvimento_ajustes" });
+      await onUpdate({ etapa: "desenvolvimento" });
     }
   };
 
   return (
     <div className="space-y-4">
-      {(!!userId && (userId === card.criado_por || convidados.some((c) => c.user_id === userId))) && (
-        expirado ? (
-          <div className="flex items-center gap-2 rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            O prazo para tomar uma ação neste card expirou no dia {prazoFmt}.
-          </div>
-        ) : (
-          <p className="text-[11px] text-muted-foreground">Você tem até {prazoFmt} pra tomar uma ação neste card.</p>
-        )
-      )}
-
       <p className="text-sm text-muted-foreground">
         Quem criou, foi convidado, ou Controladoria pode aprovar, aprovar com ressalva ou reprovar.
       </p>
 
-      <Button className="gap-1.5" disabled={!souElegivel} onClick={() => onUpdate({ etapa: "treinamentos" })}>
+      <Button className="gap-1.5" disabled={!souElegivel} onClick={() => onUpdate({ etapa: "treinamento" })}>
         <Check className="h-3.5 w-3.5" /> Aprovar
       </Button>
 
@@ -85,6 +68,7 @@ export function HomologacaoUsuarioPanel({ card, papeis, userId, convidados, onUp
           <X className="h-3.5 w-3.5" /> Reprovar
         </Button>
       </div>
+      {!souElegivel && <p className="text-[11px] text-muted-foreground">Só quem criou, convidados, ou Controladoria agem nesta etapa.</p>}
     </div>
   );
 }

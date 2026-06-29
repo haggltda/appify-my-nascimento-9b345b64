@@ -5,14 +5,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, Paperclip } from "lucide-react";
 import type { EtapaPanelProps } from "./types";
 
-export function TreinamentosPanel({ card, papeis, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
+export function TreinamentoPanel({ card, papeis, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
   const [faltouFuncoes, setFaltouFuncoes] = useState("");
   const [encontradoBug, setEncontradoBug] = useState("");
   const [arquivos, setArquivos] = useState<File[]>([]);
-  const podeAgir = papeis.comite || papeis.controladoria;
+  const podeAgir = papeis.gerenteSistemas;
   const anexosTreinamento = anexos.filter((a) => a.campo === "treinamento");
-
-  const algumPreenchido = !!faltouFuncoes.trim() || !!encontradoBug.trim();
 
   const enviarAnexos = async () => {
     const pendentes = arquivos;
@@ -20,14 +18,16 @@ export function TreinamentosPanel({ card, papeis, anexos, onUpdate, onComentar, 
     for (const f of pendentes) await onAnexar(f, "treinamento");
   };
 
-  const salvar = async () => {
-    if (faltouFuncoes.trim()) {
-      const ok = await onComentar(faltouFuncoes, "faltou_funcoes");
-      if (ok) { setFaltouFuncoes(""); await onUpdate({ etapa: "triagem_inicial_comite" }); }
-    } else if (encontradoBug.trim()) {
-      const ok = await onComentar(encontradoBug, "encontrado_bug");
-      if (ok) { setEncontradoBug(""); await onUpdate({ etapa: "desenvolvimento_ajustes" }); }
-    }
+  const salvarFaltouFuncoes = async () => {
+    if (!faltouFuncoes.trim()) return;
+    const ok = await onComentar(faltouFuncoes, "faltou_funcoes");
+    if (ok) setFaltouFuncoes("");
+  };
+
+  const salvarEncontradoBug = async () => {
+    if (!encontradoBug.trim()) return;
+    const ok = await onComentar(encontradoBug, "encontrado_bug");
+    if (ok) setEncontradoBug("");
   };
 
   return (
@@ -72,34 +72,32 @@ export function TreinamentosPanel({ card, papeis, anexos, onUpdate, onComentar, 
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Faltou alguma funcionalidade? Explique!</p>
         <Textarea
           value={faltouFuncoes}
-          disabled={!podeAgir || !!encontradoBug.trim()}
+          disabled={!podeAgir}
           onChange={(e) => setFaltouFuncoes(e.target.value)}
           className="text-xs"
         />
+        <Button size="sm" variant="outline" disabled={!podeAgir || !faltouFuncoes.trim()} onClick={salvarFaltouFuncoes}>
+          Salvar comentário
+        </Button>
       </div>
 
       <div className="space-y-2 rounded-md border border-border p-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Existe algum bug? Explique!</p>
         <Textarea
           value={encontradoBug}
-          disabled={!podeAgir || !!faltouFuncoes.trim()}
+          disabled={!podeAgir}
           onChange={(e) => setEncontradoBug(e.target.value)}
           className="text-xs"
         />
+        <Button size="sm" variant="outline" disabled={!podeAgir || !encontradoBug.trim()} onClick={salvarEncontradoBug}>
+          Salvar comentário
+        </Button>
       </div>
 
-      <div className="flex gap-2">
-        {algumPreenchido ? (
-          <Button className="gap-1.5" disabled={!podeAgir} onClick={salvar}>
-            Salvar
-          </Button>
-        ) : (
-          <Button className="gap-1.5" disabled={!podeAgir} onClick={() => onUpdate({ etapa: "implantacao" })}>
-            <ArrowRight className="h-3.5 w-3.5" /> Avançar para Implantação
-          </Button>
-        )}
-      </div>
-      {!podeAgir && <p className="text-[11px] text-muted-foreground">Só Comitê ou Controladoria agem nesta etapa.</p>}
+      <Button className="gap-1.5" disabled={!podeAgir} onClick={() => onUpdate({ etapa: "implantacao" })}>
+        <ArrowRight className="h-3.5 w-3.5" /> Avançar para Implantação
+      </Button>
+      {!podeAgir && <p className="text-[11px] text-muted-foreground">Só o Gerente de Sistemas age nesta etapa.</p>}
     </div>
   );
 }

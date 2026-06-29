@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Paperclip } from "lucide-react";
-import type { Anexo, EtapaPanelProps } from "./types";
+import { Paperclip } from "lucide-react";
+import type { Anexo } from "./types";
 
-function CampoComAnexo({
+export function CampoComAnexo({
   titulo, campo, texto, prazo, podeEditar, anexos, onSalvarTexto, onSalvarPrazo, onAnexar, onDownloadAnexo,
 }: {
   titulo: string;
@@ -71,58 +71,6 @@ function CampoComAnexo({
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-export function ProjetoPanel({ card, papeis, anexos, onUpdate, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
-  const podeEditar = papeis.comite || papeis.desenvolvedores;
-  const podeAprovar = papeis.controladoria;
-
-  return (
-    <div className="space-y-3">
-      <CampoComAnexo
-        titulo="Levantamento Funcional"
-        campo="levantamento_funcional"
-        texto={card.levantamento_funcional_texto}
-        prazo={card.levantamento_funcional_prazo}
-        podeEditar={podeEditar}
-        anexos={anexos}
-        onSalvarTexto={(v) => onUpdate({ levantamento_funcional_texto: v })}
-        onSalvarPrazo={(v) => onUpdate({ levantamento_funcional_prazo: v || null })}
-        onAnexar={(f) => onAnexar(f, "levantamento_funcional")}
-        onDownloadAnexo={onDownloadAnexo}
-      />
-      <CampoComAnexo
-        titulo="Documentação Técnica"
-        campo="documentacao_tecnica"
-        texto={card.documentacao_tecnica_texto}
-        prazo={card.documentacao_tecnica_prazo}
-        podeEditar={podeEditar}
-        anexos={anexos}
-        onSalvarTexto={(v) => onUpdate({ documentacao_tecnica_texto: v })}
-        onSalvarPrazo={(v) => onUpdate({ documentacao_tecnica_prazo: v || null })}
-        onAnexar={(f) => onAnexar(f, "documentacao_tecnica")}
-        onDownloadAnexo={onDownloadAnexo}
-      />
-      <CampoComAnexo
-        titulo="Análise Técnica"
-        campo="analise_tecnica"
-        texto={card.analise_tecnica_texto}
-        prazo={card.analise_tecnica_prazo}
-        podeEditar={podeEditar}
-        anexos={anexos}
-        onSalvarTexto={(v) => onUpdate({ analise_tecnica_texto: v })}
-        onSalvarPrazo={(v) => onUpdate({ analise_tecnica_prazo: v || null })}
-        onAnexar={(f) => onAnexar(f, "analise_tecnica")}
-        onDownloadAnexo={onDownloadAnexo}
-      />
-
-      <Button className="gap-1.5" disabled={!podeAprovar} onClick={() => onUpdate({ etapa: "aprovacoes_priorizacao" })}>
-        <ArrowRight className="h-3.5 w-3.5" /> Avançar para Aprovações e Priorização
-      </Button>
-      {!podeEditar && <p className="text-[11px] text-muted-foreground">Só Comitê ou Desenvolvedores editam os campos desta etapa.</p>}
-      {!podeAprovar && <p className="text-[11px] text-muted-foreground">Só Controladoria pode aprovar e avançar esta etapa.</p>}
     </div>
   );
 }
