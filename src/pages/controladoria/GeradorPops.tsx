@@ -629,7 +629,16 @@ function parseExcel(file: File): Promise<PopItem[]> {
           responsavel: String(r[5] || ""), classificacao: String(r[6] || ""),
           backup: String(r[8] || ""), recurso: String(r[9] || ""),
           criticidade: String(r[10] || ""), depProcesso: String(r[12] || ""),
-          depArea: String(r[13] || ""), tempoExec: String(r[14] || ""),
+          depArea: String(r[13] || ""), tempoExec: (() => {
+            const v = r[14];
+            if (typeof v === "number" && v > 0 && v < 1) {
+              const totalMin = Math.round(v * 24 * 60);
+              const h = Math.floor(totalMin / 60);
+              const m = totalMin % 60;
+              return `${h}:${String(m).padStart(2, "0")}`;
+            }
+            return String(v || "");
+          })(),
           descDetalhada: String(r[15] || ""), processo: String(r[16] || ""),
           id: gerarId(String(r[1] || ""), String(r[2] || "")),
           gerado: false, selected: false, tipo: "PRÉVIA",
