@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 
+export type JustificativaEntry = {
+  ts: string;
+  usuario: string;
+  texto: string;
+};
+
 export type PlanilhaCustoRow = {
   id: string;
   empresa_id: string;
@@ -109,6 +115,7 @@ export type PlanilhaCustoRow = {
   total_por_empregado: number;
   encerrado: boolean;
   data_encerramento: string | null;
+  justificativa_divergencia: JustificativaEntry[];
   created_at: string;
   updated_at: string;
 };
@@ -195,6 +202,43 @@ export function useEncerrarContrato() {
         .from("planilha_custo")
         .update({ encerrado: true, data_encerramento, updated_at: new Date().toISOString() })
         .eq("contrato", contrato);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["planilha_custo"] }),
+  });
+}
+
+export function useSalvarJustificativaDivergencia() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      contrato,
+      texto,
+      rowsDoContrato,
+    }: {
+      contrato: string;
+      texto: string;
+      rowsDoContrato: PlanilhaCustoRow[];
+    }) => {
+      const { data: authData } = await supabase.auth.getUser();
+      const { data: profile } = authData?.user
+        ? await (supabase as any).from("profiles").select("display_name, email").eq("id", authData.user.id).maybeSingle()
+        : { data: null };
+      const usuario = profile?.display_name || profile?.email || authData?.user?.email || "—";
+
+      const existing: JustificativaEntry[] = rowsDoContrato[0]?.justificativa_divergencia ?? [];
+      const nova: JustificativaEntry = {
+        ts: new Date().toLocaleString("pt-BR"),
+        usuario,
+        texto,
+      };
+      const atualizado = [...existing, nova];
+
+      const ids = rowsDoContrato.map((r) => r.id);
+      const { error } = await (supabase as any)
+        .from("planilha_custo")
+        .update({ justificativa_divergencia: atualizado, updated_at: new Date().toISOString() })
+        .in("id", ids);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["planilha_custo"] }),
