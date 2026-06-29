@@ -13,35 +13,50 @@
 --     nominais só pode ser marcada pela própria pessoa vinculada (não mais
 --     qualquer um do Comitê).
 --   - Nova aba "Assinaturas" (tabela isolada, sem relação com o `etapa`).
+--
+-- ORDEM IMPORTANTE: o editor SQL do Supabase não garante que o script inteiro
+-- rode como uma transação só (statements já vimos comitarem isoladamente) —
+-- então, ao invés de confiar em ordem/flag de sessão, a primeira coisa que
+-- este script faz é DESLIGAR o trigger de transição (ALTER TABLE ... DISABLE
+-- TRIGGER), independente do que ele contém hoje. Com o trigger desligado, o
+-- remapeamento de dados (seção 4) roda sem qualquer checagem, e só DEPOIS o
+-- trigger é religado já com o corpo novo (substituído na seção 3).
 
 -- ============================================================================
--- 1) Migra os dados existentes ANTES de trocar o CHECK de etapa
+-- 0) Desliga TODOS os triggers de sistema_solicitacao antes de tocar em
+--    qualquer dado/coluna — não é só o de transição: o de log
+--    (trg_log_sistema_solicitacao) e o de reajuste de prioridade
+--    (trg_reajustar_prioridade_sistema_solicitacao) também rodam em UPDATE e
+--    citam as colunas antigas (homologacao_aprov_1/2/3) até serem
+--    substituídos nas seções 7/8 — sem desligar esses dois também, o mesmo
+--    erro de "campo não existe" acontece neles.
 -- ============================================================================
--- "projeto" não tinha obrigatoriedade de preencher os 3 sub-campos antes de
--- avançar — não dá pra saber em qual das 4 colunas novas cada card "deveria"
--- estar, então todos vão pra primeira (Análise de Necessidade), o ponto mais
--- seguro pra continuar o fluxo sem pular etapa.
-UPDATE public.sistema_solicitacao SET etapa = 'solicitacao_demanda' WHERE etapa = 'registro_oficial';
-UPDATE public.sistema_solicitacao SET etapa = 'triagem_inicial' WHERE etapa = 'triagem_inicial_comite';
-UPDATE public.sistema_solicitacao SET etapa = 'analise_necessidade' WHERE etapa = 'projeto';
-UPDATE public.sistema_solicitacao SET etapa = 'aprovacao_priorizacao' WHERE etapa IN ('aprovacoes_priorizacao', 'definicao_responsavel');
-UPDATE public.sistema_solicitacao SET etapa = 'desenvolvimento' WHERE etapa = 'desenvolvimento_ajustes';
-UPDATE public.sistema_solicitacao SET etapa = 'testes_internos' WHERE etapa = 'homologacao_tecnica';
-UPDATE public.sistema_solicitacao SET etapa = 'homologacao_area_solicitante' WHERE etapa = 'homologacao_usuario';
-UPDATE public.sistema_solicitacao SET etapa = 'treinamento' WHERE etapa = 'treinamentos';
--- implantacao, acompanhamento_assistido, encerramento mantêm a mesma chave.
+ALTER TABLE public.sistema_solicitacao DISABLE TRIGGER trg_checar_transicao_sistema_solicitacao;
+ALTER TABLE public.sistema_solicitacao DISABLE TRIGGER trg_log_sistema_solicitacao;
+ALTER TABLE public.sistema_solicitacao DISABLE TRIGGER trg_reajustar_prioridade_sistema_solicitacao;
 
 -- ============================================================================
--- 2) Colunas novas
+-- 1) Colunas novas
 -- ============================================================================
 ALTER TABLE public.sistema_solicitacao
   ADD COLUMN IF NOT EXISTS analise_necessidade_texto text,
   ADD COLUMN IF NOT EXISTS analise_necessidade_prazo date,
   ADD COLUMN IF NOT EXISTS criterio_triagem text;
 
-ALTER TABLE public.sistema_solicitacao RENAME COLUMN homologacao_aprov_1 TO testes_interno_aprov_1;
-ALTER TABLE public.sistema_solicitacao RENAME COLUMN homologacao_aprov_2 TO testes_interno_aprov_2;
-ALTER TABLE public.sistema_solicitacao RENAME COLUMN homologacao_aprov_3 TO testes_interno_aprov_3;
+-- Renomeia só se a coluna antiga ainda existir — torna seguro rodar este
+-- script de novo mesmo se uma tentativa anterior já tiver renomeado.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'sistema_solicitacao' AND column_name = 'homologacao_aprov_1') THEN
+    ALTER TABLE public.sistema_solicitacao RENAME COLUMN homologacao_aprov_1 TO testes_interno_aprov_1;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'sistema_solicitacao' AND column_name = 'homologacao_aprov_2') THEN
+    ALTER TABLE public.sistema_solicitacao RENAME COLUMN homologacao_aprov_2 TO testes_interno_aprov_2;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'sistema_solicitacao' AND column_name = 'homologacao_aprov_3') THEN
+    ALTER TABLE public.sistema_solicitacao RENAME COLUMN homologacao_aprov_3 TO testes_interno_aprov_3;
+  END IF;
+END $$;
 
 ALTER TABLE public.sistema_solicitacao DROP CONSTRAINT IF EXISTS sistema_solicitacao_criterio_triagem_check;
 ALTER TABLE public.sistema_solicitacao ADD CONSTRAINT sistema_solicitacao_criterio_triagem_check
@@ -62,36 +77,13 @@ UPDATE public.sistema_solicitacao
 
 ALTER TABLE public.sistema_solicitacao VALIDATE CONSTRAINT sistema_solicitacao_grau_urgencia_check;
 
--- ============================================================================
--- 3) CHECK de etapa com as 14 chaves novas
--- ============================================================================
-ALTER TABLE public.sistema_solicitacao ALTER COLUMN etapa SET DEFAULT 'solicitacao_demanda';
-
+-- Solta o CHECK antigo de etapa agora — ele só conhece as 12 chaves antigas e
+-- bloquearia o remapeamento de dados feito na seção 4. O CHECK definitivo com
+-- as 14 chaves novas entra na seção 5, depois que os dados já migraram.
 ALTER TABLE public.sistema_solicitacao DROP CONSTRAINT IF EXISTS sistema_solicitacao_etapa_check;
-ALTER TABLE public.sistema_solicitacao ADD CONSTRAINT sistema_solicitacao_etapa_check CHECK (etapa IN (
-  'solicitacao_demanda',
-  'triagem_inicial',
-  'analise_necessidade',
-  'levantamento_funcional',
-  'documentacao_funcional',
-  'analise_tecnica',
-  'aprovacao_priorizacao',
-  'desenvolvimento',
-  'testes_internos',
-  'homologacao_area_solicitante',
-  'treinamento',
-  'implantacao',
-  'acompanhamento_assistido',
-  'encerramento'
-));
-
-DROP INDEX IF EXISTS idx_sistema_solicitacao_prioridade_unica;
-CREATE UNIQUE INDEX idx_sistema_solicitacao_prioridade_unica
-  ON public.sistema_solicitacao (prioridade)
-  WHERE etapa = 'aprovacao_priorizacao';
 
 -- ============================================================================
--- 4) Dias úteis: função utilitária + prazo configurado por etapa
+-- 2) Funções auxiliares (precisam existir antes do trigger principal, que as chama)
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.dias_uteis_entre(p_inicio timestamptz, p_fim timestamptz)
 RETURNS integer
@@ -150,9 +142,7 @@ $$;
 REVOKE ALL ON FUNCTION public.sistema_corrigir_prazos_vencidos() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.sistema_corrigir_prazos_vencidos() TO authenticated;
 
--- ============================================================================
--- 5) Testes Internos: cada aprovação só pela pessoa vinculada (3 pessoas fixas)
--- ============================================================================
+-- Testes Internos: cada aprovação só pela pessoa vinculada (3 pessoas fixas).
 -- Resolve o user_id pelo nome (excluindo contas de teste/duplicadas, mesmo
 -- cuidado já usado em outras buscas por nome neste projeto).
 CREATE OR REPLACE FUNCTION public.testes_interno_aprovador_user_id(p_slot integer)
@@ -187,63 +177,7 @@ REVOKE ALL ON FUNCTION public.listar_aprovadores_testes_internos() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.listar_aprovadores_testes_internos() TO authenticated;
 
 -- ============================================================================
--- 6) RLS / triggers que citavam etapas antigas por nome
--- ============================================================================
-DROP POLICY IF EXISTS sistema_solicitacao_insert ON public.sistema_solicitacao;
-CREATE POLICY sistema_solicitacao_insert ON public.sistema_solicitacao
-  FOR INSERT TO authenticated
-  WITH CHECK (
-    etapa = 'solicitacao_demanda'
-    AND criado_por = auth.uid()
-    AND public.tem_acesso_menu('sistemas_criar_solicitacao')
-  );
-
--- Generaliza: recusado pode acontecer em mais de uma etapa agora (ver trigger
--- de transição), então o DELETE não fica mais travado numa etapa específica.
-DROP POLICY IF EXISTS sistema_solicitacao_delete ON public.sistema_solicitacao;
-CREATE POLICY sistema_solicitacao_delete ON public.sistema_solicitacao
-  FOR DELETE TO authenticated
-  USING (recusado = true AND public.tem_acesso_menu('sistemas_controladoria'));
-
-DROP POLICY IF EXISTS sistema_solicitacao_convidado_delete ON public.sistema_solicitacao_convidado;
-CREATE POLICY sistema_solicitacao_convidado_delete ON public.sistema_solicitacao_convidado
-  FOR DELETE TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.sistema_solicitacao s
-       WHERE s.id = solicitacao_id AND s.criado_por = auth.uid() AND s.etapa = 'solicitacao_demanda'
-    )
-  );
-
-CREATE OR REPLACE FUNCTION public.checar_convidado_sistema_solicitacao()
-RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
-AS $$
-DECLARE
-  v_etapa text;
-  v_criado_por uuid;
-BEGIN
-  SELECT etapa, criado_por INTO v_etapa, v_criado_por
-    FROM public.sistema_solicitacao WHERE id = NEW.solicitacao_id;
-
-  IF v_criado_por IS DISTINCT FROM auth.uid() OR v_etapa <> 'solicitacao_demanda' THEN
-    RAISE EXCEPTION 'Convidado só pode ser adicionado pelo criador, enquanto o card está em "Solicitação da Demanda".';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM public.screen_permission_user
-     WHERE user_id = NEW.user_id AND menu_codigo = 'sistemas_convidado'
-       AND acao = 'visualizar' AND allow = true AND empresa_id IS NULL
-  ) THEN
-    RAISE EXCEPTION 'O usuário selecionado não tem a permissão de Convidado habilitada.';
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
--- ============================================================================
--- 7) Trigger principal: reescrito do zero pras 14 etapas
+-- 3) Trigger principal: reescrito do zero pras 14 etapas
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.checar_transicao_sistema_solicitacao()
 RETURNS trigger
@@ -255,7 +189,8 @@ BEGIN
   -- Bypass: usado só pela correção automática de prazo vencido
   -- (sistema_corrigir_prazos_vencidos), que já recalculou o vencimento no
   -- servidor antes de chamar este UPDATE — não passa por nenhuma das
-  -- checagens de papel abaixo.
+  -- checagens de papel abaixo. (A migração de dados em si desliga o trigger
+  -- inteiro via DISABLE TRIGGER, não usa este flag.)
   IF current_setting('app.bypass_etapa_check', true) = 'true' THEN
     NEW.etapa_entrada_em := now();
     IF OLD.etapa = 'aprovacao_priorizacao' THEN
@@ -522,7 +457,106 @@ END;
 $$;
 
 -- ============================================================================
--- 8) Reajuste de prioridade (AFTER trigger) — só a chave de etapa muda
+-- 4) Migra os dados existentes (trigger desligado desde a secao 0)
+-- ============================================================================
+UPDATE public.sistema_solicitacao SET etapa = 'solicitacao_demanda' WHERE etapa = 'registro_oficial';
+UPDATE public.sistema_solicitacao SET etapa = 'triagem_inicial' WHERE etapa = 'triagem_inicial_comite';
+UPDATE public.sistema_solicitacao SET etapa = 'analise_necessidade' WHERE etapa = 'projeto';
+UPDATE public.sistema_solicitacao SET etapa = 'aprovacao_priorizacao' WHERE etapa IN ('aprovacoes_priorizacao', 'definicao_responsavel');
+UPDATE public.sistema_solicitacao SET etapa = 'desenvolvimento' WHERE etapa = 'desenvolvimento_ajustes';
+UPDATE public.sistema_solicitacao SET etapa = 'testes_internos' WHERE etapa = 'homologacao_tecnica';
+UPDATE public.sistema_solicitacao SET etapa = 'homologacao_area_solicitante' WHERE etapa = 'homologacao_usuario';
+UPDATE public.sistema_solicitacao SET etapa = 'treinamento' WHERE etapa = 'treinamentos';
+-- implantacao, acompanhamento_assistido, encerramento mantêm a mesma chave.
+-- Os 3 triggers só são religados no final do script (seção 10), depois que
+-- log_sistema_solicitacao() e reajustar_prioridade_sistema_solicitacao()
+-- também já tiverem sido substituídas (seções 7 e 8).
+
+-- ============================================================================
+-- 5) CHECK de etapa com as 14 chaves novas (só agora, com os dados já migrados)
+-- ============================================================================
+ALTER TABLE public.sistema_solicitacao ALTER COLUMN etapa SET DEFAULT 'solicitacao_demanda';
+
+ALTER TABLE public.sistema_solicitacao ADD CONSTRAINT sistema_solicitacao_etapa_check CHECK (etapa IN (
+  'solicitacao_demanda',
+  'triagem_inicial',
+  'analise_necessidade',
+  'levantamento_funcional',
+  'documentacao_funcional',
+  'analise_tecnica',
+  'aprovacao_priorizacao',
+  'desenvolvimento',
+  'testes_internos',
+  'homologacao_area_solicitante',
+  'treinamento',
+  'implantacao',
+  'acompanhamento_assistido',
+  'encerramento'
+));
+
+DROP INDEX IF EXISTS idx_sistema_solicitacao_prioridade_unica;
+CREATE UNIQUE INDEX idx_sistema_solicitacao_prioridade_unica
+  ON public.sistema_solicitacao (prioridade)
+  WHERE etapa = 'aprovacao_priorizacao';
+
+-- ============================================================================
+-- 6) RLS / triggers que citavam etapas antigas por nome
+-- ============================================================================
+DROP POLICY IF EXISTS sistema_solicitacao_insert ON public.sistema_solicitacao;
+CREATE POLICY sistema_solicitacao_insert ON public.sistema_solicitacao
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    etapa = 'solicitacao_demanda'
+    AND criado_por = auth.uid()
+    AND public.tem_acesso_menu('sistemas_criar_solicitacao')
+  );
+
+-- Generaliza: recusado pode acontecer em mais de uma etapa agora (ver trigger
+-- de transição), então o DELETE não fica mais travado numa etapa específica.
+DROP POLICY IF EXISTS sistema_solicitacao_delete ON public.sistema_solicitacao;
+CREATE POLICY sistema_solicitacao_delete ON public.sistema_solicitacao
+  FOR DELETE TO authenticated
+  USING (recusado = true AND public.tem_acesso_menu('sistemas_controladoria'));
+
+DROP POLICY IF EXISTS sistema_solicitacao_convidado_delete ON public.sistema_solicitacao_convidado;
+CREATE POLICY sistema_solicitacao_convidado_delete ON public.sistema_solicitacao_convidado
+  FOR DELETE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.sistema_solicitacao s
+       WHERE s.id = solicitacao_id AND s.criado_por = auth.uid() AND s.etapa = 'solicitacao_demanda'
+    )
+  );
+
+CREATE OR REPLACE FUNCTION public.checar_convidado_sistema_solicitacao()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_etapa text;
+  v_criado_por uuid;
+BEGIN
+  SELECT etapa, criado_por INTO v_etapa, v_criado_por
+    FROM public.sistema_solicitacao WHERE id = NEW.solicitacao_id;
+
+  IF v_criado_por IS DISTINCT FROM auth.uid() OR v_etapa <> 'solicitacao_demanda' THEN
+    RAISE EXCEPTION 'Convidado só pode ser adicionado pelo criador, enquanto o card está em "Solicitação da Demanda".';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.screen_permission_user
+     WHERE user_id = NEW.user_id AND menu_codigo = 'sistemas_convidado'
+       AND acao = 'visualizar' AND allow = true AND empresa_id IS NULL
+  ) THEN
+    RAISE EXCEPTION 'O usuário selecionado não tem a permissão de Convidado habilitada.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- ============================================================================
+-- 7) Reajuste de prioridade (AFTER trigger) — só a chave de etapa muda
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.reajustar_prioridade_sistema_solicitacao()
 RETURNS trigger
@@ -550,7 +584,7 @@ END;
 $$;
 
 -- ============================================================================
--- 9) Log de auditoria: novos campos
+-- 8) Log de auditoria: novos campos
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.log_sistema_solicitacao()
 RETURNS trigger
@@ -645,7 +679,7 @@ END;
 $$;
 
 -- ============================================================================
--- 10) Aba "Assinaturas" — tabela isolada, sem relação com o `etapa`
+-- 9) Aba "Assinaturas" — tabela isolada, sem relação com o `etapa`
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.sistema_solicitacao_assinatura (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -673,3 +707,12 @@ CREATE POLICY sistema_solicitacao_assinatura_insert ON public.sistema_solicitaca
     user_id = auth.uid()
     AND public.sistema_pode_ver((SELECT criado_por FROM public.sistema_solicitacao WHERE id = solicitacao_id), solicitacao_id)
   );
+
+-- ============================================================================
+-- 10) Religa os 3 triggers desligados na seção 0 — só agora, com TODOS os
+--     corpos de função (transição, log e reajuste de prioridade) já
+--     substituídos pelas versões novas.
+-- ============================================================================
+ALTER TABLE public.sistema_solicitacao ENABLE TRIGGER trg_checar_transicao_sistema_solicitacao;
+ALTER TABLE public.sistema_solicitacao ENABLE TRIGGER trg_log_sistema_solicitacao;
+ALTER TABLE public.sistema_solicitacao ENABLE TRIGGER trg_reajustar_prioridade_sistema_solicitacao;
