@@ -10,6 +10,9 @@ export interface Solicitacao {
   data_inicio: string | null;
   data_fim: string | null;
   status_desenvolvimento: string | null;
+  criterio_triagem: string | null;
+  analise_necessidade_texto: string | null;
+  analise_necessidade_prazo: string | null;
   levantamento_funcional_texto: string | null;
   levantamento_funcional_prazo: string | null;
   documentacao_tecnica_texto: string | null;
@@ -19,9 +22,9 @@ export interface Solicitacao {
   treinamento_data: string | null;
   implantacao_status: string | null;
   finalizado: boolean;
-  homologacao_aprov_1: boolean;
-  homologacao_aprov_2: boolean;
-  homologacao_aprov_3: boolean;
+  testes_interno_aprov_1: boolean;
+  testes_interno_aprov_2: boolean;
+  testes_interno_aprov_3: boolean;
   complexidade: string | null;
   objetivo_solicitacao: string | null;
   problema_atual: string | null;
@@ -68,6 +71,20 @@ export interface Usuario {
   display_name: string;
 }
 
+export interface Assinatura {
+  id: string;
+  user_id: string;
+  etapa: string;
+  assinatura_png: string;
+  created_at: string;
+}
+
+export interface AprovadorTesteInterno {
+  slot: number;
+  user_id: string | null;
+  display_name: string | null;
+}
+
 export interface Papeis {
   comite: boolean;
   controladoria: boolean;
@@ -78,41 +95,69 @@ export interface Papeis {
   verTodas: boolean;
 }
 
+// 14 etapas (reestruturação pedida pelo CEO — ver KANBAN CARDS.xlsx). "Projeto"
+// virou 4 colunas independentes; "Aprovações e Priorização" + "Definição de
+// Responsável" virou 1 coluna só.
 export const ETAPAS: Array<{ key: string; label: string }> = [
-  { key: "registro_oficial", label: "Solicitações Registro Oficial" },
-  { key: "triagem_inicial_comite", label: "Triagem Inicial - Comitê" },
-  { key: "projeto", label: "Projeto" },
-  { key: "aprovacoes_priorizacao", label: "Aprovações e Priorização" },
-  { key: "definicao_responsavel", label: "Definição de Responsável" },
-  { key: "desenvolvimento_ajustes", label: "Desenvolvimento e Ajustes" },
-  { key: "homologacao_tecnica", label: "Homologação Técnica" },
-  { key: "homologacao_usuario", label: "Homologação do Usuário" },
-  { key: "treinamentos", label: "Treinamentos" },
+  { key: "solicitacao_demanda", label: "Solicitação da Demanda" },
+  { key: "triagem_inicial", label: "Triagem Inicial" },
+  { key: "analise_necessidade", label: "Análise de Necessidade" },
+  { key: "levantamento_funcional", label: "Levantamento Funcional" },
+  { key: "documentacao_funcional", label: "Documentação Funcional" },
+  { key: "analise_tecnica", label: "Análise Técnica" },
+  { key: "aprovacao_priorizacao", label: "Aprovação e Priorização" },
+  { key: "desenvolvimento", label: "Desenvolvimento" },
+  { key: "testes_internos", label: "Testes Internos" },
+  { key: "homologacao_area_solicitante", label: "Homologação da Área Solicitante" },
+  { key: "treinamento", label: "Treinamento" },
   { key: "implantacao", label: "Implantação" },
   { key: "acompanhamento_assistido", label: "Acompanhamento Assistido" },
   { key: "encerramento", label: "Encerramento" },
 ];
 
-// Aprovações nominais da Homologação Técnica — nomes só aqui (front-end), as colunas
-// no banco (homologacao_aprov_1/2/3) são genéricas pra não acoplar schema a pessoas.
-export const APROVACOES_HOMOLOGACAO_TECNICA: Record<"homologacao_aprov_1" | "homologacao_aprov_2" | "homologacao_aprov_3", string> = {
-  homologacao_aprov_1: "Érica Souza Ávila",
-  homologacao_aprov_2: "Yuri Rosa",
-  homologacao_aprov_3: "Iury de Jesus Silva",
+// Prazo normal em dias úteis por etapa (espelha public.prazo_dias_uteis_etapa
+// no banco) — etapas ausentes daqui não têm prazo. Usado só pro badge visual;
+// quem decide de verdade se o prazo venceu é o servidor.
+export const PRAZO_DIAS_UTEIS: Record<string, number> = {
+  triagem_inicial: 2,
+  analise_necessidade: 5,
+  levantamento_funcional: 10,
+  documentacao_funcional: 5,
+  analise_tecnica: 5,
+  testes_internos: 3,
+  homologacao_area_solicitante: 5,
+  treinamento: 5,
+  acompanhamento_assistido: 10,
 };
 
-// 15 campos de justificativa de negócio exigidos na abertura da solicitação —
-// todos com o mesmo formato (título + comentário com placeholder), sem select.
-// 6 campos de texto da abertura — o 7º campo ("Tipo da Solicitação") é um
-// dropdown fixo (TIPO_SOLICITACAO_LABEL), não entra nessa lista.
+export const DIAS_UTEIS_PRORROGACAO = 2;
+
+// Aprovações nominais dos Testes Internos — nomes só aqui (front-end), as
+// colunas no banco (testes_interno_aprov_1/2/3) são genéricas pra não acoplar
+// schema a pessoas. Cada slot só pode ser marcado pela própria pessoa vinculada
+// (ver public.testes_interno_aprovador_user_id no banco).
+export const APROVACOES_TESTES_INTERNOS: Record<"testes_interno_aprov_1" | "testes_interno_aprov_2" | "testes_interno_aprov_3", string> = {
+  testes_interno_aprov_1: "Érica Souza Ávila",
+  testes_interno_aprov_2: "Yuri Rosa",
+  testes_interno_aprov_3: "Iury de Jesus Silva",
+};
+
+// 6 campos de texto da abertura — "Tipo da Solicitação" e "Grau de Urgência"
+// são dropdowns fixos (TIPO_SOLICITACAO_LABEL / GRAU_URGENCIA_LABEL), não
+// entram nessa lista.
 export const CAMPOS_ABERTURA: Array<{ key: keyof Solicitacao; label: string; placeholder: string }> = [
   { key: "objetivo_solicitacao", label: "Objetivo da solicitação", placeholder: "Qual é o objetivo desta solicitação?" },
   { key: "problema_atual", label: "Problema atual", placeholder: "Descreva o problema que motivou esta solicitação." },
   { key: "justificativa", label: "Justificativa", placeholder: "Por que esta solicitação é necessária?" },
   { key: "beneficio_esperado", label: "Benefício esperado", placeholder: "Que benefício esta solicitação trará?" },
   { key: "impacto_operacional", label: "Impacto operacional", placeholder: "Qual o impacto na operação?" },
-  { key: "grau_urgencia", label: "Grau de urgência", placeholder: "Qual o grau de urgência desta solicitação?" },
 ];
+
+export const GRAU_URGENCIA_LABEL: Record<string, string> = {
+  baixa: "Baixa",
+  media: "Média",
+  alta: "Alta",
+};
 
 export const TIPO_SOLICITACAO_LABEL: Record<string, string> = {
   correcao: "Correção",
@@ -122,6 +167,13 @@ export const TIPO_SOLICITACAO_LABEL: Record<string, string> = {
   relatorio: "Relatório",
   automacao: "Automação",
   alteracao_legal: "Alteração Legal",
+};
+
+export const CRITERIO_TRIAGEM_LABEL: Record<string, string> = {
+  falha_processo: "Falha no Processo",
+  necessidade_treinamento: "Necessidade de Treinamento",
+  possibilidade_parametrizacao: "Possibilidade de Parametrização",
+  necessidade_desenvolvimento: "Necessidade de Desenvolvimento",
 };
 
 export const COMPLEXIDADE_LABEL: Record<string, string> = {
@@ -195,6 +247,8 @@ export const TIPO_COMENTARIO_LABEL: Record<string, string> = {
   encontrado_bug: "Bug encontrado",
   implantacao_comentario: "Comentário de implantação",
   encerramento_comentario: "Comentário de conclusão",
+  interromper_desenvolvimento: "Interrupção do desenvolvimento",
+  erro_documental: "Erro documental",
 };
 
 export const TIPO_COMENTARIO_BORDA: Record<string, string> = {
@@ -205,6 +259,8 @@ export const TIPO_COMENTARIO_BORDA: Record<string, string> = {
   encontrado_bug: "border-l-destructive",
   implantacao_comentario: "border-l-muted-foreground",
   encerramento_comentario: "border-l-success",
+  interromper_desenvolvimento: "border-l-destructive",
+  erro_documental: "border-l-warning",
 };
 
 export function nomeUsuario(usuarios: Usuario[], id: string | null): string | null {
@@ -221,6 +277,41 @@ export function fmtData(data: string | null): string | null {
   return `${dia}/${mes}/${ano}`;
 }
 
+// Conta dias úteis (seg-sex) entre 2 datas — espelha public.dias_uteis_entre no
+// banco. Só pra exibição; quem decide de verdade é o servidor.
+export function diasUteisEntre(inicio: Date, fim: Date): number {
+  let dias = 0;
+  const d = new Date(inicio);
+  d.setHours(0, 0, 0, 0);
+  const limite = new Date(fim);
+  limite.setHours(0, 0, 0, 0);
+  while (d < limite) {
+    d.setDate(d.getDate() + 1);
+    const diaSemana = d.getDay();
+    if (diaSemana !== 0 && diaSemana !== 6) dias++;
+  }
+  return dias;
+}
+
+export interface StatusPrazo {
+  temPrazo: boolean;
+  prorrogado: boolean;
+  expirado: boolean;
+  diasUteisRestantes: number;
+}
+
+// Calcula o status do prazo (normal / em prorrogação / expirado) de uma etapa,
+// a partir de quando o card entrou nela.
+export function statusPrazoEtapa(etapaKey: string, etapaEntradaEm: string): StatusPrazo {
+  const prazo = PRAZO_DIAS_UTEIS[etapaKey];
+  if (!prazo) return { temPrazo: false, prorrogado: false, expirado: false, diasUteisRestantes: 0 };
+  const passados = diasUteisEntre(new Date(etapaEntradaEm), new Date());
+  const prorrogado = passados > prazo;
+  const expirado = passados > prazo + DIAS_UTEIS_PRORROGACAO;
+  const limite = prorrogado ? prazo + DIAS_UTEIS_PRORROGACAO : prazo;
+  return { temPrazo: true, prorrogado, expirado, diasUteisRestantes: limite - passados };
+}
+
 export interface EtapaPanelProps {
   card: Solicitacao;
   papeis: Papeis;
@@ -232,6 +323,7 @@ export interface EtapaPanelProps {
   convidados: Convidado[];
   totalNaColuna: number;
   prioridadesUsadas: number[];
+  aprovadoresTestesInternos: AprovadorTesteInterno[];
   /** Atualiza colunas da própria solicitação (etapa, campos, flags) — já passa pelas regras do trigger no banco. */
   onUpdate: (patch: Record<string, unknown>) => Promise<boolean>;
   onComentar: (texto: string, tipo?: string) => Promise<boolean>;
