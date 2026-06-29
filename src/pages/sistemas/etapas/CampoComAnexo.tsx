@@ -57,11 +57,11 @@ export function CampoComAnexo({
         ))}
       </div>
       {podeEditar && (
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Input
             type="file"
             multiple
-            className="h-8 flex-1 cursor-pointer text-[11px]"
+            className="h-8 min-w-0 flex-1 cursor-pointer text-[11px]"
             onChange={(e) => setArquivos(Array.from(e.target.files ?? []))}
           />
           {arquivos.length > 0 && (
