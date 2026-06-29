@@ -1,87 +1,70 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import jsPDF from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { FileDown, Eraser, PenLine } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { CheckCircle2, FileDown } from "lucide-react";
 import { ETAPAS, nomeUsuario, type Assinatura, type Usuario } from "./types";
 
-const ETAPA_LABEL: Record<string, string> = Object.fromEntries(ETAPAS.map((e) => [e.key, e.label]));
+const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
-function CanvasAssinatura({ onSalvar }: { onSalvar: (png: string) => Promise<void> }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const desenhando = useRef(false);
-  const vazio = useRef(true);
+function fmtDataHora(iso: string): string {
+  const d = new Date(iso);
+  const dia = String(d.getDate()).padStart(2, "0");
+  const mes = MESES_ABREV[d.getMonth()];
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return `${dia} ${mes} ${d.getFullYear()} às ${hora}`;
+}
+
+const FONTE_ASSINATURA = "'Dancing Script', cursive";
+
+// Renderiza o nome digitado num canvas em letra cursiva/emendada (uma vez,
+// não é desenho à mão) e devolve o PNG em base64.
+async function gerarPngAssinatura(nome: string): Promise<string> {
+  await document.fonts.load(`700 64px ${FONTE_ASSINATURA}`);
+  await document.fonts.ready;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 700;
+  canvas.height = 220;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#1e293b";
+  ctx.font = `700 72px ${FONTE_ASSINATURA}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(nome, canvas.width / 2, canvas.height / 2);
+  return canvas.toDataURL("image/png");
+}
+
+function AssinarForm({ nomePadrao, onSalvar }: { nomePadrao: string; onSalvar: (png: string) => Promise<void> }) {
+  const [nome, setNome] = useState(nomePadrao);
   const [salvando, setSalvando] = useState(false);
 
-  const pos = (e: React.MouseEvent | React.TouchEvent) => {
-    const canvas = canvasRef.current!;
-    const rect = canvas.getBoundingClientRect();
-    const ponto = "touches" in e ? e.touches[0] : e;
-    return { x: ponto.clientX - rect.left, y: ponto.clientY - rect.top };
-  };
-
-  const iniciar = (e: React.MouseEvent | React.TouchEvent) => {
-    desenhando.current = true;
-    const ctx = canvasRef.current!.getContext("2d")!;
-    const { x, y } = pos(e);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  };
-
-  const desenhar = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!desenhando.current) return;
-    e.preventDefault();
-    const ctx = canvasRef.current!.getContext("2d")!;
-    const { x, y } = pos(e);
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = "#1e293b";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.stroke();
-    vazio.current = false;
-  };
-
-  const parar = () => { desenhando.current = false; };
-
-  const limpar = () => {
-    const canvas = canvasRef.current!;
-    canvas.getContext("2d")!.clearRect(0, 0, canvas.width, canvas.height);
-    vazio.current = true;
-  };
-
-  const salvar = async () => {
-    if (vazio.current) return;
+  const assinar = async () => {
+    if (!nome.trim()) return;
     setSalvando(true);
-    await onSalvar(canvasRef.current!.toDataURL("image/png"));
-    limpar();
+    const png = await gerarPngAssinatura(nome.trim());
+    await onSalvar(png);
     setSalvando(false);
   };
 
   return (
-    <div className="space-y-2 rounded-md border border-border p-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Assinar nesta etapa</p>
-      <canvas
-        ref={canvasRef}
-        width={460}
-        height={140}
-        className="w-full cursor-crosshair rounded border border-dashed border-border bg-white touch-none"
-        onMouseDown={iniciar}
-        onMouseMove={desenhar}
-        onMouseUp={parar}
-        onMouseLeave={parar}
-        onTouchStart={iniciar}
-        onTouchMove={desenhar}
-        onTouchEnd={parar}
-      />
+    <div className="space-y-2 rounded-lg border border-border p-4">
+      <h3 className="text-lg font-bold">Assinar</h3>
+      <p className="text-sm text-muted-foreground">digite seu nome — a assinatura é gerada em letra emendada</p>
+      <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Digite seu nome" className="text-sm" />
+      <div className="flex h-32 items-center justify-center rounded border border-border bg-white px-4">
+        <p style={{ fontFamily: FONTE_ASSINATURA, fontWeight: 700 }} className="max-w-full truncate text-4xl text-slate-800">
+          {nome || "Sua assinatura"}
+        </p>
+      </div>
       <div className="flex gap-2">
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={limpar}>
-          <Eraser className="h-3.5 w-3.5" /> Limpar
-        </Button>
-        <Button size="sm" className="gap-1.5" disabled={salvando} onClick={salvar}>
-          <PenLine className="h-3.5 w-3.5" /> {salvando ? "Salvando…" : "Assinar"}
-        </Button>
+        <Button disabled={!nome.trim() || salvando} onClick={assinar}>{salvando ? "Salvando…" : "Salvar"}</Button>
+        <Button variant="outline" onClick={() => setNome("")}>Limpar</Button>
       </div>
     </div>
   );
@@ -128,40 +111,121 @@ export function AssinaturasTab({
     toast({ title: "Assinatura salva" });
   };
 
+  // Agrupa por etapa, na ordem do quadro — só as que de fato têm assinatura.
+  const porEtapa = new Map<string, Assinatura[]>();
+  assinaturas.forEach((a) => {
+    if (!porEtapa.has(a.etapa)) porEtapa.set(a.etapa, []);
+    porEtapa.get(a.etapa)!.push(a);
+  });
+  const etapasComAssinatura = ETAPAS.filter((e) => porEtapa.has(e.key));
+
   const exportarPdf = () => {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const margemX = 15;
-    let y = 18;
+    const margemDireita = 195;
+    const docId = solicitacaoId.slice(0, 8);
+    const geradoEm = fmtDataHora(new Date().toISOString());
 
-    doc.setFontSize(14);
-    doc.text(`Assinaturas — ${titulo}`, margemX, y);
-    y += 10;
-    doc.setFontSize(9);
-    doc.setTextColor(120);
-
-    assinaturas.forEach((a) => {
-      if (y > 260) { doc.addPage(); y = 18; }
-      const nome = nomeUsuario(usuarios, a.user_id) ?? "Usuário";
-      const etapaLabel = ETAPA_LABEL[a.etapa] ?? a.etapa;
-      const dataFmt = new Date(a.created_at).toLocaleString("pt-BR");
-
-      doc.setTextColor(30);
-      doc.setFontSize(10);
-      doc.text(`${nome} — ${etapaLabel}`, margemX, y);
+    const cabecalho = () => {
       doc.setFontSize(8);
-      doc.setTextColor(120);
-      doc.text(dataFmt, margemX, y + 5);
-      try {
-        doc.addImage(a.assinatura_png, "PNG", margemX, y + 7, 70, 21);
-      } catch {
-        // imagem inválida — segue sem travar o PDF inteiro.
-      }
-      y += 34;
-    });
+      doc.setTextColor(140);
+      doc.text("Datas e horários em GMT -03:00 Brasília", margemDireita, 14, { align: "right" });
+      doc.text(`PDF gerado em ${geradoEm}`, margemDireita, 18.5, { align: "right" });
 
-    if (assinaturas.length === 0) {
+      doc.setFontSize(13);
+      doc.setTextColor(20);
+      doc.setFont("helvetica", "bold");
+      doc.text(titulo, margemX, 16);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(140);
+      doc.text(`Documento número #${docId}`, margemX, 21);
+    };
+
+    // H1 da etapa + label "Assinaturas" — devolve onde a lista começa (y) e
+    // onde a caixa com borda em volta da seção deve começar (boxStartY).
+    const abrirSecaoEtapa = (etapaLabel: string) => {
+      let y = 42;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.setTextColor(20);
+      doc.text(etapaLabel, margemX, y);
+      y += 14;
+
+      const boxStartY = y - 6;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(60);
+      doc.text("Assinaturas", margemX, y);
+      y += 8;
+      return { y, boxStartY };
+    };
+
+    const desenharBox = (boxStartY: number, fimY: number) => {
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(margemX - 4, boxStartY, 172, fimY - boxStartY, 2, 2);
+    };
+
+    const renderEtapa = (etapaLabel: string, lista: Assinatura[]) => {
+      cabecalho();
+      let { y, boxStartY } = abrirSecaoEtapa(etapaLabel);
+
+      lista.forEach((a) => {
+        if (y > 250) {
+          desenharBox(boxStartY, y + 3);
+          doc.addPage();
+          cabecalho();
+          ({ y, boxStartY } = abrirSecaoEtapa(etapaLabel));
+        }
+        const nome = nomeUsuario(usuarios, a.user_id) ?? "Usuário";
+
+        // Desenha o "check" como vetor — o glifo unicode ✓ não existe nas
+        // fontes base do jsPDF (helvetica/WinAnsi) e sairia em branco no PDF.
+        doc.setDrawColor(34, 153, 84);
+        doc.setLineWidth(0.5);
+        doc.line(margemX, y - 1.3, margemX + 1, y - 0.2);
+        doc.line(margemX + 1, y - 0.2, margemX + 3, y - 3);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10.5);
+        doc.setTextColor(20);
+        doc.text(nome, margemX + 6, y);
+        y += 5;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(120);
+        doc.text(`Assinou em ${fmtDataHora(a.created_at)}`, margemX + 6, y);
+        y += 9;
+      });
+
+      desenharBox(boxStartY, y + 3);
+
+      doc.setFontSize(7.5);
+      doc.setTextColor(160);
+      doc.text(`#${docId}`, margemX, 287);
+      doc.text(`Etapa: ${etapaLabel}`, 105, 287, { align: "center" });
+    };
+
+    if (etapasComAssinatura.length === 0) {
+      cabecalho();
       doc.setFontSize(10);
-      doc.text("Nenhuma assinatura registrada.", margemX, y);
+      doc.setTextColor(100);
+      doc.text("Nenhuma assinatura registrada.", margemX, 40);
+    } else {
+      etapasComAssinatura.forEach((etapa, i) => {
+        if (i > 0) doc.addPage();
+        renderEtapa(etapa.label, porEtapa.get(etapa.key)!);
+      });
+    }
+
+    const total = doc.getNumberOfPages();
+    for (let p = 1; p <= total; p++) {
+      doc.setPage(p);
+      doc.setFontSize(7.5);
+      doc.setTextColor(160);
+      doc.text(`Página ${p} de ${total}`, margemDireita, 287, { align: "right" });
     }
 
     doc.save(`assinaturas-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`);
@@ -175,21 +239,27 @@ export function AssinaturasTab({
         </Button>
       </div>
 
-      <CanvasAssinatura onSalvar={salvarAssinatura} />
-
-      <div className="space-y-2">
-        {assinaturas.map((a) => (
-          <div key={a.id} className="space-y-1.5 rounded-md border border-border p-3">
-            <p className="text-xs">
-              <span className="font-medium">{nomeUsuario(usuarios, a.user_id) ?? "Usuário"}</span>{" "}
-              <span className="text-muted-foreground">— {ETAPA_LABEL[a.etapa] ?? a.etapa}</span>
-            </p>
-            <p className="text-[11px] text-muted-foreground">{new Date(a.created_at).toLocaleString("pt-BR")}</p>
-            <img src={a.assinatura_png} alt="Assinatura" className="h-20 rounded border border-border bg-white" />
+      <div className="space-y-3">
+        {etapasComAssinatura.map((etapa) => (
+          <div key={etapa.key} className="space-y-2 rounded-lg border-2 border-border p-3">
+            <h4 className="text-sm font-bold">
+              Assinaturas <span className="text-muted-foreground">- Coluna: {etapa.label}</span>
+            </h4>
+            {porEtapa.get(etapa.key)!.map((a) => (
+              <div key={a.id} className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                <div>
+                  <p className="text-sm font-bold">{nomeUsuario(usuarios, a.user_id) ?? "Usuário"}</p>
+                  <p className="text-xs text-muted-foreground">Assinou em {fmtDataHora(a.created_at)}</p>
+                </div>
+              </div>
+            ))}
           </div>
         ))}
-        {assinaturas.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhuma assinatura ainda.</p>}
+        {etapasComAssinatura.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhuma assinatura ainda.</p>}
       </div>
+
+      <AssinarForm nomePadrao={nomeUsuario(usuarios, userId) ?? ""} onSalvar={salvarAssinatura} />
     </div>
   );
 }
