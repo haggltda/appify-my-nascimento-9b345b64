@@ -54,6 +54,21 @@ const FULL = '"ID","Nome","CPF","Título do Cargo","Situação","Admissão","Dat
 const SAFE = '"ID","Nome","CPF","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
 
 const PERFIS = ["PADRAO", "ENCARREGADO", "ADMINISTRATIVO", "DIRETORIA", "ADMIN"];
+// Campos principais editáveis (coluna da EMPREGADOS → rótulo). Situação é tratada à parte (select).
+const MAIN_FIELDS: [string, string][] = [
+  ["Nome", "Nome"],
+  ["CPF", "CPF"],
+  ["Título do Cargo", "Cargo"],
+  ["Admissão", "Admissão"],
+  ["Data Afastamento", "Data de afastamento"],
+  ["Valor Salário", "Salário"],
+  ["PIS", "PIS/PASEP"],
+  ["Nome da Empresa", "Empresa"],
+  ["Nome Filial", "Filial"],
+  ["Contrato", "Contrato"],
+  ["C.Custo", "Centro de custo"],
+  ["email", "E-mail"],
+];
 const FAIXAS = [
   { label: "< 1 ano", min: 0, max: 1 },
   { label: "1–3 anos", min: 1, max: 3 },
@@ -90,9 +105,10 @@ export default function Colaboradores() {
   const [fSituacao, setFSituacao] = useState("Trabalhando"); // padrão
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(50); // 50 (padrão) ou 100
+  const [sitIdx, setSitIdx] = useState(0); // card rotativo de situação
 
   const [editing, setEditing] = useState<any | null>(null);
-  const [form, setForm] = useState({ setor: "", hierarquia: "", perfil: "", situacao: "", email: "" });
+  const [form, setForm] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<{ msg: string; tipo: "ok" | "err" } | null>(null);
   const aviso = (msg: string, tipo: "ok" | "err" = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3200); };
 
@@ -158,12 +174,18 @@ export default function Colaboradores() {
     return true;
   }), [rows, busca, fEmpresa, fContrato, fSituacao, contratoPorFilial]);
 
-  // recorte p/ timelines de admissão/desligamento: ignora a situação (senão "demitidos" somem).
+  // recorte p/ timelines e "por situação": ignora a situação (senão férias/afastados/demitidos somem).
   const recorteTempo = useMemo(() => rows.filter(e => {
     if (fEmpresa && empresaDe(e) !== fEmpresa) return false;
     if (fContrato && contratoDe(e) !== fContrato) return false;
     return true;
   }), [rows, fEmpresa, fContrato, contratoPorFilial]);
+  const recorteSemSituacao = useMemo(() => rows.filter(e => {
+    if (fEmpresa && empresaDe(e) !== fEmpresa) return false;
+    if (fContrato && contratoDe(e) !== fContrato) return false;
+    if (busca) { const q = busca.toLowerCase(); return [e["Nome"], e["CPF"], e["Título do Cargo"], e["Nome Filial"], e["Setor_ERP"]].some(x => String(x ?? "").toLowerCase().includes(q)); }
+    return true;
+  }), [rows, fEmpresa, fContrato, busca, contratoPorFilial]);
 
   // ── Dashboard (ao vivo) ──────────────────────────────────────────────
   const folhaTotal = useMemo(() => filtrados.reduce((s, e) => s + parseSalario(e["Valor Salário"]), 0), [filtrados]);
@@ -179,8 +201,16 @@ export default function Colaboradores() {
     return [...m.entries()].map(([k, v]) => ({ k, v })).sort((a, b) => b.v - a.v);
   };
   const porEmpresa = useMemo(() => agrupar(filtrados, empresaDe), [filtrados]);
-  const porSituacao = useMemo(() => agrupar(filtrados, e => String(e["Situação"] ?? "").trim() || "—"), [filtrados]);
+  const porSituacao = useMemo(() => agrupar(recorteSemSituacao, e => String(e["Situação"] ?? "").trim() || "—"), [recorteSemSituacao]);
   const porContrato = useMemo(() => agrupar(filtrados, contratoDe).slice(0, 10), [filtrados, contratoPorFilial]);
+  // card rotativo: passa por cada situação a cada 3s (movimento leve).
+  useEffect(() => {
+    if (porSituacao.length <= 1) return;
+    const t = setInterval(() => setSitIdx(i => (i + 1) % porSituacao.length), 3000);
+    return () => clearInterval(t);
+  }, [porSituacao.length]);
+  const sitAtual = porSituacao.length ? porSituacao[sitIdx % porSituacao.length] : null;
+  const corSituacao = (s: string) => { const u = (s || "").toUpperCase(); return u.startsWith("TRABALH") ? "#15803d" : u.includes("FÉRIAS") || u.includes("FERIAS") ? "#2563eb" : u.includes("AFAST") || u.includes("LICEN") ? "#d97706" : u.includes("DEMIT") || u.includes("DESLIG") ? "#dc2626" : "#7c3aed"; };
   const folhaPorEmpresa = useMemo(() => agrupar(filtrados, empresaDe, e => parseSalario(e["Valor Salário"])), [filtrados]);
   const porFaixa = useMemo(() => FAIXAS.map(f => ({ label: f.label, n: filtrados.filter(e => { const a = anosDeCasa(e["Admissão"]); return a != null && a >= f.min && a < f.max; }).length })), [filtrados]);
   const timeline = useMemo(() => {
@@ -202,22 +232,24 @@ export default function Colaboradores() {
   // ── Edição de campos RH na EMPREGADOS ────────────────────────────────
   const abrirEdit = (e: any) => {
     setEditing(e);
-    setForm({
-      setor: String(e["Setor_ERP"] ?? "").trim() || "PADRAO",
-      hierarquia: String(e["Título do Cargo"] ?? "").trim() || String(e["LIDER"] ?? "").trim(), // puxa do cargo
-      perfil: String(e["Perfil_ERP"] ?? "").trim() || "PADRAO",
-      situacao: e["Situação"] ?? "",
-      email: e["email"] ?? "",
-    });
+    const f: Record<string, string> = {};
+    for (const [col] of MAIN_FIELDS) f[col] = e[col] ?? "";
+    f["Situação"] = e["Situação"] ?? "";
+    f["Setor_ERP"] = String(e["Setor_ERP"] ?? "").trim() || "PADRAO";
+    f["LIDER"] = String(e["Título do Cargo"] ?? "").trim() || String(e["LIDER"] ?? "").trim(); // Hierarquia puxa do cargo
+    f["Perfil_ERP"] = String(e["Perfil_ERP"] ?? "").trim() || "PADRAO";
+    setForm(f);
   };
   const salvarEdit = async () => {
     if (!editing) return;
-    const patch: any = { "Setor_ERP": form.setor || null, "LIDER": form.hierarquia || null, "Perfil_ERP": form.perfil || null, "Situação": form.situacao || null, "email": form.email || null };
+    const patch: any = {};
+    for (const k of Object.keys(form)) { if (k in editing) patch[k] = form[k] === "" ? null : form[k]; }
     const { error } = await (supabase as any).from("EMPREGADOS").update(patch).eq("ID", editing["ID"]);
     if (error) { aviso("Erro ao salvar: " + error.message, "err"); return; }
     setRows(rs => rs.map(r => r["ID"] === editing["ID"] ? { ...r, ...patch } : r));
     setEditing(null); aviso("Colaborador atualizado.");
   };
+  const setCampo = (col: string, v: string) => setForm(f => ({ ...f, [col]: v }));
 
   const card = (titulo: string, valor: string, cor: string, sub?: string) => (
     <div style={{ flex: 1, minWidth: 150, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
@@ -241,6 +273,12 @@ export default function Colaboradores() {
         .col-btn{height:36px;border-radius:9px;padding:0 13px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid #e2e8f0;background:#fff;color:#475569}
         .col-th{padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;text-align:left;white-space:nowrap}
         .col-td{padding:10px 12px;font-size:12.5px;color:#334155;border-top:1px solid #eef2f7}
+        @keyframes col-fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+        @keyframes col-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+        @keyframes col-grow{from{width:0}}
+        .col-bar-anim{animation:col-grow .7s ease}
+        .col-sit-row{cursor:pointer;border-radius:8px;padding:2px 6px;margin:0 -6px;transition:background .15s}
+        .col-sit-row:hover{background:#f1f5f9}
       `}</style>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
@@ -281,7 +319,35 @@ export default function Colaboradores() {
       {/* Dashboard ao vivo */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
         {painel("Headcount por empresa", porEmpresa.length === 0 ? <Vazio /> : porEmpresa.map(x => <div key={x.k}>{barRow(x.k, x.v, porEmpresa[0].v, "#0f3171", String(x.v))}</div>))}
-        {painel("Por situação", porSituacao.length === 0 ? <Vazio /> : porSituacao.map(x => <div key={x.k}>{barRow(x.k, x.v, porSituacao[0].v, x.k.toUpperCase().startsWith("TRABALH") ? "#15803d" : "#94a3b8", String(x.v))}</div>))}
+        {painel("Por situação (todas)", (
+          <>
+            {sitAtual && (
+              <div key={sitAtual.k} onClick={() => setFSituacao(sitAtual.k === fSituacao ? "" : sitAtual.k)}
+                style={{ cursor: "pointer", marginBottom: 14, padding: "12px 14px", borderRadius: 12, background: corSituacao(sitAtual.k) + "12", border: "1px solid " + corSituacao(sitAtual.k) + "33", animation: "col-fade .5s ease, col-float 4.5s ease-in-out infinite" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px" }}>Em destaque · alterna a cada 3s</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
+                  <span style={{ fontSize: 14.5, fontWeight: 800, color: corSituacao(sitAtual.k) }}>{sitAtual.k}</span>
+                  <span style={{ fontSize: 26, fontWeight: 800, color: "#0f172a" }}>{sitAtual.v}</span>
+                </div>
+                <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2 }}>clique para filtrar por esta situação</div>
+              </div>
+            )}
+            {porSituacao.length === 0 ? <Vazio /> : porSituacao.map(x => {
+              const pct = porSituacao[0].v ? Math.round((x.v / porSituacao[0].v) * 100) : 0;
+              return (
+                <div key={x.k} className="col-sit-row" onClick={() => setFSituacao(x.k === fSituacao ? "" : x.k)} title="Clique para filtrar">
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+                    <span style={{ color: x.k === fSituacao ? "#0f172a" : "#334155", fontWeight: x.k === fSituacao ? 800 : 600 }}>{x.k}{x.k === fSituacao ? " ✓" : ""}</span>
+                    <span style={{ color: "#0f172a", fontWeight: 800 }}>{x.v}</span>
+                  </div>
+                  <div style={{ height: 8, background: "#eef2f7", borderRadius: 20, overflow: "hidden" }}>
+                    <div className="col-bar-anim" style={{ width: pct + "%", height: "100%", background: corSituacao(x.k), borderRadius: 20, transition: "width .5s ease" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        ))}
         {painel("Folha por empresa (R$)", folhaPorEmpresa.length === 0 ? <Vazio /> : folhaPorEmpresa.map(x => <div key={x.k}>{barRow(x.k, x.v, folhaPorEmpresa[0].v, "#0f766e", moneyK(x.v))}</div>))}
       </div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
@@ -363,36 +429,48 @@ export default function Colaboradores() {
       {/* Modal editar campos RH */}
       {editing && (
         <div onClick={ev => { if (ev.target === ev.currentTarget) setEditing(null); }} style={{ position: "fixed", inset: 0, zIndex: 700, background: "rgba(15,23,42,.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div style={{ background: "#fff", borderRadius: 16, padding: 22, width: "100%", maxWidth: 480, position: "relative" }}>
-            <button onClick={() => setEditing(null)} style={{ position: "absolute", top: 14, right: 16, border: "none", background: "none", fontSize: 20, color: "#94a3b8", cursor: "pointer" }}>✕</button>
-            <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>{editing["Nome"]}</div>
-            <div style={{ fontSize: 12.5, color: "#64748b", marginBottom: 4 }}>{editing["Título do Cargo"] || "—"} · {empresaDe(editing)} · {contratoDe(editing)}</div>
-            <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 16 }}>Edição de campos de RH (não altera dados sincronizados como salário/admissão).</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Setor</label>
-                <select className="col-fi" style={{ width: "100%" }} value={form.setor} onChange={e => setForm(f => ({ ...f, setor: e.target.value }))}>
-                  {[...new Set([form.setor, ...setorOptions])].filter(Boolean).map(s => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <Campo label="Hierarquia" value={form.hierarquia} onChange={v => setForm(f => ({ ...f, hierarquia: v }))} />
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Perfil</label>
-                <select className="col-fi" style={{ width: "100%" }} value={form.perfil} onChange={e => setForm(f => ({ ...f, perfil: e.target.value }))}>
-                  {[...new Set([form.perfil, ...PERFIS])].filter(Boolean).map(s => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Situação</label>
-                <select className="col-fi" style={{ width: "100%" }} value={form.situacao} onChange={e => setForm(f => ({ ...f, situacao: e.target.value }))}>
-                  {[form.situacao, "Trabalhando", ...situacoes].filter((v, i, a) => v && a.indexOf(v) === i).map(s => <option key={s}>{s}</option>)}
-                </select>
-              </div>
+          <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 600, maxHeight: "90vh", display: "flex", flexDirection: "column", position: "relative" }}>
+            <button onClick={() => setEditing(null)} style={{ position: "absolute", top: 14, right: 16, border: "none", background: "none", fontSize: 20, color: "#94a3b8", cursor: "pointer", zIndex: 1 }}>✕</button>
+            <div style={{ padding: "20px 22px 12px" }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>{editing["Nome"] || "Colaborador"}</div>
+              <div style={{ fontSize: 12.5, color: "#64748b" }}>{editing["Título do Cargo"] || "—"} · {empresaDe(editing)} · {contratoDe(editing)}</div>
             </div>
-            <div style={{ marginTop: 12 }}><Campo label="E-mail" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} /></div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
+            <div style={{ padding: "0 22px", overflowY: "auto", flex: 1 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 10 }}>Dados do colaborador</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {MAIN_FIELDS.map(([col, label]) => (
+                  <Campo key={col} label={label} value={form[col] ?? ""} onChange={v => setCampo(col, v)} />
+                ))}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Situação</label>
+                  <select className="col-fi" style={{ width: "100%" }} value={form["Situação"] ?? ""} onChange={e => setCampo("Situação", e.target.value)}>
+                    {[form["Situação"] ?? "", "Trabalhando", ...situacoes].filter((v, i, a) => v && a.indexOf(v) === i).map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px", margin: "18px 0 3px" }}>Configurações extras (ERP)</div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10 }}>Setor, hierarquia e perfil usados pelo sistema (permissões/encarregados).</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Setor</label>
+                  <select className="col-fi" style={{ width: "100%" }} value={form["Setor_ERP"] ?? ""} onChange={e => setCampo("Setor_ERP", e.target.value)}>
+                    {[...new Set([form["Setor_ERP"] ?? "", ...setorOptions])].filter(Boolean).map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <Campo label="Hierarquia" value={form["LIDER"] ?? ""} onChange={v => setCampo("LIDER", v)} />
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Perfil</label>
+                  <select className="col-fi" style={{ width: "100%" }} value={form["Perfil_ERP"] ?? ""} onChange={e => setCampo("Perfil_ERP", e.target.value)}>
+                    {[...new Set([form["Perfil_ERP"] ?? "", ...PERFIS])].filter(Boolean).map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ height: 8 }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "14px 22px", borderTop: "1px solid #e2e8f0" }}>
               <button className="col-btn" onClick={() => setEditing(null)}>Cancelar</button>
-              <button className="col-btn" onClick={salvarEdit} style={{ background: "#0f3171", color: "#fff", borderColor: "#0f3171" }}>Salvar</button>
+              <button className="col-btn" onClick={salvarEdit} style={{ background: "#0f3171", color: "#fff", borderColor: "#0f3171" }}>Salvar tudo</button>
             </div>
           </div>
         </div>
