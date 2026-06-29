@@ -26,10 +26,10 @@ WITH novos(modulo_codigo, codigo, nome, rota, ordem) AS (
     ('contratos','reajustes','Reajustes','/app/contratos/reajustes',60),
     ('contratos','encerramentos','Encerramentos','/app/contratos/encerramentos',70),
     -- Controladoria (restantes)
-    ('controladoria','estrutura-organizacional','Estrutura Organizacional','/app/co/estrutura-organizacional',40),
-    ('controladoria','classificadores','Classificadores','/app/co/classificadores',50),
-    ('controladoria','obz-versoes','OBZ — Versões','/app/co/obz-versoes',61),
-    ('controladoria','dre-gerencial','DRE Gerencial','/app/co/dre-gerencial',70),
+    ('controladoria','estrutura-organizacional','Estrutura Organizacional','/app/controladoria/estrutura-organizacional',40),
+    ('controladoria','classificadores','Classificadores','/app/controladoria/classificadores',50),
+    ('controladoria','obz-versoes','OBZ — Versões','/app/controladoria/obz-versoes',61),
+    ('controladoria','dre-gerencial','DRE Gerencial','/app/controladoria/dre-gerencial',70),
     ('controladoria','orcamento','Orçamento','/app/orcamento',80),
     -- Suprimentos (todos)
     ('suprimentos','fornecedores','Fornecedores','/app/suprimentos/fornecedores',10),

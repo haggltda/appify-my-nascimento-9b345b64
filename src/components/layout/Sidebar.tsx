@@ -161,18 +161,18 @@ const controladoriaOrcModule: ModuleDef = {
   label: "Controladoria & Orçamento",
   description: "Catálogos mestres, OBZ, baseline",
   icon: Calculator,
-  basePath: "/app/co",
+  basePath: "/app/controladoria",
   status: "active",
   groups: [
     {
       label: "Cadastros Mestres",
       defaultOpen: true,
       items: [
-        { label: "Empresas do Grupo", to: "/app/co/empresas", icon: Building2 },
-        { label: "Centros de Custo", to: "/app/co/centros-custo", icon: FolderKanban },
-        { label: "Estrutura Organizacional", to: "/app/co/estrutura-organizacional", icon: FolderKanban },
-        { label: "Linhas da DRE", to: "/app/co/dre", icon: BookOpen },
-        { label: "Classificadores & Drivers", to: "/app/co/classificadores", icon: ListChecks },
+        { label: "Empresas do Grupo", to: "/app/controladoria/empresas", icon: Building2 },
+        { label: "Centros de Custo", to: "/app/controladoria/centros-custo", icon: FolderKanban },
+        { label: "Estrutura Organizacional", to: "/app/controladoria/estrutura-organizacional", icon: FolderKanban },
+        { label: "Linhas da DRE", to: "/app/controladoria/dre", icon: BookOpen },
+        { label: "Classificadores & Drivers", to: "/app/controladoria/classificadores", icon: ListChecks },
       ],
     },
     {
@@ -180,17 +180,17 @@ const controladoriaOrcModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Ciclos de Orçamento", to: "/app/orcamento", icon: Calculator },
-        { label: "Planejador OBZ (mock)", to: "/app/co/obz", icon: Calculator },
-        { label: "OBZ — Versões", to: "/app/co/obz-versoes", icon: Calculator },
-        { label: "DRE Gerencial", to: "/app/co/dre-gerencial", icon: TrendingUp },
-        { label: "Orçamento Completo", to: "/app/co/orcamento-completo", icon: Calculator },
+        { label: "Planejador OBZ (mock)", to: "/app/controladoria/obz", icon: Calculator },
+        { label: "OBZ — Versões", to: "/app/controladoria/obz-versoes", icon: Calculator },
+        { label: "DRE Gerencial", to: "/app/controladoria/dre-gerencial", icon: TrendingUp },
+        { label: "Orçamento Completo", to: "/app/controladoria/orcamento-completo", icon: Calculator },
       ],
     },
     {
       label: "Ferramentas",
       defaultOpen: true,
       items: [
-        { label: "Gerador de POPs", to: "/app/co/gerador-pops", icon: FileOutput },
+        { label: "Gerador de POPs", to: "/app/controladoria/gerador-pops", icon: FileOutput },
       ],
     },
   ],

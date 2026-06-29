@@ -11,15 +11,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, UserCircle2 } from "lucide-react";
+import { Plus, UserCircle2, CalendarClock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  ETAPAS, nomeUsuario, iniciais, fmtData,
+  ETAPAS, CAMPOS_ABERTURA, TIPO_SOLICITACAO_LABEL, STATUS_DESENVOLVIMENTO_LABEL, STATUS_DESENVOLVIMENTO_COR,
+  nomeUsuario, iniciais, fmtData,
   type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis,
 } from "./etapas/types";
 import { Historico } from "./etapas/Historico";
+import { temDadoResumo, RESUMOS } from "./etapas/Resumos";
 import { RegistroOficialPanel } from "./etapas/RegistroOficialPanel";
 import { TriagemComitePanel } from "./etapas/TriagemComitePanel";
 import { ProjetoPanel } from "./etapas/ProjetoPanel";
@@ -55,6 +58,14 @@ const COR_BORDER: Record<string, string> = {
   success: "border-l-success",
 };
 
+const DIAS_PRAZO_ACOMPANHAMENTO = 10;
+const UM_DIA_MS = 24 * 60 * 60 * 1000;
+
+function diasRestantesAcompanhamento(etapaEntradaEm: string): number {
+  const prazoFinal = new Date(etapaEntradaEm).getTime() + DIAS_PRAZO_ACOMPANHAMENTO * UM_DIA_MS;
+  return Math.ceil((prazoFinal - Date.now()) / UM_DIA_MS);
+}
+
 function DescricaoExpandivel({ texto }: { texto: string }) {
   const [expandido, setExpandido] = useState(false);
   const longa = texto.length > 220;
@@ -73,6 +84,36 @@ function DescricaoExpandivel({ texto }: { texto: string }) {
         >
           {expandido ? "ver menos" : "ver mais"}
         </button>
+      )}
+    </div>
+  );
+}
+
+function DetalhesAberturaExpandivel({ card }: { card: Solicitacao }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="rounded-md border border-border">
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+      >
+        Detalhes da abertura
+        <span className="text-primary">{aberto ? "ver menos" : "ver mais"}</span>
+      </button>
+      {aberto && (
+        <div className="space-y-3 border-t border-border p-3">
+          {CAMPOS_ABERTURA.map((c) => (
+            <div key={c.key}>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <p className="whitespace-pre-wrap break-words text-sm">{(card[c.key] as string | null) || "—"}</p>
+            </div>
+          ))}
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo da solicitação</p>
+            <p className="text-sm">{card.tipo_solicitacao ? TIPO_SOLICITACAO_LABEL[card.tipo_solicitacao] ?? card.tipo_solicitacao : "—"}</p>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -101,7 +142,9 @@ export default function SolicitacoesErp() {
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novoDescricao, setNovoDescricao] = useState("");
-  const [novoArquivo, setNovoArquivo] = useState<File | null>(null);
+  const [novosArquivos, setNovosArquivos] = useState<File[]>([]);
+  const [camposAbertura, setCamposAbertura] = useState<Record<string, string>>({});
+  const [tipoSolicitacao, setTipoSolicitacao] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const [aba, setAba] = useState<"detalhes" | "historico">("detalhes");
@@ -126,9 +169,15 @@ export default function SolicitacoesErp() {
         .from("sistema_solicitacao")
         .select(
           "id, titulo, descricao, etapa, recusado, prioridade, responsavel_user_id, progresso_pct, data_inicio, data_fim, " +
+          "status_desenvolvimento, " +
           "levantamento_funcional_texto, levantamento_funcional_prazo, documentacao_tecnica_texto, documentacao_tecnica_prazo, " +
           "analise_tecnica_texto, analise_tecnica_prazo, treinamento_data, implantacao_status, finalizado, etapa_entrada_em, " +
-          "homologacao_aprov_1, homologacao_aprov_2, homologacao_aprov_3, criado_por, created_at",
+          "homologacao_aprov_1, homologacao_aprov_2, homologacao_aprov_3, complexidade, " +
+          "objetivo_solicitacao, problema_atual, justificativa, beneficio_esperado, impacto_operacional, " +
+          "grau_urgencia, tipo_solicitacao, " +
+          "pesquisa_atendeu_necessidade, pesquisa_levantamento_claro, pesquisa_conducao_ti, " +
+          "pesquisa_treinamento_suporte, pesquisa_avaliacao_geral, pesquisa_pode_encerrar, " +
+          "criado_por, created_at",
         )
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -265,7 +314,12 @@ export default function SolicitacoesErp() {
   };
 
   const uploadAnexo = async (solicitacaoId: string, file: File, campo?: string): Promise<string | null> => {
-    const path = `${solicitacaoId}/${Date.now()}-${file.name}`;
+    // A key do storage não aceita acentos/espaços/parênteses etc ("Invalid key") —
+    // sanitiza só o nome usado no path; o nome original fica intacto em nome_arquivo.
+    const nomeSanitizado = file.name
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${solicitacaoId}/${Date.now()}-${nomeSanitizado}`;
     const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
     if (up.error) return up.error.message;
     const { error } = await (supabase as any).from("sistema_solicitacao_anexo").insert({
@@ -283,16 +337,15 @@ export default function SolicitacoesErp() {
     if (!cardDetalhe) return false;
     const erro = await uploadAnexo(cardDetalhe.id, file, campo);
     if (erro) {
-      toast({ title: "Erro ao enviar anexo", description: erro, variant: "destructive" });
+      toast({ title: `Erro ao enviar "${file.name}"`, description: erro, variant: "destructive" });
       return false;
     }
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao_anexo", cardDetalhe.id] });
-    toast({ title: "Anexo enviado" });
     return true;
   };
 
   const downloadAnexo = async (path: string) => {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60);
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
     if (error || !data?.signedUrl) {
       toast({ title: "Erro ao abrir anexo", description: error?.message, variant: "destructive" });
       return;
@@ -337,14 +390,20 @@ export default function SolicitacoesErp() {
     return true;
   };
 
+  const camposAberturaPreenchidos = CAMPOS_ABERTURA.every((c) => (camposAbertura[c.key] ?? "").trim()) && !!tipoSolicitacao;
+
   const criar = async () => {
-    if (!novoTitulo.trim()) return;
+    if (!novoTitulo.trim() || !camposAberturaPreenchidos) return;
     setSalvando(true);
+    const camposPayload: Record<string, string> = {};
+    CAMPOS_ABERTURA.forEach((c) => { camposPayload[c.key] = camposAbertura[c.key].trim(); });
     const { data, error } = await (supabase as any)
       .from("sistema_solicitacao")
       .insert({
         titulo: novoTitulo.trim(),
         descricao: novoDescricao.trim() || null,
+        ...camposPayload,
+        tipo_solicitacao: tipoSolicitacao,
       })
       .select("id")
       .single();
@@ -353,19 +412,26 @@ export default function SolicitacoesErp() {
       toast({ title: "Erro ao criar solicitação", description: error.message, variant: "destructive" });
       return;
     }
-    if (novoArquivo) {
-      const erro = await uploadAnexo(data.id, novoArquivo);
-      if (erro) {
-        toast({ title: "Solicitação criada, mas o anexo falhou", description: erro, variant: "destructive" });
-      }
+    const falhas: string[] = [];
+    for (const file of novosArquivos) {
+      const erro = await uploadAnexo(data.id, file);
+      if (erro) falhas.push(file.name);
     }
     setSalvando(false);
     setNovoOpen(false);
     setNovoTitulo("");
     setNovoDescricao("");
-    setNovoArquivo(null);
+    setNovosArquivos([]);
+    setCamposAbertura({});
+    setTipoSolicitacao(null);
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
-    toast({ title: "Solicitação criada" });
+    // Só 1 toast por vez no sistema — se algum anexo falhou, mostra isso em vez do
+    // "Solicitação criada" genérico, senão o erro fica mascarado pelo toast de sucesso.
+    if (falhas.length > 0) {
+      toast({ title: "Solicitação criada, mas houve erro nos anexos", description: `Falhou: ${falhas.join(", ")}`, variant: "destructive" });
+    } else {
+      toast({ title: "Solicitação criada" });
+    }
   };
 
   const comentarGeral = async () => {
@@ -449,12 +515,37 @@ export default function SolicitacoesErp() {
                       card.finalizado ? "opacity-50" : "",
                     ].join(" ")}
                   >
-                    {card.prioridade != null && (
+                    {card.prioridade != null && etapa.key !== "definicao_responsavel" && (
                       <Badge variant="outline" className="absolute right-2 top-2 text-[9px]">P{card.prioridade}</Badge>
                     )}
+                    {etapa.key === "acompanhamento_assistido" && (() => {
+                      const dias = diasRestantesAcompanhamento(card.etapa_entrada_em);
+                      const expirado = dias < 0;
+                      return (
+                        <div
+                          className={[
+                            "absolute right-2 top-2 flex items-center gap-1 rounded-md border px-2 py-1",
+                            expirado ? "border-destructive/30 bg-destructive/15 text-destructive" : "border-warning/30 bg-warning/15 text-warning",
+                          ].join(" ")}
+                        >
+                          <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                          <div className="leading-tight">
+                            <p className="text-[10px] font-semibold">
+                              {expirado ? "Prazo expirado" : `${dias} dia${dias === 1 ? "" : "s"} restante${dias === 1 ? "" : "s"}`}
+                            </p>
+                            {!expirado && <p className="text-[9px]">de {DIAS_PRAZO_ACOMPANHAMENTO} dias</p>}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <p className="pr-8 text-xs font-medium">{card.titulo}</p>
                     {card.descricao && (
                       <p className="mt-1 line-clamp-3 text-[11px] text-muted-foreground">{card.descricao}</p>
+                    )}
+                    {card.status_desenvolvimento && (
+                      <Badge variant="outline" className={["mt-1.5 text-[9px]", STATUS_DESENVOLVIMENTO_COR[card.status_desenvolvimento] ?? ""].join(" ")}>
+                        {STATUS_DESENVOLVIMENTO_LABEL[card.status_desenvolvimento] ?? card.status_desenvolvimento}
+                      </Badge>
                     )}
                     <div className="mt-2 flex items-center gap-1.5">
                       <Avatar className="h-5 w-5">
@@ -501,7 +592,7 @@ export default function SolicitacoesErp() {
       </div>
 
       <Dialog open={novoOpen} onOpenChange={setNovoOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova Solicitação</DialogTitle>
           </DialogHeader>
@@ -509,17 +600,47 @@ export default function SolicitacoesErp() {
             <Input placeholder="Título" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} />
             <Textarea placeholder="Descrição (opcional)" value={novoDescricao} onChange={(e) => setNovoDescricao(e.target.value)} />
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Anexo (opcional)</label>
+              <label className="mb-1 block text-xs text-muted-foreground">Anexos (opcional)</label>
               <Input
                 type="file"
-                onChange={(e) => setNovoArquivo(e.target.files?.[0] ?? null)}
+                multiple
+                onChange={(e) => setNovosArquivos(Array.from(e.target.files ?? []))}
                 className="cursor-pointer text-xs"
               />
+              {novosArquivos.length > 0 && (
+                <p className="mt-1 text-[11px] text-muted-foreground">{novosArquivos.length} arquivo(s) selecionado(s).</p>
+              )}
+            </div>
+            <div className="space-y-3 border-t border-border pt-3">
+              {CAMPOS_ABERTURA.map((c) => (
+                <div key={c.key}>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{c.label}</label>
+                  <Textarea
+                    placeholder={c.placeholder}
+                    value={camposAbertura[c.key] ?? ""}
+                    onChange={(e) => setCamposAbertura((prev) => ({ ...prev, [c.key]: e.target.value }))}
+                    className="text-sm"
+                  />
+                </div>
+              ))}
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipo da solicitação</label>
+                <Select value={tipoSolicitacao ?? undefined} onValueChange={setTipoSolicitacao}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Selecionar tipo…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TIPO_SOLICITACAO_LABEL).map(([v, label]) => (
+                      <SelectItem key={v} value={v}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovoArquivo(null); }}>Cancelar</Button>
-            <Button onClick={criar} disabled={!novoTitulo.trim() || salvando}>
+            <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovosArquivos([]); setTipoSolicitacao(null); }}>Cancelar</Button>
+            <Button onClick={criar} disabled={!novoTitulo.trim() || !camposAberturaPreenchidos || salvando}>
               {salvando ? "Salvando…" : "Criar"}
             </Button>
           </DialogFooter>
@@ -564,25 +685,60 @@ export default function SolicitacoesErp() {
                   <div className="space-y-4">
                     {cardDetalhe.descricao && <DescricaoExpandivel texto={cardDetalhe.descricao} />}
 
-                    <PainelEtapa
-                      card={cardDetalhe}
-                      papeis={papeis}
-                      userId={user?.id ?? null}
-                      usuarios={usuarios}
-                      convidaveis={convidaveis}
-                      anexos={anexos}
-                      comentarios={comentarios}
-                      convidados={convidados}
-                      totalNaColuna={totalNaColuna}
-                      prioridadesUsadas={prioridadesUsadas}
-                      onUpdate={update}
-                      onComentar={comentar}
-                      onAnexar={anexar}
-                      onDownloadAnexo={downloadAnexo}
-                      onAdicionarConvidado={adicionarConvidado}
-                      onRemoverConvidado={removerConvidado}
-                      onExcluir={excluirCard}
-                    />
+                    <DetalhesAberturaExpandivel card={cardDetalhe} />
+
+                    {ETAPAS.map((etapa) => {
+                      if (etapa.key === cardDetalhe.etapa) {
+                        return (
+                          <PainelEtapa
+                            key={etapa.key}
+                            card={cardDetalhe}
+                            papeis={papeis}
+                            userId={user?.id ?? null}
+                            usuarios={usuarios}
+                            convidaveis={convidaveis}
+                            anexos={anexos}
+                            comentarios={comentarios}
+                            convidados={convidados}
+                            totalNaColuna={totalNaColuna}
+                            prioridadesUsadas={prioridadesUsadas}
+                            onUpdate={update}
+                            onComentar={comentar}
+                            onAnexar={anexar}
+                            onDownloadAnexo={downloadAnexo}
+                            onAdicionarConvidado={adicionarConvidado}
+                            onRemoverConvidado={removerConvidado}
+                            onExcluir={excluirCard}
+                          />
+                        );
+                      }
+                      if (!temDadoResumo(etapa.key, cardDetalhe, anexos, comentarios, convidados)) return null;
+                      const Resumo = RESUMOS[etapa.key];
+                      if (!Resumo) return null;
+                      return (
+                        <Resumo
+                          key={etapa.key}
+                          card={cardDetalhe}
+                          anexos={anexos}
+                          comentarios={comentarios}
+                          usuarios={usuarios}
+                          onDownloadAnexo={downloadAnexo}
+                        />
+                      );
+                    })}
+
+                    {convidados.length > 0 && cardDetalhe.etapa !== "registro_oficial" && (
+                      <div>
+                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Convidados</p>
+                        <div className="space-y-1">
+                          {convidados.map((c) => (
+                            <div key={c.id} className="rounded border border-border px-2 py-1.5 text-xs">
+                              {nomeUsuario(usuarios, c.user_id) ?? c.user_id}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Anexos gerais</p>

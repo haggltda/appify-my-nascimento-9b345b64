@@ -13,6 +13,7 @@ export type GradeFase =
 
 export interface HistoricoEntry {
   ts: string;
+  usuario?: string;
   campo: string;
   de: string;
   para: string;
@@ -49,6 +50,8 @@ export function useGrade(empresaId: string | null) {
   return useQuery({
     queryKey: QK(empresaId ?? ""),
     enabled: !!empresaId,
+    // Evita refetch enquanto o usuário está editando o formulário
+    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("grade")
@@ -88,10 +91,17 @@ export function useGradeUpdate(empresaId: string) {
       const now = new Date().toLocaleString("pt-BR");
       const historico = [...(current.historico ?? [])];
 
+      const { data: authData } = await supabase.auth.getUser();
+      const { data: profile } = authData?.user
+        ? await supabase.from("profiles").select("display_name, email").eq("id", authData.user.id).maybeSingle()
+        : { data: null };
+      const usuario = (profile as any)?.display_name || (profile as any)?.email || authData?.user?.email || "—";
+
       for (const [field, label] of [
         ["fase", "Fase"],
         ["data", "Data de Abertura"],
         ["posicao", "Posição"],
+        ["responsavel", "Responsável"],
       ] as const) {
         const prev = String(current[field as keyof GradeItem] ?? "");
         const next = String((changes as Record<string, unknown>)[field] ?? "");
@@ -102,7 +112,7 @@ export function useGradeUpdate(empresaId: string) {
           const deLabel = field === "posicao" && prev && prev !== "null"
             ? `${prev}º`
             : prev || "—";
-          historico.push({ ts: now, campo: label, de: deLabel, para: paraLabel });
+          historico.push({ ts: now, usuario, campo: label, de: deLabel, para: paraLabel });
         }
       }
 

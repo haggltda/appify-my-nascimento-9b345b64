@@ -79,6 +79,7 @@ import ConciliacaoFluxoCaixa from "./pages/financeiro/ConciliacaoFluxoCaixa";
 import OBZVersoes from "./pages/controladoria/OBZVersoes";
 import DREGerencial from "./pages/controladoria/DREGerencial";
 import OrcamentoCompleto from "./pages/controladoria/OrcamentoCompleto";
+import GeradorPops from "./pages/controladoria/GeradorPops";
 import MovimentosBancarios from "./pages/financeiro/MovimentosBancarios";
 import ContasBancariasEmpresa from "./pages/financeiro/ContasBancariasEmpresa";
 import IntegracaoBancaria from "./pages/financeiro/IntegracaoBancaria";
@@ -192,15 +193,16 @@ const App = () => (
             <Route path="administracao" element={<Administracao />} />
             <Route path="admin/smoke-helena" element={<SmokeTestHelena />} />
             <Route path="meu-perfil" element={<MeuPerfil />} />
-            <Route path="co/empresas" element={<Empresas />} />
-            <Route path="co/centros-custo" element={<CentrosCusto />} />
-            <Route path="co/estrutura-organizacional" element={<EstruturaOrganizacional />} />
-            <Route path="co/dre" element={<LinhasDRE />} />
-            <Route path="co/classificadores" element={<Classificadores />} />
-            <Route path="co/obz" element={<PlanejadorOBZ />} />
-            <Route path="co/obz-versoes" element={<OBZVersoes />} />
-            <Route path="co/dre-gerencial" element={<DREGerencial />} />
-            <Route path="co/orcamento-completo" element={<OrcamentoCompleto />} />
+            <Route path="controladoria/empresas" element={<Empresas />} />
+            <Route path="controladoria/centros-custo" element={<CentrosCusto />} />
+            <Route path="controladoria/estrutura-organizacional" element={<EstruturaOrganizacional />} />
+            <Route path="controladoria/dre" element={<LinhasDRE />} />
+            <Route path="controladoria/classificadores" element={<Classificadores />} />
+            <Route path="controladoria/obz" element={<PlanejadorOBZ />} />
+            <Route path="controladoria/obz-versoes" element={<OBZVersoes />} />
+            <Route path="controladoria/dre-gerencial" element={<DREGerencial />} />
+            <Route path="controladoria/orcamento-completo" element={<OrcamentoCompleto />} />
+            <Route path="controladoria/gerador-pops" element={<GeradorPops />} />
             <Route path="orcamento" element={<Orcamento />} />
             {/* Suprimentos */}
             <Route path="suprimentos/fornecedores" element={<Fornecedores />} />
