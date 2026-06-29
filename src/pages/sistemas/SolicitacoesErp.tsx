@@ -68,7 +68,7 @@ function BadgePrazo({ etapaKey, etapaEntradaEm }: { etapaKey: string; etapaEntra
   return (
     <div
       className={[
-        "absolute right-2 top-2 flex items-center gap-1 rounded-md border px-2 py-1",
+        "mb-1.5 inline-flex items-center gap-1 rounded-md border px-2 py-1",
         expirado ? "border-destructive/30 bg-destructive/15 text-destructive" : "border-warning/30 bg-warning/15 text-warning",
       ].join(" ")}
     >
@@ -685,7 +685,7 @@ export default function SolicitacoesErp() {
       </Dialog>
 
       <Dialog open={!!detalheId} onOpenChange={(open) => { if (!open) { setDetalheId(null); setNovoComentario(""); } }}>
-        <DialogContent className="max-w-4xl sm:max-w-4xl">
+        <DialogContent className="max-w-4xl overflow-x-hidden overflow-y-auto sm:max-w-4xl max-h-[90vh]">
           {cardDetalhe && PainelEtapa && (
             <>
               <DialogHeader>
@@ -734,8 +734,8 @@ export default function SolicitacoesErp() {
               )}
 
               {aba === "detalhes" && (
-                <div className="grid gap-6 md:grid-cols-[1fr_280px]">
-                  <div className="space-y-4">
+                <div className="grid min-w-0 gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
+                  <div className="min-w-0 space-y-4">
                     {cardDetalhe.descricao && <DescricaoExpandivel texto={cardDetalhe.descricao} />}
 
                     <DetalhesAberturaExpandivel card={cardDetalhe} />
@@ -810,7 +810,7 @@ export default function SolicitacoesErp() {
                     </div>
                   </div>
 
-                  <div className="flex h-[420px] min-h-0 flex-col border-l border-border pl-4">
+                  <div className="flex h-[420px] min-h-0 min-w-0 flex-col border-l border-border pl-4">
                     <p className="mb-2 shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comentários</p>
                     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                       {comentariosGerais.map((c) => {
