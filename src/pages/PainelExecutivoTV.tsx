@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import logoNascimento from "@/assets/logo-nascimento-icon.png";
 import { useNavigate } from "react-router-dom";
 import { usePainelLicitacao } from "@/hooks/usePainelLicitacao";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
@@ -231,7 +232,10 @@ export default function PainelExecutivoTV() {
       {/* Header */}
       <header className="relative z-10 flex shrink-0 items-center justify-between px-8 py-3" style={{ borderBottom: `1px solid rgba(0,245,255,0.12)` }}>
         <div className="flex items-center gap-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl font-black text-sm" style={{ background: N.cyan, color: "#06060f" }}>N</div>
+          <div className="flex h-10 w-10 items-center justify-center shrink-0">
+            <img src={logoNascimento} alt="Nascimento" className="h-9 w-9 object-contain"
+              style={{ filter: `drop-shadow(0 0 4px ${N.cyan}) drop-shadow(0 0 10px ${N.cyan}88)` }} />
+          </div>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: N.cyan }}>Grupo Nascimento · Licitações</p>
             <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{empresa?.nome_fantasia ?? empresa?.razao_social ?? "—"}</p>
