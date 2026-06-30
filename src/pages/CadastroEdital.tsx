@@ -41,6 +41,8 @@ import {
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Eye, History, FileText, AlertCircle } from "lucide-react";
 import { useUsuariosLicitacao } from "@/hooks/useUsuariosLicitacao";
+import { useIBGEMunicipios, UFS } from "@/hooks/useIBGEMunicipios";
+import { CidadeCombobox } from "@/components/ui/CidadeCombobox";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { PrazoInput } from "@/components/ui/PrazoInput";
 
@@ -478,7 +480,7 @@ function CapaCard({
 // ── Sheet form ─────────────────────────────────────────────────────────────
 
 const EMPTY: Partial<CapaEdital> = {
-  cidade: "", objeto: "", modalidade: "", local: "", forma_julgamento: "",
+  cidade: "", uf: "", objeto: "", modalidade: "", local: "", forma_julgamento: "",
   atestado_cap_tecnica: "", escritorio: "", abertura: "", prazo_impugnacao: "",
   prazo_recurso: "", validade_proposta: "", prazo_contrato: "", visita_tecnica: "",
   data_inicio: "", qtd_postos: null, carga_horaria: "", valor_estimado: "",
@@ -500,6 +502,8 @@ function CapaSheet({
 }) {
   const [f, setF] = useState<Partial<CapaEdital>>({ ...EMPTY });
   const { data: usuarios = [] } = useUsuariosLicitacao();
+  const { cidadesPorUF, isLoading: ibgeLoading } = useIBGEMunicipios();
+  const cidadesUF = f.uf ? cidadesPorUF(f.uf) : [];
 
   useEffect(() => {
     if (!open) return;
@@ -529,7 +533,30 @@ function CapaSheet({
 
           <Secao title="Identificação">
             <Grid2>
-              <F label="Cidade">{txt("cidade")}</F>
+              <F label="UF">
+                <Select
+                  value={f.uf ?? ""}
+                  onValueChange={(v) => setF((p) => ({ ...p, uf: v, cidade: "" }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="— Selecione —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UFS.map((uf) => (
+                      <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </F>
+              <F label="Cidade">
+                <CidadeCombobox
+                  cidades={cidadesUF}
+                  value={f.cidade ?? ""}
+                  onChange={(v) => setF((p) => ({ ...p, cidade: v }))}
+                  disabled={!f.uf || ibgeLoading}
+                  placeholder={!f.uf ? "Selecione a UF" : ibgeLoading ? "Carregando…" : "Buscar cidade…"}
+                />
+              </F>
               <F label="Modalidade">{txt("modalidade")}</F>
               <F label="Responsável *">
                 {usuarios.length > 0 ? (
