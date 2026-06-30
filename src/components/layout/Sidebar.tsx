@@ -427,6 +427,13 @@ const juridicoModule: ModuleDef = {
       ],
     },
     {
+      label: "Recrutamento",
+      defaultOpen: true,
+      items: [
+        { label: "Verificação de Candidatos", to: "/app/juridico/candidatos", icon: ClipboardCheck },
+      ],
+    },
+    {
       label: "Gestão Patrimonial",
       defaultOpen: true,
       items: [
@@ -506,6 +513,25 @@ function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
   };
 }
 
+// SST — ASO / Admissão (fila do Recrutamento)
+const sstModule: ModuleDef = {
+  id: "sst",
+  label: "SST",
+  description: "Saúde e Segurança do Trabalho",
+  icon: HardHat,
+  basePath: "/app/sst/aso",
+  status: "active",
+  groups: [
+    {
+      label: "Recrutamento",
+      defaultOpen: true,
+      items: [
+        { label: "ASO / Admissão", to: "/app/sst/aso", icon: HardHat },
+      ],
+    },
+  ],
+};
+
 const erpModules: ModuleDef[] = [
   licitacoesModule,
   controladoriaOrcModule,
@@ -518,6 +544,7 @@ const erpModules: ModuleDef[] = [
   encarregadosModule,
   sistemasModule,
   juridicoModule,
+  sstModule,
   centralServicosModule,
   biModule,
 ];
@@ -544,7 +571,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/duvidas", "/app/juridico/processos", "/app/juridico/processos/dashboard", "/app/juridico/processos/audiencias", "/app/juridico/advertencias", "/app/sistemas/solicitacoes-erp", "/app/central-servicos/orientacoes-juridicas"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/duvidas", "/app/juridico/processos", "/app/juridico/processos/dashboard", "/app/juridico/processos/audiencias", "/app/juridico/advertencias", "/app/juridico/candidatos", "/app/sst/aso", "/app/sistemas/solicitacoes-erp", "/app/central-servicos/orientacoes-juridicas"];
   const visibleModules = useMemo(() => {
     const resolvedBadge = (badge: string | undefined) => {
       if (badge === "__grade_ativa__") return gradeAtivaCount != null ? String(gradeAtivaCount) : undefined;

@@ -67,6 +67,11 @@ interface Curriculo {
   tem_pdf?: boolean;
   storage_path?: string;
   created_at: string;
+  // Processo do candidato (kanban interno)
+  etapa_processo?: string | null;
+  juridico_obs?: string;
+  sst_obs?: string;
+  motivo_reprovacao?: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -84,15 +89,25 @@ function fmtDt(s?: string) {
 
 function badgeStatusCls(st: string) {
   const m: Record<string, string> = {
-    "Aguardando Aprovação": "bg-yellow-100 text-yellow-800 border border-yellow-200",
-    "Aguardando Recrutamento": "bg-purple-100 text-purple-700 border border-purple-200",
-    Aprovada: "bg-green-100 text-green-700 border border-green-200",
-    Reprovada: "bg-red-100 text-red-700 border border-red-200",
-    "Vaga Aberta": "bg-orange-100 text-orange-700 border border-orange-200",
-    "Funcionário Selecionado": "bg-purple-100 text-purple-700 border border-purple-200",
-    Contratado: "bg-green-100 text-green-700 border border-green-200",
+    "Pendente Operacional":  "bg-yellow-100 text-yellow-800 border border-yellow-200",
+    "Pendente Recrutamento": "bg-purple-100 text-purple-700 border border-purple-200",
+    "Seleção de Candidato":  "bg-blue-100 text-blue-700 border border-blue-200",
+    "Concluída":             "bg-green-100 text-green-700 border border-green-200",
+    Reprovada:               "bg-red-100 text-red-700 border border-red-200",
   };
   return m[st] ?? "bg-blue-100 text-blue-700 border border-blue-200";
+}
+
+// Etapas do candidato dentro da solicitação (kanban interno).
+function badgeEtapaCls(e?: string) {
+  const m: Record<string, string> = {
+    Selecionado:         "bg-blue-100 text-blue-700 border border-blue-200",
+    "Pendente Jurídico": "bg-purple-100 text-purple-700 border border-purple-200",
+    ASO:                 "bg-yellow-100 text-yellow-800 border border-yellow-200",
+    "Admissão":          "bg-green-100 text-green-700 border border-green-200",
+    Reprovado:           "bg-red-100 text-red-700 border border-red-200",
+  };
+  return e ? (m[e] ?? "bg-slate-100 text-slate-600 border border-slate-200") : "";
 }
 
 function badgeUrgCls(u?: string) {
@@ -102,36 +117,31 @@ function badgeUrgCls(u?: string) {
   return "bg-green-100 text-green-700 border border-green-200";
 }
 
+// Board externo (por solicitação) — fluxo curto.
 const KB_STATUS_ORDER = [
-  "Aguardando Aprovação",
-  "Aguardando Recrutamento",
-  "Aprovada",
-  "Vaga Aberta",
-  "Seleção de Currículos",
-  "Entrevistas",
-  "Entrevista com Gestor",
-  "Entrevista com Psicóloga",
-  "Aguardando Documentação",
-  "Aguardando ASO",
-  "Funcionário Selecionado",
-  "Contratado",
+  "Pendente Operacional",
+  "Pendente Recrutamento",
+  "Seleção de Candidato",
+  "Concluída",
   "Reprovada",
 ];
 
 const KB_COL_COLORS: Record<string, { dot: string; label: string; accent: string }> = {
-  "Aguardando Aprovação":    { dot: "#f59e0b", label: "#b45309", accent: "#f59e0b" },
-  "Aguardando Recrutamento": { dot: "#8b5cf6", label: "#7c3aed", accent: "#8b5cf6" },
-  Aprovada:                  { dot: "#16a34a", label: "#15803d", accent: "#16a34a" },
-  "Vaga Aberta":             { dot: "#f97316", label: "#ea580c", accent: "#f97316" },
-  "Seleção de Currículos":   { dot: "#3b82f6", label: "#2563eb", accent: "#3b82f6" },
-  Entrevistas:               { dot: "#3b82f6", label: "#2563eb", accent: "#3b82f6" },
-  "Entrevista com Gestor":   { dot: "#8b5cf6", label: "#7c3aed", accent: "#8b5cf6" },
-  "Entrevista com Psicóloga":{ dot: "#8b5cf6", label: "#7c3aed", accent: "#8b5cf6" },
-  "Aguardando Documentação": { dot: "#f59e0b", label: "#b45309", accent: "#f59e0b" },
-  "Aguardando ASO":          { dot: "#f59e0b", label: "#b45309", accent: "#f59e0b" },
-  "Funcionário Selecionado": { dot: "#16a34a", label: "#15803d", accent: "#16a34a" },
-  Contratado:                { dot: "#16a34a", label: "#15803d", accent: "#16a34a" },
-  Reprovada:                 { dot: "#dc2626", label: "#b91c1c", accent: "#dc2626" },
+  "Pendente Operacional":  { dot: "#f59e0b", label: "#b45309", accent: "#f59e0b" },
+  "Pendente Recrutamento": { dot: "#8b5cf6", label: "#7c3aed", accent: "#8b5cf6" },
+  "Seleção de Candidato":  { dot: "#3b82f6", label: "#2563eb", accent: "#3b82f6" },
+  "Concluída":             { dot: "#16a34a", label: "#15803d", accent: "#16a34a" },
+  Reprovada:               { dot: "#dc2626", label: "#b91c1c", accent: "#dc2626" },
+};
+
+// Kanban interno (por candidato, dentro de uma solicitação).
+const CAND_ETAPAS = ["Selecionado", "Pendente Jurídico", "ASO", "Admissão", "Reprovado"];
+const CAND_COL_COLORS: Record<string, { dot: string; label: string; accent: string }> = {
+  Selecionado:         { dot: "#3b82f6", label: "#2563eb", accent: "#3b82f6" },
+  "Pendente Jurídico": { dot: "#8b5cf6", label: "#7c3aed", accent: "#8b5cf6" },
+  ASO:                 { dot: "#f59e0b", label: "#b45309", accent: "#f59e0b" },
+  "Admissão":          { dot: "#16a34a", label: "#15803d", accent: "#16a34a" },
+  Reprovado:           { dot: "#dc2626", label: "#b91c1c", accent: "#dc2626" },
 };
 
 // ── Componente Principal ───────────────────────────────────────────
@@ -141,7 +151,15 @@ export default function Recrutamento() {
 
   const isAdmin       = roles.includes("admin");
   const isTreinamento = roles.includes("treinamentos");
+  const isOperacional = roles.includes("operacional");
+  const isJuridico    = roles.includes("juridico");
+  const isSst         = roles.includes("sst");
   const isRH          = roles.includes("rh") && !isAdmin && !isTreinamento;
+
+  // Recrutamento = quem conduz o processo (treinamentos) + admin.
+  const podeRecrutar = isTreinamento || isAdmin;
+  // Operacional aprova a etapa 1 (Pendente Operacional → Pendente Recrutamento).
+  const podeAprovarOperacional = isOperacional || isAdmin;
 
   // Para isAnalista: qualquer usuário que pode ver itens atribuídos a ele
   // Na prática, qualquer usuário não-RH, não-Treinamento, não-Admin é solicitante
@@ -197,6 +215,11 @@ export default function Recrutamento() {
   const [pendMover, setPendMover]           = useState<{ id: number; novoStatus: string; oldSt: string } | null>(null);
   const [moverExtra, setMoverExtra]         = useState<Record<string, string>>({});
 
+  // Kanban interno de candidatos (solicitação em "Seleção de Candidato")
+  const [candidatos, setCandidatos]         = useState<Curriculo[]>([]);
+  const [candModal, setCandModal]           = useState<{ id: number; novaEtapa: string; nome: string } | null>(null);
+  const [candObs, setCandObs]               = useState("");
+
   // Wizard nova vaga
   const [vaga, setVaga] = useState({
     motivo_vaga: "", nome_substituido: "", contrato: "", cargo: "",
@@ -238,7 +261,7 @@ export default function Recrutamento() {
     : isAdmin || isTreinamento
     ? [
         { label: "Todas", tab: "todas" },
-        { label: "Pendente Aprovação", tab: "analista" },
+        { label: "Pendente Operacional", tab: "analista" },
         { label: "Minhas Solicitações", tab: "minha" },
       ]
     : [{ label: "Minhas Solicitações", tab: "minha" }];
@@ -252,17 +275,12 @@ export default function Recrutamento() {
       .select("status");
     if (error || !data) return;
     const rows: { status: string }[] = data;
-    const emProcesso = [
-      "Vaga Aberta","Seleção de Currículos","Entrevistas",
-      "Entrevista com Gestor","Entrevista com Psicóloga",
-      "Aguardando Documentação","Aguardando ASO","Funcionário Selecionado",
-    ];
     setStats({
       total:            rows.length,
-      pendentes:        rows.filter(r => r.status === "Aguardando Aprovação").length,
-      ag_treinamentos:  rows.filter(r => r.status === "Aguardando Recrutamento").length,
-      em_processo:      rows.filter(r => emProcesso.includes(r.status)).length,
-      contratados:      rows.filter(r => r.status === "Contratado").length,
+      pendentes:        rows.filter(r => r.status === "Pendente Operacional").length,
+      ag_treinamentos:  rows.filter(r => r.status === "Pendente Recrutamento").length,
+      em_processo:      rows.filter(r => r.status === "Seleção de Candidato").length,
+      contratados:      rows.filter(r => r.status === "Concluída").length,
       reprovadas:       rows.filter(r => r.status === "Reprovada").length,
     });
   }, []);
@@ -271,19 +289,13 @@ export default function Recrutamento() {
   // Tabela e Kanban são a MESMA consulta, só muda a apresentação — então os
   // dois aplicam exatamente os mesmos filtros (aba/status/busca).
   const aplicarFiltros = useCallback((q: any) => {
-    if (statusFilter === "em_processo") {
-      q = q.in("status", [
-        "Vaga Aberta","Seleção de Currículos","Entrevistas",
-        "Entrevista com Gestor","Entrevista com Psicóloga",
-        "Aguardando Documentação","Aguardando ASO","Funcionário Selecionado",
-      ]);
-    } else if (statusFilter) {
+    if (statusFilter) {
       q = q.eq("status", statusFilter);
     }
     if (tab === "minha" && user?.email) {
       q = q.eq("solicitante_cpf", user.email);
     } else if (tab === "analista") {
-      q = q.eq("status", "Aguardando Aprovação");
+      q = q.eq("status", "Pendente Operacional");
     }
     if (search) {
       q = q.or(`cargo.ilike.%${search}%,contrato.ilike.%${search}%,cidade.ilike.%${search}%`);
@@ -366,11 +378,32 @@ export default function Recrutamento() {
     searchTimer.current = setTimeout(() => { setPage(1); }, 350);
   };
 
+  // ── Candidatos no processo (kanban interno) ───────────────────
+  const mapCurriculo = (c: any): Curriculo => ({
+    ...c,
+    nome: c.nome ?? c.nome_cand ?? c.nome_candidato ?? "",
+    email: c.email ?? c.email_cand ?? "",
+    cpf: c.cpf ?? c.cpf_cand ?? "",
+    storage_path: c.storage_path ?? c.arquivo_path ?? c.path ?? "",
+    tem_pdf: !!(c.storage_path ?? c.arquivo_path ?? c.path ?? c.arquivo_url),
+  });
+
+  const loadCandidatos = useCallback(async (vagaId: number) => {
+    const { data } = await (supabase as any)
+      .from("WA_CURRICULOS")
+      .select("*")
+      .eq("vaga_id", vagaId)
+      .not("etapa_processo", "is", null)
+      .order("etapa_changed_at", { ascending: false });
+    setCandidatos((data ?? []).map(mapCurriculo));
+  }, []);
+
   // ── Abrir Detalhe ─────────────────────────────────────────────
   const verDetalhe = useCallback(async (id: number) => {
     setDrawerId(id);
     setDrawerSol(null);
     setMsgs([]);
+    setCandidatos([]);
     if (pollTimer.current) clearInterval(pollTimer.current);
 
     const [{ data: sol }, { data: mensagens }] = await Promise.all([
@@ -378,6 +411,7 @@ export default function Recrutamento() {
       (supabase as any).from("WA_MENSAGENS_RECRUTAMENTO").select("*").eq("solicitacao_id", id).order("created_at"),
     ]);
     if (sol) setDrawerSol(sol);
+    if (sol?.status === "Seleção de Candidato") loadCandidatos(id);
     if (mensagens) setMsgs(mensagens);
 
     pollTimer.current = setInterval(async () => {
@@ -385,7 +419,7 @@ export default function Recrutamento() {
         .from("WA_MENSAGENS_RECRUTAMENTO").select("*").eq("solicitacao_id", id).order("created_at");
       if (nm) setMsgs(nm);
     }, 5000);
-  }, []);
+  }, [loadCandidatos]);
 
   const fecharDrawer = () => {
     setDrawerId(null);
@@ -420,12 +454,11 @@ export default function Recrutamento() {
   // ── Aprovar ───────────────────────────────────────────────────
   const aprovar = async () => {
     if (!drawerId || !drawerSol) return;
-    const label = drawerSol.status === "Aguardando Recrutamento" ? "Liberar Vaga" : "Aprovar";
-    if (!confirm(`${label} solicitação #${drawerId}?`)) return;
+    const ehAbertura = drawerSol.status === "Pendente Recrutamento";
+    const label = ehAbertura ? "Confirmar abertura da vaga" : "Aprovar";
+    if (!confirm(`${label} (#${drawerId})?`)) return;
 
-    let novoStatus = drawerSol.status === "Aguardando Recrutamento"
-      ? "Aprovada"
-      : "Aguardando Recrutamento";
+    const novoStatus = ehAbertura ? "Seleção de Candidato" : "Pendente Recrutamento";
 
     const { error } = await (supabase as any)
       .from("SISTEMA_RECRUTAMENTO")
@@ -433,7 +466,22 @@ export default function Recrutamento() {
       .eq("id", drawerId);
 
     if (error) { toast("Erro ao aprovar.", "err"); return; }
-    toast(drawerSol.status === "Aguardando Recrutamento" ? "Vaga liberada!" : "Aprovado e encaminhado para Recrutamento!", "ok");
+    toast(ehAbertura ? "Vaga aberta — já aparece no portal de candidaturas!" : "Aprovado e encaminhado ao Recrutamento!", "ok");
+    fecharDrawer();
+    loadStats();
+    loadLista();
+  };
+
+  // ── Concluir Solicitação (manual) ─────────────────────────────
+  const concluir = async () => {
+    if (!drawerId) return;
+    if (!confirm(`Concluir a solicitação #${drawerId}? Ela sai da seleção de candidatos.`)) return;
+    const { error } = await (supabase as any)
+      .from("SISTEMA_RECRUTAMENTO")
+      .update({ status: "Concluída" })
+      .eq("id", drawerId);
+    if (error) { toast("Erro ao concluir.", "err"); return; }
+    toast("Solicitação concluída!", "ok");
     fecharDrawer();
     loadStats();
     loadLista();
@@ -564,9 +612,75 @@ export default function Recrutamento() {
     return Array.from(m.values()).map(items => {
       const latest = items[0]; // já vem ordenado por created_at desc
       const d = digitsOf(latest.cpf);
-      return { items, latest, digits: d.length === 11 ? d : "" };
+      const emProcesso = items.some(i => !!i.etapa_processo);
+      return { items, latest, digits: d.length === 11 ? d : "", emProcesso };
     });
   })();
+
+  // ── Candidatos: selecionar e mover no kanban interno ──────────
+  // Quem pode mover o candidato de uma etapa para a próxima.
+  const podeMoverCand = (etapa?: string | null) => {
+    if (isAdmin) return true;
+    if (etapa === "Selecionado")       return podeRecrutar; // enviar ao Jurídico
+    if (etapa === "Pendente Jurídico") return isJuridico;   // liberar para ASO
+    if (etapa === "ASO")               return isSst;        // confirmar admissão
+    return false;
+  };
+  const CAND_PROX: Record<string, string> = {
+    Selecionado: "Pendente Jurídico",
+    "Pendente Jurídico": "ASO",
+    ASO: "Admissão",
+  };
+
+  // Seleciona um currículo para o processo (entra no kanban como "Selecionado").
+  const selecionarCandidato = async (cv: Curriculo) => {
+    if (cv.etapa_processo) { toast("Candidato já está no processo.", "info"); return; }
+    const nowIso = new Date().toISOString();
+    const { error } = await (supabase as any).from("WA_CURRICULOS").update({
+      etapa_processo: "Selecionado",
+      etapa_changed_at: nowIso,
+      selecionado_por: user?.user_metadata?.nome ?? user?.email ?? "",
+      selecionado_em: nowIso,
+    }).eq("id", cv.id);
+    if (error) { toast("Erro ao selecionar candidato: " + error.message, "err"); return; }
+    toast(`${cv.nome || "Candidato"} adicionado ao processo.`, "ok");
+    setCurriculos(prev => prev.map(c => c.id === cv.id ? { ...c, etapa_processo: "Selecionado" } : c));
+    if (drawerId) loadCandidatos(drawerId);
+  };
+
+  const pedirMoverCand = (cv: Curriculo, novaEtapa: string) => {
+    setCandObs("");
+    setCandModal({ id: cv.id, novaEtapa, nome: cv.nome || "Candidato" });
+  };
+
+  const executarMoverCand = async (id: number, novaEtapa: string, extra: Record<string, any> = {}) => {
+    const nowIso = new Date().toISOString();
+    const nome = user?.user_metadata?.nome ?? user?.email ?? "";
+    const payload: Record<string, any> = { etapa_processo: novaEtapa, etapa_changed_at: nowIso, ...extra };
+    if (novaEtapa === "ASO")      { payload.juridico_ok = true; payload.juridico_por = nome; payload.juridico_em = nowIso; }
+    if (novaEtapa === "Admissão") { payload.sst_ok = true; payload.sst_por = nome; payload.sst_em = nowIso; payload.admitido_em = nowIso; }
+    const { error } = await (supabase as any).from("WA_CURRICULOS").update(payload).eq("id", id);
+    if (error) { toast("Erro ao mover candidato: " + error.message, "err"); return; }
+    toast(`Candidato movido para "${novaEtapa}".`, "ok");
+    if (drawerId) loadCandidatos(drawerId);
+  };
+
+  const confirmarMoverCand = async () => {
+    if (!candModal) return;
+    const { id, novaEtapa } = candModal;
+    if (novaEtapa === "Reprovado" && !candObs.trim()) { toast("Informe o motivo da reprovação.", "err"); return; }
+    const extra: Record<string, any> = {};
+    const origem = candidatos.find(c => c.id === id)?.etapa_processo;
+    if (novaEtapa === "Reprovado") {
+      extra.motivo_reprovacao = candObs.trim();
+    } else if (candObs.trim()) {
+      if (origem === "Pendente Jurídico") extra.juridico_obs = candObs.trim();
+      else if (origem === "ASO")          extra.sst_obs = candObs.trim();
+    }
+    setCandModal(null);
+    setCandObs("");
+    await executarMoverCand(id, novaEtapa, extra);
+  };
 
   // ── Kanban Mover ──────────────────────────────────────────────
   const executarMover = async (id: number, novoStatus: string, oldSt: string, extra: Record<string, any>) => {
@@ -586,13 +700,15 @@ export default function Recrutamento() {
     setDragStatus(null);
     setDragOver(null);
 
-    if (["Funcionário Selecionado", "Contratado", "Reprovada"].includes(novoStatus)) {
+    // No board externo só se arrasta para encerrar a solicitação (Concluída/Reprovada).
+    // As demais transições são feitas pelos botões dentro da solicitação.
+    if (novoStatus === "Reprovada" || novoStatus === "Concluída") {
       setPendMover({ id, novoStatus, oldSt });
       setMoverExtra({});
       setModalMoverKb(true);
       return;
     }
-    executarMover(id, novoStatus, oldSt, {});
+    toast("Use os botões da solicitação para avançar entre as etapas.", "info");
   };
 
   const confirmarMoverKb = async () => {
@@ -600,15 +716,7 @@ export default function Recrutamento() {
     const { id, novoStatus, oldSt } = pendMover;
     const extra: Record<string, any> = {};
 
-    if (novoStatus === "Funcionário Selecionado") {
-      if (!moverExtra.nome) { toast("Informe o nome.", "err"); return; }
-      extra.funcionario_selecionado = moverExtra.nome;
-    } else if (novoStatus === "Contratado") {
-      if (!moverExtra.nome || !moverExtra.contato || !moverExtra.data) { toast("Preencha todos os campos.", "err"); return; }
-      extra.contratado_nome        = moverExtra.nome;
-      extra.contratado_contato     = moverExtra.contato;
-      extra.contratado_data_inicio = moverExtra.data;
-    } else if (novoStatus === "Reprovada") {
+    if (novoStatus === "Reprovada") {
       if (!moverExtra.motivo) { toast("Informe o motivo.", "err"); return; }
       extra.motivo_reprovacao = moverExtra.motivo;
       extra.aprovado_por_nome = user?.user_metadata?.nome ?? "";
@@ -691,7 +799,7 @@ export default function Recrutamento() {
     const payload = {
       ...vaga,
       quantidade_vagas: parseInt(vaga.quantidade_vagas) || 1,
-      status: "Aguardando Aprovação",
+      status: "Pendente Operacional",
       solicitante_nome: user?.user_metadata?.nome ?? user?.email ?? "",
       solicitante_cpf: user?.email ?? "",
     };
@@ -826,27 +934,98 @@ export default function Recrutamento() {
   // ── Ações do Drawer ───────────────────────────────────────────
   const renderActions = (s: Solicitacao) => {
     const btns = [];
+    const reprovar = (key: string) => (
+      <button key={key} onClick={() => { setReprovarMotivo(""); setModalReprovar(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reprovar</button>
+    );
 
-    const canApprove = isAdmin || isTreinamento;
-    if (s.status === "Aguardando Aprovação" && canApprove && !isTreinamento) {
-      btns.push(<button key="rep" onClick={() => { setReprovarMotivo(""); setModalReprovar(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reprovar</button>);
-      btns.push(<button key="apr" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>✓ Aprovar</button>);
+    // Etapa 1 → 2: Operacional aprova a solicitação.
+    if (s.status === "Pendente Operacional" && podeAprovarOperacional) {
+      btns.push(reprovar("rep"));
+      btns.push(<button key="apr" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Aprovar</button>);
     }
-    if (s.status === "Aguardando Recrutamento" && (isTreinamento || isAdmin)) {
-      btns.push(<button key="rep2" onClick={() => { setReprovarMotivo(""); setModalReprovar(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reprovar</button>);
-      btns.push(<button key="lib" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>✓ Liberar Vaga</button>);
+    // Etapa 2 → 3: Recrutamento confirma a abertura (vaga vai pro portal).
+    if (s.status === "Pendente Recrutamento" && podeRecrutar) {
+      btns.push(reprovar("rep2"));
+      btns.push(<button key="ab" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Confirmar Abertura de Vaga</button>);
     }
-    if ((isTreinamento || isAdmin) && !["Aguardando Aprovação","Aguardando Recrutamento","Reprovada","Contratado"].includes(s.status)) {
-      btns.push(<button key="st" onClick={() => { setStatusSel(""); setStatusExtra({}); setModalStatus(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>Atualizar Status</button>);
-    }
-    const linkStatuses = ["Aprovada","Vaga Aberta","Em Processo Seletivo"];
-    if ((isTreinamento || isAdmin) && linkStatuses.includes(s.status) && s.link_publico) {
-      btns.push(<button key="lnk" onClick={() => { setLinkCopiado(false); setModalLink(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(99,102,241,.35)", background: "rgba(99,102,241,.15)", color: "#818cf8", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>Gerar Link</button>);
-    }
-    if (isTreinamento || isAdmin) {
-      btns.push(<button key="cv" onClick={abrirCurriculos} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(34,197,94,.25)", background: "rgba(34,197,94,.1)", color: "#22c55e", fontSize: 12, fontWeight: 700, cursor: "pointer", marginLeft: 6 }}>Currículos</button>);
+    // Etapa 3: Seleção de Candidato — currículos, concluir, reprovar.
+    if (s.status === "Seleção de Candidato" && podeRecrutar) {
+      btns.push(<button key="cv" onClick={abrirCurriculos} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(34,197,94,.25)", background: "rgba(34,197,94,.1)", color: "#22c55e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Currículos</button>);
+      if (s.link_publico) btns.push(<button key="lnk" onClick={() => { setLinkCopiado(false); setModalLink(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(99,102,241,.35)", background: "rgba(99,102,241,.15)", color: "#818cf8", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Gerar Link</button>);
+      btns.push(<button key="cc" onClick={concluir} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Concluir Solicitação</button>);
+      btns.push(reprovar("rep3"));
     }
     return btns;
+  };
+
+  // ── Kanban interno: candidatos da solicitação ─────────────────
+  const renderCandidatosKanban = () => {
+    const grupos: Record<string, Curriculo[]> = {};
+    for (const c of candidatos) {
+      const e = c.etapa_processo || "Selecionado";
+      (grupos[e] = grupos[e] || []).push(c);
+    }
+    return (
+      <div style={{ padding: "0 20px 24px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "4px 0 12px", flexWrap: "wrap" }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#0f3171", display: "flex", alignItems: "center", gap: 8 }}>
+            👥 Candidatos no processo
+            <span style={{ fontSize: 11, fontWeight: 700, background: "#eef4ff", border: "1px solid #dbe4f0", borderRadius: 20, padding: "1px 9px", color: "#0f3171" }}>{candidatos.length}</span>
+          </div>
+          {podeRecrutar && (
+            <button onClick={abrirCurriculos} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(34,197,94,.25)", background: "rgba(34,197,94,.1)", color: "#22c55e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Selecionar dos currículos</button>
+          )}
+        </div>
+        {candidatos.length === 0 ? (
+          <div style={{ border: "1px dashed #cbd5e1", borderRadius: 12, padding: "26px 16px", textAlign: "center", color: "#94a3b8", fontSize: 12.5 }}>
+            Nenhum candidato selecionado ainda. Abra <b>Currículos</b> e clique em <b>Selecionar candidato</b> para iniciar o processo (Jurídico → ASO → Admissão).
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, alignItems: "flex-start" }}>
+            {CAND_ETAPAS.map(etapa => {
+              const cards = grupos[etapa] ?? [];
+              const meta = CAND_COL_COLORS[etapa];
+              return (
+                <div key={etapa} className="kb-col" style={{ flex: "0 0 210px", maxHeight: 440 }}>
+                  <div className="kb-col-head">
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: meta.dot, display: "inline-block" }} />
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".4px", flex: 1, textTransform: "uppercase", color: meta.label }}>{etapa}</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, background: "#eef2f7", borderRadius: 20, padding: "1px 7px", color: "#94a3b8" }}>{cards.length}</span>
+                  </div>
+                  <div className="kb-col-body">
+                    {cards.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "16px 8px", color: "#94a3b8", fontSize: 10, opacity: .6 }}>—</div>
+                    ) : cards.map(c => {
+                      const prox = CAND_PROX[etapa];
+                      const podeAvancar = prox && podeMoverCand(etapa);
+                      const proxLabel = etapa === "Selecionado" ? "Enviar ao Jurídico"
+                        : etapa === "Pendente Jurídico" ? "Liberar p/ ASO"
+                        : "Confirmar Admissão";
+                      return (
+                        <div key={c.id} className="kb-card" style={{ cursor: "default" }}>
+                          <div style={{ height: 3, background: meta.accent }} />
+                          <div style={{ padding: "9px 10px 8px" }}>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.nome || "Sem nome"}</div>
+                            {c.cpf && <div style={{ fontSize: 10, color: "#94a3b8" }}>CPF {c.cpf}</div>}
+                            {c.telefone && <div style={{ fontSize: 10, color: "#475569" }}>📞 {c.telefone}</div>}
+                            {etapa === "Reprovado" && c.motivo_reprovacao && <div style={{ fontSize: 10.5, color: "#b91c1c", marginTop: 4 }}>Motivo: {c.motivo_reprovacao}</div>}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
+                              {c.tem_pdf && <button onClick={() => baixarCurriculo(c)} style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 6, background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", color: "#f97316", cursor: "pointer" }}>↓ CV</button>}
+                              {podeAvancar && <button onClick={() => pedirMoverCand(c, prox)} style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 6, background: "#16a34a", border: "none", color: "#fff", cursor: "pointer" }}>{proxLabel} →</button>}
+                              {etapa !== "Admissão" && etapa !== "Reprovado" && podeMoverCand(etapa) && <button onClick={() => pedirMoverCand(c, "Reprovado")} style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 6, background: "rgba(220,38,38,.08)", border: "1px solid rgba(220,38,38,.25)", color: "#dc2626", cursor: "pointer" }}>Reprovar</button>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const canNovaVaga = !isRH;
@@ -921,12 +1100,12 @@ export default function Recrutamento() {
         {/* KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 12, marginBottom: 20 }}>
           {[
-            { label: "Total",          val: stats.total,           color: "#0f3171" },
-            { label: "Ag. Aprovação",  val: stats.pendentes,       color: "#f59e0b" },
-            { label: "Ag. Recrutamento",val: stats.ag_treinamentos, color: "#8b5cf6" },
-            { label: "Em Processo",    val: stats.em_processo,     color: "#3b82f6" },
-            { label: "Contratados",    val: stats.contratados,     color: "#16a34a" },
-            { label: "Reprovadas",     val: stats.reprovadas,      color: "#dc2626" },
+            { label: "Total",            val: stats.total,           color: "#0f3171" },
+            { label: "Pend. Operacional",val: stats.pendentes,       color: "#f59e0b" },
+            { label: "Pend. Recrutamento",val: stats.ag_treinamentos, color: "#8b5cf6" },
+            { label: "Seleção Candidato",val: stats.em_processo,     color: "#3b82f6" },
+            { label: "Concluídas",       val: stats.contratados,     color: "#16a34a" },
+            { label: "Reprovadas",       val: stats.reprovadas,      color: "#dc2626" },
           ].map(k => (
             <div key={k.label} className="rec-kpi">
               <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".7px", marginBottom: 6, fontWeight: 700 }}>{k.label}</div>
@@ -984,10 +1163,10 @@ export default function Recrutamento() {
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
               {[
                 { label: "Todas", val: "" },
-                { label: "Pendente Analista", val: "Aguardando Aprovação" },
-                { label: "Pendente Recrutamento", val: "Aguardando Recrutamento" },
-                { label: "Em Processo", val: "em_processo" },
-                { label: "Contratados", val: "Contratado" },
+                { label: "Pendente Operacional", val: "Pendente Operacional" },
+                { label: "Pendente Recrutamento", val: "Pendente Recrutamento" },
+                { label: "Seleção de Candidato", val: "Seleção de Candidato" },
+                { label: "Concluídas", val: "Concluída" },
                 { label: "Reprovados", val: "Reprovada" },
               ].map(p => (
                 <button key={p.val} onClick={() => { setStatusFilter(p.val); setPage(1); }} style={{ padding: "5px 13px", borderRadius: 20, border: "1px solid #e2e8f0", background: statusFilter === p.val ? "#0f3171" : "#fff", color: statusFilter === p.val ? "#fff" : "#94a3b8", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
@@ -1128,9 +1307,12 @@ export default function Recrutamento() {
 
             {/* Body */}
             <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-              {/* Left: detalhe */}
+              {/* Left: detalhe + kanban de candidatos */}
               <div style={{ flex: 1, overflowY: "auto", minWidth: 0 }}>
-                {drawerSol ? renderDetalhe(drawerSol) : <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>Carregando...</div>}
+                {drawerSol ? (<>
+                  {renderDetalhe(drawerSol)}
+                  {drawerSol.status === "Seleção de Candidato" && renderCandidatosKanban()}
+                </>) : <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>Carregando...</div>}
               </div>
 
               {/* Right: chat */}
@@ -1255,22 +1437,40 @@ export default function Recrutamento() {
           <div className="rec-modal" style={{ maxWidth: 400 }}>
             <button onClick={() => { setModalMoverKb(false); setPendMover(null); }} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>
-              {pendMover.novoStatus === "Reprovada" ? "Reprovar Solicitação" : pendMover.novoStatus}
+              {pendMover.novoStatus === "Reprovada" ? "Reprovar Solicitação" : "Concluir Solicitação"}
             </div>
-            {pendMover.novoStatus === "Funcionário Selecionado" && (
-              <div className="rec-fg"><label>Nome do Funcionário *</label><input className="rec-fi" placeholder="Nome completo" value={moverExtra.nome ?? ""} onChange={e => setMoverExtra(x => ({ ...x, nome: e.target.value }))} /></div>
-            )}
-            {pendMover.novoStatus === "Contratado" && (<>
-              <div className="rec-fg"><label>Nome Completo *</label><input className="rec-fi" placeholder="Nome completo" value={moverExtra.nome ?? ""} onChange={e => setMoverExtra(x => ({ ...x, nome: e.target.value }))} /></div>
-              <div className="rec-fg"><label>Contato *</label><input className="rec-fi" placeholder="Telefone / e-mail" value={moverExtra.contato ?? ""} onChange={e => setMoverExtra(x => ({ ...x, contato: e.target.value }))} /></div>
-              <div className="rec-fg"><label>Data de Início (DD/MM/AAAA) *</label><input className="rec-fi" placeholder="DD/MM/AAAA" maxLength={10} value={moverExtra.data ?? ""} onChange={e => setMoverExtra(x => ({ ...x, data: e.target.value }))} /></div>
-            </>)}
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>
+              {pendMover.novoStatus === "Reprovada"
+                ? "Informe o motivo da reprovação."
+                : "A solicitação será marcada como concluída e sairá da seleção de candidatos."}
+            </div>
             {pendMover.novoStatus === "Reprovada" && (
               <div className="rec-fg"><label>Motivo *</label><textarea className="rec-fi" rows={3} placeholder="Descreva o motivo..." value={moverExtra.motivo ?? ""} onChange={e => setMoverExtra(x => ({ ...x, motivo: e.target.value }))} /></div>
             )}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
               <button onClick={() => { setModalMoverKb(false); setPendMover(null); }} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
-              <button onClick={confirmarMoverKb} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Confirmar</button>
+              <button onClick={confirmarMoverKb} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: pendMover.novoStatus === "Reprovada" ? "#dc2626" : "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Mover Candidato (kanban interno) ── */}
+      {candModal && (
+        <div className="rec-modal-ov" style={{ zIndex: 850 }}>
+          <div className="rec-modal" style={{ maxWidth: 420 }}>
+            <button onClick={() => { setCandModal(null); setCandObs(""); }} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>
+              {candModal.novaEtapa === "Reprovado" ? "Reprovar candidato" : `Mover para "${candModal.novaEtapa}"`}
+            </div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>{candModal.nome}</div>
+            <div className="rec-fg">
+              <label>{candModal.novaEtapa === "Reprovado" ? "Motivo *" : "Observação (opcional)"}</label>
+              <textarea className="rec-fi" rows={3} placeholder={candModal.novaEtapa === "Reprovado" ? "Descreva o motivo..." : "Observação da etapa..."} value={candObs} onChange={e => setCandObs(e.target.value)} />
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+              <button onClick={() => { setCandModal(null); setCandObs(""); }} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={confirmarMoverCand} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: candModal.novaEtapa === "Reprovado" ? "#dc2626" : "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Confirmar</button>
             </div>
           </div>
         </div>
@@ -1295,7 +1495,7 @@ export default function Recrutamento() {
                 <div style={{ textAlign: "center", padding: "60px 20px", color: "#94a3b8" }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
                   <div style={{ fontSize: 14, marginBottom: 4 }}>Nenhum currículo recebido ainda.</div>
-                  <div style={{ fontSize: 12 }}>Com a vaga em <b>“Seleção de Currículos”</b>, ela aparece no portal público <b>/vagas</b> para receber candidaturas.</div>
+                  <div style={{ fontSize: 12 }}>Com a vaga em <b>“Seleção de Candidato”</b>, ela aparece no portal público <b>/vagas</b> para receber candidaturas.</div>
                 </div>
               ) : (
                 <div className="cv-grid">
@@ -1341,6 +1541,11 @@ export default function Recrutamento() {
                         {bl
                           ? <button onClick={() => desbloquearCpf(digits)} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "#f1f5f9", border: "1px solid #e2e8f0", color: "#475569", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Desbloquear CPF</button>
                           : <button onClick={() => abrirBloqueio(cv)} disabled={!digits} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "rgba(220,38,38,.08)", border: "1px solid rgba(220,38,38,.25)", color: "#dc2626", fontSize: 11, fontWeight: 700, cursor: digits ? "pointer" : "not-allowed", opacity: digits ? 1 : .5 }}>🚫 Bloquear CPF</button>}
+                        {drawerSol?.status === "Seleção de Candidato" && podeRecrutar && (
+                          g.emProcesso
+                            ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "rgba(34,197,94,.1)", border: "1px solid rgba(34,197,94,.25)", color: "#16a34a", fontSize: 11, fontWeight: 700 }}>✓ No processo</span>
+                            : <button onClick={() => selecionarCandidato(cv)} disabled={!!bl} title={bl ? "Candidato na lista negra" : ""} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: bl ? "#f1f5f9" : "#16a34a", border: "none", color: bl ? "#94a3b8" : "#fff", fontSize: 11, fontWeight: 700, cursor: bl ? "not-allowed" : "pointer" }}>✓ Selecionar candidato</button>
+                        )}
                         <button onClick={() => setDetalheEmp({ nome: cv.nome || "Candidato", cpf: cv.cpf || "", telefone: cv.telefone, email: cv.email, itens: g.items, emps })} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 6, background: "rgba(15,49,113,.08)", border: "1px solid rgba(15,49,113,.25)", color: "#0f3171", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{hasEmp ? `🏦 Ver detalhes (${emps.length})` : "Ver detalhes"}</button>
                       </div>
                     </div>

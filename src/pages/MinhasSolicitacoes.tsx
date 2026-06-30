@@ -25,6 +25,9 @@ function mesLabel(s?: string) {
 function badgeStatusCls(st: string) {
   const m: Record<string, string> = {
     "Aguardando Aprovação": "bg-yellow-100 text-yellow-800 border-yellow-200",
+    "Pendente Operacional": "bg-yellow-100 text-yellow-800 border-yellow-200",
+    "Pendente Recrutamento": "bg-purple-100 text-purple-700 border-purple-200",
+    "Seleção de Candidato": "bg-blue-100 text-blue-700 border-blue-200",
     "Aguardando Recrutamento": "bg-purple-100 text-purple-700 border-purple-200",
     "Aguardando Jurídico": "bg-purple-100 text-purple-700 border-purple-200",
     "Concluída": "bg-green-100 text-green-700 border-green-200",
@@ -231,7 +234,7 @@ export default function MinhasSolicitacoes() {
     const payload = {
       ...vaga,
       quantidade_vagas: parseInt(vaga.quantidade_vagas) || 1,
-      status: "Aguardando Aprovação",
+      status: "Pendente Operacional",
       solicitante_nome: user?.user_metadata?.nome ?? user?.email ?? "",
       solicitante_cpf: user?.email ?? "",
     };

@@ -37,11 +37,11 @@ export default function CentralDuvidas() {
   const { roles } = usePermissoes();
   const autor = empregado?.nome || user?.user_metadata?.nome || user?.email || "Usuário";
   const trabalhando = empregado?.situacao === "Trabalhando";
-  const podeResponder = empregado?.setor === "JURIDICO" && trabalhando;
   const isAdmin = roles.includes("admin");
 
   const [duvidas, setDuvidas] = useState<Duvida[]>([]);
   const [aprovadores, setAprovadores] = useState<Aprovador[]>([]);
+  const [responsaveis, setResponsaveis] = useState<Aprovador[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("todas");
@@ -64,15 +64,18 @@ export default function CentralDuvidas() {
   const toast = (msg: string, t = "info") => { const id = Date.now() + Math.random(); setToasts(x => [...x, { id, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== id)), 3600); };
 
   const aprovadoresIds = aprovadores.map(a => a.empregado_id);
+  const responsaveisIds = responsaveis.map(r => r.empregado_id);
   const podeAprovar = (empregado?.setor === "DIRETOR ADMINISTRATIVO" && trabalhando) || (empregado?.id != null && aprovadoresIds.includes(empregado.id));
+  const podeResponder = (empregado?.setor === "JURIDICO" && trabalhando) || (empregado?.id != null && responsaveisIds.includes(empregado.id));
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [d, a] = await Promise.all([
+    const [d, a, r] = await Promise.all([
       (supabase as any).from("JUR_DUVIDAS").select("*").order("created_at", { ascending: false }).limit(1000),
       (supabase as any).from("JUR_DUVIDAS_APROVADORES").select("empregado_id, nome"),
+      (supabase as any).from("JUR_DUVIDAS_RESPONSAVEIS").select("empregado_id, nome"),
     ]);
-    setDuvidas(d.data ?? []); setAprovadores(a.data ?? []); setLoading(false);
+    setDuvidas(d.data ?? []); setAprovadores(a.data ?? []); setResponsaveis(r.data ?? []); setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -128,6 +131,16 @@ export default function CentralDuvidas() {
     if (error) { toast("Erro: " + error.message, "err"); return; }
     load();
   };
+  const addResponsavel = async (emp: any) => {
+    const { error } = await (supabase as any).from("JUR_DUVIDAS_RESPONSAVEIS").upsert({ empregado_id: emp["ID"], nome: emp["Nome"], criado_por: autor }, { onConflict: "empregado_id" });
+    if (error) { toast("Erro: " + error.message, "err"); return; }
+    setEmpSearch(""); setEmpResults([]); toast(`${emp["Nome"]} agora pode responder.`, "ok"); load();
+  };
+  const removeResponsavel = async (id: number) => {
+    const { error } = await (supabase as any).from("JUR_DUVIDAS_RESPONSAVEIS").delete().eq("empregado_id", id);
+    if (error) { toast("Erro: " + error.message, "err"); return; }
+    load();
+  };
 
   const respondidasLib = duvidas.filter(d => d.status === "Respondida" && d.resposta);
   const total = duvidas.length;
@@ -176,7 +189,7 @@ export default function CentralDuvidas() {
           <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 2 }}>Aprovação das dúvidas e respostas do Jurídico. Respondidas viram a biblioteca pública (Central de Serviços).</div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {isAdmin && <button className="jd-btn" onClick={() => { setAdminModal(true); setEmpSearch(""); setEmpResults([]); }} style={{ background: "#eef4ff", color: "#0f3171" }}>⚙️ Quem aprova</button>}
+          {isAdmin && <button className="jd-btn" onClick={() => { setAdminModal(true); setEmpSearch(""); setEmpResults([]); }} style={{ background: "#eef4ff", color: "#0f3171" }}>⚙️ Quem aprova/responde</button>}
           <button className="jd-btn" onClick={() => { setAsk({ ...ASK_RESET }); setAskModal(true); }} style={{ background: "#0f3171", color: "#fff", boxShadow: "0 10px 22px rgba(15,49,113,.18)" }}>+ Nova dúvida</button>
         </div>
       </div>
@@ -317,34 +330,51 @@ export default function CentralDuvidas() {
         </div>
       )}
 
-      {/* Admin: quem aprova */}
+      {/* Admin: quem aprova / quem responde */}
       {adminModal && (
         <div className="jd-ov" onClick={e => { if (e.target === e.currentTarget) setAdminModal(false); }}>
-          <div className="jd-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+          <div className="jd-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
             <button onClick={() => setAdminModal(false)} style={{ position: "absolute", top: 14, right: 16, border: "none", background: "none", fontSize: 20, color: "#94a3b8", cursor: "pointer" }}>✕</button>
-            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Quem aprova as dúvidas</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>O setor <b>Diretor Administrativo</b> já aprova por padrão. Adicione abaixo outras pessoas autorizadas.</div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-              <input className="jd-fi" placeholder="Buscar colaborador por nome…" value={empSearch} onChange={e => { setEmpSearch(e.target.value); buscarEmps(e.target.value); }} />
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Quem aprova e quem responde</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>Por padrão o setor <b>Diretor Administrativo</b> aprova e o setor <b>Jurídico</b> responde. Adicione abaixo pessoas específicas para cada papel.</div>
+            <div className="jd-fg">
+              <label>Buscar colaborador</label>
+              <input className="jd-fi" placeholder="Nome do colaborador…" value={empSearch} onChange={e => { setEmpSearch(e.target.value); buscarEmps(e.target.value); }} />
             </div>
             {empLoading && <div style={{ fontSize: 12, color: "#94a3b8", padding: "4px 2px" }}>Buscando…</div>}
             {empResults.length > 0 && (
-              <div style={{ border: "1px solid #e2e8f0", borderRadius: 9, maxHeight: 180, overflowY: "auto", marginBottom: 12 }}>
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: 9, maxHeight: 200, overflowY: "auto", marginBottom: 14 }}>
                 {empResults.map((e, i) => (
                   <div key={e["ID"]} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "8px 11px", borderTop: i ? "1px solid #f1f5f9" : "none" }}>
-                    <div><div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{e["Nome"]}</div><div style={{ fontSize: 11, color: "#94a3b8" }}>{e["Setor_ERP"] || "—"}{e["Nome Filial"] ? ` · ${e["Nome Filial"]}` : ""}</div></div>
-                    {aprovadoresIds.includes(e["ID"]) ? <span style={{ fontSize: 11, color: "#15803d", fontWeight: 700 }}>já aprova</span> : <button className="jd-btn" onClick={() => addAprovador(e)} style={{ background: "#0f3171", color: "#fff", padding: "5px 10px" }}>Adicionar</button>}
+                    <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{e["Nome"]}</div><div style={{ fontSize: 11, color: "#94a3b8" }}>{e["Setor_ERP"] || "—"}{e["Nome Filial"] ? ` · ${e["Nome Filial"]}` : ""}</div></div>
+                    <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                      {aprovadoresIds.includes(e["ID"]) ? <span style={{ fontSize: 10.5, color: "#15803d", fontWeight: 700, alignSelf: "center" }}>aprova</span> : <button className="jd-btn" onClick={() => addAprovador(e)} style={{ background: "#eef4ff", color: "#0f3171", padding: "5px 9px" }}>+ Aprova</button>}
+                      {responsaveisIds.includes(e["ID"]) ? <span style={{ fontSize: 10.5, color: "#7c3aed", fontWeight: 700, alignSelf: "center" }}>responde</span> : <button className="jd-btn" onClick={() => addResponsavel(e)} style={{ background: "#f3e8ff", color: "#7c3aed", padding: "5px 9px" }}>+ Responde</button>}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 6 }}>Aprovadores definidos</div>
-            {aprovadores.length === 0 ? <div style={{ fontSize: 12.5, color: "#94a3b8" }}>Nenhum além do setor Diretor Administrativo.</div> : aprovadores.map(a => (
-              <div key={a.empregado_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: "1px solid #f1f5f9" }}>
-                <span style={{ fontSize: 13, color: "#0f172a" }}>{a.nome || `ID ${a.empregado_id}`}</span>
-                <button className="jd-btn" onClick={() => removeAprovador(a.empregado_id)} style={{ background: "none", color: "#dc2626" }}>Remover</button>
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 210 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 6 }}>Aprovadores extras</div>
+                {aprovadores.length === 0 ? <div style={{ fontSize: 12.5, color: "#94a3b8" }}>Só o setor Diretor Administrativo.</div> : aprovadores.map(a => (
+                  <div key={a.empregado_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: "1px solid #f1f5f9" }}>
+                    <span style={{ fontSize: 13, color: "#0f172a" }}>{a.nome || `ID ${a.empregado_id}`}</span>
+                    <button className="jd-btn" onClick={() => removeAprovador(a.empregado_id)} style={{ background: "none", color: "#dc2626", padding: "4px 6px" }}>Remover</button>
+                  </div>
+                ))}
               </div>
-            ))}
+              <div style={{ flex: 1, minWidth: 210 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 6 }}>Respondedores extras</div>
+                {responsaveis.length === 0 ? <div style={{ fontSize: 12.5, color: "#94a3b8" }}>Só o setor Jurídico.</div> : responsaveis.map(r => (
+                  <div key={r.empregado_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderTop: "1px solid #f1f5f9" }}>
+                    <span style={{ fontSize: 13, color: "#0f172a" }}>{r.nome || `ID ${r.empregado_id}`}</span>
+                    <button className="jd-btn" onClick={() => removeResponsavel(r.empregado_id)} style={{ background: "none", color: "#dc2626", padding: "4px 6px" }}>Remover</button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
