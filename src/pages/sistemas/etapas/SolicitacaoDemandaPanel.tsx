@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Send, X, Ban } from "lucide-react";
+import { Send, X, Ban, FileDown } from "lucide-react";
 import { nomeUsuario, type EtapaPanelProps } from "./types";
 import { RecusadoPanel } from "./RecusadoPanel";
+import { exportarPdfEtapa } from "./documentoPdf";
 
 export function SolicitacaoDemandaPanel({
-  card, papeis, userId, convidaveis, convidados, onUpdate, onAdicionarConvidado, onRemoverConvidado, onExcluir,
+  card, papeis, userId, anexos, comentarios, usuarios, convidaveis, convidados, onUpdate, onAdicionarConvidado, onRemoverConvidado, onExcluir,
 }: EtapaPanelProps) {
   const [novoConvidado, setNovoConvidado] = useState<string | null>(null);
   const souCriador = !!userId && userId === card.criado_por;
@@ -33,6 +34,11 @@ export function SolicitacaoDemandaPanel({
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("solicitacao_demanda", card, anexos, comentarios, usuarios, convidados)}>
+          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+        </Button>
+      </div>
       <div>
         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Convidados</p>
         <div className="space-y-1">
