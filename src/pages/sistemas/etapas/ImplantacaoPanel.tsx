@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, FileDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { nomeUsuario, type EtapaPanelProps } from "./types";
 import { AnexoSimples } from "./AnexoSimples";
+import { exportarPdfEtapa } from "./documentoPdf";
 
 const OPCOES = [
   { value: "sim", label: "Sim" },
@@ -28,6 +29,11 @@ export function ImplantacaoPanel({
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("implantacao", card, anexos, comentarios, usuarios)}>
+          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+        </Button>
+      </div>
       <p className="text-sm font-medium">Foi implantado corretamente?</p>
       <div className="flex gap-2">
         {OPCOES.map((o) => (
