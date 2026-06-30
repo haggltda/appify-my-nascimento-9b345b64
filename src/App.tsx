@@ -13,6 +13,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { DemoModeProvider } from "./context/DemoModeContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import PainelExecutivo from "./pages/PainelExecutivo";
+import PainelExecutivoTV from "./pages/PainelExecutivoTV";
 import Inicio from "./pages/Inicio";
 import Presidencia from "./pages/Presidencia";
 import Pipeline from "./pages/Pipeline";
@@ -153,6 +154,7 @@ const App = () => (
             {/* Central de Serviços */}
             <Route path="central-servicos" element={<CentralServicos />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
+            <Route path="painel-executivo/tv" element={<PainelExecutivoTV />} />
             <Route path="presidencia" element={<Presidencia />} />
             <Route path="pipeline" element={<Pipeline />} />
             <Route path="editais" element={<CadastroEdital />} />

@@ -13,6 +13,8 @@ import {
 import type { GradeItem, GradeFase, GradeInsert } from "@/hooks/useGrade";
 import { useUsuariosLicitacao } from "@/hooks/useUsuariosLicitacao";
 import type { UsuarioOption } from "@/hooks/useUsuariosLicitacao";
+import { useIBGEMunicipios, UFS } from "@/hooks/useIBGEMunicipios";
+import { CidadeCombobox } from "@/components/ui/CidadeCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -794,6 +796,8 @@ function GradeSheet({
   usuarios: UsuarioOption[];
 }) {
   const [f, setF] = useState({ ...EMPTY_FORM });
+  const { cidadesPorUF, isLoading: ibgeLoading } = useIBGEMunicipios();
+  const cidadesUF = f.uf ? cidadesPorUF(f.uf) : [];
 
   // Preenche quando abre para edição
   useEffect(() => {
@@ -914,10 +918,27 @@ function GradeSheet({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {field("Cidade", "cidade")}
             <div className="space-y-1">
-              <Label htmlFor="uf" className="text-xs">UF</Label>
-              <Input id="uf" value={f.uf} onChange={(e) => setF((p) => ({ ...p, uf: e.target.value.toUpperCase().slice(0, 2) }))} className="h-9" maxLength={2} />
+              <Label className="text-xs">UF</Label>
+              <Select
+                value={f.uf ?? ""}
+                onValueChange={(v) => setF((p) => ({ ...p, uf: v, cidade: "" }))}
+              >
+                <SelectTrigger className="h-9"><SelectValue placeholder="— UF —" /></SelectTrigger>
+                <SelectContent>
+                  {UFS.map((uf) => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Cidade</Label>
+              <CidadeCombobox
+                cidades={cidadesUF}
+                value={f.cidade ?? ""}
+                onChange={(v) => setF((p) => ({ ...p, cidade: v }))}
+                disabled={!f.uf || ibgeLoading}
+                placeholder={!f.uf ? "Selecione a UF" : ibgeLoading ? "Carregando…" : "Buscar cidade…"}
+              />
             </div>
           </div>
 

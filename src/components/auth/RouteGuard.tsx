@@ -29,6 +29,7 @@ const PHASE_FLAGGED_ROUTES: { prefix: string; flag: "triagemIA" }[] = [
  */
 const TECHNICAL_ALLOWLIST = [
   "/app",                            // Início (index do AppShell)
+  "/app/painel-executivo/tv",        // Modo TV — extensão do painel executivo
   "/app/meu-perfil",                 // Perfil do próprio usuário logado
   "/app/controladoria/orcamento-completo",      // TODO B2.x: cadastrar em app_menu
   "/app/contabil/razao-detalhado",   // TODO B2.x: cadastrar em app_menu
