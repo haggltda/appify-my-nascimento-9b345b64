@@ -4,8 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, FileDown } from "lucide-react";
 import {
-  CAMPOS_ABERTURA, ETAPAS, GRAU_URGENCIA_LABEL, PESQUISA_ENCERRAMENTO, PESQUISA_PODE_ENCERRAR_OPCOES,
-  PESQUISA_PODE_ENCERRAR_PERGUNTA, TIPO_SOLICITACAO_LABEL, nomeUsuario,
+  APROVACOES_TESTES_INTERNOS, CAMPOS_ABERTURA, COMPLEXIDADE_LABEL, ETAPAS, GRAU_URGENCIA_LABEL, PESQUISA_ENCERRAMENTO,
+  PESQUISA_PODE_ENCERRAR_OPCOES, PESQUISA_PODE_ENCERRAR_PERGUNTA, TIPO_SOLICITACAO_LABEL, fmtData, nomeUsuario,
   type Anexo, type Assinatura, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
 import { RESUMOS, temDadoResumo } from "./Resumos";
@@ -120,6 +120,102 @@ function exportarPesquisaPdf(card: Solicitacao, titulo: string, solicitacaoId: s
   pdf.salvar(`pesquisa-avaliacao-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`);
 }
 
+const IMPLANTACAO_LABEL: Record<string, string> = { sim: "Sim", nao: "Não", em_implantacao: "Em Implantação" };
+
+// Desenha os campos de uma etapa em texto simples (sem caixa/cor especial)
+// — "tipo um print do card", como pedido — seguido da lista de anexos.
+function desenharCamposEtapa(
+  pdf: PdfDocumento,
+  linhas: string[],
+  anexosDoCampo: Anexo[],
+  comentariosBloco: Array<{ titulo: string; autor: string; data: string; texto: string }> = [],
+) {
+  linhas.forEach((linha) => pdf.paragrafo(linha, { tamanho: 10, espacoDepois: 2 }));
+
+  comentariosBloco.forEach((c) => {
+    pdf.paragrafo(`${c.titulo} — ${c.autor} (${c.data})`, { negrito: true, tamanho: 9, espacoDepois: 1 });
+    pdf.paragrafo(c.texto, { tamanho: 9, espacoDepois: 3 });
+  });
+  if (comentariosBloco.length === 0 && linhas.length === 0) {
+    pdf.paragrafo("—", { tamanho: 9.5, espacoDepois: 2 });
+  }
+
+  pdf.y += 1;
+  pdf.paragrafo("Anexos:", { negrito: true, tamanho: 9.5, espacoDepois: 1 });
+  if (anexosDoCampo.length === 0) {
+    pdf.paragrafo("Nenhum.", { tamanho: 9, espacoDepois: 2 });
+  } else {
+    anexosDoCampo.forEach((a) => pdf.paragrafo(`• ${a.nome_arquivo}`, { tamanho: 9, espacoDepois: 1 }));
+  }
+}
+
+function exportarAnexoEtapaPdf(
+  documento: DocumentoOficial, card: Solicitacao, anexos: Anexo[], comentarios: Comentario[], usuarios: Usuario[],
+  titulo: string, solicitacaoId: string, assinaturasDaEtapa: Assinatura[],
+) {
+  const pdf = new PdfDocumento(titulo, solicitacaoId);
+  pdf.tituloSecao(ETAPA_LABEL[documento.etapaOrigem] ?? documento.etapaOrigem, 18);
+
+  const anexosDoCampo = anexos.filter((a) => a.campo === documento.campoAnexo);
+  const comentarioTexto = (c: Comentario) => ({
+    titulo: c.tipo === "reprovado" ? "Reprovado" : c.tipo === "aprovado_ressalva" ? "Aprovado com ressalva" : (c.tipo ?? ""),
+    autor: nomeUsuario(usuarios, c.autor_id) ?? "Usuário",
+    data: fmtDataHoraPdf(c.created_at),
+    texto: c.texto,
+  });
+
+  switch (documento.numero) {
+    case "II":
+      desenharCamposEtapa(pdf, [
+        `Documentação Funcional: ${card.documentacao_tecnica_texto || "—"}`,
+        `Prazo: ${fmtData(card.documentacao_tecnica_prazo) ?? "—"}`,
+      ], anexosDoCampo);
+      break;
+    case "III":
+      desenharCamposEtapa(pdf, [
+        `Análise Técnica: ${card.analise_tecnica_texto || "—"}`,
+        `Prazo: ${fmtData(card.analise_tecnica_prazo) ?? "—"}`,
+      ], anexosDoCampo);
+      break;
+    case "IV":
+      desenharCamposEtapa(pdf, [
+        `Prioridade: ${card.prioridade ?? "—"}`,
+        `Responsável: ${nomeUsuario(usuarios, card.responsavel_user_id) ?? "—"}`,
+        `Complexidade: ${card.complexidade ? COMPLEXIDADE_LABEL[card.complexidade] ?? card.complexidade : "—"}`,
+      ], anexosDoCampo);
+      break;
+    case "V": {
+      const linhas = (Object.entries(APROVACOES_TESTES_INTERNOS) as Array<[keyof Solicitacao, string]>).map(
+        ([campo, nome]) => `${card[campo] ? "[X]" : "[ ]"} ${nome}`,
+      );
+      desenharCamposEtapa(pdf, linhas, anexosDoCampo);
+      break;
+    }
+    case "VI": {
+      const comentariosHomolog = comentarios.filter((c) => c.tipo === "aprovado_ressalva" || c.tipo === "reprovado").map(comentarioTexto);
+      desenharCamposEtapa(pdf, [], anexosDoCampo, comentariosHomolog);
+      break;
+    }
+    case "VII": {
+      const comentariosImplantacao = comentarios.filter((c) => c.tipo === "implantacao_comentario").map((c) => ({
+        titulo: "Comentário de implantação",
+        autor: nomeUsuario(usuarios, c.autor_id) ?? "Usuário",
+        data: fmtDataHoraPdf(c.created_at),
+        texto: c.texto,
+      }));
+      desenharCamposEtapa(pdf, [
+        `Implantado corretamente: ${card.implantacao_status ? IMPLANTACAO_LABEL[card.implantacao_status] ?? card.implantacao_status : "—"}`,
+      ], anexosDoCampo, comentariosImplantacao);
+      break;
+    }
+  }
+
+  pdf.y += 4;
+  pdf.blocoAssinaturasColuna(ETAPA_LABEL[documento.etapaOrigem] ?? documento.etapaOrigem, assinaturasDaEtapa, usuarios);
+
+  pdf.salvar(`${documento.sigla}-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`);
+}
+
 function exportarEncerramentoPdf(
   card: Solicitacao, titulo: string, solicitacaoId: string,
   anexos: Anexo[], comentarios: Comentario[], usuarios: Usuario[], assinaturas: Assinatura[],
@@ -231,6 +327,16 @@ export function DocumentoDetalheModal({
 
           {documento.tipo === "anexo_etapa" && Resumo && (
             <>
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => exportarAnexoEtapaPdf(documento, card, anexos, comentarios, usuarios, titulo, solicitacaoId, assinaturasDaEtapa(documento.etapaOrigem))}
+                >
+                  <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+                </Button>
+              </div>
               <Resumo card={card} anexos={anexos} comentarios={comentarios} usuarios={usuarios} onDownloadAnexo={onDownloadAnexo} />
               <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL[documento.etapaOrigem]} assinaturas={assinaturasDaEtapa(documento.etapaOrigem)} usuarios={usuarios} />
             </>
