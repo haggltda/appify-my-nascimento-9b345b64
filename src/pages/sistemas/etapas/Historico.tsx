@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { APROVACOES_HOMOLOGACAO_TECNICA, ETAPAS, STATUS_DESENVOLVIMENTO_LABEL, nomeUsuario, type Usuario } from "./types";
+import { APROVACOES_TESTES_INTERNOS, CRITERIO_TRIAGEM_LABEL, ETAPAS, STATUS_DESENVOLVIMENTO_LABEL, nomeUsuario, type Usuario } from "./types";
 
 interface LogRow {
   id: string;
@@ -25,9 +25,10 @@ const ACAO_LABEL: Record<string, (l: LogRow) => string> = {
   definir_status_desenvolvimento: (l) => `definiu o status de desenvolvimento como "${STATUS_DESENVOLVIMENTO_LABEL[l.detalhe ?? ""] ?? l.detalhe}"`,
   definir_status_implantacao: (l) => `marcou implantação como "${l.detalhe}"`,
   finalizado: (l) => (l.detalhe === "true" ? "finalizou a demanda" : "reabriu a demanda"),
-  aprovacao_homologacao_1: (l) => `${l.detalhe === "true" ? "marcou" : "desmarcou"} o botão "${APROVACOES_HOMOLOGACAO_TECNICA.homologacao_aprov_1}"`,
-  aprovacao_homologacao_2: (l) => `${l.detalhe === "true" ? "marcou" : "desmarcou"} o botão "${APROVACOES_HOMOLOGACAO_TECNICA.homologacao_aprov_2}"`,
-  aprovacao_homologacao_3: (l) => `${l.detalhe === "true" ? "marcou" : "desmarcou"} o botão "${APROVACOES_HOMOLOGACAO_TECNICA.homologacao_aprov_3}"`,
+  definir_criterio_triagem: (l) => `definiu o critério como "${CRITERIO_TRIAGEM_LABEL[l.detalhe ?? ""] ?? l.detalhe}"`,
+  aprovacao_testes_internos_1: (l) => `${l.detalhe === "true" ? "marcou" : "desmarcou"} o botão "${APROVACOES_TESTES_INTERNOS.testes_interno_aprov_1}"`,
+  aprovacao_testes_internos_2: (l) => `${l.detalhe === "true" ? "marcou" : "desmarcou"} o botão "${APROVACOES_TESTES_INTERNOS.testes_interno_aprov_2}"`,
+  aprovacao_testes_internos_3: (l) => `${l.detalhe === "true" ? "marcou" : "desmarcou"} o botão "${APROVACOES_TESTES_INTERNOS.testes_interno_aprov_3}"`,
 };
 
 export function Historico({ solicitacaoId, usuarios }: { solicitacaoId: string; usuarios: Usuario[] }) {

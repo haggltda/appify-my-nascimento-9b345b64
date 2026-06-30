@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccessibleMenus } from "@/hooks/useAccessibleMenus";
@@ -17,24 +17,27 @@ import { Plus, UserCircle2, CalendarClock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  ETAPAS, CAMPOS_ABERTURA, TIPO_SOLICITACAO_LABEL, STATUS_DESENVOLVIMENTO_LABEL, STATUS_DESENVOLVIMENTO_COR,
-  nomeUsuario, iniciais, fmtData,
-  type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis,
+  ETAPAS, CAMPOS_ABERTURA, TIPO_SOLICITACAO_LABEL, GRAU_URGENCIA_LABEL, STATUS_DESENVOLVIMENTO_LABEL, STATUS_DESENVOLVIMENTO_COR,
+  nomeUsuario, iniciais, fmtData, statusPrazoEtapa,
+  type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis, type AprovadorTesteInterno,
 } from "./etapas/types";
 import { Historico } from "./etapas/Historico";
 import { temDadoResumo, RESUMOS } from "./etapas/Resumos";
-import { RegistroOficialPanel } from "./etapas/RegistroOficialPanel";
-import { TriagemComitePanel } from "./etapas/TriagemComitePanel";
-import { ProjetoPanel } from "./etapas/ProjetoPanel";
-import { AprovacoesPriorizacaoPanel } from "./etapas/AprovacoesPriorizacaoPanel";
-import { DefinicaoResponsavelPanel } from "./etapas/DefinicaoResponsavelPanel";
-import { DesenvolvimentoAjustesPanel } from "./etapas/DesenvolvimentoAjustesPanel";
-import { HomologacaoTecnicaPanel } from "./etapas/HomologacaoTecnicaPanel";
-import { HomologacaoUsuarioPanel } from "./etapas/HomologacaoUsuarioPanel";
-import { TreinamentosPanel } from "./etapas/TreinamentosPanel";
+import { SolicitacaoDemandaPanel } from "./etapas/SolicitacaoDemandaPanel";
+import { TriagemInicialPanel } from "./etapas/TriagemInicialPanel";
+import { AnaliseNecessidadePanel } from "./etapas/AnaliseNecessidadePanel";
+import { LevantamentoFuncionalPanel } from "./etapas/LevantamentoFuncionalPanel";
+import { DocumentacaoFuncionalPanel } from "./etapas/DocumentacaoFuncionalPanel";
+import { AnaliseTecnicaPanel } from "./etapas/AnaliseTecnicaPanel";
+import { AprovacaoPriorizacaoPanel } from "./etapas/AprovacaoPriorizacaoPanel";
+import { DesenvolvimentoPanel } from "./etapas/DesenvolvimentoPanel";
+import { TestesInternosPanel } from "./etapas/TestesInternosPanel";
+import { HomologacaoAreaSolicitantePanel } from "./etapas/HomologacaoAreaSolicitantePanel";
+import { TreinamentoPanel } from "./etapas/TreinamentoPanel";
 import { ImplantacaoPanel } from "./etapas/ImplantacaoPanel";
 import { AcompanhamentoAssistidoPanel } from "./etapas/AcompanhamentoAssistidoPanel";
 import { EncerramentoPanel } from "./etapas/EncerramentoPanel";
+import { AssinaturasTab } from "./etapas/AssinaturasTab";
 
 const BUCKET = "sistema-solicitacoes";
 
@@ -58,12 +61,28 @@ const COR_BORDER: Record<string, string> = {
   success: "border-l-success",
 };
 
-const DIAS_PRAZO_ACOMPANHAMENTO = 10;
-const UM_DIA_MS = 24 * 60 * 60 * 1000;
-
-function diasRestantesAcompanhamento(etapaEntradaEm: string): number {
-  const prazoFinal = new Date(etapaEntradaEm).getTime() + DIAS_PRAZO_ACOMPANHAMENTO * UM_DIA_MS;
-  return Math.ceil((prazoFinal - Date.now()) / UM_DIA_MS);
+function BadgePrazo({ etapaKey, etapaEntradaEm }: { etapaKey: string; etapaEntradaEm: string }) {
+  const status = statusPrazoEtapa(etapaKey, etapaEntradaEm);
+  if (!status.temPrazo) return null;
+  const expirado = status.diasUteisRestantes < 0;
+  return (
+    <div
+      className={[
+        "mb-1.5 inline-flex items-center gap-1 rounded-md border px-2 py-1",
+        expirado ? "border-destructive/30 bg-destructive/15 text-destructive" : "border-warning/30 bg-warning/15 text-warning",
+      ].join(" ")}
+    >
+      <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+      <div className="leading-tight">
+        <p className="text-[10px] font-semibold">
+          {expirado
+            ? "Prazo expirado"
+            : `${status.diasUteisRestantes} dia${status.diasUteisRestantes === 1 ? "" : "s"} útil(eis) restante(s)`}
+        </p>
+        {status.prorrogado && !expirado && <p className="text-[9px]">em prorrogação</p>}
+      </div>
+    </div>
+  );
 }
 
 function DescricaoExpandivel({ texto }: { texto: string }) {
@@ -110,6 +129,10 @@ function DetalhesAberturaExpandivel({ card }: { card: Solicitacao }) {
             </div>
           ))}
           <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Grau de urgência</p>
+            <p className="text-sm">{card.grau_urgencia ? GRAU_URGENCIA_LABEL[card.grau_urgencia] ?? card.grau_urgencia : "—"}</p>
+          </div>
+          <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo da solicitação</p>
             <p className="text-sm">{card.tipo_solicitacao ? TIPO_SOLICITACAO_LABEL[card.tipo_solicitacao] ?? card.tipo_solicitacao : "—"}</p>
           </div>
@@ -120,15 +143,17 @@ function DetalhesAberturaExpandivel({ card }: { card: Solicitacao }) {
 }
 
 const PAINEIS: Record<string, (props: any) => JSX.Element> = {
-  registro_oficial: RegistroOficialPanel,
-  triagem_inicial_comite: TriagemComitePanel,
-  projeto: ProjetoPanel,
-  aprovacoes_priorizacao: AprovacoesPriorizacaoPanel,
-  definicao_responsavel: DefinicaoResponsavelPanel,
-  desenvolvimento_ajustes: DesenvolvimentoAjustesPanel,
-  homologacao_tecnica: HomologacaoTecnicaPanel,
-  homologacao_usuario: HomologacaoUsuarioPanel,
-  treinamentos: TreinamentosPanel,
+  solicitacao_demanda: SolicitacaoDemandaPanel,
+  triagem_inicial: TriagemInicialPanel,
+  analise_necessidade: AnaliseNecessidadePanel,
+  levantamento_funcional: LevantamentoFuncionalPanel,
+  documentacao_funcional: DocumentacaoFuncionalPanel,
+  analise_tecnica: AnaliseTecnicaPanel,
+  aprovacao_priorizacao: AprovacaoPriorizacaoPanel,
+  desenvolvimento: DesenvolvimentoPanel,
+  testes_internos: TestesInternosPanel,
+  homologacao_area_solicitante: HomologacaoAreaSolicitantePanel,
+  treinamento: TreinamentoPanel,
   implantacao: ImplantacaoPanel,
   acompanhamento_assistido: AcompanhamentoAssistidoPanel,
   encerramento: EncerramentoPanel,
@@ -145,9 +170,10 @@ export default function SolicitacoesErp() {
   const [novosArquivos, setNovosArquivos] = useState<File[]>([]);
   const [camposAbertura, setCamposAbertura] = useState<Record<string, string>>({});
   const [tipoSolicitacao, setTipoSolicitacao] = useState<string | null>(null);
+  const [grauUrgencia, setGrauUrgencia] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
-  const [aba, setAba] = useState<"detalhes" | "historico">("detalhes");
+  const [aba, setAba] = useState<"detalhes" | "historico" | "assinaturas">("detalhes");
   const [novoComentario, setNovoComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [filtroResponsavelDev, setFiltroResponsavelDev] = useState<string | null>(null);
@@ -162,6 +188,12 @@ export default function SolicitacoesErp() {
     verTodas: access?.codes.has("sistemas_ver_todas_solicitacoes") ?? false,
   };
 
+  useEffect(() => {
+    (supabase as any).rpc("sistema_corrigir_prazos_vencidos").then(() => {
+      qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
+    });
+  }, [qc]);
+
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["sistema_solicitacao"],
     queryFn: async () => {
@@ -169,10 +201,10 @@ export default function SolicitacoesErp() {
         .from("sistema_solicitacao")
         .select(
           "id, titulo, descricao, etapa, recusado, prioridade, responsavel_user_id, progresso_pct, data_inicio, data_fim, " +
-          "status_desenvolvimento, " +
+          "status_desenvolvimento, criterio_triagem, analise_necessidade_texto, analise_necessidade_prazo, " +
           "levantamento_funcional_texto, levantamento_funcional_prazo, documentacao_tecnica_texto, documentacao_tecnica_prazo, " +
           "analise_tecnica_texto, analise_tecnica_prazo, treinamento_data, implantacao_status, finalizado, etapa_entrada_em, " +
-          "homologacao_aprov_1, homologacao_aprov_2, homologacao_aprov_3, complexidade, " +
+          "testes_interno_aprov_1, testes_interno_aprov_2, testes_interno_aprov_3, complexidade, " +
           "objetivo_solicitacao, problema_atual, justificativa, beneficio_esperado, impacto_operacional, " +
           "grau_urgencia, tipo_solicitacao, " +
           "pesquisa_atendeu_necessidade, pesquisa_levantamento_claro, pesquisa_conducao_ti, " +
@@ -182,6 +214,15 @@ export default function SolicitacoesErp() {
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Solicitacao[];
+    },
+  });
+
+  const { data: aprovadoresTestesInternos = [] } = useQuery({
+    queryKey: ["sistema_solicitacao_aprovadores_testes_internos"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("listar_aprovadores_testes_internos");
+      if (error) throw error;
+      return (data ?? []) as AprovadorTesteInterno[];
     },
   });
 
@@ -286,7 +327,7 @@ export default function SolicitacoesErp() {
   const update = (patch: Record<string, unknown>): Promise<boolean> =>
     cardDetalhe ? updateCard(cardDetalhe.id, patch) : Promise.resolve(false);
 
-  const voltarParaSolicitacoes = (id: string) => updateCard(id, { etapa: "registro_oficial", recusado: false });
+  const voltarParaSolicitacoes = (id: string) => updateCard(id, { etapa: "solicitacao_demanda", recusado: false });
 
   const excluirCardId = async (id: string) => {
     const { error } = await (supabase as any).from("sistema_solicitacao").delete().eq("id", id);
@@ -390,7 +431,7 @@ export default function SolicitacoesErp() {
     return true;
   };
 
-  const camposAberturaPreenchidos = CAMPOS_ABERTURA.every((c) => (camposAbertura[c.key] ?? "").trim()) && !!tipoSolicitacao;
+  const camposAberturaPreenchidos = CAMPOS_ABERTURA.every((c) => (camposAbertura[c.key] ?? "").trim()) && !!tipoSolicitacao && !!grauUrgencia;
 
   const criar = async () => {
     if (!novoTitulo.trim() || !camposAberturaPreenchidos) return;
@@ -404,6 +445,7 @@ export default function SolicitacoesErp() {
         descricao: novoDescricao.trim() || null,
         ...camposPayload,
         tipo_solicitacao: tipoSolicitacao,
+        grau_urgencia: grauUrgencia,
       })
       .select("id")
       .single();
@@ -424,6 +466,7 @@ export default function SolicitacoesErp() {
     setNovosArquivos([]);
     setCamposAbertura({});
     setTipoSolicitacao(null);
+    setGrauUrgencia(null);
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
     // Só 1 toast por vez no sistema — se algum anexo falhou, mostra isso em vez do
     // "Solicitação criada" genérico, senão o erro fica mascarado pelo toast de sucesso.
@@ -445,7 +488,7 @@ export default function SolicitacoesErp() {
   const PainelEtapa = cardDetalhe ? PAINEIS[cardDetalhe.etapa] : null;
   const totalNaColuna = cardDetalhe ? (grouped.get(cardDetalhe.etapa)?.length ?? 0) : 0;
   const prioridadesUsadas = cardDetalhe
-    ? (grouped.get("aprovacoes_priorizacao") ?? [])
+    ? (grouped.get("aprovacao_priorizacao") ?? [])
         .filter((c) => c.id !== cardDetalhe.id && c.prioridade != null)
         .map((c) => c.prioridade as number)
     : [];
@@ -456,7 +499,7 @@ export default function SolicitacoesErp() {
     <div>
       <PageHeader
         title="Solicitações ERP"
-        subtitle="Fluxo de demandas de sistemas — 12 etapas, papéis configuráveis em Administração."
+        subtitle="Fluxo de demandas de sistemas — 14 etapas, papéis configuráveis em Administração."
         module="Sistemas"
         breadcrumb={["Solicitações ERP"]}
         actions={
@@ -480,7 +523,7 @@ export default function SolicitacoesErp() {
               </span>
               <Badge variant="outline" className="text-[10px]">{grouped.get(etapa.key)?.length ?? 0}</Badge>
             </div>
-            {etapa.key === "desenvolvimento_ajustes" && (
+            {etapa.key === "desenvolvimento" && (
               <div className="mb-2 shrink-0">
                 <SearchableSelect
                   value={filtroResponsavelDev}
@@ -494,9 +537,9 @@ export default function SolicitacoesErp() {
               </div>
             )}
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-              {(etapa.key === "desenvolvimento_ajustes" && filtroResponsavelDev
+              {(etapa.key === "desenvolvimento" && filtroResponsavelDev
                 ? grouped.get(etapa.key)?.filter((c) => c.responsavel_user_id === filtroResponsavelDev)
-                : etapa.key === "aprovacoes_priorizacao"
+                : etapa.key === "aprovacao_priorizacao"
                 ? [...(grouped.get(etapa.key) ?? [])].sort((a, b) => (a.prioridade ?? Infinity) - (b.prioridade ?? Infinity))
                 : grouped.get(etapa.key)
               )?.map((card) => {
@@ -515,29 +558,10 @@ export default function SolicitacoesErp() {
                       card.finalizado ? "opacity-50" : "",
                     ].join(" ")}
                   >
-                    {card.prioridade != null && etapa.key !== "definicao_responsavel" && (
+                    {card.prioridade != null && (
                       <Badge variant="outline" className="absolute right-2 top-2 text-[9px]">P{card.prioridade}</Badge>
                     )}
-                    {etapa.key === "acompanhamento_assistido" && (() => {
-                      const dias = diasRestantesAcompanhamento(card.etapa_entrada_em);
-                      const expirado = dias < 0;
-                      return (
-                        <div
-                          className={[
-                            "absolute right-2 top-2 flex items-center gap-1 rounded-md border px-2 py-1",
-                            expirado ? "border-destructive/30 bg-destructive/15 text-destructive" : "border-warning/30 bg-warning/15 text-warning",
-                          ].join(" ")}
-                        >
-                          <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-                          <div className="leading-tight">
-                            <p className="text-[10px] font-semibold">
-                              {expirado ? "Prazo expirado" : `${dias} dia${dias === 1 ? "" : "s"} restante${dias === 1 ? "" : "s"}`}
-                            </p>
-                            {!expirado && <p className="text-[9px]">de {DIAS_PRAZO_ACOMPANHAMENTO} dias</p>}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    <BadgePrazo etapaKey={etapa.key} etapaEntradaEm={card.etapa_entrada_em} />
                     <p className="pr-8 text-xs font-medium">{card.titulo}</p>
                     {card.descricao && (
                       <p className="mt-1 line-clamp-3 text-[11px] text-muted-foreground">{card.descricao}</p>
@@ -624,6 +648,19 @@ export default function SolicitacoesErp() {
                 </div>
               ))}
               <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Grau de urgência</label>
+                <Select value={grauUrgencia ?? undefined} onValueChange={setGrauUrgencia}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Selecionar grau de urgência…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(GRAU_URGENCIA_LABEL).map(([v, label]) => (
+                      <SelectItem key={v} value={v}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipo da solicitação</label>
                 <Select value={tipoSolicitacao ?? undefined} onValueChange={setTipoSolicitacao}>
                   <SelectTrigger className="text-sm">
@@ -639,7 +676,7 @@ export default function SolicitacoesErp() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovosArquivos([]); setTipoSolicitacao(null); }}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovosArquivos([]); setTipoSolicitacao(null); setGrauUrgencia(null); }}>Cancelar</Button>
             <Button onClick={criar} disabled={!novoTitulo.trim() || !camposAberturaPreenchidos || salvando}>
               {salvando ? "Salvando…" : "Criar"}
             </Button>
@@ -648,7 +685,7 @@ export default function SolicitacoesErp() {
       </Dialog>
 
       <Dialog open={!!detalheId} onOpenChange={(open) => { if (!open) { setDetalheId(null); setNovoComentario(""); } }}>
-        <DialogContent className="max-w-4xl sm:max-w-4xl">
+        <DialogContent className="max-w-4xl overflow-x-hidden overflow-y-auto sm:max-w-4xl max-h-[90vh]">
           {cardDetalhe && PainelEtapa && (
             <>
               <DialogHeader>
@@ -672,6 +709,12 @@ export default function SolicitacoesErp() {
                 >
                   Histórico
                 </button>
+                <button
+                  onClick={() => setAba("assinaturas")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium ${aba === "assinaturas" ? "bg-muted" : "text-muted-foreground"}`}
+                >
+                  Assinaturas
+                </button>
               </div>
 
               {aba === "historico" && (
@@ -680,9 +723,19 @@ export default function SolicitacoesErp() {
                 </div>
               )}
 
+              {aba === "assinaturas" && (
+                <AssinaturasTab
+                  solicitacaoId={cardDetalhe.id}
+                  etapaAtual={cardDetalhe.etapa}
+                  usuarios={usuarios}
+                  userId={user?.id ?? null}
+                  titulo={cardDetalhe.titulo}
+                />
+              )}
+
               {aba === "detalhes" && (
-                <div className="grid gap-6 md:grid-cols-[1fr_280px]">
-                  <div className="space-y-4">
+                <div className="grid min-w-0 gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
+                  <div className="min-w-0 space-y-4">
                     {cardDetalhe.descricao && <DescricaoExpandivel texto={cardDetalhe.descricao} />}
 
                     <DetalhesAberturaExpandivel card={cardDetalhe} />
@@ -702,6 +755,7 @@ export default function SolicitacoesErp() {
                             convidados={convidados}
                             totalNaColuna={totalNaColuna}
                             prioridadesUsadas={prioridadesUsadas}
+                            aprovadoresTestesInternos={aprovadoresTestesInternos}
                             onUpdate={update}
                             onComentar={comentar}
                             onAnexar={anexar}
@@ -727,7 +781,7 @@ export default function SolicitacoesErp() {
                       );
                     })}
 
-                    {convidados.length > 0 && cardDetalhe.etapa !== "registro_oficial" && (
+                    {convidados.length > 0 && cardDetalhe.etapa !== "solicitacao_demanda" && (
                       <div>
                         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Convidados</p>
                         <div className="space-y-1">
@@ -756,7 +810,7 @@ export default function SolicitacoesErp() {
                     </div>
                   </div>
 
-                  <div className="flex h-[420px] min-h-0 flex-col border-l border-border pl-4">
+                  <div className="flex h-[420px] min-h-0 min-w-0 flex-col border-l border-border pl-4">
                     <p className="mb-2 shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comentários</p>
                     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                       {comentariosGerais.map((c) => {

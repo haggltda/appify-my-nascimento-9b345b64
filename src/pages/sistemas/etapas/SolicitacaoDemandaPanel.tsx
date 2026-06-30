@@ -1,14 +1,26 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Send, X } from "lucide-react";
+import { Send, X, Ban } from "lucide-react";
 import { nomeUsuario, type EtapaPanelProps } from "./types";
+import { RecusadoPanel } from "./RecusadoPanel";
 
-export function RegistroOficialPanel({
-  card, papeis, userId, convidaveis, convidados, onUpdate, onAdicionarConvidado, onRemoverConvidado,
+export function SolicitacaoDemandaPanel({
+  card, papeis, userId, convidaveis, convidados, onUpdate, onAdicionarConvidado, onRemoverConvidado, onExcluir,
 }: EtapaPanelProps) {
   const [novoConvidado, setNovoConvidado] = useState<string | null>(null);
   const souCriador = !!userId && userId === card.criado_por;
+  const podeAgir = papeis.comite || papeis.controladoria;
+
+  if (card.recusado) {
+    return (
+      <RecusadoPanel
+        podeReativar={papeis.controladoria}
+        onReativar={() => onUpdate({ etapa: "solicitacao_demanda", recusado: false })}
+        onExcluir={onExcluir}
+      />
+    );
+  }
   const opcoes = convidaveis
     .filter((u) => !convidados.some((c) => c.user_id === u.id))
     .map((u) => ({ value: u.id, label: u.display_name }));
@@ -53,18 +65,15 @@ export function RegistroOficialPanel({
         )}
       </div>
 
-      <div>
-        <Button
-          onClick={() => onUpdate({ etapa: "triagem_inicial_comite" })}
-          disabled={!papeis.comite}
-          className="gap-1.5"
-        >
+      <div className="flex gap-2">
+        <Button onClick={() => onUpdate({ etapa: "triagem_inicial" })} disabled={!podeAgir} className="gap-1.5">
           <Send className="h-3.5 w-3.5" /> Enviar para Triagem Inicial
         </Button>
-        {!papeis.comite && (
-          <p className="mt-1 text-[11px] text-muted-foreground">Só o Comitê pode enviar a solicitação pra triagem.</p>
-        )}
+        <Button variant="destructive" className="gap-1.5" disabled={!podeAgir} onClick={() => onUpdate({ recusado: true })}>
+          <Ban className="h-3.5 w-3.5" /> Encerrar/Excluir
+        </Button>
       </div>
+      {!podeAgir && <p className="text-[11px] text-muted-foreground">Só Comitê ou Controladoria agem nesta etapa.</p>}
     </div>
   );
 }

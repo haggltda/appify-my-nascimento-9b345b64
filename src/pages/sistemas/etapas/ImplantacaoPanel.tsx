@@ -32,7 +32,7 @@ export function ImplantacaoPanel({ card, papeis, usuarios, comentarios, onUpdate
             key={o.value}
             variant={card.implantacao_status === o.value ? "default" : "outline"}
             size="sm"
-            disabled={!papeis.controladoria}
+            disabled={!papeis.gerenteSistemas}
             onClick={() => selecionar(o.value)}
             className={cn(card.implantacao_status === o.value && "ring-2 ring-primary/40")}
           >
@@ -58,20 +58,20 @@ export function ImplantacaoPanel({ card, papeis, usuarios, comentarios, onUpdate
           <Textarea
             placeholder="Comentário (opcional)…"
             value={comentario}
-            disabled={!papeis.controladoria}
+            disabled={!papeis.gerenteSistemas}
             onChange={(e) => setComentario(e.target.value)}
             className="text-xs"
           />
-          <Button size="sm" variant="outline" disabled={!papeis.controladoria || !comentario.trim()} onClick={salvarComentario}>
+          <Button size="sm" variant="outline" disabled={!papeis.gerenteSistemas || !comentario.trim()} onClick={salvarComentario}>
             Salvar comentário
           </Button>
         </div>
       )}
 
-      <Button className="gap-1.5" disabled={!papeis.controladoria} onClick={() => onUpdate({ etapa: "acompanhamento_assistido" })}>
+      <Button className="gap-1.5" disabled={!papeis.gerenteSistemas} onClick={() => onUpdate({ etapa: "acompanhamento_assistido" })}>
         <ArrowRight className="h-3.5 w-3.5" /> Avançar para Acompanhamento Assistido
       </Button>
-      {!papeis.controladoria && <p className="text-[11px] text-muted-foreground">Só Controladoria age nesta etapa.</p>}
+      {!papeis.gerenteSistemas && <p className="text-[11px] text-muted-foreground">Só o Gerente de Sistemas age nesta etapa.</p>}
     </div>
   );
 }
