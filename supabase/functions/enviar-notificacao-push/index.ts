@@ -4,9 +4,13 @@
 // etapa. Chamado pelo front-end logo depois de um UPDATE de etapa bem
 // sucedido — não confia em título/etapa vindos do corpo da requisição,
 // busca tudo direto no banco pelo solicitacao_id.
+//
+// Implementação do Web Push (VAPID + criptografia aes128gcm, RFC 8291/8292)
+// feita na mão com a Web Crypto API nativa do Deno — sem depender da lib
+// "web-push" do npm, que usa partes do Node (crypto/https) que travam o
+// boot da function nesse runtime ("EarlyDrop" nos logs).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,6 +54,136 @@ function jsonResponse(body: unknown, status = 200) {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+// ---------- helpers de base64url / bytes ----------
+
+function base64UrlDecode(str: string): Uint8Array {
+  const pad = str.length % 4 === 0 ? "" : "=".repeat(4 - (str.length % 4));
+  const base64 = (str + pad).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+function base64UrlEncode(buf: Uint8Array): string {
+  let str = "";
+  for (const b of buf) str += String.fromCharCode(b);
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function concatBytes(...arrs: Uint8Array[]): Uint8Array {
+  const total = arrs.reduce((n, a) => n + a.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const a of arrs) {
+    out.set(a, offset);
+    offset += a.length;
+  }
+  return out;
+}
+
+async function hmacSha256(keyBytes: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, data);
+  return new Uint8Array(sig);
+}
+
+// ---------- VAPID (RFC 8292) ----------
+
+async function importVapidPrivateKey(privateKeyB64: string, publicKeyB64: string): Promise<CryptoKey> {
+  const pub = base64UrlDecode(publicKeyB64); // 65 bytes: 0x04 || X(32) || Y(32)
+  const d = base64UrlDecode(privateKeyB64); // 32 bytes
+  const jwk: JsonWebKey = {
+    kty: "EC",
+    crv: "P-256",
+    d: base64UrlEncode(d),
+    x: base64UrlEncode(pub.slice(1, 33)),
+    y: base64UrlEncode(pub.slice(33, 65)),
+    ext: true,
+  };
+  return crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+}
+
+async function buildVapidAuthHeader(
+  endpoint: string,
+  subject: string,
+  publicKeyB64: string,
+  privateKey: CryptoKey,
+): Promise<string> {
+  const url = new URL(endpoint);
+  const aud = `${url.protocol}//${url.host}`;
+  const header = { typ: "JWT", alg: "ES256" };
+  const payload = { aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: subject };
+  const te = new TextEncoder();
+  const encHeader = base64UrlEncode(te.encode(JSON.stringify(header)));
+  const encPayload = base64UrlEncode(te.encode(JSON.stringify(payload)));
+  const signingInput = `${encHeader}.${encPayload}`;
+  // Web Crypto ECDSA já assina no formato IEEE P1363 (r||s) — é exatamente o que JWT ES256 exige.
+  const sigBuf = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, privateKey, te.encode(signingInput));
+  const sig = base64UrlEncode(new Uint8Array(sigBuf));
+  return `vapid t=${signingInput}.${sig}, k=${publicKeyB64}`;
+}
+
+// ---------- criptografia da mensagem (RFC 8291, content-encoding aes128gcm) ----------
+
+async function encryptPayload(payloadBytes: Uint8Array, p256dhB64: string, authB64: string): Promise<Uint8Array> {
+  const uaPublicRaw = base64UrlDecode(p256dhB64); // 65 bytes
+  const authSecret = base64UrlDecode(authB64); // 16 bytes
+  const te = new TextEncoder();
+
+  const uaPublicKey = await crypto.subtle.importKey("raw", uaPublicRaw, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const asKeyPair = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const asPublicRaw = new Uint8Array(await crypto.subtle.exportKey("raw", asKeyPair.publicKey));
+
+  const ecdhSecret = new Uint8Array(
+    await crypto.subtle.deriveBits({ name: "ECDH", public: uaPublicKey }, asKeyPair.privateKey, 256),
+  );
+
+  const prkKey = await hmacSha256(authSecret, ecdhSecret);
+  const keyInfo = concatBytes(te.encode("WebPush: info\0"), uaPublicRaw, asPublicRaw);
+  const ikm = (await hmacSha256(prkKey, concatBytes(keyInfo, new Uint8Array([1])))).slice(0, 32);
+
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const prk = await hmacSha256(salt, ikm);
+
+  const cek = (await hmacSha256(prk, concatBytes(te.encode("Content-Encoding: aes128gcm\0"), new Uint8Array([1])))).slice(0, 16);
+  const nonce = (await hmacSha256(prk, concatBytes(te.encode("Content-Encoding: nonce\0"), new Uint8Array([1])))).slice(0, 12);
+
+  const padded = concatBytes(payloadBytes, new Uint8Array([2])); // delimitador de registro único/final
+
+  const aesKey = await crypto.subtle.importKey("raw", cek, { name: "AES-GCM" }, false, ["encrypt"]);
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, aesKey, padded));
+
+  const rsBuf = new Uint8Array(4);
+  new DataView(rsBuf.buffer).setUint32(0, ciphertext.length, false);
+
+  return concatBytes(salt, rsBuf, new Uint8Array([asPublicRaw.length]), asPublicRaw, ciphertext);
+}
+
+async function sendWebPush(
+  subscription: { endpoint: string; p256dh: string; auth: string },
+  payloadObj: unknown,
+  vapidPrivateKey: CryptoKey,
+): Promise<{ ok: boolean; status: number }> {
+  const payloadBytes = new TextEncoder().encode(JSON.stringify(payloadObj));
+  const body = await encryptPayload(payloadBytes, subscription.p256dh, subscription.auth);
+  const authHeader = await buildVapidAuthHeader(subscription.endpoint, VAPID_SUBJECT, VAPID_PUBLIC_KEY!, vapidPrivateKey);
+
+  const res = await fetch(subscription.endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Encoding": "aes128gcm",
+      "Content-Type": "application/octet-stream",
+      TTL: "86400",
+      Authorization: authHeader,
+    },
+    body,
+  });
+  return { ok: res.ok, status: res.status };
+}
+
+// ---------- handler ----------
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -122,28 +256,31 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, enviados: 0, motivo: "Ninguém com notificação ativada" });
     }
 
-    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-
+    const vapidPrivateKey = await importVapidPrivateKey(VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY);
     const etapaLabel = ETAPA_LABEL[etapaNova] ?? etapaNova;
-    const payload = JSON.stringify({
-      title: "Card movido",
-      body: `O card "${card.titulo}" foi movido para ${etapaLabel}.`,
-    });
+    const payload = { title: "Card movido", body: `O card "${card.titulo}" foi movido para ${etapaLabel}.` };
 
     let enviados = 0;
     const expirados: string[] = [];
+    const erros: string[] = [];
 
     await Promise.all(
       subs.map(async (s) => {
         try {
-          await webpush.sendNotification(
-            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          const r = await sendWebPush(
+            { endpoint: s.endpoint as string, p256dh: s.p256dh as string, auth: s.auth as string },
             payload,
+            vapidPrivateKey,
           );
-          enviados++;
+          if (r.ok) {
+            enviados++;
+          } else if (r.status === 404 || r.status === 410) {
+            expirados.push(s.id as string);
+          } else {
+            erros.push(`status ${r.status}`);
+          }
         } catch (e) {
-          const status = (e as { statusCode?: number })?.statusCode;
-          if (status === 404 || status === 410) expirados.push(s.id as string);
+          erros.push(e instanceof Error ? e.message : String(e));
         }
       }),
     );
@@ -152,7 +289,7 @@ Deno.serve(async (req) => {
       await admin.from("push_subscriptions").delete().in("id", expirados);
     }
 
-    return jsonResponse({ ok: true, enviados, expirados: expirados.length });
+    return jsonResponse({ ok: true, enviados, expirados: expirados.length, erros });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return jsonResponse({ error: msg }, 500);
