@@ -37,7 +37,7 @@ export function temDadoResumo(
     case "analise_tecnica":
       return !!card.analise_tecnica_texto || !!card.analise_tecnica_prazo || anexos.some((a) => a.campo === "analise_tecnica");
     case "aprovacao_priorizacao":
-      return !!card.prioridade || !!card.responsavel_user_id || !!card.complexidade;
+      return !!card.prioridade || !!card.responsavel_user_id || !!card.complexidade || anexos.some((a) => a.campo === "aprovacao_priorizacao");
     case "desenvolvimento":
       return (
         card.progresso_pct > 0 || !!card.data_fim || !!card.status_desenvolvimento ||
@@ -46,10 +46,14 @@ export function temDadoResumo(
     case "testes_internos":
       return (
         card.testes_interno_aprov_1 || card.testes_interno_aprov_2 || card.testes_interno_aprov_3 ||
-        comentarios.some((c) => c.tipo === "justificativa_retorno")
+        comentarios.some((c) => c.tipo === "justificativa_retorno") ||
+        anexos.some((a) => a.campo === "testes_internos")
       );
     case "homologacao_area_solicitante":
-      return comentarios.some((c) => c.tipo === "aprovado_ressalva" || c.tipo === "reprovado");
+      return (
+        comentarios.some((c) => c.tipo === "aprovado_ressalva" || c.tipo === "reprovado") ||
+        anexos.some((a) => a.campo === "homologacao_area_solicitante")
+      );
     case "treinamento":
       return (
         !!card.treinamento_data ||
@@ -57,7 +61,11 @@ export function temDadoResumo(
         comentarios.some((c) => c.tipo === "faltou_funcoes" || c.tipo === "encontrado_bug")
       );
     case "implantacao":
-      return !!card.implantacao_status || comentarios.some((c) => c.tipo === "implantacao_comentario");
+      return (
+        !!card.implantacao_status ||
+        comentarios.some((c) => c.tipo === "implantacao_comentario") ||
+        anexos.some((a) => a.campo === "implantacao")
+      );
     case "acompanhamento_assistido":
       return anexos.some((a) => a.campo === "acompanhamento");
     default:
@@ -76,7 +84,7 @@ function Bloco({ etapaKey, children }: { etapaKey: string; children: ReactNode }
   );
 }
 
-function ListaAnexos({ anexos, campo, onDownloadAnexo }: { anexos: Anexo[]; campo: string; onDownloadAnexo: (path: string) => void }) {
+export function ListaAnexos({ anexos, campo, onDownloadAnexo }: { anexos: Anexo[]; campo: string; onDownloadAnexo: (path: string) => void }) {
   const lista = anexos.filter((a) => a.campo === campo);
   if (lista.length === 0) return null;
   return (
@@ -167,7 +175,7 @@ function ResumoAnaliseTecnica({ card, anexos, onDownloadAnexo }: ResumoProps) {
   );
 }
 
-function ResumoAprovacaoPriorizacao({ card, usuarios }: ResumoProps) {
+function ResumoAprovacaoPriorizacao({ card, usuarios, anexos, onDownloadAnexo }: ResumoProps) {
   return (
     <Bloco etapaKey="aprovacao_priorizacao">
       {card.prioridade != null && <p className="text-xs"><span className="font-medium">Prioridade:</span> {card.prioridade}</p>}
@@ -179,6 +187,7 @@ function ResumoAprovacaoPriorizacao({ card, usuarios }: ResumoProps) {
         <span className="font-medium">Complexidade:</span>{" "}
         {card.complexidade ? COMPLEXIDADE_LABEL[card.complexidade] ?? card.complexidade : "—"}
       </p>
+      <ListaAnexos anexos={anexos} campo="aprovacao_priorizacao" onDownloadAnexo={onDownloadAnexo} />
     </Bloco>
   );
 }
@@ -205,7 +214,7 @@ const APROVACOES = Object.entries(APROVACOES_TESTES_INTERNOS).map(([campo, nome]
   nome,
 }));
 
-function ResumoTestesInternos({ card, comentarios, usuarios }: ResumoProps) {
+function ResumoTestesInternos({ card, comentarios, usuarios, anexos, onDownloadAnexo }: ResumoProps) {
   return (
     <Bloco etapaKey="testes_internos">
       <div className="space-y-1">
@@ -217,14 +226,16 @@ function ResumoTestesInternos({ card, comentarios, usuarios }: ResumoProps) {
         ))}
       </div>
       <ComentariosTipados comentarios={comentarios} tipos={["justificativa_retorno"]} usuarios={usuarios} />
+      <ListaAnexos anexos={anexos} campo="testes_internos" onDownloadAnexo={onDownloadAnexo} />
     </Bloco>
   );
 }
 
-function ResumoHomologacaoAreaSolicitante({ comentarios, usuarios }: ResumoProps) {
+function ResumoHomologacaoAreaSolicitante({ comentarios, usuarios, anexos, onDownloadAnexo }: ResumoProps) {
   return (
     <Bloco etapaKey="homologacao_area_solicitante">
       <ComentariosTipados comentarios={comentarios} tipos={["aprovado_ressalva", "reprovado"]} usuarios={usuarios} />
+      <ListaAnexos anexos={anexos} campo="homologacao_area_solicitante" onDownloadAnexo={onDownloadAnexo} />
     </Bloco>
   );
 }
@@ -241,7 +252,7 @@ function ResumoTreinamento({ card, anexos, comentarios, usuarios, onDownloadAnex
 
 const IMPLANTACAO_LABEL: Record<string, string> = { sim: "Sim", nao: "Não", em_implantacao: "Em Implantação" };
 
-function ResumoImplantacao({ card, comentarios, usuarios }: ResumoProps) {
+function ResumoImplantacao({ card, comentarios, usuarios, anexos, onDownloadAnexo }: ResumoProps) {
   return (
     <Bloco etapaKey="implantacao">
       <p className="text-xs">
@@ -249,6 +260,7 @@ function ResumoImplantacao({ card, comentarios, usuarios }: ResumoProps) {
         {card.implantacao_status ? IMPLANTACAO_LABEL[card.implantacao_status] ?? card.implantacao_status : "—"}
       </p>
       <ComentariosTipados comentarios={comentarios} tipos={["implantacao_comentario"]} usuarios={usuarios} />
+      <ListaAnexos anexos={anexos} campo="implantacao" onDownloadAnexo={onDownloadAnexo} />
     </Bloco>
   );
 }

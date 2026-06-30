@@ -4,13 +4,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import { APROVACOES_TESTES_INTERNOS, type EtapaPanelProps } from "./types";
+import { AnexoSimples } from "./AnexoSimples";
 
 const APROVACOES = Object.entries(APROVACOES_TESTES_INTERNOS).map(([campo, nome]) => ({
   campo: campo as keyof typeof APROVACOES_TESTES_INTERNOS,
   nome,
 }));
 
-export function TestesInternosPanel({ card, papeis, userId, aprovadoresTestesInternos, onUpdate, onComentar }: EtapaPanelProps) {
+export function TestesInternosPanel({
+  card, papeis, userId, aprovadoresTestesInternos, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo,
+}: EtapaPanelProps) {
   const [justificativa, setJustificativa] = useState("");
   const podeVoltar = papeis.desenvolvedores;
   const podeAvancar = papeis.desenvolvedores;
@@ -45,6 +48,15 @@ export function TestesInternosPanel({ card, papeis, userId, aprovadoresTestesInt
         })}
         <p className="text-[11px] text-muted-foreground">Cada aprovação só pode ser marcada pela própria pessoa.</p>
       </div>
+
+      <AnexoSimples
+        titulo="Relatório de Testes Internos (anexo)"
+        campo="testes_internos"
+        podeAnexar={papeis.desenvolvedores}
+        anexos={anexos}
+        onAnexar={(f) => onAnexar(f, "testes_internos")}
+        onDownloadAnexo={onDownloadAnexo}
+      />
 
       <Button className="gap-1.5" disabled={!podeAvancar || !todasAprovadas} onClick={() => onUpdate({ etapa: "homologacao_area_solicitante" })}>
         <ArrowRight className="h-3.5 w-3.5" /> Avançar para Homologação da Área Solicitante
