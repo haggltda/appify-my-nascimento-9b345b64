@@ -38,7 +38,7 @@ import { TreinamentoPanel } from "./etapas/TreinamentoPanel";
 import { ImplantacaoPanel } from "./etapas/ImplantacaoPanel";
 import { AcompanhamentoAssistidoPanel } from "./etapas/AcompanhamentoAssistidoPanel";
 import { EncerramentoPanel } from "./etapas/EncerramentoPanel";
-import { AssinaturasTab } from "./etapas/AssinaturasTab";
+import { DocumentosAssinaturasTab } from "./etapas/DocumentosAssinaturasTab";
 
 const BUCKET = "sistema-solicitacoes";
 
@@ -175,7 +175,7 @@ export default function SolicitacoesErp() {
   const [grauUrgencia, setGrauUrgencia] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
-  const [aba, setAba] = useState<"detalhes" | "historico" | "assinaturas">("detalhes");
+  const [aba, setAba] = useState<"detalhes" | "historico" | "documentos">("detalhes");
   const [novoComentario, setNovoComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [filtroResponsavelDev, setFiltroResponsavelDev] = useState<string | null>(null);
@@ -749,10 +749,10 @@ export default function SolicitacoesErp() {
                   Histórico
                 </button>
                 <button
-                  onClick={() => setAba("assinaturas")}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium ${aba === "assinaturas" ? "bg-muted" : "text-muted-foreground"}`}
+                  onClick={() => setAba("documentos")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium ${aba === "documentos" ? "bg-muted" : "text-muted-foreground"}`}
                 >
-                  Assinaturas
+                  Documentos e Assinaturas
                 </button>
               </div>
 
@@ -762,13 +762,18 @@ export default function SolicitacoesErp() {
                 </div>
               )}
 
-              {aba === "assinaturas" && (
-                <AssinaturasTab
+              {aba === "documentos" && (
+                <DocumentosAssinaturasTab
                   solicitacaoId={cardDetalhe.id}
                   etapaAtual={cardDetalhe.etapa}
                   usuarios={usuarios}
                   userId={user?.id ?? null}
                   titulo={cardDetalhe.titulo}
+                  card={cardDetalhe}
+                  anexos={anexos}
+                  comentarios={comentarios}
+                  convidados={convidados}
+                  onDownloadAnexo={downloadAnexo}
                 />
               )}
 

@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { nomeUsuario, type EtapaPanelProps } from "./types";
+import { AnexoSimples } from "./AnexoSimples";
 
 const OPCOES = [
   { value: "sim", label: "Sim" },
@@ -11,7 +12,9 @@ const OPCOES = [
   { value: "em_implantacao", label: "Em Implantação" },
 ];
 
-export function ImplantacaoPanel({ card, papeis, usuarios, comentarios, onUpdate, onComentar }: EtapaPanelProps) {
+export function ImplantacaoPanel({
+  card, papeis, usuarios, comentarios, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo,
+}: EtapaPanelProps) {
   const [comentario, setComentario] = useState("");
   const comentariosImplantacao = comentarios.filter((c) => c.tipo === "implantacao_comentario");
 
@@ -67,6 +70,15 @@ export function ImplantacaoPanel({ card, papeis, usuarios, comentarios, onUpdate
           </Button>
         </div>
       )}
+
+      <AnexoSimples
+        titulo="Registro de Implantação (anexo)"
+        campo="implantacao"
+        podeAnexar={papeis.gerenteSistemas}
+        anexos={anexos}
+        onAnexar={(f) => onAnexar(f, "implantacao")}
+        onDownloadAnexo={onDownloadAnexo}
+      />
 
       <Button className="gap-1.5" disabled={!papeis.gerenteSistemas} onClick={() => onUpdate({ etapa: "acompanhamento_assistido" })}>
         <ArrowRight className="h-3.5 w-3.5" /> Avançar para Acompanhamento Assistido

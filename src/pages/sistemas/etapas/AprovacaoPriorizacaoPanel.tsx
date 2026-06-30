@@ -4,8 +4,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowRight, Ban } from "lucide-react";
 import { COMPLEXIDADE_LABEL, type EtapaPanelProps } from "./types";
 import { RecusadoPanel } from "./RecusadoPanel";
+import { AnexoSimples } from "./AnexoSimples";
 
-export function AprovacaoPriorizacaoPanel({ card, papeis, usuarios, totalNaColuna, prioridadesUsadas, onUpdate, onExcluir }: EtapaPanelProps) {
+export function AprovacaoPriorizacaoPanel({
+  card, papeis, usuarios, totalNaColuna, prioridadesUsadas, anexos, onUpdate, onAnexar, onDownloadAnexo, onExcluir,
+}: EtapaPanelProps) {
   const opcoes = Array.from({ length: totalNaColuna }, (_, i) => i + 1).filter(
     (n) => n === card.prioridade || !prioridadesUsadas.includes(n),
   );
@@ -70,6 +73,15 @@ export function AprovacaoPriorizacaoPanel({ card, papeis, usuarios, totalNaColun
           </SelectContent>
         </Select>
       </div>
+
+      <AnexoSimples
+        titulo="Ata de Aprovação e Priorização (anexo)"
+        campo="aprovacao_priorizacao"
+        podeAnexar={papeis.comite || papeis.gerenteSistemas}
+        anexos={anexos}
+        onAnexar={(f) => onAnexar(f, "aprovacao_priorizacao")}
+        onDownloadAnexo={onDownloadAnexo}
+      />
 
       <div className="flex gap-2">
         <Button className="gap-1.5" disabled={!podeAvancar} onClick={() => onUpdate({ etapa: "desenvolvimento" })}>

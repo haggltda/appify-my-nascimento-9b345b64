@@ -3,8 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, X } from "lucide-react";
 import type { EtapaPanelProps } from "./types";
+import { AnexoSimples } from "./AnexoSimples";
 
-export function HomologacaoAreaSolicitantePanel({ card, papeis, userId, convidados, onUpdate, onComentar }: EtapaPanelProps) {
+export function HomologacaoAreaSolicitantePanel({
+  card, papeis, userId, convidados, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo,
+}: EtapaPanelProps) {
   const [comentarioRessalva, setComentarioRessalva] = useState("");
   const [comentarioReprovacao, setComentarioReprovacao] = useState("");
 
@@ -40,6 +43,15 @@ export function HomologacaoAreaSolicitantePanel({ card, papeis, userId, convidad
       <Button className="gap-1.5" disabled={!souElegivel} onClick={() => onUpdate({ etapa: "treinamento" })}>
         <Check className="h-3.5 w-3.5" /> Aprovar
       </Button>
+
+      <AnexoSimples
+        titulo="Termo de Homologação da Área (anexo)"
+        campo="homologacao_area_solicitante"
+        podeAnexar={souElegivel}
+        anexos={anexos}
+        onAnexar={(f) => onAnexar(f, "homologacao_area_solicitante")}
+        onDownloadAnexo={onDownloadAnexo}
+      />
 
       <div className="space-y-2 rounded-md border border-border p-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Aprovar com Ressalva</p>
