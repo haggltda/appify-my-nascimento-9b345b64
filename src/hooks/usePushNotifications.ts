@@ -18,11 +18,18 @@ function isIos(): boolean {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
 
+function mensagemErro(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === "object" && "message" in e) return String((e as { message: unknown }).message);
+  return String(e);
+}
+
 export function usePushNotifications() {
   const [suportado, setSuportado] = useState(false);
   const [precisaInstalar, setPrecisaInstalar] = useState(false);
   const [permissao, setPermissao] = useState<NotificationPermission | "indisponivel">("indisponivel");
   const [ativando, setAtivando] = useState(false);
+  const [inscrito, setInscrito] = useState(false);
 
   useEffect(() => {
     const temSuporte = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
@@ -38,12 +45,16 @@ export function usePushNotifications() {
     }
 
     setPermissao(Notification.permission);
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => registration.pushManager.getSubscription())
+      .then((sub) => setInscrito(!!sub))
+      .catch(() => {});
   }, []);
 
-  const ativarNotificacoes = async () => {
+  const ativarNotificacoes = async (): Promise<boolean> => {
     if (!VAPID_PUBLIC_KEY) {
-      throw new Error("VITE_VAPID_PUBLIC_KEY não configurada.");
+      throw new Error("VITE_VAPID_PUBLIC_KEY não configurada no ambiente.");
     }
     setAtivando(true);
     try {
@@ -58,9 +69,10 @@ export function usePushNotifications() {
       });
 
       const json = subscription.toJSON();
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr) throw new Error(mensagemErro(userErr));
       const userId = userData.user?.id;
-      if (!userId) throw new Error("Sessão inválida");
+      if (!userId) throw new Error("Sessão inválida — faça login novamente.");
 
       const { error } = await (supabase as any).from("push_subscriptions").upsert({
         user_id: userId,
@@ -68,13 +80,17 @@ export function usePushNotifications() {
         p256dh: json.keys?.p256dh,
         auth: json.keys?.auth,
       }, { onConflict: "endpoint" });
-      if (error) throw error;
+      if (error) throw new Error(mensagemErro(error));
 
+      setInscrito(true);
       return true;
+    } catch (e) {
+      console.error("Erro ao ativar notificações push:", e);
+      throw new Error(mensagemErro(e));
     } finally {
       setAtivando(false);
     }
   };
 
-  return { suportado, precisaInstalar, permissao, ativando, ativarNotificacoes };
+  return { suportado, precisaInstalar, permissao, ativando, inscrito, ativarNotificacoes };
 }
