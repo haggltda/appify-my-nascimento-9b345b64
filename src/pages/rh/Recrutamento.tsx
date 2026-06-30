@@ -1114,16 +1114,7 @@ export default function Recrutamento() {
           ))}
         </div>
 
-        {/* View Toggle */}
-        <div style={{ display: "inline-flex", gap: 2, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 4, marginBottom: 14, boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
-          {(["tabela","kanban"] as const).map(v => (
-            <button key={v} onClick={() => setView(v)} style={{ padding: "5px 16px", borderRadius: 8, border: "none", background: view === v ? "#0f3171" : "transparent", color: view === v ? "#fff" : "#94a3b8", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 5 }}>
-              {v === "tabela" ? "⊞ Tabela" : "⚏ Kanban"}
-            </button>
-          ))}
-        </div>
-
-        {/* Filtro de Contratos — vale para Tabela e Kanban */}
+        {/* Filtro de Contratos */}
         <div style={{ position: "relative", marginBottom: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <button onClick={() => setShowContratoFiltro(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: contratoFiltro.length ? "#0f3171" : "#fff", color: contratoFiltro.length ? "#fff" : "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
             🗂 Filtros · Contratos{contratoFiltro.length ? ` (${contratoFiltro.length})` : ""} ▾
@@ -1222,68 +1213,6 @@ export default function Recrutamento() {
                 <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page >= pages} style={{ padding: "5px 10px", border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff", cursor: page >= pages ? "default" : "pointer", opacity: page >= pages ? .35 : 1 }}>Próxima ›</button>
               </div>
             )}
-          </>
-        )}
-
-        {/* Kanban View */}
-        {view === "kanban" && (
-          <>
-            <div className="kb-toolbar">
-              <span className="kb-hint">Arraste os cards entre as colunas · <strong>clique e arraste a tela</strong>, use as setas ou <strong>Shift + roda do mouse</strong> para navegar →</span>
-              <div className="kb-nav">
-                <button type="button" className="kb-nav-btn" onClick={() => scrollKb(-1)} aria-label="Rolar para a esquerda" title="Rolar para a esquerda">◀</button>
-                <button type="button" className="kb-nav-btn" onClick={() => scrollKb(1)} aria-label="Rolar para a direita" title="Rolar para a direita">▶</button>
-              </div>
-            </div>
-          <div className="kb-board" ref={kbBoardRef}
-            onMouseDown={kbPanDown} onMouseMove={kbPanMove} onMouseUp={kbPanEnd} onMouseLeave={kbPanEnd}>
-            {KB_STATUS_ORDER.map(status => {
-              const cards = kanbanData[status] ?? [];
-              const meta  = KB_COL_COLORS[status] ?? { dot: "#f97316", label: "#ea580c", accent: "#f97316" };
-              return (
-                <div key={status} className={`kb-col${dragOver === status ? " drag-over" : ""}`}
-                  onDragOver={e => { e.preventDefault(); setDragOver(status); }}
-                  onDragLeave={() => setDragOver(null)}
-                  onDrop={() => kbDrop(status)}>
-                  <div className="kb-col-head">
-                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: meta.dot, flexShrink: 0, display: "inline-block" }}></span>
-                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".4px", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textTransform: "uppercase", color: meta.label }}>{status}</span>
-                    <span style={{ fontSize: 10, fontWeight: 800, background: "#eef2f7", borderRadius: 20, padding: "1px 7px", color: "#94a3b8" }}>{cards.length}</span>
-                  </div>
-                  <div className="kb-col-body">
-                    {cards.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: "22px 8px", color: "#94a3b8", fontSize: 10, opacity: .6 }}>Nenhuma solicitação</div>
-                    ) : cards.map(c => {
-                      const dias = Math.floor((Date.now() - new Date(c.status_changed_at || c.created_at).getTime()) / 86400000);
-                      return (
-                        <div key={c.id} id={`kbcard_${c.id}`} className={`kb-card${dragId === c.id ? " dragging" : ""}`}
-                          draggable
-                          onDragStart={() => { setDragId(c.id); setDragStatus(status); }}
-                          onDragEnd={() => { setDragOver(null); }}
-                          onClick={() => verDetalhe(c.id)}>
-                          <div style={{ height: 3, background: meta.accent }}></div>
-                          <div style={{ padding: "9px 10px 8px" }}>
-                            <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 700, fontFamily: "monospace", marginBottom: 3 }}>#{c.id}</div>
-                            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginBottom: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.cargo || "—"}</div>
-                            <div style={{ fontSize: 10, color: "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: 5 }}>{c.contrato || ""}</div>
-                            {c.cidade && <div style={{ fontSize: 10, color: "#475569", marginBottom: 6 }}>📍 {c.cidade}</div>}
-                            <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-                              {c.grau_urgencia?.startsWith("Alta") && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 5px", borderRadius: 4, background: "#fee2e2", color: "#dc2626" }}>🔴 Urgente</span>}
-                              {c.quantidade_vagas && c.quantidade_vagas > 1 && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 5px", borderRadius: 4, background: "rgba(249,115,22,.12)", color: "#f97316" }}>{c.quantidade_vagas} vagas</span>}
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #e2e8f0", padding: "5px 10px 6px", background: "#fcfdff" }}>
-                            <span style={{ fontSize: 9, color: "#94a3b8" }} title={`Tempo parado neste status (${status})`}>⏱ {dias === 0 ? "hoje" : `${dias}d nesta etapa`}</span>
-                            <span style={{ fontSize: 9, color: "#94a3b8", maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(c.analista_nome ?? c.solicitante_nome ?? "").split(" ")[0]}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
           </>
         )}
       </div>
@@ -1426,30 +1355,6 @@ export default function Recrutamento() {
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button onClick={() => setModalLink(false)} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Fechar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal Mover Kanban ── */}
-      {modalMoverKb && pendMover && (
-        <div className="rec-modal-ov">
-          <div className="rec-modal" style={{ maxWidth: 400 }}>
-            <button onClick={() => { setModalMoverKb(false); setPendMover(null); }} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
-            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>
-              {pendMover.novoStatus === "Reprovada" ? "Reprovar Solicitação" : "Concluir Solicitação"}
-            </div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>
-              {pendMover.novoStatus === "Reprovada"
-                ? "Informe o motivo da reprovação."
-                : "A solicitação será marcada como concluída e sairá da seleção de candidatos."}
-            </div>
-            {pendMover.novoStatus === "Reprovada" && (
-              <div className="rec-fg"><label>Motivo *</label><textarea className="rec-fi" rows={3} placeholder="Descreva o motivo..." value={moverExtra.motivo ?? ""} onChange={e => setMoverExtra(x => ({ ...x, motivo: e.target.value }))} /></div>
-            )}
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-              <button onClick={() => { setModalMoverKb(false); setPendMover(null); }} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
-              <button onClick={confirmarMoverKb} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: pendMover.novoStatus === "Reprovada" ? "#dc2626" : "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Confirmar</button>
             </div>
           </div>
         </div>

@@ -1435,6 +1435,8 @@ ALTER TABLE public."SISTEMA_RECRUTAMENTO"
 
 -- ── 1b. Colunas de processo do candidato em WA_CURRICULOS ────────────────
 ALTER TABLE public."WA_CURRICULOS"
+  ADD COLUMN IF NOT EXISTS cpf               text,
+  ADD COLUMN IF NOT EXISTS cpf_cand          text,
   ADD COLUMN IF NOT EXISTS etapa_processo    text,
   ADD COLUMN IF NOT EXISTS etapa_changed_at  timestamptz,
   ADD COLUMN IF NOT EXISTS selecionado_por   text,
