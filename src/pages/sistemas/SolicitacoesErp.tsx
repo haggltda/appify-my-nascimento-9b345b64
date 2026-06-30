@@ -509,12 +509,12 @@ export default function SolicitacoesErp() {
         breadcrumb={["Solicitações ERP"]}
         actions={
           <>
-            {push.suportado && push.permissao === "granted" && (
+            {push.suportado && push.inscrito && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <BellRing className="h-3.5 w-3.5" /> Notificações ativadas
               </span>
             )}
-            {push.suportado && push.permissao !== "granted" && !push.precisaInstalar && (
+            {push.suportado && !push.inscrito && !push.precisaInstalar && (
               <Button
                 variant="outline"
                 size="sm"
@@ -523,11 +523,11 @@ export default function SolicitacoesErp() {
                 onClick={async () => {
                   try {
                     const ok = await push.ativarNotificacoes();
-                    toast(
-                      ok
-                        ? { title: "Notificações ativadas" }
-                        : { title: "Permissão negada", description: "Habilite notificações nas configurações do navegador.", variant: "destructive" },
-                    );
+                    if (ok) {
+                      toast({ title: "Notificações ativadas" });
+                    } else {
+                      toast({ title: "Permissão negada", description: "Habilite notificações nas configurações do navegador.", variant: "destructive" });
+                    }
                   } catch (e) {
                     toast({ title: "Erro ao ativar notificações", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
                   }
