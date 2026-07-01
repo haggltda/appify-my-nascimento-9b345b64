@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, FileDown, Undo2 } from "lucide-react";
 import { CampoComAnexo } from "./CampoComAnexo";
-import { exportarPdfEtapa } from "./documentoPdf";
+import { exportarPdfCaptura } from "./exportarPdfCaptura";
 import type { EtapaPanelProps } from "./types";
 
 export function DocumentacaoFuncionalPanel({ card, papeis, anexos, comentarios, usuarios, onUpdate, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
@@ -10,7 +10,7 @@ export function DocumentacaoFuncionalPanel({ card, papeis, anexos, comentarios, 
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("documentacao_funcional", card, anexos, comentarios, usuarios)}>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfCaptura("pdf-capture-target", `documentacao-funcional-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}>
           <FileDown className="h-3.5 w-3.5" /> Exportar PDF
         </Button>
       </div>

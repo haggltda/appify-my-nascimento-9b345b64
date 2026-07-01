@@ -3,7 +3,7 @@ import { ArrowRight, Ban, FileDown } from "lucide-react";
 import { CampoComAnexo } from "./CampoComAnexo";
 import type { EtapaPanelProps } from "./types";
 import { RecusadoPanel } from "./RecusadoPanel";
-import { exportarPdfEtapa } from "./documentoPdf";
+import { exportarPdfCaptura } from "./exportarPdfCaptura";
 
 export function AnaliseNecessidadePanel({ card, papeis, anexos, comentarios, usuarios, onUpdate, onAnexar, onDownloadAnexo, onExcluir }: EtapaPanelProps) {
   const podeAgir = papeis.comite;
@@ -21,7 +21,7 @@ export function AnaliseNecessidadePanel({ card, papeis, anexos, comentarios, usu
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("analise_necessidade", card, anexos, comentarios, usuarios)}>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfCaptura("pdf-capture-target", `analise-necessidade-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}>
           <FileDown className="h-3.5 w-3.5" /> Exportar PDF
         </Button>
       </div>

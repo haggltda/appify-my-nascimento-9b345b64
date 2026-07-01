@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, ArrowLeft, FileDown } from "lucide-react";
 import { APROVACOES_TESTES_INTERNOS, type EtapaPanelProps } from "./types";
 import { AnexoSimples } from "./AnexoSimples";
-import { exportarPdfEtapa } from "./documentoPdf";
+import { exportarPdfCaptura } from "./exportarPdfCaptura";
 
 const APROVACOES = Object.entries(APROVACOES_TESTES_INTERNOS).map(([campo, nome]) => ({
   campo: campo as keyof typeof APROVACOES_TESTES_INTERNOS,
@@ -32,7 +32,7 @@ export function TestesInternosPanel({
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("testes_internos", card, anexos, comentarios, usuarios)}>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfCaptura("pdf-capture-target", `testes-internos-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}>
           <FileDown className="h-3.5 w-3.5" /> Exportar PDF
         </Button>
       </div>

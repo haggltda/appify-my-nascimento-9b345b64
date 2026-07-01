@@ -26,6 +26,7 @@ export interface Solicitacao {
   testes_interno_aprov_2: boolean;
   testes_interno_aprov_3: boolean;
   complexidade: string | null;
+  // Campos legados de abertura (records anteriores ao FSD)
   objetivo_solicitacao: string | null;
   problema_atual: string | null;
   justificativa: string | null;
@@ -42,6 +43,36 @@ export interface Solicitacao {
   etapa_entrada_em: string;
   criado_por: string;
   created_at: string;
+  // Número sequencial (SD-AAAA-NNNN)
+  numero: number | null;
+  // FSD Parte A — preenchida pelo solicitante na criação
+  area_solicitante: string | null;
+  responsavel_solicitacao: string | null;
+  cargo_solicitante: string | null;
+  email_solicitante: string | null;
+  telefone_solicitante: string | null;
+  classificacao_demanda: string[] | null;
+  descricao_necessidade: string | null;
+  situacao_desejada: string | null;
+  beneficios_esperados_lista: string[] | null;
+  impacto_tipo: string | null;
+  areas_impactadas: string | null;
+  justificativa_urgencia: string | null;
+  existe_processo_documentado: boolean | null;
+  codigo_processo: string | null;
+  tipos_documentos_apoio: string[] | null;
+  observacoes_abertura: string | null;
+  // FSD Parte B — preenchida pela Controladoria na Triagem Inicial
+  triagem_recebido_por: string | null;
+  triagem_concluida_em: string | null;
+  triagem_classificacao: string | null;
+  triagem_sem_desenvolvimento: boolean | null;
+  triagem_sem_desenvolvimento_como: string | null;
+  triagem_encaminhamento_para: string | null;
+  triagem_encaminhamento_responsavel: string | null;
+  triagem_parecer: string | null;
+  triagem_decisao: string | null;
+  triagem_data_decisao: string | null;
 }
 
 export interface Anexo {
@@ -262,6 +293,63 @@ export const TIPO_COMENTARIO_BORDA: Record<string, string> = {
   interromper_desenvolvimento: "border-l-destructive",
   erro_documental: "border-l-warning",
 };
+
+// FSD — constantes de opções para Parte A (criação)
+export const CLASSIFICACAO_DEMANDA_OPCOES = [
+  { value: "correcao_falha", label: "Correção de Falha (Bug)" },
+  { value: "melhoria_processo", label: "Melhoria de Processo" },
+  { value: "nova_funcionalidade", label: "Nova Funcionalidade" },
+  { value: "novo_processo", label: "Novo Processo" },
+  { value: "novo_relatorio", label: "Novo Relatório" },
+  { value: "integracao_sistemas", label: "Integração entre Sistemas" },
+  { value: "automacao", label: "Automação" },
+  { value: "alteracao_legal", label: "Alteração Legal" },
+  { value: "outro", label: "Outro" },
+];
+
+export const BENEFICIOS_ESPERADOS_OPCOES = [
+  { value: "reducao_tempo", label: "Redução de tempo" },
+  { value: "aumento_produtividade", label: "Aumento da produtividade" },
+  { value: "reducao_retrabalho", label: "Redução de retrabalho" },
+  { value: "maior_controle", label: "Maior controle" },
+  { value: "reducao_custos", label: "Redução de custos" },
+  { value: "atendimento_legislacao", label: "Atendimento à legislação" },
+  { value: "outro", label: "Outro" },
+];
+
+export const IMPACTO_TIPO_OPCOES = [
+  { value: "apenas_minha_area", label: "Apenas minha área" },
+  { value: "mais_de_uma_area", label: "Mais de uma área" },
+  { value: "toda_empresa", label: "Toda a empresa" },
+];
+
+export const DOCUMENTOS_APOIO_OPCOES = [
+  { value: "fluxograma", label: "Fluxograma" },
+  { value: "planilha", label: "Planilha" },
+  { value: "relatorio", label: "Relatório" },
+  { value: "print_tela", label: "Print de Tela" },
+  { value: "outro", label: "Outro" },
+];
+
+export const TRIAGEM_CLASSIFICACAO_LABEL: Record<string, string> = {
+  processo: "Falha/Melhoria de Processo",
+  sistema: "Necessidade de Sistema",
+  treinamento: "Necessidade de Treinamento",
+  parametrizacao: "Possibilidade de Parametrização",
+  outro: "Outro",
+};
+
+export const TRIAGEM_DECISAO_LABEL: Record<string, string> = {
+  aprovado: "Aprovado — encaminhar para Análise de Necessidade",
+  reprovado: "Reprovado — encerrar solicitação",
+  devolvido_ajustes: "Devolvido para ajustes ao solicitante",
+};
+
+export function sdNumero(card: Pick<Solicitacao, "numero" | "created_at">): string {
+  if (card.numero == null) return "SD-????-????";
+  const ano = new Date(card.created_at).getFullYear();
+  return `SD-${ano}-${String(card.numero).padStart(4, "0")}`;
+}
 
 export function nomeUsuario(usuarios: Usuario[], id: string | null): string | null {
   return usuarios.find((u) => u.id === id)?.display_name ?? null;
