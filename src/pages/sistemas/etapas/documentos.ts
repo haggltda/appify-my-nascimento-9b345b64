@@ -1,6 +1,5 @@
 // Os 9 "documentos oficiais" da aba "Documentos e Assinaturas" — mapeamento
 // definido pela planilha do CEO (NOVAS RERAS KANBAN.xlsx).
-import { temDadoResumo } from "./Resumos";
 import type { Anexo, Comentario, Convidado, Solicitacao } from "./types";
 
 export interface DocumentoOficial {
@@ -13,7 +12,7 @@ export interface DocumentoOficial {
 }
 
 export const DOCUMENTOS_OFICIAIS: DocumentoOficial[] = [
-  { numero: "I", nome: "Formulário de Solicitação de Demanda", sigla: "FSD", tipo: "anexos_gerais", etapaOrigem: "solicitacao_demanda" },
+  { numero: "I", nome: "Formulário de Solicitação de Demanda", sigla: "FSD", tipo: "anexo_etapa", etapaOrigem: "solicitacao_demanda" },
   { numero: "II", nome: "Documento Funcional da Demanda", sigla: "DFD", tipo: "anexo_etapa", etapaOrigem: "documentacao_funcional", campoAnexo: "documentacao_tecnica" },
   { numero: "III", nome: "Parecer Técnico de Viabilidade", sigla: "PTV", tipo: "anexo_etapa", etapaOrigem: "analise_tecnica", campoAnexo: "analise_tecnica" },
   { numero: "IV", nome: "Ata de Aprovação e Priorização", sigla: "AAP", tipo: "anexo_etapa", etapaOrigem: "aprovacao_priorizacao", campoAnexo: "aprovacao_priorizacao" },
@@ -36,8 +35,17 @@ export function documentoDisponivel(
   switch (doc.tipo) {
     case "anexos_gerais":
       return anexos.some((a) => !a.campo);
-    case "anexo_etapa":
-      return temDadoResumo(doc.etapaOrigem, card, anexos, comentarios, convidados);
+    case "anexo_etapa": {
+      const ETAPAS_ORDEM = [
+        "solicitacao_demanda", "triagem_inicial", "analise_necessidade", "levantamento_funcional",
+        "documentacao_funcional", "analise_tecnica", "aprovacao_priorizacao", "desenvolvimento",
+        "testes_internos", "homologacao_area_solicitante", "treinamento", "implantacao",
+        "acompanhamento_assistido", "encerramento",
+      ];
+      const cardIdx = ETAPAS_ORDEM.indexOf(card.etapa);
+      const unlockIdx = ETAPAS_ORDEM.indexOf(doc.etapaOrigem);
+      return cardIdx >= unlockIdx && unlockIdx >= 0;
+    }
     case "pesquisa":
       return (
         card.pesquisa_atendeu_necessidade != null ||

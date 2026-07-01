@@ -230,7 +230,7 @@ export function DocumentoDetalheModal({
             </>
           )}
 
-          {documento.tipo === "anexo_etapa" && Resumo && (
+          {documento.tipo === "anexo_etapa" && (
             <>
               <div className="flex justify-end">
                 <Button
@@ -242,7 +242,7 @@ export function DocumentoDetalheModal({
                   <FileDown className="h-3.5 w-3.5" /> Exportar PDF
                 </Button>
               </div>
-              <Resumo card={card} anexos={anexos} comentarios={comentarios} usuarios={usuarios} onDownloadAnexo={onDownloadAnexo} />
+              {Resumo && <Resumo card={card} anexos={anexos} comentarios={comentarios} usuarios={usuarios} onDownloadAnexo={onDownloadAnexo} />}
               <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL[documento.etapaOrigem]} assinaturas={assinaturasDaEtapa(documento.etapaOrigem)} usuarios={usuarios} />
             </>
           )}
