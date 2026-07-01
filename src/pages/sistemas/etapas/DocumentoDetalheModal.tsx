@@ -8,7 +8,6 @@ import {
   PESQUISA_PODE_ENCERRAR_OPCOES, PESQUISA_PODE_ENCERRAR_PERGUNTA, TIPO_SOLICITACAO_LABEL, nomeUsuario,
   type Anexo, type Assinatura, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
-import { exportarPdfCaptura } from "./exportarPdfCaptura";
 import { RESUMOS, temDadoResumo } from "./Resumos";
 import { Historico } from "./Historico";
 import { PdfDocumento, fmtDataHoraPdf } from "./pdfHelpers";
@@ -159,7 +158,7 @@ function exportarEncerramentoPdf(
 }
 
 export function DocumentoDetalheModal({
-  documento, onClose, card, anexos, comentarios, convidados, usuarios, onDownloadAnexo, titulo, solicitacaoId,
+  documento, onClose, card, anexos, comentarios, convidados, usuarios, onDownloadAnexo, titulo, solicitacaoId, onExportarPdf,
 }: {
   documento: DocumentoOficial | null;
   onClose: () => void;
@@ -171,6 +170,7 @@ export function DocumentoDetalheModal({
   onDownloadAnexo: (path: string) => void;
   titulo: string;
   solicitacaoId: string;
+  onExportarPdf: (nomeArquivo: string) => void;
 }) {
   const { data: assinaturas = [] } = useQuery({
     queryKey: ["sistema_solicitacao_assinatura", solicitacaoId],
@@ -237,7 +237,7 @@ export function DocumentoDetalheModal({
                   size="sm"
                   variant="outline"
                   className="gap-1.5"
-                  onClick={() => exportarPdfCaptura("pdf-capture-target", `${documento.sigla}-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}
+                  onClick={() => onExportarPdf(`${documento.sigla}-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}
                 >
                   <FileDown className="h-3.5 w-3.5" /> Exportar PDF
                 </Button>

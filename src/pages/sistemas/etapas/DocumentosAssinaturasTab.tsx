@@ -64,7 +64,7 @@ function AssinarForm({ nomePadrao, onSalvar }: { nomePadrao: string; onSalvar: (
 }
 
 export function DocumentosAssinaturasTab({
-  solicitacaoId, etapaAtual, usuarios, userId, titulo, card, anexos, comentarios, convidados, onDownloadAnexo,
+  solicitacaoId, etapaAtual, usuarios, userId, titulo, card, anexos, comentarios, convidados, onDownloadAnexo, onExportarPdf,
 }: {
   solicitacaoId: string;
   etapaAtual: string;
@@ -76,6 +76,7 @@ export function DocumentosAssinaturasTab({
   comentarios: Comentario[];
   convidados: Convidado[];
   onDownloadAnexo: (path: string) => void;
+  onExportarPdf: (nomeArquivo: string) => void;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -132,6 +133,7 @@ export function DocumentosAssinaturasTab({
         onDownloadAnexo={onDownloadAnexo}
         titulo={titulo}
         solicitacaoId={solicitacaoId}
+        onExportarPdf={onExportarPdf}
       />
     </div>
   );

@@ -1,22 +1,33 @@
 name: Notify Discord
 
 on:
-  push:
-    branches:
-      - main
+  pull_request:
+    types: [closed]
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
       - name: Send notification to Discord
+        if: ${{ github.event.pull_request.merged == true }}
         run: |
-          MESSAGE="Atualização na branch main por ${{ github.actor }}\n\
+          AUTHOR="${{ github.event.pull_request.user.login }}"
+          MERGER="Iury Silva"
+
+          # Mapeamento de logins -> nomes desejados
+          case "$AUTHOR" in
+            EduardoJeiel007) AUTHOR="duduzin" ;;
+            pablotasuyuki)   AUTHOR="pablero" ;;
+            jvperetti)       AUTHOR="jão" ;;
+          esac
+
+          MESSAGE="Autorização de PR na branch main por IURYzera\n\n\
+          PR criada pelo $AUTHOR\n\n\
           gurizadaaaa, por favor digitem:\n\
           $ git fetch origin main\n\
           $ git rebase origin\n\
           $ git status\n\
-          agoraaaa, ouk hahaha"
+          "
 
           curl -H "Content-Type: application/json" \
                -d "{\"content\": \"$MESSAGE\"}" \
