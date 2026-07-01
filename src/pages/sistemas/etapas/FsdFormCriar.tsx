@@ -196,7 +196,7 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
             <Input
               value={form.titulo}
               onChange={(e) => set("titulo", e.target.value)}
-              placeholder="Ex.: Automatização do processo de aprovação de compras"
+              placeholder="Exemplo: Desenvolvimento de módulo de controle de férias no ERP para gestão de solicitações e aprovações."
               className="text-sm font-medium"
             />
           </div>
@@ -205,11 +205,11 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
           <div className="space-y-3">
             <SecaoTitulo numero={1} titulo="Identificação da Demanda" />
             <div className="grid gap-3 sm:grid-cols-2">
-              <CampoTexto label="Área Solicitante" value={form.area_solicitante} onChange={(v) => set("area_solicitante", v)} placeholder="Ex.: Financeiro, RH, Logística…" obrigatorio />
-              <CampoTexto label="Responsável pela Solicitação" value={form.responsavel_solicitacao} onChange={(v) => set("responsavel_solicitacao", v)} placeholder="Ex.: João da Silva" obrigatorio />
-              <CampoTexto label="Cargo" value={form.cargo_solicitante} onChange={(v) => set("cargo_solicitante", v)} placeholder="Ex.: Analista Financeiro" />
-              <CampoTexto label="E-mail de Contato" value={form.email_solicitante} onChange={(v) => set("email_solicitante", v)} placeholder="email@empresa.com" />
-              <CampoTexto label="Telefone de Contato" value={form.telefone_solicitante} onChange={(v) => set("telefone_solicitante", v)} placeholder="(00) 00000-0000" />
+              <CampoTexto label="Área Solicitante" value={form.area_solicitante} onChange={(v) => set("area_solicitante", v)} placeholder="Selecione..." obrigatorio />
+              <CampoTexto label="Responsável pela Solicitação" value={form.responsavel_solicitacao} onChange={(v) => set("responsavel_solicitacao", v)} placeholder="Exemplo: João da Silva" obrigatorio />
+              <CampoTexto label="Cargo" value={form.cargo_solicitante} onChange={(v) => set("cargo_solicitante", v)} placeholder="Exemplo: Coordenador Administrativo" />
+              <CampoTexto label="E-mail" value={form.email_solicitante} onChange={(v) => set("email_solicitante", v)} placeholder="seu.email@empresa.com.br" />
+              <CampoTexto label="Telefone" value={form.telefone_solicitante} onChange={(v) => set("telefone_solicitante", v)} placeholder="(00) 00000-0000" />
             </div>
           </div>
 
@@ -223,25 +223,25 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
           {/* Seção 3 — Descrição da Necessidade */}
           <div className="space-y-3">
             <SecaoTitulo numero={3} titulo="Descrição da Necessidade" />
-            <CampoTextarea label="Descreva de forma clara e objetiva a necessidade que motivou esta solicitação" value={form.descricao_necessidade} onChange={(v) => set("descricao_necessidade", v)} placeholder="Descreva o que você precisa e por que é necessário…" obrigatorio linhas={4} />
+            <CampoTextarea label="Descreva de forma clara e objetiva a necessidade que motivou esta solicitação" value={form.descricao_necessidade} onChange={(v) => set("descricao_necessidade", v)} placeholder="Exemplo: Necessitamos de um módulo no ERP para controle de férias dos colaboradores, permitindo que o colaborador solicite férias, o gestor aprove ou rejeite, e o sistema registre o período e atualize o saldo automaticamente. Deve gerar relatórios de férias por colaborador e por período." obrigatorio linhas={4} />
           </div>
 
           {/* Seção 4 — Situação Atual */}
           <div className="space-y-3">
             <SecaoTitulo numero={4} titulo="Situação Atual" />
-            <CampoTextarea label="Como o processo funciona hoje? Quais são os problemas ou limitações atuais?" value={form.problema_atual} onChange={(v) => set("problema_atual", v)} placeholder="Descreva como é feito atualmente e quais dificuldades existem…" linhas={3} />
+            <CampoTextarea label="Como esse processo é realizado hoje?" value={form.problema_atual} onChange={(v) => set("problema_atual", v)} placeholder="Exemplo: Atualmente as solicitações de férias são feitas por e-mail ou planilha Excel. O gestor responde por e-mail e o RH lança manualmente no sistema." linhas={3} />
           </div>
 
           {/* Seção 5 — Situação Desejada */}
           <div className="space-y-3">
             <SecaoTitulo numero={5} titulo="Situação Desejada" />
-            <CampoTextarea label="Como você deseja que o processo funcione após a implantação da solução?" value={form.situacao_desejada} onChange={(v) => set("situacao_desejada", v)} placeholder="Descreva o cenário ideal após a resolução…" linhas={3} />
+            <CampoTextarea label="Como você espera que esse processo funcione após a melhoria?" value={form.situacao_desejada} onChange={(v) => set("situacao_desejada", v)} placeholder="Exemplo: O colaborador solicita férias via sistema, o gestor aprova ou rejeita no ERP e o sistema registra automaticamente, atualiza o saldo e gera relatórios." linhas={3} />
           </div>
 
           {/* Seção 6 — Justificativa */}
           <div className="space-y-3">
             <SecaoTitulo numero={6} titulo="Justificativa" />
-            <CampoTextarea label="Por que esta solicitação é necessária? Qual o impacto de não atendê-la?" value={form.justificativa} onChange={(v) => set("justificativa", v)} placeholder="Explique a importância e o impacto caso não seja atendida…" linhas={3} />
+            <CampoTextarea label="Por que essa demanda é necessária?" value={form.justificativa} onChange={(v) => set("justificativa", v)} placeholder="Exemplo: Para padronizar e automatizar o processo de férias, reduzir retrabalho do RH, garantir controle e rastreabilidade das informações." linhas={3} />
           </div>
 
           {/* Seção 7 — Benefícios Esperados */}
@@ -266,7 +266,7 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
               </RadioGroup>
             </div>
             {form.impacto_tipo && form.impacto_tipo !== "apenas_minha_area" && (
-              <CampoTextarea label="Quais áreas serão impactadas?" value={form.areas_impactadas} onChange={(v) => set("areas_impactadas", v)} placeholder="Liste as áreas ou departamentos…" linhas={2} />
+              <CampoTextarea label="Áreas impactadas" value={form.areas_impactadas} onChange={(v) => set("areas_impactadas", v)} placeholder="Exemplo: RH, DP, Financeiro" linhas={2} />
             )}
           </div>
 
@@ -284,7 +284,7 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
                 ))}
               </RadioGroup>
             </div>
-            <CampoTextarea label="Justificativa da urgência (obrigatório se Alta)" value={form.justificativa_urgencia} onChange={(v) => set("justificativa_urgencia", v)} placeholder="Explique por que esta solicitação tem essa urgência…" linhas={2} />
+            <CampoTextarea label="Justificativa da urgência" value={form.justificativa_urgencia} onChange={(v) => set("justificativa_urgencia", v)} placeholder="Exemplo: Necessário para atender nova legislação que entra em vigor em 30/09/2025." linhas={2} />
           </div>
 
           {/* Seção 10 — Processo Documentado */}
@@ -304,7 +304,7 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
               </RadioGroup>
             </div>
             {form.existe_processo_documentado === "sim" && (
-              <CampoTexto label="Código ou nome do processo documentado" value={form.codigo_processo} onChange={(v) => set("codigo_processo", v)} placeholder="Ex.: PRO-COMPRAS-001" />
+              <CampoTexto label="Caso exista, informe o código do documento ou anexe." value={form.codigo_processo} onChange={(v) => set("codigo_processo", v)} placeholder="Exemplo: POP-RH-007 ou anexe o documento." />
             )}
           </div>
 
@@ -330,14 +330,14 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
           {/* Seção 12 — Observações */}
           <div className="space-y-3">
             <SecaoTitulo numero={12} titulo="Observações Adicionais" />
-            <CampoTextarea label="Informações complementares que possam auxiliar na análise" value={form.observacoes_abertura} onChange={(v) => set("observacoes_abertura", v)} placeholder="Observações, referências, contexto adicional…" linhas={3} />
+            <CampoTextarea label="Informações complementares que possam auxiliar na análise" value={form.observacoes_abertura} onChange={(v) => set("observacoes_abertura", v)} placeholder="Exemplo: Informações adicionais que possam ajudar na análise da demanda." linhas={3} />
           </div>
 
           {/* Rodapé */}
           <div className="flex justify-end gap-2 border-t border-border pt-4">
             <Button variant="ghost" onClick={handleClose} disabled={salvando}>Cancelar</Button>
             <Button onClick={handleSubmit} disabled={!podeSubmeter || salvando}>
-              {salvando ? "Enviando…" : "Criar Solicitação de Demanda"}
+              {salvando ? "Enviando…" : "Criar solicitação de sistema"}
             </Button>
           </div>
         </div>

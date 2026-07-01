@@ -57,7 +57,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           <Input
             value={card.triagem_recebido_por ?? ""}
             onChange={(e) => save("triagem_recebido_por")(e.target.value || null)}
-            placeholder="Nome de quem recebeu a solicitação"
+            placeholder="Nome do responsável"
             disabled={!podeEditar}
             className="text-sm"
           />
@@ -93,11 +93,11 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
         </CampoLabel>
 
         {/* Seção 16 — Análise preliminar / parecer */}
-        <CampoLabel label="16. Análise Preliminar">
+        <CampoLabel label="19. Parecer da Controladoria">
           <Textarea
             value={card.triagem_parecer ?? ""}
             onChange={(e) => save("triagem_parecer")(e.target.value || null)}
-            placeholder="Descreva a análise preliminar da solicitação…"
+            placeholder="Digite o parecer da Controladoria..."
             disabled={!podeEditar}
             rows={3}
             className="text-sm"
@@ -115,11 +115,11 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
               className="text-sm"
             />
           </CampoLabel>
-          <CampoLabel label="Responsável pelo encaminhamento">
+          <CampoLabel label="Responsável:">
             <Input
               value={card.triagem_encaminhamento_responsavel ?? ""}
               onChange={(e) => save("triagem_encaminhamento_responsavel")(e.target.value || null)}
-              placeholder="Nome do responsável"
+              placeholder="Digite o nome do responsável"
               disabled={!podeEditar}
               className="text-sm"
             />
