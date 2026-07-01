@@ -23,7 +23,7 @@ function SecaoParteA({ numero, titulo, children }: { numero: number; titulo: str
   return (
     <div className="space-y-2 rounded-md border border-border p-3">
       <div className="flex items-center gap-2 border-b border-border pb-1.5">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#153169] text-[10px] font-bold text-white">
+        <span className="inline-block h-5 w-5 shrink-0 rounded-full bg-[#153169] text-[10px] font-bold text-white leading-5 text-center">
           {numero}
         </span>
         <span className="text-[10px] font-bold uppercase tracking-wider text-[#153169]">{titulo}</span>
