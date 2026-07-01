@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, FileDown, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import type { EtapaPanelProps } from "./types";
 import { AnexoSimples } from "./AnexoSimples";
-import { exportarPdfCaptura } from "./exportarPdfCaptura";
 
 export function HomologacaoAreaSolicitantePanel({
   card, papeis, userId, convidados, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo,
@@ -37,11 +36,6 @@ export function HomologacaoAreaSolicitantePanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfCaptura("pdf-capture-target", `homologacao-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}>
-          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
-        </Button>
-      </div>
       <p className="text-sm text-muted-foreground">
         Quem criou, foi convidado, ou Controladoria pode aprovar, aprovar com ressalva ou reprovar.
       </p>

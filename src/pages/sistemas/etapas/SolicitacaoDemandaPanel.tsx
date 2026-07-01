@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Send, X, Ban, FileDown } from "lucide-react";
+import { Send, X, Ban } from "lucide-react";
 import {
   nomeUsuario, fmtData,
   CLASSIFICACAO_DEMANDA_OPCOES, BENEFICIOS_ESPERADOS_OPCOES, IMPACTO_TIPO_OPCOES,
@@ -9,7 +9,6 @@ import {
   type EtapaPanelProps,
 } from "./types";
 import { RecusadoPanel } from "./RecusadoPanel";
-import { exportarPdfCaptura } from "./exportarPdfCaptura";
 
 function LabelValor({ label, valor }: { label: string; valor: React.ReactNode }) {
   return (
@@ -73,17 +72,6 @@ export function SolicitacaoDemandaPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5"
-          onClick={() => exportarPdfCaptura("pdf-capture-target", `solicitacao-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}
-        >
-          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
-        </Button>
-      </div>
-
       {/* Parte A — leitura para todos */}
       {temParteA ? (
         <div className="space-y-3">

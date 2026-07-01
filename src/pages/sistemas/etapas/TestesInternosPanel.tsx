@@ -2,10 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowRight, ArrowLeft, FileDown } from "lucide-react";
+import { ArrowRight, ArrowLeft } from "lucide-react";
 import { APROVACOES_TESTES_INTERNOS, type EtapaPanelProps } from "./types";
 import { AnexoSimples } from "./AnexoSimples";
-import { exportarPdfCaptura } from "./exportarPdfCaptura";
 
 const APROVACOES = Object.entries(APROVACOES_TESTES_INTERNOS).map(([campo, nome]) => ({
   campo: campo as keyof typeof APROVACOES_TESTES_INTERNOS,
@@ -31,11 +30,6 @@ export function TestesInternosPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfCaptura("pdf-capture-target", `testes-internos-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}>
-          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
-        </Button>
-      </div>
       <div className="space-y-2 rounded-md border border-border p-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Aguardando Aprovações Necessárias</p>
         {APROVACOES.map((a, i) => {
