@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { CandidatoInfo, baixarCurriculoCand, Toasts, btnStyle, PendToggle } from "@/components/recrutamento/CandidatoInfo";
+import { CandidatoInfo, baixarCurriculoCand, Toasts, btnStyle, PendToggle, HistoricoCandidato } from "@/components/recrutamento/CandidatoInfo";
 
 // =====================================================================
 // RH — Novas Admissões
@@ -152,7 +152,7 @@ export default function NovasAdmissoes() {
         ) : filtrados.length === 0 ? (
           <div style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8" }}>Nenhum candidato aguardando admissão.</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))", gap: 14, alignItems: "start" }}>
             {filtrados.map(c => (
               <div key={c.candidato_id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
                 <div style={{ height: 3, background: "#16a34a" }} />
@@ -160,6 +160,7 @@ export default function NovasAdmissoes() {
                   <CandidatoInfo cand={c} />
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
                     {c.admitido_por && <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: "#dcfce7", color: "#15803d" }}>✓ Admitido por {c.admitido_por}</span>}
+                    <HistoricoCandidato candidatoId={c.candidato_id} nome={c.nome} />
                     {c.storage_path && <button onClick={() => baixarCv(c)} style={btnStyle("rgba(249,115,22,.12)", "1px solid rgba(249,115,22,.25)", "#f97316")}>↓ Currículo</button>}
                     {podeAgir && !c.admitido_por && <button onClick={() => abrirForm(c)} style={btnStyle("#16a34a", "none", "#fff")}>✓ Admitir / Cadastrar EMPREGADO</button>}
                   </div>

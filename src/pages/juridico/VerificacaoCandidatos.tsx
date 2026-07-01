@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { CandidatoInfo, baixarCurriculoCand, Modal, Campo, Acoes, Toasts, btnStyle, PendToggle, EtapaChip } from "@/components/recrutamento/CandidatoInfo";
+import { CandidatoInfo, baixarCurriculoCand, Modal, Campo, Acoes, Toasts, btnStyle, PendToggle, EtapaChip, HistoricoCandidato } from "@/components/recrutamento/CandidatoInfo";
 
 // =====================================================================
 // JURÍDICO — Verificação de Candidatos (fila do Recrutamento)
@@ -157,15 +157,15 @@ export default function VerificacaoCandidatos() {
         ) : filtrados.length === 0 ? (
           <div style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8" }}>{verTodos ? "Nenhum candidato passou pelo Jurídico." : "Nenhum candidato aguardando verificação."}</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))", gap: 14, alignItems: "start" }}>
             {filtrados.map(c => (
               <div key={c.candidato_id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
                 <div style={{ height: 3, background: "#8b5cf6" }} />
                 <div style={{ padding: "14px 16px" }}>
-                  <CandidatoInfo cand={c} />
+                  <CandidatoInfo cand={c} hideCurriculo />
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
                     {c.etapa_processo !== "JURÍDICO" && <span style={{ fontSize: 11, color: "#94a3b8" }}>Situação atual: <EtapaChip etapa={c.etapa_processo} /></span>}
-                    {c.storage_path && <button onClick={() => baixarCv(c)} style={btn("rgba(249,115,22,.12)", "1px solid rgba(249,115,22,.25)", "#f97316")}>↓ Currículo</button>}
+                    <HistoricoCandidato candidatoId={c.candidato_id} nome={c.nome} />
                     {podeAgir && c.etapa_processo === "JURÍDICO" && <>
                       <button onClick={() => { setObs(""); setAcao({ cand: c, tipo: "ok" }); }} style={btn("#16a34a", "none", "#fff")}>✓ Liberar → Entrevista</button>
                       <button onClick={() => { setObs(""); setAcao({ cand: c, tipo: "reprovar" }); }} style={btn("rgba(220,38,38,.08)", "1px solid rgba(220,38,38,.25)", "#dc2626")}>Reprovar</button>

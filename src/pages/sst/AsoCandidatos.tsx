@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { CandidatoInfo, baixarCurriculoCand, Modal, Campo, Acoes, Toasts, btnStyle, PendToggle, EtapaChip } from "@/components/recrutamento/CandidatoInfo";
+import { CandidatoInfo, baixarCurriculoCand, Modal, Campo, Acoes, Toasts, btnStyle, PendToggle, EtapaChip, HistoricoCandidato } from "@/components/recrutamento/CandidatoInfo";
 
 // =====================================================================
 // SST — Exame Médico (fila do Recrutamento)
@@ -109,12 +109,12 @@ export default function AsoCandidatos() {
         ) : filtrados.length === 0 ? (
           <div style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8" }}>{verTodos ? "Nenhum candidato passou pelo SST." : "Nenhum candidato aguardando exame médico."}</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))", gap: 14, alignItems: "start" }}>
             {filtrados.map(c => (
               <div key={c.candidato_id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
                 <div style={{ height: 3, background: "#f59e0b" }} />
                 <div style={{ padding: "14px 16px" }}>
-                  <CandidatoInfo cand={c} />
+                  <CandidatoInfo cand={c} hideCurriculo />
                   {c.sst_agendado_em && (
                     <div style={{ marginTop: 8, fontSize: 12, color: "#15803d", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 8, padding: "7px 10px" }}>
                       🗓 <b>Exame agendado:</b> {fmtD(c.sst_data_exame)}{c.sst_hora_exame ? ` às ${c.sst_hora_exame}` : ""}{c.sst_local_exame ? ` · ${c.sst_local_exame}` : ""}
@@ -122,7 +122,7 @@ export default function AsoCandidatos() {
                   )}
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
                     {c.etapa_processo !== "EXAME SST" && <span style={{ fontSize: 11, color: "#94a3b8" }}>Situação atual: <EtapaChip etapa={c.etapa_processo} /></span>}
-                    {c.storage_path && <button onClick={() => baixarCv(c)} style={btnStyle("rgba(249,115,22,.12)", "1px solid rgba(249,115,22,.25)", "#f97316")}>↓ Currículo</button>}
+                    <HistoricoCandidato candidatoId={c.candidato_id} nome={c.nome} />
                     {podeAgir && c.etapa_processo === "EXAME SST" && <>
                       {!c.sst_agendado_em
                         ? <button onClick={() => { setAg({ data: "", hora: "", local: c.local_exato || c.cidade || "" }); setAcao({ cand: c, tipo: "agendar" }); }} style={btnStyle("#0ea5e9", "none", "#fff")}>🗓 Agendar exame</button>

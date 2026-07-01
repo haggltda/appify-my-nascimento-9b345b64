@@ -31,7 +31,7 @@ export default function RecrutamentoDashboard() {
       setLoading(true);
       const [{ data: s }, { data: c }, { data: log }] = await Promise.all([
         (supabase as any).from("SISTEMA_RECRUTAMENTO").select("id,cargo,status,created_at"),
-        (supabase as any).from("WA_CURRICULOS").select("id,vaga_id,created_at,tipo_candidatura"),
+        (supabase as any).from("WA_CURRICULOS").select("id,vaga_id,created_at,tipo_candidatura,etapa_processo"),
         (supabase as any).from("SISTEMA_RECRUTAMENTO_STATUS_LOG").select("status_anterior,dias_no_anterior"),
       ]);
       setSols(s ?? []);
@@ -94,6 +94,17 @@ export default function RecrutamentoDashboard() {
     { name: "Contratados", value: contratados, cor: "#16a34a" },
     { name: "Reprovadas", value: reprovadas, cor: "#dc2626" },
   ].filter(x => x.value > 0);
+
+  // Candidatos por etapa do kanban (funil do processo)
+  const CAND_ETAPAS = ["ENTRADA", "TRIAGEM", "JURÍDICO", "ENTREVISTA", "ENTREVISTA GESTOR", "APROVADOS", "EXAME SST", "COMPRAS", "DOCUMENTAÇÃO", "Reprovado"];
+  const etapaCor: Record<string, string> = {
+    ENTRADA: "#64748b", TRIAGEM: "#3b82f6", "JURÍDICO": "#8b5cf6", ENTREVISTA: "#0ea5e9",
+    "ENTREVISTA GESTOR": "#6366f1", APROVADOS: "#14b8a6", "EXAME SST": "#f59e0b",
+    COMPRAS: "#f97316", "DOCUMENTAÇÃO": "#16a34a", Reprovado: "#dc2626",
+  };
+  const etapaData = CAND_ETAPAS
+    .map(e => ({ etapa: e, qtd: curs.filter(c => c.etapa_processo === e).length }))
+    .filter(d => d.qtd > 0);
 
   const Kpi = ({ label, val, color }: { label: string; val: number | string; color: string }) => (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
@@ -195,6 +206,22 @@ export default function RecrutamentoDashboard() {
                     <Legend />
                     <Tooltip />
                   </PieChart>
+                </ResponsiveContainer>
+              )}
+            </Card>
+
+            <Card title="Candidatos por etapa (kanban)">
+              {etapaData.length === 0 ? <Vazio texto="Nenhum candidato no processo ainda." /> : (
+                <ResponsiveContainer>
+                  <BarChart data={etapaData} layout="vertical" margin={{ top: 6, right: 16, left: 20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                    <YAxis type="category" dataKey="etapa" width={130} tick={{ fontSize: 9.5, fill: "#475569" }} />
+                    <Tooltip />
+                    <Bar dataKey="qtd" name="Candidatos" radius={[0, 6, 6, 0]}>
+                      {etapaData.map((d, i) => <Cell key={i} fill={etapaCor[d.etapa] || "#0f3171"} />)}
+                    </Bar>
+                  </BarChart>
                 </ResponsiveContainer>
               )}
             </Card>

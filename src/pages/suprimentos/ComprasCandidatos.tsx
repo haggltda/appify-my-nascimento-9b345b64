@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { CandidatoInfo, baixarCurriculoCand, Modal, Campo, Acoes, Toasts, btnStyle, PendToggle, EtapaChip } from "@/components/recrutamento/CandidatoInfo";
+import { CandidatoInfo, baixarCurriculoCand, Modal, Campo, Acoes, Toasts, btnStyle, PendToggle, EtapaChip, HistoricoCandidato } from "@/components/recrutamento/CandidatoInfo";
 
 // =====================================================================
 // SUPRIMENTOS — EPIs / Uniforme dos candidatos aprovados
@@ -102,12 +102,12 @@ export default function ComprasCandidatos() {
         ) : filtrados.length === 0 ? (
           <div style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8" }}>{verTodos ? "Nenhum candidato passou pelo Compras." : "Nenhum candidato aguardando EPIs/uniforme."}</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(360px,1fr))", gap: 14, alignItems: "start" }}>
             {filtrados.map(c => (
               <div key={c.candidato_id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
                 <div style={{ height: 3, background: "#f97316" }} />
                 <div style={{ padding: "14px 16px" }}>
-                  <CandidatoInfo cand={c} />
+                  <CandidatoInfo cand={c} hideCurriculo />
                   {/* Tabela TR de EPIs informada pelo Recrutamento */}
                   {(epis[c.candidato_id]?.length ?? 0) > 0 ? (
                     <div style={{ marginTop: 10, border: "1px solid #fed7aa", borderRadius: 10, overflow: "hidden" }}>
@@ -137,7 +137,7 @@ export default function ComprasCandidatos() {
                   )}
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
                     {c.etapa_processo !== "COMPRAS" && <span style={{ fontSize: 11, color: "#94a3b8" }}>Situação atual: <EtapaChip etapa={c.etapa_processo} /></span>}
-                    {c.storage_path && <button onClick={() => baixarCv(c)} style={btnStyle("rgba(249,115,22,.12)", "1px solid rgba(249,115,22,.25)", "#f97316")}>↓ Currículo</button>}
+                    <HistoricoCandidato candidatoId={c.candidato_id} nome={c.nome} />
                     {podeAgir && c.etapa_processo === "COMPRAS" && <>
                       <button onClick={() => { setObs(""); setDataChegada(""); setAcao({ cand: c, tipo: "ok" }); }} style={btnStyle("#16a34a", "none", "#fff")}>✓ Confirmar EPIs → Documentação</button>
                       <button onClick={() => { setObs(""); setAcao({ cand: c, tipo: "reprovar" }); }} style={btnStyle("rgba(220,38,38,.08)", "1px solid rgba(220,38,38,.25)", "#dc2626")}>Reprovar</button>
