@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, Paperclip } from "lucide-react";
+import { ArrowRight, FileDown, Paperclip } from "lucide-react";
 import type { EtapaPanelProps } from "./types";
+import { exportarPdfEtapa } from "./documentoPdf";
 
-export function TreinamentoPanel({ card, papeis, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
+export function TreinamentoPanel({ card, papeis, anexos, comentarios, usuarios, onUpdate, onComentar, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
   const [faltouFuncoes, setFaltouFuncoes] = useState("");
   const [encontradoBug, setEncontradoBug] = useState("");
   const [arquivos, setArquivos] = useState<File[]>([]);
@@ -32,6 +33,11 @@ export function TreinamentoPanel({ card, papeis, anexos, onUpdate, onComentar, o
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("treinamento", card, anexos, comentarios, usuarios)}>
+          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+        </Button>
+      </div>
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Data do treinamento</label>
         <Input

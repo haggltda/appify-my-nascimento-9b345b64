@@ -4,10 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRight, ArrowLeft } from "lucide-react";
+import { ArrowRight, ArrowLeft, FileDown } from "lucide-react";
 import { STATUS_DESENVOLVIMENTO_LABEL, type EtapaPanelProps } from "./types";
+import { exportarPdfEtapa } from "./documentoPdf";
 
-export function DesenvolvimentoPanel({ card, papeis, onUpdate, onComentar }: EtapaPanelProps) {
+export function DesenvolvimentoPanel({ card, papeis, anexos, comentarios, usuarios, onUpdate, onComentar }: EtapaPanelProps) {
   const podeEditar = papeis.desenvolvedores || papeis.gerenteSistemas;
   const podeAvancar = papeis.desenvolvedores;
   const podeDevolver = papeis.desenvolvedores || papeis.gerenteSistemas;
@@ -36,6 +37,11 @@ export function DesenvolvimentoPanel({ card, papeis, onUpdate, onComentar }: Eta
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("desenvolvimento", card, anexos, comentarios, usuarios)}>
+          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+        </Button>
+      </div>
       <p className="text-sm text-muted-foreground">Desenvolvedores e Gerente de Sistemas atualizam progresso e prazo, estilo Trello.</p>
       <div>
         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Progresso</label>

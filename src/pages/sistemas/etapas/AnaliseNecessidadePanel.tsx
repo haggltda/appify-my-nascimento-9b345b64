@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Ban } from "lucide-react";
+import { ArrowRight, Ban, FileDown } from "lucide-react";
 import { CampoComAnexo } from "./CampoComAnexo";
 import type { EtapaPanelProps } from "./types";
 import { RecusadoPanel } from "./RecusadoPanel";
+import { exportarPdfEtapa } from "./documentoPdf";
 
-export function AnaliseNecessidadePanel({ card, papeis, anexos, onUpdate, onAnexar, onDownloadAnexo, onExcluir }: EtapaPanelProps) {
+export function AnaliseNecessidadePanel({ card, papeis, anexos, comentarios, usuarios, onUpdate, onAnexar, onDownloadAnexo, onExcluir }: EtapaPanelProps) {
   const podeAgir = papeis.comite;
 
   if (card.recusado) {
@@ -19,6 +20,11 @@ export function AnaliseNecessidadePanel({ card, papeis, anexos, onUpdate, onAnex
 
   return (
     <div className="space-y-3">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("analise_necessidade", card, anexos, comentarios, usuarios)}>
+          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+        </Button>
+      </div>
       <CampoComAnexo
         titulo="Análise da Necessidade"
         campo="analise_necessidade"

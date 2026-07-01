@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, X, RotateCcw } from "lucide-react";
+import { Check, X, RotateCcw, FileDown } from "lucide-react";
 import { CRITERIO_TRIAGEM_LABEL, type EtapaPanelProps } from "./types";
 import { RecusadoPanel } from "./RecusadoPanel";
+import { exportarPdfEtapa } from "./documentoPdf";
 
-export function TriagemInicialPanel({ card, papeis, onUpdate, onExcluir }: EtapaPanelProps) {
+export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuarios, onUpdate, onExcluir }: EtapaPanelProps) {
   if (card.recusado) {
     return (
       <RecusadoPanel
@@ -19,6 +20,11 @@ export function TriagemInicialPanel({ card, papeis, onUpdate, onExcluir }: Etapa
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("triagem_inicial", card, anexos, comentarios, usuarios)}>
+          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+        </Button>
+      </div>
       <div>
         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Critério</label>
         <Select

@@ -12,6 +12,7 @@ export interface CapaEdital {
   licitacao_id: string | null;
 
   cidade: string | null;
+  uf: string | null;
   objeto: string | null;
   modalidade: string | null;
   local: string | null;

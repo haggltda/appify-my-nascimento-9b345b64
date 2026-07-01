@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import logoGN from "@/assets/logo-grupo-nascimento.png";
+import logoGN from "@/assets/logo-nascimento-icon.png";
 import {
   LayoutDashboard,
   Briefcase,

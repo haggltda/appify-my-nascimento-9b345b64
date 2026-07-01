@@ -13,9 +13,10 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, UserCircle2, CalendarClock } from "lucide-react";
+import { Plus, UserCircle2, CalendarClock, Bell, BellRing } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import {
   ETAPAS, CAMPOS_ABERTURA, TIPO_SOLICITACAO_LABEL, GRAU_URGENCIA_LABEL, STATUS_DESENVOLVIMENTO_LABEL, STATUS_DESENVOLVIMENTO_COR,
   nomeUsuario, iniciais, fmtData, statusPrazoEtapa,
@@ -37,7 +38,7 @@ import { TreinamentoPanel } from "./etapas/TreinamentoPanel";
 import { ImplantacaoPanel } from "./etapas/ImplantacaoPanel";
 import { AcompanhamentoAssistidoPanel } from "./etapas/AcompanhamentoAssistidoPanel";
 import { EncerramentoPanel } from "./etapas/EncerramentoPanel";
-import { AssinaturasTab } from "./etapas/AssinaturasTab";
+import { DocumentosAssinaturasTab } from "./etapas/DocumentosAssinaturasTab";
 
 const BUCKET = "sistema-solicitacoes";
 
@@ -163,6 +164,7 @@ export default function SolicitacoesErp() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+  const push = usePushNotifications();
   const { data: access } = useAccessibleMenus("visualizar");
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
@@ -173,7 +175,7 @@ export default function SolicitacoesErp() {
   const [grauUrgencia, setGrauUrgencia] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
-  const [aba, setAba] = useState<"detalhes" | "historico" | "assinaturas">("detalhes");
+  const [aba, setAba] = useState<"detalhes" | "historico" | "documentos">("detalhes");
   const [novoComentario, setNovoComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [filtroResponsavelDev, setFiltroResponsavelDev] = useState<string | null>(null);
@@ -315,6 +317,9 @@ export default function SolicitacoesErp() {
       const novaEtapaLabel = ETAPAS.find((e) => e.key === patch.etapa)?.label ?? String(patch.etapa);
       toast({ title: "Card movido", description: `Etapa: ${novaEtapaLabel}` });
       if (detalheId === id) setDetalheId(null);
+      supabase.functions
+        .invoke("enviar-notificacao-push", { body: { solicitacao_id: id, etapa_nova: patch.etapa } })
+        .catch(() => {});
     } else if ("recusado" in patch) {
       toast({ title: patch.recusado ? "Card recusado" : "Card reativado" });
     } else if ("finalizado" in patch) {
@@ -503,11 +508,45 @@ export default function SolicitacoesErp() {
         module="Sistemas"
         breadcrumb={["Solicitações ERP"]}
         actions={
-          papeis.criarSolicitacao ? (
-            <Button onClick={() => setNovoOpen(true)} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Nova Solicitação
-            </Button>
-          ) : undefined
+          <>
+            {push.suportado && push.inscrito && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <BellRing className="h-3.5 w-3.5" /> Notificações ativadas
+              </span>
+            )}
+            {push.suportado && !push.inscrito && !push.precisaInstalar && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={push.ativando}
+                onClick={async () => {
+                  try {
+                    const ok = await push.ativarNotificacoes();
+                    if (ok) {
+                      toast({ title: "Notificações ativadas" });
+                    } else {
+                      toast({ title: "Permissão negada", description: "Habilite notificações nas configurações do navegador.", variant: "destructive" });
+                    }
+                  } catch (e) {
+                    toast({ title: "Erro ao ativar notificações", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+                  }
+                }}
+              >
+                <Bell className="h-3.5 w-3.5" /> {push.ativando ? "Ativando…" : "Ativar notificações"}
+              </Button>
+            )}
+            {push.precisaInstalar && (
+              <span className="max-w-[220px] text-xs text-muted-foreground">
+                Pra notificações no iPhone: abra pelo Safari → compartilhar → "Adicionar à Tela de Início".
+              </span>
+            )}
+            {papeis.criarSolicitacao && (
+              <Button onClick={() => setNovoOpen(true)} className="gap-1.5">
+                <Plus className="h-4 w-4" /> Nova Solicitação
+              </Button>
+            )}
+          </>
         }
       />
 
@@ -710,10 +749,10 @@ export default function SolicitacoesErp() {
                   Histórico
                 </button>
                 <button
-                  onClick={() => setAba("assinaturas")}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium ${aba === "assinaturas" ? "bg-muted" : "text-muted-foreground"}`}
+                  onClick={() => setAba("documentos")}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium ${aba === "documentos" ? "bg-muted" : "text-muted-foreground"}`}
                 >
-                  Assinaturas
+                  Documentos e Assinaturas
                 </button>
               </div>
 
@@ -723,13 +762,18 @@ export default function SolicitacoesErp() {
                 </div>
               )}
 
-              {aba === "assinaturas" && (
-                <AssinaturasTab
+              {aba === "documentos" && (
+                <DocumentosAssinaturasTab
                   solicitacaoId={cardDetalhe.id}
                   etapaAtual={cardDetalhe.etapa}
                   usuarios={usuarios}
                   userId={user?.id ?? null}
                   titulo={cardDetalhe.titulo}
+                  card={cardDetalhe}
+                  anexos={anexos}
+                  comentarios={comentarios}
+                  convidados={convidados}
+                  onDownloadAnexo={downloadAnexo}
                 />
               )}
 

@@ -41,6 +41,8 @@ import {
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Eye, History, FileText, AlertCircle } from "lucide-react";
 import { useUsuariosLicitacao } from "@/hooks/useUsuariosLicitacao";
+import { useIBGEMunicipios, UFS } from "@/hooks/useIBGEMunicipios";
+import { CidadeCombobox } from "@/components/ui/CidadeCombobox";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { PrazoInput } from "@/components/ui/PrazoInput";
 
@@ -158,9 +160,17 @@ export default function CadastroEdital() {
           c.cidade?.toLowerCase().includes(q) ||
           c.objeto?.toLowerCase().includes(q) ||
           c.modalidade?.toLowerCase().includes(q) ||
-          c.escritorio?.toLowerCase().includes(q)
+          c.escritorio?.toLowerCase().includes(q) ||
+          c.responsavel?.toLowerCase().includes(q)
       );
     }
+    // Ordena pela abertura mais próxima (sem data vai pro fim)
+    list.sort((a, b) => {
+      if (!a.abertura && !b.abertura) return 0;
+      if (!a.abertura) return 1;
+      if (!b.abertura) return -1;
+      return a.abertura.localeCompare(b.abertura);
+    });
     return list;
   }, [capas, statusFiltro, busca]);
 
@@ -409,8 +419,9 @@ function CapaCard({
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         <span><span className="font-medium text-foreground">Cidade:</span> {capa.cidade || "—"}</span>
         <span><span className="font-medium text-foreground">Modalidade:</span> {capa.modalidade || "—"}</span>
-        <span><span className="font-medium text-foreground">Abertura:</span> {capa.abertura || "—"}</span>
+        <span><span className="font-medium text-foreground">Abertura:</span> {capa.abertura ? capa.abertura.replace(/^(\d{4})-(\d{2})-(\d{2})/, "$3/$2/$1").replace(/H/i, "h") : "—"}</span>
         <span><span className="font-medium text-foreground">Postos:</span> {capa.qtd_postos ?? "—"}</span>
+        <span className="col-span-2"><span className="font-medium text-foreground">Responsável:</span> {capa.responsavel || "—"}</span>
         {capa.valor_estimado && (
           <span className="col-span-2"><span className="font-medium text-foreground">Valor:</span> {capa.valor_estimado}</span>
         )}
@@ -478,7 +489,7 @@ function CapaCard({
 // ── Sheet form ─────────────────────────────────────────────────────────────
 
 const EMPTY: Partial<CapaEdital> = {
-  cidade: "", objeto: "", modalidade: "", local: "", forma_julgamento: "",
+  cidade: "", uf: "", objeto: "", modalidade: "", local: "", forma_julgamento: "",
   atestado_cap_tecnica: "", escritorio: "", abertura: "", prazo_impugnacao: "",
   prazo_recurso: "", validade_proposta: "", prazo_contrato: "", visita_tecnica: "",
   data_inicio: "", qtd_postos: null, carga_horaria: "", valor_estimado: "",
@@ -500,6 +511,8 @@ function CapaSheet({
 }) {
   const [f, setF] = useState<Partial<CapaEdital>>({ ...EMPTY });
   const { data: usuarios = [] } = useUsuariosLicitacao();
+  const { cidadesPorUF, isLoading: ibgeLoading } = useIBGEMunicipios();
+  const cidadesUF = f.uf ? cidadesPorUF(f.uf) : [];
 
   useEffect(() => {
     if (!open) return;
@@ -529,7 +542,30 @@ function CapaSheet({
 
           <Secao title="Identificação">
             <Grid2>
-              <F label="Cidade">{txt("cidade")}</F>
+              <F label="UF">
+                <Select
+                  value={f.uf ?? ""}
+                  onValueChange={(v) => setF((p) => ({ ...p, uf: v, cidade: "" }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="— Selecione —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UFS.map((uf) => (
+                      <SelectItem key={uf} value={uf}>{uf}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </F>
+              <F label="Cidade">
+                <CidadeCombobox
+                  cidades={cidadesUF}
+                  value={f.cidade ?? ""}
+                  onChange={(v) => setF((p) => ({ ...p, cidade: v }))}
+                  disabled={!f.uf || ibgeLoading}
+                  placeholder={!f.uf ? "Selecione a UF" : ibgeLoading ? "Carregando…" : "Buscar cidade…"}
+                />
+              </F>
               <F label="Modalidade">{txt("modalidade")}</F>
               <F label="Responsável *">
                 {usuarios.length > 0 ? (

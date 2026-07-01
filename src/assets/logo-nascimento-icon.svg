@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 75">
+  <!--
+    Forma do "n": perna esquerda longa + entalhe + arco + perna direita
+    Traçado como área preenchida (fill) para o drop-shadow seguir o shape
+  -->
+  <path
+    d="
+      M 0,75
+      L 0,32
+      Q 0,0 50,0
+      Q 100,0 100,32
+      L 100,75
+      L 82,75
+      L 82,32
+      Q 82,17 50,17
+      Q 18,17 18,32
+      L 18,48
+      L 0,48
+      Z
+    "
+    fill="#E8570A"
+  />
+</svg>
