@@ -36,7 +36,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
   }
 
   const podeEditar = papeis.controladoria || papeis.comite;
-  const podeAvancar = podeEditar && !!card.triagem_classificacao && !!card.triagem_decisao;
+  const podeAvancar = podeEditar && card.triagem_classificacao === "sistema" && !!card.triagem_decisao;
 
   return (
     <div className="space-y-4">
@@ -182,7 +182,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
         <p className="text-[11px] text-muted-foreground">Só Controladoria ou Comitê agem nesta etapa.</p>
       )}
       {podeEditar && !podeAvancar && (
-        <p className="text-[11px] text-muted-foreground">Preencha a Classificação e a Decisão para avançar.</p>
+        <p className="text-[11px] text-muted-foreground">Selecione "Necessidade de Sistemas" na Classificação e preencha a Decisão para avançar.</p>
       )}
       {card.triagem_decisao === "devolvido_ajustes" && (
         <p className="text-[11px] text-muted-foreground">Decisão: Devolvido para ajustes — use "Voltar ao painel" para retornar à coluna 1.</p>
