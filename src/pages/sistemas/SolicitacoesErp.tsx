@@ -19,7 +19,7 @@ import logoNascimento from "@/assets/logo-nascimento-icon.png";
 import {
   ETAPAS, CAMPOS_ABERTURA, TIPO_SOLICITACAO_LABEL, GRAU_URGENCIA_LABEL, STATUS_DESENVOLVIMENTO_LABEL, STATUS_DESENVOLVIMENTO_COR,
   nomeUsuario, iniciais, fmtData, statusPrazoEtapa, sdNumero,
-  type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis, type AprovadorTesteInterno,
+  type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis, type AprovadorTesteInterno, type Assinatura,
 } from "./etapas/types";
 import { FsdFormCriar } from "./etapas/FsdFormCriar";
 import { Historico } from "./etapas/Historico";
@@ -297,6 +297,20 @@ export default function SolicitacoesErp() {
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Convidado[];
+    },
+  });
+
+  const { data: assinaturas = [] } = useQuery({
+    queryKey: ["sistema_solicitacao_assinatura", detalheId],
+    enabled: !!detalheId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("sistema_solicitacao_assinatura")
+        .select("id, user_id, etapa, assinatura_png, created_at")
+        .eq("solicitacao_id", detalheId)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Assinatura[];
     },
   });
 
@@ -815,6 +829,35 @@ export default function SolicitacoesErp() {
                         {anexosGerais.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhum anexo geral ainda.</p>}
                       </div>
                     </div>
+
+                    {assinaturas.length > 0 && (
+                      <div className="space-y-3 border-t border-border pt-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Assinaturas</p>
+                        {ETAPAS.filter((e) => assinaturas.some((a) => a.etapa === e.key)).map((etapa) => (
+                          <div key={etapa.key} className="space-y-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                              Coluna: {etapa.label}
+                            </p>
+                            <div className="grid grid-cols-3 gap-2">
+                              {assinaturas.filter((a) => a.etapa === etapa.key).map((a) => (
+                                <div key={a.id} className="rounded border border-border p-2 text-center">
+                                  <img
+                                    src={a.assinatura_png}
+                                    alt="Assinatura"
+                                    crossOrigin="anonymous"
+                                    className="mx-auto mb-1 h-10 max-w-full object-contain"
+                                  />
+                                  <p className="text-[11px] font-medium leading-tight">{nomeUsuario(usuarios, a.user_id) ?? "Usuário"}</p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {new Date(a.created_at).toLocaleString("pt-BR")}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex h-[420px] min-h-0 min-w-0 flex-col border-l border-border pl-4">
