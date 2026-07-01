@@ -46,15 +46,18 @@ export async function exportarPdfCaptura(
     });
 
     const imgData = canvas.toDataURL("image/jpeg", 0.92);
+    const MARGEM = 8; // mm em todos os lados
     const pxToMm = 25.4 / 96;
     const larguraMm = canvas.width * pxToMm;
     const alturaMm = canvas.height * pxToMm;
+    const pagW = larguraMm + MARGEM * 2;
+    const pagH = alturaMm + MARGEM * 2;
     const pdf = new jsPDF({
-      orientation: alturaMm > larguraMm ? "portrait" : "landscape",
+      orientation: pagH > pagW ? "portrait" : "landscape",
       unit: "mm",
-      format: [larguraMm, alturaMm],
+      format: [pagW, pagH],
     });
-    pdf.addImage(imgData, "JPEG", 0, 0, larguraMm, alturaMm);
+    pdf.addImage(imgData, "JPEG", MARGEM, MARGEM, larguraMm, alturaMm);
     pdf.save(nomeArquivo);
   } finally {
     restaurar.forEach(({ el: e, overflow, maxHeight, height }) => {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +21,11 @@ function CampoLabel({ label, children }: { label: string; children: React.ReactN
 }
 
 export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuarios, onUpdate, onExcluir }: EtapaPanelProps) {
+  const [recebidoPor, setRecebidoPor] = useState(card.triagem_recebido_por ?? "");
+  const [parecer, setParecer] = useState(card.triagem_parecer ?? "");
+  const [encaminharPara, setEncaminharPara] = useState(card.triagem_encaminhamento_para ?? "");
+  const [encaminharResp, setEncaminharResp] = useState(card.triagem_encaminhamento_responsavel ?? "");
+
   if (card.recusado) {
     return (
       <RecusadoPanel
@@ -32,9 +38,6 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
 
   const podeEditar = papeis.controladoria || papeis.comite;
   const podeAvancar = podeEditar && !!card.triagem_classificacao && !!card.triagem_decisao;
-
-  const save = (campo: string) => (valor: string | boolean | null) =>
-    onUpdate({ [campo]: valor });
 
   return (
     <div className="space-y-4">
@@ -55,8 +58,9 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
         {/* Seção 13 — Recebido por */}
         <CampoLabel label="13. Recebido por">
           <Input
-            value={card.triagem_recebido_por ?? ""}
-            onChange={(e) => save("triagem_recebido_por")(e.target.value || null)}
+            value={recebidoPor}
+            onChange={(e) => setRecebidoPor(e.target.value)}
+            onBlur={() => onUpdate({ triagem_recebido_por: recebidoPor.trim() || null })}
             placeholder="Nome do responsável"
             disabled={!podeEditar}
             className="text-sm"
@@ -68,7 +72,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           <Input
             type="date"
             value={card.triagem_concluida_em ?? ""}
-            onChange={(e) => save("triagem_concluida_em")(e.target.value || null)}
+            onChange={(e) => onUpdate({ triagem_concluida_em: e.target.value || null })}
             disabled={!podeEditar}
             className="text-sm"
           />
@@ -78,7 +82,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
         <CampoLabel label="15. Classificação da Demanda">
           <Select
             value={card.triagem_classificacao ?? undefined}
-            onValueChange={(v) => save("triagem_classificacao")(v)}
+            onValueChange={(v) => onUpdate({ triagem_classificacao: v })}
             disabled={!podeEditar}
           >
             <SelectTrigger className="text-sm">
@@ -92,11 +96,12 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           </Select>
         </CampoLabel>
 
-        {/* Seção 16 — Análise preliminar / parecer */}
+        {/* Seção 19 — Parecer da Controladoria */}
         <CampoLabel label="19. Parecer da Controladoria">
           <Textarea
-            value={card.triagem_parecer ?? ""}
-            onChange={(e) => save("triagem_parecer")(e.target.value || null)}
+            value={parecer}
+            onChange={(e) => setParecer(e.target.value)}
+            onBlur={() => onUpdate({ triagem_parecer: parecer.trim() || null })}
             placeholder="Digite o parecer da Controladoria..."
             disabled={!podeEditar}
             rows={3}
@@ -108,8 +113,9 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
         <div className="grid gap-3 sm:grid-cols-2">
           <CampoLabel label="17. Encaminhar para">
             <Input
-              value={card.triagem_encaminhamento_para ?? ""}
-              onChange={(e) => save("triagem_encaminhamento_para")(e.target.value || null)}
+              value={encaminharPara}
+              onChange={(e) => setEncaminharPara(e.target.value)}
+              onBlur={() => onUpdate({ triagem_encaminhamento_para: encaminharPara.trim() || null })}
               placeholder="Ex.: Análise de Necessidade"
               disabled={!podeEditar}
               className="text-sm"
@@ -117,8 +123,9 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           </CampoLabel>
           <CampoLabel label="Responsável:">
             <Input
-              value={card.triagem_encaminhamento_responsavel ?? ""}
-              onChange={(e) => save("triagem_encaminhamento_responsavel")(e.target.value || null)}
+              value={encaminharResp}
+              onChange={(e) => setEncaminharResp(e.target.value)}
+              onBlur={() => onUpdate({ triagem_encaminhamento_responsavel: encaminharResp.trim() || null })}
               placeholder="Digite o nome do responsável"
               disabled={!podeEditar}
               className="text-sm"
@@ -130,7 +137,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
         <CampoLabel label="18. Decisão da Triagem">
           <Select
             value={card.triagem_decisao ?? undefined}
-            onValueChange={(v) => save("triagem_decisao")(v)}
+            onValueChange={(v) => onUpdate({ triagem_decisao: v })}
             disabled={!podeEditar}
           >
             <SelectTrigger className="text-sm">
@@ -149,7 +156,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           <Input
             type="date"
             value={card.triagem_data_decisao ?? ""}
-            onChange={(e) => save("triagem_data_decisao")(e.target.value || null)}
+            onChange={(e) => onUpdate({ triagem_data_decisao: e.target.value || null })}
             disabled={!podeEditar}
             className="text-sm"
           />
