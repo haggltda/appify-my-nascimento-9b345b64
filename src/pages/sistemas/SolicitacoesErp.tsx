@@ -829,7 +829,7 @@ export default function SolicitacoesErp() {
                       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Anexos gerais</p>
                       <div className="space-y-1">
                         {anexosGerais.map((a) => (
-                          <div key={a.id} className="flex items-center justify-between rounded border border-border px-2 py-1.5 text-xs">
+                          <div key={a.id} className="flex justify-between rounded border border-border px-2 py-1.5 text-xs leading-4">
                             <span className="truncate" title={a.nome_arquivo}>{a.nome_arquivo}</span>
                             <button type="button" onClick={() => downloadAnexo(a.storage_path)} className="ml-2 shrink-0 text-primary hover:underline">
                               abrir
