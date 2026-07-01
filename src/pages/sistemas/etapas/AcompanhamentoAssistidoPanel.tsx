@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, Paperclip } from "lucide-react";
+import { ArrowRight, FileDown, Paperclip } from "lucide-react";
 import type { EtapaPanelProps } from "./types";
+import { exportarPdfEtapa } from "./documentoPdf";
 
-export function AcompanhamentoAssistidoPanel({ papeis, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
+export function AcompanhamentoAssistidoPanel({ card, papeis, anexos, comentarios, usuarios, onUpdate, onComentar, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
   const [comentario, setComentario] = useState("");
   const [arquivos, setArquivos] = useState<File[]>([]);
   const anexosAcompanhamento = anexos.filter((a) => a.campo === "acompanhamento");
@@ -24,6 +25,11 @@ export function AcompanhamentoAssistidoPanel({ papeis, anexos, onUpdate, onComen
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("acompanhamento_assistido", card, anexos, comentarios, usuarios)}>
+          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+        </Button>
+      </div>
       <p className="text-sm text-muted-foreground">
         Gerente de Sistemas acompanha os usuários finais; Desenvolvedores ficam disponíveis por 10 dias úteis pra arrumar bugs.
       </p>

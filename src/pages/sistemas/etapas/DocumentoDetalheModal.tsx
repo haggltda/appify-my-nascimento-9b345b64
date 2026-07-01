@@ -237,7 +237,7 @@ export function DocumentoDetalheModal({
                   size="sm"
                   variant="outline"
                   className="gap-1.5"
-                  onClick={() => exportarPdfEtapa(documento.etapaOrigem, card, anexos, comentarios, usuarios, assinaturasDaEtapa(documento.etapaOrigem))}
+                  onClick={() => exportarPdfEtapa(documento.etapaOrigem, card, anexos, comentarios, usuarios, convidados, assinaturasDaEtapa(documento.etapaOrigem))}
                 >
                   <FileDown className="h-3.5 w-3.5" /> Exportar PDF
                 </Button>

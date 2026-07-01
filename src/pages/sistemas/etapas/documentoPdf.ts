@@ -1,20 +1,26 @@
 // Geração do PDF "tipo print do card" por etapa — compartilhado entre os
-// painéis ao vivo (botão direto no card) e o modal "Documentos e Assinaturas".
+// painéis ao vivo (botão direto no card, todas as 13 colunas exceto
+// Encerramento) e o modal "Documentos e Assinaturas" (Anexos I-VII).
 import {
-  APROVACOES_TESTES_INTERNOS, COMPLEXIDADE_LABEL, ETAPAS, fmtData, nomeUsuario,
-  type Anexo, type Assinatura, type Comentario, type Solicitacao, type Usuario,
+  APROVACOES_TESTES_INTERNOS, CAMPOS_ABERTURA, COMPLEXIDADE_LABEL, CRITERIO_TRIAGEM_LABEL, ETAPAS,
+  GRAU_URGENCIA_LABEL, STATUS_DESENVOLVIMENTO_LABEL, TIPO_SOLICITACAO_LABEL, fmtData, nomeUsuario,
+  type Anexo, type Assinatura, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
 import { PdfDocumento, fmtDataHoraPdf } from "./pdfHelpers";
 
 const ETAPA_LABEL: Record<string, string> = Object.fromEntries(ETAPAS.map((e) => [e.key, e.label]));
 
 const ETAPA_CAMPO_ANEXO: Record<string, string> = {
+  analise_necessidade: "analise_necessidade",
+  levantamento_funcional: "levantamento_funcional",
   documentacao_funcional: "documentacao_tecnica",
   analise_tecnica: "analise_tecnica",
   aprovacao_priorizacao: "aprovacao_priorizacao",
   testes_internos: "testes_internos",
   homologacao_area_solicitante: "homologacao_area_solicitante",
+  treinamento: "treinamento",
   implantacao: "implantacao",
+  acompanhamento_assistido: "acompanhamento",
 };
 
 const IMPLANTACAO_LABEL: Record<string, string> = { sim: "Sim", nao: "Não", em_implantacao: "Em Implantação" };
@@ -44,16 +50,18 @@ function desenharCamposEtapa(
   }
 }
 
-// Gera e baixa o PDF "tipo print do card" de uma etapa específica.
-// assinaturas é opcional — quando chamado dos painéis ao vivo, omite pois
-// os painéis não têm acesso a esse dado; quando chamado do modal "Documentos
-// e Assinaturas", inclui as assinaturas daquela coluna.
+// Gera e baixa o PDF "tipo print do card" de uma etapa específica (qualquer
+// uma das 13 colunas exceto Encerramento, que continua com o histórico
+// acumulado completo). assinaturas é opcional — quando chamado dos painéis
+// ao vivo, omite (os painéis não têm acesso a esse dado); quando chamado do
+// modal "Documentos e Assinaturas", inclui as assinaturas daquela coluna.
 export function exportarPdfEtapa(
   etapaKey: string,
   card: Solicitacao,
   anexos: Anexo[],
   comentarios: Comentario[],
   usuarios: Usuario[],
+  convidados: Convidado[] = [],
   assinaturas?: Assinatura[],
 ) {
   const etapaLabel = ETAPA_LABEL[etapaKey] ?? etapaKey;
@@ -70,6 +78,33 @@ export function exportarPdfEtapa(
   });
 
   switch (etapaKey) {
+    case "solicitacao_demanda": {
+      const linhas = [
+        ...CAMPOS_ABERTURA.map((c) => `${c.label}: ${(card[c.key] as string | null) || "—"}`),
+        `Grau de urgência: ${card.grau_urgencia ? GRAU_URGENCIA_LABEL[card.grau_urgencia] ?? card.grau_urgencia : "—"}`,
+        `Tipo da solicitação: ${card.tipo_solicitacao ? TIPO_SOLICITACAO_LABEL[card.tipo_solicitacao] ?? card.tipo_solicitacao : "—"}`,
+        `Convidados: ${convidados.length > 0 ? convidados.map((c) => nomeUsuario(usuarios, c.user_id) ?? c.user_id).join(", ") : "—"}`,
+      ];
+      desenharCamposEtapa(pdf, linhas, anexos.filter((a) => !a.campo));
+      break;
+    }
+    case "triagem_inicial":
+      desenharCamposEtapa(pdf, [
+        `Critério: ${card.criterio_triagem ? CRITERIO_TRIAGEM_LABEL[card.criterio_triagem] ?? card.criterio_triagem : "—"}`,
+      ], []);
+      break;
+    case "analise_necessidade":
+      desenharCamposEtapa(pdf, [
+        `Análise da Necessidade: ${card.analise_necessidade_texto || "—"}`,
+        `Prazo: ${fmtData(card.analise_necessidade_prazo) ?? "—"}`,
+      ], anexosDoCampo);
+      break;
+    case "levantamento_funcional":
+      desenharCamposEtapa(pdf, [
+        `Levantamento Funcional: ${card.levantamento_funcional_texto || "—"}`,
+        `Prazo: ${fmtData(card.levantamento_funcional_prazo) ?? "—"}`,
+      ], anexosDoCampo);
+      break;
     case "documentacao_funcional":
       desenharCamposEtapa(pdf, [
         `Documentação Funcional: ${card.documentacao_tecnica_texto || "—"}`,
@@ -89,6 +124,17 @@ export function exportarPdfEtapa(
         `Complexidade: ${card.complexidade ? COMPLEXIDADE_LABEL[card.complexidade] ?? card.complexidade : "—"}`,
       ], anexosDoCampo);
       break;
+    case "desenvolvimento": {
+      const comentariosDev = comentarios
+        .filter((c) => c.tipo === "interromper_desenvolvimento" || c.tipo === "erro_documental")
+        .map((c) => textoComentario(c, c.tipo === "erro_documental" ? "Erro documental" : "Interrupção do desenvolvimento"));
+      desenharCamposEtapa(pdf, [
+        `Progresso: ${card.progresso_pct}%`,
+        `Prazo: ${fmtData(card.data_fim) ?? "—"}`,
+        `Status de Desenvolvimento: ${card.status_desenvolvimento ? STATUS_DESENVOLVIMENTO_LABEL[card.status_desenvolvimento] ?? card.status_desenvolvimento : "—"}`,
+      ], [], comentariosDev);
+      break;
+    }
     case "testes_internos": {
       const linhas = (Object.entries(APROVACOES_TESTES_INTERNOS) as Array<[keyof Solicitacao, string]>).map(
         ([campo, nome]) => `${card[campo] ? "[X]" : "[ ]"} ${nome}`,
@@ -103,6 +149,15 @@ export function exportarPdfEtapa(
       desenharCamposEtapa(pdf, [], anexosDoCampo, comentariosHomolog);
       break;
     }
+    case "treinamento": {
+      const comentariosTreinamento = comentarios
+        .filter((c) => c.tipo === "faltou_funcoes" || c.tipo === "encontrado_bug")
+        .map((c) => textoComentario(c, c.tipo === "encontrado_bug" ? "Bug encontrado" : "Faltou função"));
+      desenharCamposEtapa(pdf, [
+        `Data do treinamento: ${fmtData(card.treinamento_data) ?? "—"}`,
+      ], anexosDoCampo, comentariosTreinamento);
+      break;
+    }
     case "implantacao": {
       const comentariosImplantacao = comentarios
         .filter((c) => c.tipo === "implantacao_comentario")
@@ -112,6 +167,9 @@ export function exportarPdfEtapa(
       ], anexosDoCampo, comentariosImplantacao);
       break;
     }
+    case "acompanhamento_assistido":
+      desenharCamposEtapa(pdf, [], anexosDoCampo);
+      break;
   }
 
   if (assinaturas && assinaturas.length > 0) {

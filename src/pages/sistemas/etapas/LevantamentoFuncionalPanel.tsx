@@ -1,13 +1,19 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Undo2 } from "lucide-react";
+import { ArrowRight, FileDown, Undo2 } from "lucide-react";
 import { CampoComAnexo } from "./CampoComAnexo";
+import { exportarPdfEtapa } from "./documentoPdf";
 import type { EtapaPanelProps } from "./types";
 
-export function LevantamentoFuncionalPanel({ card, papeis, anexos, onUpdate, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
+export function LevantamentoFuncionalPanel({ card, papeis, anexos, comentarios, usuarios, onUpdate, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
   const podeAgir = papeis.controladoria;
 
   return (
     <div className="space-y-3">
+      <div className="flex justify-end">
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("levantamento_funcional", card, anexos, comentarios, usuarios)}>
+          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+        </Button>
+      </div>
       <CampoComAnexo
         titulo="Levantamento Funcional"
         campo="levantamento_funcional"
