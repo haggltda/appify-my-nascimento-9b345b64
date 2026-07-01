@@ -22,7 +22,7 @@ export default function BancoTalentos() {
   const nome = user?.user_metadata?.nome ?? user?.email ?? "";
 
   const [aba, setAba] = useState<Aba>("banco");
-  const [vagaFiltro, setVagaFiltro] = useState<number | null>(null);
+  const [cargoFiltro, setCargoFiltro] = useState<string>("");
   const [rows, setRows] = useState<any[]>([]);
   const [arquivos, setArquivos] = useState<Record<number, any[]>>({});
   const [sols, setSols] = useState<any[]>([]);                 // solicitações (cargo/status)
@@ -48,7 +48,7 @@ export default function BancoTalentos() {
     let q = (supabase as any).from("WA_CURRICULOS").select("*");
     if (aba === "favoritos") q = q.eq("favorito", true);
     else if (aba === "banco") q = q.eq("tipo_candidatura", "geral").is("vaga_id", null).is("etapa_processo", null);
-    else if (aba === "vaga" && vagaFiltro) q = q.eq("vaga_id", vagaFiltro);
+    else if (aba === "vaga") q = q.not("vaga_id", "is", null);
     const { data, error } = await q.order("created_at", { ascending: false });
     setLoading(false);
     if (error) { toast("Erro ao carregar: " + error.message, "err"); return; }
@@ -61,7 +61,7 @@ export default function BancoTalentos() {
       (arq ?? []).forEach((a: any) => { (map[a.candidato_id] = map[a.candidato_id] || []).push(a); });
       setArquivos(map);
     } else setArquivos({});
-  }, [aba, vagaFiltro]);
+  }, [aba]);
 
   // Metadados (uma vez): solicitações + contadores + vagas com candidatura.
   const loadMeta = useCallback(async () => {
@@ -120,18 +120,39 @@ export default function BancoTalentos() {
     load();
   };
 
-  const cargosOpc = Array.from(new Set(rows.flatMap((c: any) => String(c.cargos_interesse ?? "").split(",").map((s: string) => s.trim()).filter(Boolean)))).sort();
+  const digitsOf = (s?: string) => String(s ?? "").replace(/\D/g, "");
+  // Vagas que receberam currículo agrupadas por CARGO.
+  const cargosComCand = (() => {
+    const m = new Map<string, number>();
+    vagasComCand.forEach(v => { const c = cargoDe(v.vaga_id); m.set(c, (m.get(c) || 0) + v.n); });
+    return Array.from(m, ([cargo, n]) => ({ cargo, n })).sort((a, b) => b.n - a.n);
+  })();
+
   const termo = busca.trim().toLowerCase();
-  const filtrados = rows.filter((c: any) => !termo ? true :
-    [c.nome, c.cpf, c.cargos_interesse, c.cidade_desejada, c.cidade_residencia, c.escolaridade, cargoDe(c.vaga_id)]
-      .some(v => String(v ?? "").toLowerCase().includes(termo)));
+  const filtrados = rows.filter((c: any) => {
+    if (aba === "vaga" && cargoFiltro && cargoDe(c.vaga_id) !== cargoFiltro) return false;
+    if (!termo) return true;
+    return [c.nome, c.cpf, c.cargos_interesse, c.cidade_desejada, c.cidade_residencia, c.escolaridade, cargoDe(c.vaga_id)]
+      .some(v => String(v ?? "").toLowerCase().includes(termo));
+  });
+
+  // Junta candidaturas do MESMO CPF num só card (informa a quantidade).
+  const agrupados = (() => {
+    const m = new Map<string, any[]>();
+    filtrados.forEach((c: any) => {
+      const d = digitsOf(c.cpf);
+      const k = d.length === 11 ? d : `id:${c.id}`;
+      const arr = m.get(k); if (arr) arr.push(c); else m.set(k, [c]);
+    });
+    return Array.from(m.values()).map(items => ({ latest: items[0], items, n: items.length }));
+  })();
 
   const info = (label: string, val: any) => (val || val === false ? (
     <div style={{ fontSize: 12, color: "#475569" }}><span style={{ color: "#94a3b8", fontWeight: 700 }}>{label}: </span>{typeof val === "boolean" ? simNao(val) : val}</div>
   ) : null);
 
   const tabBtn = (id: Aba, label: string, count?: number) => (
-    <button onClick={() => { setAba(id); if (id !== "vaga") setVagaFiltro(null); }} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: aba === id ? "#0f3171" : "transparent", color: aba === id ? "#fff" : "#94a3b8", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+    <button onClick={() => { setAba(id); if (id !== "vaga") setCargoFiltro(""); }} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: aba === id ? "#0f3171" : "transparent", color: aba === id ? "#fff" : "#94a3b8", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
       {label}{count != null ? ` (${count})` : ""}
     </button>
   );
@@ -154,17 +175,17 @@ export default function BancoTalentos() {
           {tabBtn("todos", "Todos", contadores.todos)}
         </div>
 
-        {/* Card: vagas que receberam currículo */}
+        {/* Card: cargos que receberam currículo */}
         {aba === "vaga" && (
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "12px 14px", marginBottom: 14, boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f3171", marginBottom: 8, textTransform: "uppercase", letterSpacing: ".4px" }}>Vagas que receberam currículo</div>
-            {vagasComCand.length === 0 ? (
+            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f3171", marginBottom: 8, textTransform: "uppercase", letterSpacing: ".4px" }}>Cargos que receberam candidatura</div>
+            {cargosComCand.length === 0 ? (
               <div style={{ fontSize: 12.5, color: "#94a3b8" }}>Nenhuma candidatura a vaga ainda.</div>
             ) : (
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {vagasComCand.map(v => (
-                  <button key={v.vaga_id} onClick={() => { setAba("vaga"); setVagaFiltro(v.vaga_id); }} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 10, border: `1px solid ${vagaFiltro === v.vaga_id ? "#0f3171" : "#e2e8f0"}`, background: vagaFiltro === v.vaga_id ? "#eef4ff" : "#fff", cursor: "pointer" }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{cargoDe(v.vaga_id)} <span style={{ color: "#94a3b8" }}>#{v.vaga_id}</span></span>
+                {cargosComCand.map(v => (
+                  <button key={v.cargo} onClick={() => { setAba("vaga"); setCargoFiltro(cargoFiltro === v.cargo ? "" : v.cargo); }} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 10, border: `1px solid ${cargoFiltro === v.cargo ? "#0f3171" : "#e2e8f0"}`, background: cargoFiltro === v.cargo ? "#eef4ff" : "#fff", cursor: "pointer" }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{v.cargo}</span>
                     <span style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", background: "#fff", border: "1px solid #dbe4f0", borderRadius: 20, padding: "1px 8px" }}>{v.n}</span>
                   </button>
                 ))}
@@ -187,19 +208,26 @@ export default function BancoTalentos() {
 
         {loading ? (
           <div style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8" }}>Carregando...</div>
-        ) : aba === "vaga" && !vagaFiltro ? (
-          <div style={{ padding: "40px 20px", textAlign: "center", color: "#94a3b8" }}>Selecione uma vaga acima para ver os candidatos.</div>
-        ) : filtrados.length === 0 ? (
+        ) : aba === "vaga" && !cargoFiltro ? (
+          <div style={{ padding: "40px 20px", textAlign: "center", color: "#94a3b8" }}>Selecione um cargo acima para ver os candidatos.</div>
+        ) : agrupados.length === 0 ? (
           <div style={{ padding: "60px 20px", textAlign: "center", color: "#94a3b8" }}>Nenhum candidato.</div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(380px,1fr))", gap: 14, alignItems: "start" }}>
-            {filtrados.map((c: any) => (
+            {agrupados.map(g => {
+              const c = g.latest;
+              const arqsG = g.items.flatMap((it: any) => arquivos[it.id] || []);
+              const semVaga = g.items.find((it: any) => !it.vaga_id);
+              return (
               <div key={c.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.06)", position: "relative" }}>
                 <div style={{ height: 3, background: "#0f3171" }} />
                 <button onClick={() => favoritar(c)} title={c.favorito ? "Remover dos favoritos" : "Favoritar"} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer", fontSize: 20, lineHeight: 1, filter: c.favorito ? "none" : "grayscale(1) opacity(.4)" }}>⭐</button>
                 <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", paddingRight: 28 }}>{c.nome || "Sem nome"}</div>
-                  {c.vaga_id && <div style={{ fontSize: 11.5, color: "#0369a1" }}>Candidatou-se: <b>{cargoDe(c.vaga_id)} #{c.vaga_id}</b> {c.etapa_processo && <EtapaChip etapa={c.etapa_processo} />}</div>}
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", paddingRight: 28, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    {c.nome || "Sem nome"}
+                    {g.n > 1 && <span style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: "#eef4ff", border: "1px solid #dbe4f0", color: "#0f3171" }}>📩 {g.n} candidaturas</span>}
+                  </div>
+                  {c.vaga_id && <div style={{ fontSize: 11.5, color: "#0369a1" }}>Candidatou-se: <b>{cargoDe(c.vaga_id)}</b> {c.etapa_processo && <EtapaChip etapa={c.etapa_processo} />}</div>}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 14px" }}>
                     {info("CPF", c.cpf)}
                     {info("Nasc.", fmtDt(c.data_nascimento))}
@@ -213,20 +241,21 @@ export default function BancoTalentos() {
                     {info("Experiência", c.experiencia_previa)}
                   </div>
                   {c.cargos_interesse && <div style={{ fontSize: 12, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 9px" }}><b style={{ color: "#0f3171" }}>Interesse:</b> {c.cargos_interesse}</div>}
-                  {(arquivos[c.id]?.length ?? 0) > 0 && (
+                  {arqsG.length > 0 && (
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {arquivos[c.id].map((a: any) => (
+                      {arqsG.map((a: any) => (
                         <button key={a.id} onClick={() => baixar(a)} style={btnStyle(a.tipo === "ctps" ? "rgba(139,92,246,.12)" : "rgba(249,115,22,.12)", `1px solid ${a.tipo === "ctps" ? "rgba(139,92,246,.3)" : "rgba(249,115,22,.3)"}`, a.tipo === "ctps" ? "#7c3aed" : "#ea580c")}>↓ {a.tipo === "ctps" ? "CTPS" : "Currículo"}</button>
                       ))}
                     </div>
                   )}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 2 }}>
                     <span style={{ fontSize: 10.5, color: "#94a3b8" }}>Cadastro em {fmtDt(c.created_at)}</span>
-                    {podeAgir && !c.vaga_id && <button onClick={() => { setVagaSel(""); setPuxar(c); }} style={btnStyle("#16a34a", "none", "#fff")}>✓ Puxar para vaga</button>}
+                    {podeAgir && semVaga && <button onClick={() => { setVagaSel(""); setPuxar(semVaga); }} style={btnStyle("#16a34a", "none", "#fff")}>✓ Puxar para vaga</button>}
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

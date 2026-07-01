@@ -25,6 +25,7 @@ export default function RecrutamentoDashboard() {
   const [sols, setSols] = useState<any[]>([]);
   const [curs, setCurs] = useState<any[]>([]);
   const [tempos, setTempos] = useState<{ etapa: string; dias: number }[]>([]);
+  const [mes, setMes] = useState<string>(() => new Date().toISOString().slice(0, 7)); // YYYY-MM ("" = todos)
 
   useEffect(() => {
     (async () => {
@@ -52,23 +53,48 @@ export default function RecrutamentoDashboard() {
   }, []);
 
   // ── Métricas ──────────────────────────────────────────────────
-  const total = sols.length;
-  const emProcesso = sols.filter(s => STATUS_PROCESSO.includes(s.status)).length;
-  const contratados = sols.filter(s => s.status === "Contratado" || String(s.status ?? "").startsWith("Concluído")).length;
-  const reprovadas = sols.filter(s => s.status === "Reprovada").length;
-  const pendOp = sols.filter(s => s.status === "Pendente Operacional").length;
-  const pendRec = sols.filter(s => s.status === "Pendente Recrutamento").length;
+  // ── Filtro por mês (created_at) ────────────────────────────────
+  const noMes = (s?: string) => !mes || String(s ?? "").slice(0, 7) === mes;
+  const solsF = sols.filter(s => noMes(s.created_at));
+  const cursF = curs.filter(c => noMes(c.created_at));
+  const mesesOpc = (() => {
+    const now = new Date(); const out: string[] = [];
+    for (let i = 0; i < 12; i++) out.push(new Date(now.getFullYear(), now.getMonth() - i, 1).toISOString().slice(0, 7));
+    return out;
+  })();
+  const mesLabel = (m: string) => {
+    if (!m) return "Todos os meses";
+    const [y, mm] = m.split("-");
+    return `${["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][+mm - 1]}/${y}`;
+  };
 
-  const t0 = startOf(0), t7 = startOf(7), t30 = startOf(30);
-  const curDe = (from: Date) => curs.filter(c => new Date(c.created_at) >= from).length;
-  const curvHoje = curDe(t0), curvSemana = curDe(t7), curvMes = curDe(t30);
+  const total = solsF.length;
+  const emProcesso = solsF.filter(s => STATUS_PROCESSO.includes(s.status)).length;
+  const contratados = solsF.filter(s => s.status === "Contratado" || String(s.status ?? "").startsWith("Concluído")).length;
+  const reprovadas = solsF.filter(s => s.status === "Reprovada").length;
+  const pendOp = solsF.filter(s => s.status === "Pendente Operacional").length;
+  const pendRec = solsF.filter(s => s.status === "Pendente Recrutamento").length;
 
-  // Currículos por dia (14 dias)
+  const t0 = startOf(0), t7 = startOf(7);
+  const curvHoje = curs.filter(c => new Date(c.created_at) >= t0).length;
+  const curvSemana = curs.filter(c => new Date(c.created_at) >= t7).length;
+  const curvMes = cursF.length; // currículos do mês selecionado
+
+  // Currículos por dia — do mês selecionado (ou últimos 14 dias se "Todos")
   const dias14: { dia: string; qtd: number }[] = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
-    const k = dayKey(d);
-    dias14.push({ dia: `${d.getDate()}/${d.getMonth() + 1}`, qtd: curs.filter(c => dayKey(new Date(c.created_at)) === k).length });
+  if (mes) {
+    const [y, mm] = mes.split("-").map(Number);
+    const nDias = new Date(y, mm, 0).getDate();
+    for (let d = 1; d <= nDias; d++) {
+      const k = `${mes}-${String(d).padStart(2, "0")}`;
+      dias14.push({ dia: `${d}`, qtd: curs.filter(c => dayKey(new Date(c.created_at)) === k).length });
+    }
+  } else {
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
+      const k = dayKey(d);
+      dias14.push({ dia: `${d.getDate()}/${d.getMonth() + 1}`, qtd: curs.filter(c => dayKey(new Date(c.created_at)) === k).length });
+    }
   }
 
   // Solicitações por status (agrupado por fase para não poluir)
@@ -82,12 +108,12 @@ export default function RecrutamentoDashboard() {
 
   // Candidaturas por vaga (top 8)
   const porVaga: Record<number, number> = {};
-  curs.forEach(c => { if (c.vaga_id) porVaga[c.vaga_id] = (porVaga[c.vaga_id] || 0) + 1; });
+  cursF.forEach(c => { if (c.vaga_id) porVaga[c.vaga_id] = (porVaga[c.vaga_id] || 0) + 1; });
   const cargoDe = (id: number) => sols.find(s => s.id === id)?.cargo || `#${id}`;
   const vagaData = Object.entries(porVaga)
     .map(([id, qtd]) => ({ vaga: `${cargoDe(+id)} #${id}`, qtd }))
     .sort((a, b) => b.qtd - a.qtd).slice(0, 8);
-  const geral = curs.filter(c => c.tipo_candidatura === "geral" && !c.vaga_id).length;
+  const geral = cursF.filter(c => c.tipo_candidatura === "geral" && !c.vaga_id).length;
 
   const pieData = [
     { name: "Em processo", value: emProcesso, cor: "#3b82f6" },
@@ -103,7 +129,7 @@ export default function RecrutamentoDashboard() {
     COMPRAS: "#f97316", "DOCUMENTAÇÃO": "#16a34a", Reprovado: "#dc2626",
   };
   const etapaData = CAND_ETAPAS
-    .map(e => ({ etapa: e, qtd: curs.filter(c => c.etapa_processo === e).length }))
+    .map(e => ({ etapa: e, qtd: cursF.filter(c => c.etapa_processo === e).length }))
     .filter(d => d.qtd > 0);
 
   const Kpi = ({ label, val, color }: { label: string; val: number | string; color: string }) => (
@@ -121,9 +147,18 @@ export default function RecrutamentoDashboard() {
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
-      <div style={{ padding: "16px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "linear-gradient(135deg,#fff 0%,#f8fbff 100%)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0 }}>
-        <div style={{ fontSize: 19, fontWeight: 800, color: "#0f3171" }}>📊 Dashboard — Recrutamento e Seleção</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Indicadores de vagas, candidaturas e tempo por etapa.</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", padding: "16px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "linear-gradient(135deg,#fff 0%,#f8fbff 100%)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0 }}>
+        <div>
+          <div style={{ fontSize: 19, fontWeight: 800, color: "#0f3171" }}>📊 Dashboard — Recrutamento e Seleção</div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Indicadores de vagas, candidaturas e tempo por etapa.</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8" }}>📅 Período:</span>
+          <select value={mes} onChange={e => setMes(e.target.value)} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, color: "#0f172a", fontSize: 13, fontWeight: 700, padding: "8px 12px", outline: "none", cursor: "pointer" }}>
+            {mesesOpc.map(m => <option key={m} value={m}>{mesLabel(m)}</option>)}
+            <option value="">Todos os meses</option>
+          </select>
+        </div>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 28px" }}>
@@ -135,14 +170,14 @@ export default function RecrutamentoDashboard() {
             <Kpi label="Em processo" val={emProcesso} color="#3b82f6" />
             <Kpi label="Contratados" val={contratados} color="#16a34a" />
             <Kpi label="Reprovadas" val={reprovadas} color="#dc2626" />
+            <Kpi label={mes ? "Currículos no mês" : "Currículos (total)"} val={curvMes} color="#f97316" />
             <Kpi label="Currículos hoje" val={curvHoje} color="#f97316" />
             <Kpi label="Currículos 7 dias" val={curvSemana} color="#f97316" />
-            <Kpi label="Currículos 30 dias" val={curvMes} color="#f97316" />
             <Kpi label="Banco de Talentos" val={geral} color="#8b5cf6" />
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(380px,1fr))", gap: 16 }}>
-            <Card title="Currículos recebidos — últimos 14 dias">
+            <Card title={mes ? `Currículos recebidos — ${mesLabel(mes)}` : "Currículos recebidos — últimos 14 dias"}>
               <ResponsiveContainer>
                 <LineChart data={dias14} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />

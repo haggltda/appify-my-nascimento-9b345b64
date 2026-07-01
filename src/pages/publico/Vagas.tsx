@@ -447,7 +447,7 @@ export default function Vagas() {
               <p className="pv-hero-sub">Candidate-se a uma vaga aberta na sua cidade — ou faça seu cadastro geral no nosso Banco de Talentos para qualquer oportunidade futura.</p>
               <div className="pv-hero-cta">
                 <button className="pv-btn pv-btn-pri" onClick={() => irPara("vagas")}>Ver vagas abertas →</button>
-                <button className="pv-btn-ghost" onClick={abrirFormGeral}>Quero me candidatar (cadastro geral)</button>
+                <button className="pv-btn-ghost" onClick={abrirFormGeral}>Entrar ao Banco de Talentos</button>
               </div>
               {!loadingCid && totalVagas > 0 && (
                 <div style={{ marginTop: 16 }}><span className="pv-stat-inline">🟢 <b>{totalVagas}</b> vaga{totalVagas > 1 ? "s" : ""} em <b>{cidades.length}</b> cidade{cidades.length > 1 ? "s" : ""}</span></div>
@@ -485,7 +485,7 @@ export default function Vagas() {
                 {loadingCid ? (<div className="pv-empty">Carregando cidades…</div>
                 ) : cidades.length === 0 ? (
                   <div className="pv-empty"><div className="ico">📭</div>Nenhuma vaga aberta no momento. Faça seu <b>cadastro geral</b> para ser avisado de futuras oportunidades!
-                    <div style={{ marginTop: 16 }}><button className="pv-btn pv-btn-pri" onClick={abrirFormGeral}>Cadastro geral →</button></div></div>
+                    <div style={{ marginTop: 16 }}><button className="pv-btn pv-btn-pri" onClick={abrirFormGeral}>Entrar ao Banco de Talentos →</button></div></div>
                 ) : (<>
                   <input className="pv-search" value={buscaCidade} onChange={e => setBuscaCidade(e.target.value)} placeholder="🔎 Buscar cidade…" inputMode="search" />
                   {cidadesFiltradas.length === 0 ? (<div className="pv-empty">Nenhuma cidade encontrada para “{buscaCidade}”.</div>

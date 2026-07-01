@@ -66,12 +66,24 @@ export function CandidatoInfo({ cand, hideCurriculo }: { cand: any; hideCurricul
         {cand.grau_urgencia?.startsWith("Alta") && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 800, padding: "1px 6px", borderRadius: 20, background: "#fee2e2", color: "#b91c1c" }}>URGENTE</span>}
       </div>
 
-      {/* Botão Mostrar mais/menos */}
-      <button onClick={() => setAberto(a => !a)} style={{ alignSelf: "flex-start", padding: "3px 0", background: "none", border: "none", color: "#0f3171", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-        {aberto ? "▴ Mostrar menos" : "▾ Mostrar mais"}
+      {/* Ver detalhes do candidato → modal grande */}
+      <button onClick={() => setAberto(true)} style={{ alignSelf: "flex-start", padding: "6px 12px", borderRadius: 8, background: "rgba(15,49,113,.08)", border: "1px solid rgba(15,49,113,.2)", color: "#0f3171", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+        🔍 Ver detalhes do candidato
       </button>
 
-      {aberto && (<>
+      {aberto && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 760, background: "rgba(15,23,42,.48)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={e => { if (e.target === e.currentTarget) setAberto(false); }}>
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 18, padding: 24, width: "100%", maxWidth: 760, maxHeight: "88vh", overflowY: "auto", position: "relative", boxShadow: "0 20px 60px rgba(15,23,42,.25)", display: "flex", flexDirection: "column", gap: 10 }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setAberto(false)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 22, cursor: "pointer" }}>✕</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", paddingRight: 24 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{cand.nome || "Sem nome"}</div>
+              {cand.possui_restricao && <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>⚠️ Possui restrições</span>}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <Field label="CPF" val={cand.cpf} />
+              <Field label="Fone" val={cand.telefone} />
+              <Field label="Email" val={cand.email} />
+            </div>
       {cand.possui_restricao && cand.restricao_motivo && (
         <div style={{ fontSize: 11.5, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "7px 9px" }}>
           <b>Restrição (Jurídico):</b> {cand.restricao_motivo}
@@ -156,7 +168,9 @@ export function CandidatoInfo({ cand, hideCurriculo }: { cand: any; hideCurricul
           <b>🦺 EPIs / Uniforme:</b> {cand.compras_necessidades}
         </div>
       )}
-      </>)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
