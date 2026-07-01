@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Check, FileDown, X } from "lucide-react";
 import type { EtapaPanelProps } from "./types";
 import { AnexoSimples } from "./AnexoSimples";
-import { exportarPdfEtapa } from "./documentoPdf";
+import { exportarPdfCaptura } from "./exportarPdfCaptura";
 
 export function HomologacaoAreaSolicitantePanel({
   card, papeis, userId, convidados, anexos, onUpdate, onComentar, onAnexar, onDownloadAnexo,
@@ -38,7 +38,7 @@ export function HomologacaoAreaSolicitantePanel({
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("homologacao_area_solicitante", card, anexos, comentarios, usuarios)}>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfCaptura("pdf-capture-target", `homologacao-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}>
           <FileDown className="h-3.5 w-3.5" /> Exportar PDF
         </Button>
       </div>
