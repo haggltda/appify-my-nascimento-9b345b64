@@ -1,0 +1,23 @@
+name: Notify Discord
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send notification to Discord
+        run: |
+          MESSAGE="Atualização na branch main por ${{ github.actor }}\n\
+          gurizadaaaa, por favor digitem:\n\
+          $ git fetch origin main\n\
+          $ git rebase origin\n\
+          $ git status\n\
+          agoraaaa, ouk hahaha"
+
+          curl -H "Content-Type: application/json" \
+               -d "{\"content\": \"$MESSAGE\"}" \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
