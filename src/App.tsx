@@ -105,6 +105,10 @@ import Processos from "./pages/juridico/Processos";
 import Advertencias from "./pages/juridico/Advertencias";
 import VerificacaoCandidatos from "./pages/juridico/VerificacaoCandidatos";
 import AsoCandidatos from "./pages/sst/AsoCandidatos";
+import ComprasCandidatos from "./pages/suprimentos/ComprasCandidatos";
+import NovasAdmissoes from "./pages/rh/NovasAdmissoes";
+import BancoTalentos from "./pages/rh/BancoTalentos";
+import RecrutamentoDashboard from "./pages/rh/RecrutamentoDashboard";
 import OrientacoesJuridicas from "./pages/central-servicos/OrientacoesJuridicas";
 import Ferias from "./pages/rh/Ferias";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
@@ -213,6 +217,7 @@ const App = () => (
             <Route path="suprimentos/categorias" element={<CategoriasProduto />} />
             <Route path="suprimentos/almoxarifados" element={<Almoxarifados />} />
             <Route path="suprimentos/estoque" element={<Estoque />} />
+            <Route path="suprimentos/candidatos" element={<ComprasCandidatos />} />
             <Route path="suprimentos/movimentos" element={<MovimentosEstoque />} />
             <Route path="suprimentos/nf-entrada" element={<NFEntrada />} />
             <Route path="suprimentos/requisicoes" element={<Requisicoes />} />
@@ -249,6 +254,9 @@ const App = () => (
             <Route path="rh/colaboradores" element={<Colaboradores />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             <Route path="rh/folha" element={<Folha />} />
+            <Route path="rh/novas-admissoes" element={<NovasAdmissoes />} />
+            <Route path="rh/banco-talentos" element={<BancoTalentos />} />
+            <Route path="rh/recrutamento-dashboard" element={<RecrutamentoDashboard />} />
             <Route path="rh/ferias" element={<Ferias />} />
             <Route path="rh/recrutamento" element={<Recrutamento />} />
             {/* Jurídico — Gestão Patrimonial */}
