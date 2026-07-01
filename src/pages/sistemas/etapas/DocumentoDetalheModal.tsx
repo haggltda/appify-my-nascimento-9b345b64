@@ -237,7 +237,7 @@ export function DocumentoDetalheModal({
                   size="sm"
                   variant="outline"
                   className="gap-1.5"
-                  onClick={() => exportarPdfCaptura("pdf-doc-capture-target", `${documento.sigla}-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}
+                  onClick={() => exportarPdfCaptura("pdf-capture-target", `${documento.sigla}-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}
                 >
                   <FileDown className="h-3.5 w-3.5" /> Exportar PDF
                 </Button>
