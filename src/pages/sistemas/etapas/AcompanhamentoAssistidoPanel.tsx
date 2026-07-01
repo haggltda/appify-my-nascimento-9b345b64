@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, FileDown, Paperclip } from "lucide-react";
 import type { EtapaPanelProps } from "./types";
-import { exportarPdfEtapa } from "./documentoPdf";
+import { exportarPdfCaptura } from "./exportarPdfCaptura";
 
 export function AcompanhamentoAssistidoPanel({ card, papeis, anexos, comentarios, usuarios, onUpdate, onComentar, onAnexar, onDownloadAnexo }: EtapaPanelProps) {
   const [comentario, setComentario] = useState("");
@@ -26,7 +26,7 @@ export function AcompanhamentoAssistidoPanel({ card, papeis, anexos, comentarios
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfEtapa("acompanhamento_assistido", card, anexos, comentarios, usuarios)}>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfCaptura("pdf-capture-target", `acompanhamento-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}>
           <FileDown className="h-3.5 w-3.5" /> Exportar PDF
         </Button>
       </div>

@@ -7,21 +7,21 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, UserCircle2, CalendarClock, Bell, BellRing } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import logoNascimento from "@/assets/logo-nascimento-icon.png";
 import {
   ETAPAS, CAMPOS_ABERTURA, TIPO_SOLICITACAO_LABEL, GRAU_URGENCIA_LABEL, STATUS_DESENVOLVIMENTO_LABEL, STATUS_DESENVOLVIMENTO_COR,
-  nomeUsuario, iniciais, fmtData, statusPrazoEtapa,
+  nomeUsuario, iniciais, fmtData, statusPrazoEtapa, sdNumero,
   type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis, type AprovadorTesteInterno,
 } from "./etapas/types";
+import { FsdFormCriar } from "./etapas/FsdFormCriar";
 import { Historico } from "./etapas/Historico";
 import { temDadoResumo, RESUMOS } from "./etapas/Resumos";
 import { SolicitacaoDemandaPanel } from "./etapas/SolicitacaoDemandaPanel";
@@ -167,12 +167,6 @@ export default function SolicitacoesErp() {
   const push = usePushNotifications();
   const { data: access } = useAccessibleMenus("visualizar");
   const [novoOpen, setNovoOpen] = useState(false);
-  const [novoTitulo, setNovoTitulo] = useState("");
-  const [novoDescricao, setNovoDescricao] = useState("");
-  const [novosArquivos, setNovosArquivos] = useState<File[]>([]);
-  const [camposAbertura, setCamposAbertura] = useState<Record<string, string>>({});
-  const [tipoSolicitacao, setTipoSolicitacao] = useState<string | null>(null);
-  const [grauUrgencia, setGrauUrgencia] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const [aba, setAba] = useState<"detalhes" | "historico" | "documentos">("detalhes");
@@ -211,7 +205,14 @@ export default function SolicitacoesErp() {
           "grau_urgencia, tipo_solicitacao, " +
           "pesquisa_atendeu_necessidade, pesquisa_levantamento_claro, pesquisa_conducao_ti, " +
           "pesquisa_treinamento_suporte, pesquisa_avaliacao_geral, pesquisa_pode_encerrar, " +
-          "criado_por, created_at",
+          "criado_por, created_at, numero, " +
+          "area_solicitante, responsavel_solicitacao, cargo_solicitante, email_solicitante, telefone_solicitante, " +
+          "classificacao_demanda, descricao_necessidade, situacao_desejada, beneficios_esperados_lista, " +
+          "impacto_tipo, areas_impactadas, justificativa_urgencia, existe_processo_documentado, codigo_processo, " +
+          "tipos_documentos_apoio, observacoes_abertura, " +
+          "triagem_recebido_por, triagem_concluida_em, triagem_classificacao, triagem_sem_desenvolvimento, " +
+          "triagem_sem_desenvolvimento_como, triagem_encaminhamento_para, triagem_encaminhamento_responsavel, " +
+          "triagem_parecer, triagem_decisao, triagem_data_decisao",
         )
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -436,21 +437,39 @@ export default function SolicitacoesErp() {
     return true;
   };
 
-  const camposAberturaPreenchidos = CAMPOS_ABERTURA.every((c) => (camposAbertura[c.key] ?? "").trim()) && !!tipoSolicitacao && !!grauUrgencia;
-
-  const criar = async () => {
-    if (!novoTitulo.trim() || !camposAberturaPreenchidos) return;
+  const criarFsd = async (dados: {
+    titulo: string; area_solicitante: string; responsavel_solicitacao: string;
+    cargo_solicitante: string; email_solicitante: string; telefone_solicitante: string;
+    classificacao_demanda: string[]; descricao_necessidade: string; problema_atual: string;
+    situacao_desejada: string; justificativa: string; beneficios_esperados_lista: string[];
+    impacto_tipo: string; areas_impactadas: string; grau_urgencia: string;
+    justificativa_urgencia: string; existe_processo_documentado: string; codigo_processo: string;
+    tipos_documentos_apoio: string[]; observacoes_abertura: string; arquivos: File[];
+  }) => {
     setSalvando(true);
-    const camposPayload: Record<string, string> = {};
-    CAMPOS_ABERTURA.forEach((c) => { camposPayload[c.key] = camposAbertura[c.key].trim(); });
     const { data, error } = await (supabase as any)
       .from("sistema_solicitacao")
       .insert({
-        titulo: novoTitulo.trim(),
-        descricao: novoDescricao.trim() || null,
-        ...camposPayload,
-        tipo_solicitacao: tipoSolicitacao,
-        grau_urgencia: grauUrgencia,
+        titulo: dados.titulo.trim(),
+        area_solicitante: dados.area_solicitante.trim() || null,
+        responsavel_solicitacao: dados.responsavel_solicitacao.trim() || null,
+        cargo_solicitante: dados.cargo_solicitante.trim() || null,
+        email_solicitante: dados.email_solicitante.trim() || null,
+        telefone_solicitante: dados.telefone_solicitante.trim() || null,
+        classificacao_demanda: dados.classificacao_demanda.length > 0 ? dados.classificacao_demanda : null,
+        descricao_necessidade: dados.descricao_necessidade.trim() || null,
+        problema_atual: dados.problema_atual.trim() || null,
+        situacao_desejada: dados.situacao_desejada.trim() || null,
+        justificativa: dados.justificativa.trim() || null,
+        beneficios_esperados_lista: dados.beneficios_esperados_lista.length > 0 ? dados.beneficios_esperados_lista : null,
+        impacto_tipo: dados.impacto_tipo || null,
+        areas_impactadas: dados.areas_impactadas.trim() || null,
+        grau_urgencia: dados.grau_urgencia || null,
+        justificativa_urgencia: dados.justificativa_urgencia.trim() || null,
+        existe_processo_documentado: dados.existe_processo_documentado === "sim" ? true : dados.existe_processo_documentado === "nao" ? false : null,
+        codigo_processo: dados.codigo_processo.trim() || null,
+        tipos_documentos_apoio: dados.tipos_documentos_apoio.length > 0 ? dados.tipos_documentos_apoio : null,
+        observacoes_abertura: dados.observacoes_abertura.trim() || null,
       })
       .select("id")
       .single();
@@ -460,21 +479,13 @@ export default function SolicitacoesErp() {
       return;
     }
     const falhas: string[] = [];
-    for (const file of novosArquivos) {
+    for (const file of dados.arquivos) {
       const erro = await uploadAnexo(data.id, file);
       if (erro) falhas.push(file.name);
     }
     setSalvando(false);
     setNovoOpen(false);
-    setNovoTitulo("");
-    setNovoDescricao("");
-    setNovosArquivos([]);
-    setCamposAbertura({});
-    setTipoSolicitacao(null);
-    setGrauUrgencia(null);
     qc.invalidateQueries({ queryKey: ["sistema_solicitacao"] });
-    // Só 1 toast por vez no sistema — se algum anexo falhou, mostra isso em vez do
-    // "Solicitação criada" genérico, senão o erro fica mascarado pelo toast de sucesso.
     if (falhas.length > 0) {
       toast({ title: "Solicitação criada, mas houve erro nos anexos", description: `Falhou: ${falhas.join(", ")}`, variant: "destructive" });
     } else {
@@ -654,85 +665,37 @@ export default function SolicitacoesErp() {
         ))}
       </div>
 
-      <Dialog open={novoOpen} onOpenChange={setNovoOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Nova Solicitação</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Input placeholder="Título" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} />
-            <Textarea placeholder="Descrição (opcional)" value={novoDescricao} onChange={(e) => setNovoDescricao(e.target.value)} />
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Anexos (opcional)</label>
-              <Input
-                type="file"
-                multiple
-                onChange={(e) => setNovosArquivos(Array.from(e.target.files ?? []))}
-                className="cursor-pointer text-xs"
-              />
-              {novosArquivos.length > 0 && (
-                <p className="mt-1 text-[11px] text-muted-foreground">{novosArquivos.length} arquivo(s) selecionado(s).</p>
-              )}
-            </div>
-            <div className="space-y-3 border-t border-border pt-3">
-              {CAMPOS_ABERTURA.map((c) => (
-                <div key={c.key}>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{c.label}</label>
-                  <Textarea
-                    placeholder={c.placeholder}
-                    value={camposAbertura[c.key] ?? ""}
-                    onChange={(e) => setCamposAbertura((prev) => ({ ...prev, [c.key]: e.target.value }))}
-                    className="text-sm"
-                  />
-                </div>
-              ))}
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Grau de urgência</label>
-                <Select value={grauUrgencia ?? undefined} onValueChange={setGrauUrgencia}>
-                  <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="Selecionar grau de urgência…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(GRAU_URGENCIA_LABEL).map(([v, label]) => (
-                      <SelectItem key={v} value={v}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipo da solicitação</label>
-                <Select value={tipoSolicitacao ?? undefined} onValueChange={setTipoSolicitacao}>
-                  <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="Selecionar tipo…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(TIPO_SOLICITACAO_LABEL).map(([v, label]) => (
-                      <SelectItem key={v} value={v}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => { setNovoOpen(false); setNovosArquivos([]); setTipoSolicitacao(null); setGrauUrgencia(null); }}>Cancelar</Button>
-            <Button onClick={criar} disabled={!novoTitulo.trim() || !camposAberturaPreenchidos || salvando}>
-              {salvando ? "Salvando…" : "Criar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FsdFormCriar
+        open={novoOpen}
+        onClose={() => setNovoOpen(false)}
+        nomeUsuarioAtual={nomeUsuario(usuarios, user?.id ?? null) ?? ""}
+        salvando={salvando}
+        onSubmit={criarFsd}
+      />
 
       <Dialog open={!!detalheId} onOpenChange={(open) => { if (!open) { setDetalheId(null); setNovoComentario(""); } }}>
         <DialogContent className="max-w-4xl overflow-x-hidden overflow-y-auto sm:max-w-4xl max-h-[90vh]">
           {cardDetalhe && PainelEtapa && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  {cardDetalhe.titulo}
-                  {cardDetalhe.recusado && <Badge variant="outline" className="text-warning-foreground">Recusado</Badge>}
-                  {cardDetalhe.finalizado && <Badge variant="outline">Finalizado</Badge>}
-                </DialogTitle>
+            <div id="pdf-capture-target">
+              {/* Cabeçalho padronizado do card */}
+              <DialogHeader className="pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <img src={logoNascimento} alt="Nascimento" className="h-10 w-10 shrink-0 object-contain" />
+                    <div className="min-w-0">
+                      <DialogTitle className="flex flex-wrap items-center gap-2 text-[#153169]">
+                        <span className="break-words">{cardDetalhe.titulo}</span>
+                        {cardDetalhe.recusado && <Badge variant="outline" className="text-warning-foreground">Recusado</Badge>}
+                        {cardDetalhe.finalizado && <Badge variant="outline">Finalizado</Badge>}
+                      </DialogTitle>
+                      <p className="mt-0.5 text-xs font-semibold text-[#e67e22]">Solicitação de Demanda</p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-md border border-[#153169]/30 bg-[#153169]/5 px-3 py-1.5 text-right">
+                    <p className="text-[9px] font-semibold uppercase tracking-wider text-[#153169]/60">Nº da Solicitação</p>
+                    <p className="text-sm font-bold text-[#153169]">{sdNumero(cardDetalhe)}</p>
+                  </div>
+                </div>
               </DialogHeader>
 
               <div className="flex gap-2 border-b border-border pb-2">
@@ -891,7 +854,7 @@ export default function SolicitacoesErp() {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>

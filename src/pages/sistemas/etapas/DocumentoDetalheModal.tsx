@@ -8,7 +8,7 @@ import {
   PESQUISA_PODE_ENCERRAR_OPCOES, PESQUISA_PODE_ENCERRAR_PERGUNTA, TIPO_SOLICITACAO_LABEL, nomeUsuario,
   type Anexo, type Assinatura, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
-import { exportarPdfEtapa } from "./documentoPdf";
+import { exportarPdfCaptura } from "./exportarPdfCaptura";
 import { RESUMOS, temDadoResumo } from "./Resumos";
 import { Historico } from "./Historico";
 import { PdfDocumento, fmtDataHoraPdf } from "./pdfHelpers";
@@ -212,7 +212,7 @@ export function DocumentoDetalheModal({
           <DialogTitle>Anexo {documento.numero} – {documento.nome} ({documento.sigla})</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div id="pdf-doc-capture-target" className="space-y-4">
           {documento.tipo === "anexos_gerais" && (
             <>
               <CamposAberturaFixo card={card} />
@@ -237,7 +237,7 @@ export function DocumentoDetalheModal({
                   size="sm"
                   variant="outline"
                   className="gap-1.5"
-                  onClick={() => exportarPdfEtapa(documento.etapaOrigem, card, anexos, comentarios, usuarios, convidados, assinaturasDaEtapa(documento.etapaOrigem))}
+                  onClick={() => exportarPdfCaptura("pdf-doc-capture-target", `${documento.sigla}-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}
                 >
                   <FileDown className="h-3.5 w-3.5" /> Exportar PDF
                 </Button>
