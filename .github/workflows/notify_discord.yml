@@ -18,7 +18,7 @@ jobs:
           case "$AUTHOR" in
             EduardoJeiel007) AUTHOR="duduzin" ;;
             pablotasuyuki)   AUTHOR="pablero" ;;
-            jvperetti)       AUTHOR="jão" ;;
+            joaovperetti)       AUTHOR="jão" ;;
           esac
 
           MESSAGE="Autorização de PR na branch main por IURYzera\n\n\
