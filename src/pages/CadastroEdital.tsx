@@ -160,9 +160,17 @@ export default function CadastroEdital() {
           c.cidade?.toLowerCase().includes(q) ||
           c.objeto?.toLowerCase().includes(q) ||
           c.modalidade?.toLowerCase().includes(q) ||
-          c.escritorio?.toLowerCase().includes(q)
+          c.escritorio?.toLowerCase().includes(q) ||
+          c.responsavel?.toLowerCase().includes(q)
       );
     }
+    // Ordena pela abertura mais próxima (sem data vai pro fim)
+    list.sort((a, b) => {
+      if (!a.abertura && !b.abertura) return 0;
+      if (!a.abertura) return 1;
+      if (!b.abertura) return -1;
+      return a.abertura.localeCompare(b.abertura);
+    });
     return list;
   }, [capas, statusFiltro, busca]);
 
@@ -411,8 +419,9 @@ function CapaCard({
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         <span><span className="font-medium text-foreground">Cidade:</span> {capa.cidade || "—"}</span>
         <span><span className="font-medium text-foreground">Modalidade:</span> {capa.modalidade || "—"}</span>
-        <span><span className="font-medium text-foreground">Abertura:</span> {capa.abertura || "—"}</span>
+        <span><span className="font-medium text-foreground">Abertura:</span> {capa.abertura ? capa.abertura.replace(/^(\d{4})-(\d{2})-(\d{2})/, "$3/$2/$1").replace(/H/i, "h") : "—"}</span>
         <span><span className="font-medium text-foreground">Postos:</span> {capa.qtd_postos ?? "—"}</span>
+        <span className="col-span-2"><span className="font-medium text-foreground">Responsável:</span> {capa.responsavel || "—"}</span>
         {capa.valor_estimado && (
           <span className="col-span-2"><span className="font-medium text-foreground">Valor:</span> {capa.valor_estimado}</span>
         )}
