@@ -333,7 +333,7 @@ export const DOCUMENTOS_APOIO_OPCOES = [
 
 export const TRIAGEM_CLASSIFICACAO_LABEL: Record<string, string> = {
   processo: "Falha/Melhoria de Processo",
-  sistema: "Necessidade de Sistema",
+  sistema: "Necessidade de Sistemas",
   treinamento: "Necessidade de Treinamento",
   parametrizacao: "Possibilidade de Parametrização",
   outro: "Outro",
