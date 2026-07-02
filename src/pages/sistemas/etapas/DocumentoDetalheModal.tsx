@@ -214,8 +214,8 @@ export function DocumentoDetalheModal({
           <DialogTitle>Anexo {documento.numero} – {documento.nome} ({documento.sigla})</DialogTitle>
         </DialogHeader>
 
-        {/* Botão de exportar fica FORA da área de captura para não aparecer no PDF */}
-        {documento.tipo === "anexo_etapa" && (
+        {/* Botões de exportar ficam FORA da área de captura para não aparecer no PDF */}
+        {(documento.tipo === "anexo_etapa" || documento.tipo === "encerramento_completo") && (
           <div className="flex justify-end">
             <Button
               size="sm"
@@ -271,15 +271,10 @@ export function DocumentoDetalheModal({
 
           {documento.tipo === "encerramento_completo" && (
             <>
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => exportarEncerramentoPdf(card, titulo, solicitacaoId, anexos, comentarios, usuarios, assinaturas, logs)}
-                >
-                  <FileDown className="h-3.5 w-3.5" /> Exportar PDF
-                </Button>
+              {/* Título visível no PDF */}
+              <div className="border-b border-border pb-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</p>
+                <h2 className="text-base font-bold text-[#153169]">{documento.nome} ({documento.sigla})</h2>
               </div>
 
               <div className="space-y-3">
@@ -291,7 +286,8 @@ export function DocumentoDetalheModal({
                 })}
               </div>
 
-              <div className="max-h-[300px] overflow-y-auto rounded-md border border-border p-3">
+              {/* Sem max-h para que html2canvas capture o histórico completo */}
+              <div className="rounded-md border border-border p-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Histórico</p>
                 <Historico solicitacaoId={solicitacaoId} usuarios={usuarios} />
               </div>
