@@ -106,9 +106,9 @@ export function ListaAnexos({ anexos, campo, onDownloadAnexo }: { anexos: Anexo[
   return (
     <div className="space-y-1">
       {lista.map((a) => (
-        <div key={a.id} className="flex items-center justify-between rounded border border-border px-2 py-1 text-[11px]">
+        <div key={a.id} className="flex justify-between rounded border border-border px-2 py-1 text-[11px] leading-4">
           <span className="truncate">{a.nome_arquivo}</span>
-          <button type="button" onClick={() => onDownloadAnexo(a.storage_path)} className="text-primary hover:underline">abrir</button>
+          <button type="button" onClick={() => onDownloadAnexo(a.storage_path)} className="text-primary hover:underline shrink-0 ml-2">abrir</button>
         </div>
       ))}
     </div>
