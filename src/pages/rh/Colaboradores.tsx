@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import ImportarColaboradores from "@/components/rh/ImportarColaboradores";
+import IntegrarCargos from "@/components/rh/IntegrarCargos";
 
 // =========================================================================
 // RH — Colaboradores (fonte: tabela EMPREGADOS, read-only + edição de campos RH)
 // Filtros: empresa / contrato / situação (padrão "Trabalhando") + busca.
 // Dashboard ao vivo (refiltra junto): headcount, folha, admissões/desligamentos,
-// tempo de casa.
+// tempo de casa, ativos por cargo.
+// Cargo não é mais texto livre: seleciona da tabela CARGOS ("Cargo" código +
+// "Nome do Cargo"), com opção de criar um cargo novo (próximo código livre).
 // =========================================================================
 
 // Empresas do grupo (código numérico da coluna "Empresa" → nome curto).
@@ -49,16 +53,24 @@ const anosDeCasa = (v: any): number | null => {
   return Math.max(0, (Date.now() - d.getTime()) / (365.25 * 864e5));
 };
 const ehTrabalhando = (e: any) => String(e?.["Situação"] ?? "").trim().toUpperCase().startsWith("TRABALH");
+const nomeCargoDe = (e: any): string => String(e?.["Nome do Cargo"] ?? "").trim() || String(e?.["Título do Cargo"] ?? "").trim() || "—";
 
-const FULL = '"ID","Nome","CPF","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Empresa","Nome da Empresa","Filial","Nome Filial","Contrato","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
-const SAFE = '"ID","Nome","CPF","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
+// Cascata de fallback: "Empresa"/"Contrato" já eram conhecidos por falhar em
+// alguns ambientes (por isso o SAFE original não tem os dois). "Cargo" e
+// "Nome do Cargo" precisam sobreviver a essas quedas — por isso entram
+// ANTES de "Empresa"/"Contrato" serem descartados, não depois.
+const FULL = '"ID","Nome","CPF","Cargo","Título do Cargo","Nome do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Empresa","Nome da Empresa","Filial","Nome Filial","Contrato","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
+const SEM_NOME_CARGO_NOVO = '"ID","Nome","CPF","Cargo","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Empresa","Nome da Empresa","Filial","Nome Filial","Contrato","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"'; // sem "Nome do Cargo" (antes da migration)
+const SAFE_COM_CARGO = '"ID","Nome","CPF","Cargo","Título do Cargo","Nome do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"'; // sem Empresa/Contrato, mas com Cargo/Nome do Cargo
+const SAFE_COM_CARGO_SEM_NOME = '"ID","Nome","CPF","Cargo","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
+const SAFE = '"ID","Nome","CPF","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"'; // último recurso (sem Cargo)
 
 const PERFIS = ["PADRAO", "ENCARREGADO", "ADMINISTRATIVO", "DIRETORIA", "ADMIN"];
 // Campos principais editáveis (coluna da EMPREGADOS → rótulo). Situação é tratada à parte (select).
+// Cargo NÃO entra aqui: é um select próprio ligado à tabela CARGOS.
 const MAIN_FIELDS: [string, string][] = [
   ["Nome", "Nome"],
   ["CPF", "CPF"],
-  ["Título do Cargo", "Cargo"],
   ["Admissão", "Admissão"],
   ["Data Afastamento", "Data de afastamento"],
   ["Valor Salário", "Salário"],
@@ -99,6 +111,7 @@ export default function Colaboradores() {
   const [erro, setErro] = useState<string | null>(null);
 
   const [setoresTabela, setSetoresTabela] = useState<string[]>([]);
+  const [cargosTabela, setCargosTabela] = useState<{ codigo: number; nome: string }[]>([]);
   const [busca, setBusca] = useState("");
   const [fEmpresa, setFEmpresa] = useState("");
   const [fContrato, setFContrato] = useState("");
@@ -109,6 +122,7 @@ export default function Colaboradores() {
 
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [novoCargo, setNovoCargo] = useState<string | null>(null); // null = fechado; string = digitando nome do cargo novo
   const [toast, setToast] = useState<{ msg: string; tipo: "ok" | "err" } | null>(null);
   const aviso = (msg: string, tipo: "ok" | "err" = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3200); };
 
@@ -131,6 +145,13 @@ export default function Colaboradores() {
       };
       setSetoresTabela([...new Set(st.data.map(pick).filter(Boolean) as string[])]);
     }
+    // Cargos oficiais (tabela CARGOS: "Cargo" código + "Nome do Cargo").
+    const cg = await (supabase as any).from("CARGOS").select('"Cargo","Nome do Cargo"').order("Nome do Cargo", { ascending: true });
+    if (!cg.error && Array.isArray(cg.data)) {
+      setCargosTabela(cg.data
+        .map((c: any) => ({ codigo: Number(c["Cargo"]), nome: String(c["Nome do Cargo"] ?? "").trim() }))
+        .filter((c: any) => Number.isFinite(c.codigo) && c.nome));
+    }
     // EMPREGADOS em blocos (fallback de colunas p/ nunca dar tela vazia).
     const buscar = async (cols: string) => {
       let all: any[] = []; let from = 0; const chunk = 1000;
@@ -144,6 +165,9 @@ export default function Colaboradores() {
       return { data: all, error: null };
     };
     let res = await buscar(FULL);
+    if (res.error) res = await buscar(SEM_NOME_CARGO_NOVO);
+    if (res.error) res = await buscar(SAFE_COM_CARGO);
+    if (res.error) res = await buscar(SAFE_COM_CARGO_SEM_NOME);
     if (res.error) res = await buscar(SAFE);
     if (res.error) { setErro(res.error.message || "Falha ao carregar EMPREGADOS."); setRows([]); setLoading(false); return; }
     setRows(res.data || []); setLoading(false);
@@ -169,7 +193,7 @@ export default function Colaboradores() {
     if (fSituacao && String(e["Situação"] ?? "").trim() !== fSituacao) return false;
     if (busca) {
       const q = busca.toLowerCase();
-      return [e["Nome"], e["CPF"], e["Título do Cargo"], e["Nome Filial"], e["Setor_ERP"]].some(x => String(x ?? "").toLowerCase().includes(q));
+      return [e["Nome"], e["CPF"], e["Título do Cargo"], e["Nome do Cargo"], e["Nome Filial"], e["Setor_ERP"]].some(x => String(x ?? "").toLowerCase().includes(q));
     }
     return true;
   }), [rows, busca, fEmpresa, fContrato, fSituacao, contratoPorFilial]);
@@ -183,7 +207,7 @@ export default function Colaboradores() {
   const recorteSemSituacao = useMemo(() => rows.filter(e => {
     if (fEmpresa && empresaDe(e) !== fEmpresa) return false;
     if (fContrato && contratoDe(e) !== fContrato) return false;
-    if (busca) { const q = busca.toLowerCase(); return [e["Nome"], e["CPF"], e["Título do Cargo"], e["Nome Filial"], e["Setor_ERP"]].some(x => String(x ?? "").toLowerCase().includes(q)); }
+    if (busca) { const q = busca.toLowerCase(); return [e["Nome"], e["CPF"], e["Título do Cargo"], e["Nome do Cargo"], e["Nome Filial"], e["Setor_ERP"]].some(x => String(x ?? "").toLowerCase().includes(q)); }
     return true;
   }), [rows, fEmpresa, fContrato, busca, contratoPorFilial]);
 
@@ -212,6 +236,8 @@ export default function Colaboradores() {
   const sitAtual = porSituacao.length ? porSituacao[sitIdx % porSituacao.length] : null;
   const corSituacao = (s: string) => { const u = (s || "").toUpperCase(); return u.startsWith("TRABALH") ? "#15803d" : u.includes("FÉRIAS") || u.includes("FERIAS") ? "#2563eb" : u.includes("AFAST") || u.includes("LICEN") ? "#d97706" : u.includes("DEMIT") || u.includes("DESLIG") ? "#dc2626" : "#7c3aed"; };
   const folhaPorEmpresa = useMemo(() => agrupar(filtrados, empresaDe, e => parseSalario(e["Valor Salário"])), [filtrados]);
+  // "ativos" = Trabalhando, sempre — independe do filtro de situação (como as timelines).
+  const ativosPorCargo = useMemo(() => agrupar(recorteSemSituacao.filter(ehTrabalhando), nomeCargoDe), [recorteSemSituacao]);
   const porFaixa = useMemo(() => FAIXAS.map(f => ({ label: f.label, n: filtrados.filter(e => { const a = anosDeCasa(e["Admissão"]); return a != null && a >= f.min && a < f.max; }).length })), [filtrados]);
   const timeline = useMemo(() => {
     const anos: Record<number, { adm: number; desl: number }> = {};
@@ -231,9 +257,11 @@ export default function Colaboradores() {
 
   // ── Edição de campos RH na EMPREGADOS ────────────────────────────────
   const abrirEdit = (e: any) => {
-    setEditing(e);
+    setEditing(e); setNovoCargo(null);
     const f: Record<string, string> = {};
     for (const [col] of MAIN_FIELDS) f[col] = e[col] ?? "";
+    f["Cargo"] = e["Cargo"] != null && e["Cargo"] !== "" ? String(e["Cargo"]) : "";
+    f["Nome do Cargo"] = String(e["Nome do Cargo"] ?? "").trim();
     f["Situação"] = e["Situação"] ?? "";
     f["Setor_ERP"] = String(e["Setor_ERP"] ?? "").trim() || "PADRAO";
     f["LIDER"] = String(e["Título do Cargo"] ?? "").trim() || String(e["LIDER"] ?? "").trim(); // Hierarquia puxa do cargo
@@ -243,13 +271,38 @@ export default function Colaboradores() {
   const salvarEdit = async () => {
     if (!editing) return;
     const patch: any = {};
-    for (const k of Object.keys(form)) { if (k in editing) patch[k] = form[k] === "" ? null : form[k]; }
+    for (const k of Object.keys(form)) {
+      if (!(k in editing)) continue;
+      const v = form[k] === "" ? null : form[k];
+      patch[k] = k === "Cargo" && v != null ? Number(v) : v; // "Cargo" é bigint no banco
+    }
     const { error } = await (supabase as any).from("EMPREGADOS").update(patch).eq("ID", editing["ID"]);
     if (error) { aviso("Erro ao salvar: " + error.message, "err"); return; }
     setRows(rs => rs.map(r => r["ID"] === editing["ID"] ? { ...r, ...patch } : r));
     setEditing(null); aviso("Colaborador atualizado.");
   };
   const setCampo = (col: string, v: string) => setForm(f => ({ ...f, [col]: v }));
+
+  // ── Cargo pela tabela CARGOS ─────────────────────────────────────────
+  const escolherCargo = (v: string) => {
+    if (v === "__novo__") { setNovoCargo(""); return; }
+    setNovoCargo(null);
+    const c = cargosTabela.find(x => String(x.codigo) === v);
+    setForm(f => ({ ...f, "Cargo": v, "Nome do Cargo": c ? c.nome : v === "" ? "" : f["Nome do Cargo"] }));
+  };
+  const criarCargo = async () => {
+    const nome = (novoCargo ?? "").trim().toUpperCase();
+    if (!nome) { aviso("Digite o nome do novo cargo.", "err"); return; }
+    const existente = cargosTabela.find(c => c.nome.toUpperCase() === nome);
+    if (existente) { escolherCargo(String(existente.codigo)); aviso("Esse cargo já existia — selecionado."); return; }
+    const codigo = Math.max(0, ...cargosTabela.map(c => c.codigo)) + 1;
+    const { error } = await (supabase as any).from("CARGOS").insert({ "Cargo": codigo, "Nome do Cargo": nome });
+    if (error) { aviso("Erro ao criar cargo: " + error.message, "err"); return; }
+    setCargosTabela(cs => [...cs, { codigo, nome }].sort((a, b) => a.nome.localeCompare(b.nome)));
+    setForm(f => ({ ...f, "Cargo": String(codigo), "Nome do Cargo": nome }));
+    setNovoCargo(null);
+    aviso(`Cargo "${nome}" criado (código ${codigo}).`);
+  };
 
   const card = (titulo: string, valor: string, cor: string, sub?: string) => (
     <div style={{ flex: 1, minWidth: 150, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
@@ -286,7 +339,11 @@ export default function Colaboradores() {
           <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>👥 Colaboradores</div>
           <div style={{ fontSize: 13, color: "#64748b" }}>Workforce real (tabela EMPREGADOS) · filtros e dashboard ao vivo.</div>
         </div>
-        <button className="col-btn" onClick={load} style={{ background: "#eef4ff", color: "#0f3171", borderColor: "#dbe4f0" }}>↻ Atualizar</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <ImportarColaboradores rows={rows} onImported={load} />
+          <IntegrarCargos rows={rows} onImported={load} />
+          <button className="col-btn" onClick={load} style={{ background: "#eef4ff", color: "#0f3171", borderColor: "#dbe4f0" }}>↻ Atualizar</button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -351,6 +408,11 @@ export default function Colaboradores() {
         {painel("Folha por empresa (R$)", folhaPorEmpresa.length === 0 ? <Vazio /> : folhaPorEmpresa.map(x => <div key={x.k}>{barRow(x.k, x.v, folhaPorEmpresa[0].v, "#0f766e", moneyK(x.v))}</div>))}
       </div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        {painel(`Ativos por cargo (${ativosPorCargo.length} cargos)`, ativosPorCargo.length === 0 ? <Vazio /> : (
+          <div style={{ maxHeight: 285, overflowY: "auto", paddingRight: 4 }}>
+            {ativosPorCargo.map(x => <div key={x.k}>{barRow(x.k, x.v, ativosPorCargo[0].v, "#0e7490", String(x.v))}</div>)}
+          </div>
+        ))}
         {painel("Top contratos (headcount)", porContrato.length === 0 ? <Vazio /> : porContrato.map(x => <div key={x.k}>{barRow(x.k, x.v, porContrato[0].v, "#7c3aed", String(x.v))}</div>))}
         {painel("Tempo de casa", <div>{porFaixa.map(f => <div key={f.label}>{barRow(f.label, f.n, Math.max(1, ...porFaixa.map(z => z.n)), "#2563eb", String(f.n))}</div>)}</div>)}
         {painel(`Admissões × Desligamentos (por ano)`, timeline.length === 0 ? <Vazio /> : (
@@ -401,7 +463,7 @@ export default function Colaboradores() {
                     <tr key={e["ID"] ?? i} onMouseEnter={ev => (ev.currentTarget.style.background = "#f8fbff")} onMouseLeave={ev => (ev.currentTarget.style.background = "#fff")}>
                       <td className="col-td" style={{ fontWeight: 700, color: "#0f172a" }}>{e["Nome"] || "—"}<div style={{ fontSize: 10.5, color: "#94a3b8" }}>{e["Setor_ERP"] || ""}</div></td>
                       <td className="col-td" style={{ fontVariantNumeric: "tabular-nums" }}>{e["CPF"] || "—"}</td>
-                      <td className="col-td">{e["Título do Cargo"] || "—"}</td>
+                      <td className="col-td">{nomeCargoDe(e)}</td>
                       <td className="col-td"><span style={{ fontSize: 11, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: "#eef4ff", color: "#0f3171" }}>{empresaDe(e)}</span></td>
                       <td className="col-td" style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contratoDe(e)}</td>
                       <td className="col-td">{e["Nome Filial"] || e["Filial"] || "—"}</td>
@@ -433,12 +495,33 @@ export default function Colaboradores() {
             <button onClick={() => setEditing(null)} style={{ position: "absolute", top: 14, right: 16, border: "none", background: "none", fontSize: 20, color: "#94a3b8", cursor: "pointer", zIndex: 1 }}>✕</button>
             <div style={{ padding: "20px 22px 12px" }}>
               <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>{editing["Nome"] || "Colaborador"}</div>
-              <div style={{ fontSize: 12.5, color: "#64748b" }}>{editing["Título do Cargo"] || "—"} · {empresaDe(editing)} · {contratoDe(editing)}</div>
+              <div style={{ fontSize: 12.5, color: "#64748b" }}>{nomeCargoDe(editing)} · {empresaDe(editing)} · {contratoDe(editing)}</div>
             </div>
             <div style={{ padding: "0 22px", overflowY: "auto", flex: 1 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px", marginBottom: 10 }}>Dados do colaborador</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                {MAIN_FIELDS.map(([col, label]) => (
+                {MAIN_FIELDS.slice(0, 2).map(([col, label]) => (
+                  <Campo key={col} label={label} value={form[col] ?? ""} onChange={v => setCampo(col, v)} />
+                ))}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Cargo{form["Cargo"] && novoCargo == null ? ` · código ${form["Cargo"]}` : ""}</label>
+                  <select className="col-fi" style={{ width: "100%" }} value={novoCargo != null ? "__novo__" : form["Cargo"] ?? ""} onChange={e => escolherCargo(e.target.value)}>
+                    <option value="">— Sem cargo —</option>
+                    {form["Cargo"] && !cargosTabela.some(c => String(c.codigo) === form["Cargo"]) && (
+                      <option value={form["Cargo"]}>{(form["Nome do Cargo"] || `Código ${form["Cargo"]}`) + " (fora da tabela CARGOS)"}</option>
+                    )}
+                    {cargosTabela.map(c => <option key={c.codigo} value={String(c.codigo)}>{c.nome}</option>)}
+                    <option value="__novo__">＋ Criar novo cargo…</option>
+                  </select>
+                  {novoCargo != null && (
+                    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                      <input className="col-fi" style={{ flex: 1 }} placeholder="Nome do novo cargo" value={novoCargo} autoFocus
+                        onChange={e => setNovoCargo(e.target.value)} onKeyDown={e => { if (e.key === "Enter") criarCargo(); }} />
+                      <button className="col-btn" onClick={criarCargo} style={{ background: "#0f3171", color: "#fff", borderColor: "#0f3171" }}>Criar</button>
+                    </div>
+                  )}
+                </div>
+                {MAIN_FIELDS.slice(2).map(([col, label]) => (
                   <Campo key={col} label={label} value={form[col] ?? ""} onChange={v => setCampo(col, v)} />
                 ))}
                 <div>

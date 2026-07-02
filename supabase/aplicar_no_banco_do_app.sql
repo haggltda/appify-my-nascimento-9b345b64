@@ -2346,3 +2346,309 @@ CREATE VIEW public."VW_RECRUTAMENTO_CANDIDATOS" AS
 GRANT SELECT ON public."VW_RECRUTAMENTO_CANDIDATOS" TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
+
+-- =========================================================================
+-- EMPREGADOS — coluna "Nome do Cargo" (migration 20260701000002)
+--
+-- A EMPREGADOS traz o cargo em "Título do Cargo", que em vários registros
+-- veio da folha só com o CÓDIGO do cargo (ex.: "0182"), não o nome legível.
+-- Esta coluna guarda o nome do cargo já traduzido (ex.: "ADVOGADO"), obtido
+-- ao integrar uma planilha de referência (Cargo → Nome do Cargo) na tela
+-- RH → Colaboradores ("Integrar Cargos").
+-- =========================================================================
+
+ALTER TABLE public."EMPREGADOS"
+  ADD COLUMN IF NOT EXISTS "Nome do Cargo" text;
+
+NOTIFY pgrst, 'reload schema';
+
+-- =========================================================================
+-- EMPREGADOS — recodificação de "Cargo" (migration 20260701000003)
+--
+-- A planilha de referência de cargos tinha o mesmo nome com códigos
+-- diferentes (ex.: AGENTE DE PORTARIA = 0009 e 0011) e códigos que colidem
+-- quando viram bigint (ex.: "0225" e "225" ambos = 225, mas com nomes
+-- diferentes). Esta migration:
+--
+-- 1) Zera (NULL) o "Cargo" de quem está hoje em um dos 27 códigos ambíguos
+--    abaixo (não dá pra saber qual dos 2 nomes é correto) e marca
+--    "Nome do Cargo" com um aviso — pra não colidir com o esquema novo E
+--    pra não ser confundido depois com "Vazio" (sem cargo nenhum) caso o
+--    "Integrar Cargos" seja rodado de novo.
+-- 2) Recodifica os demais para um esquema NOVO sequencial (1, 2, 3…), um
+--    código único por nome de cargo, e já preenche "Nome do Cargo" junto.
+--
+-- Gerado a partir de CARGOS.xlsx + CARGOS_RENUMERADOS.xlsx (aba De-Para).
+-- Idempotente: rodar de novo não faz nada (os códigos antigos já não
+-- existem mais depois da 1ª aplicação).
+-- =========================================================================
+
+-- 1) Códigos ambíguos na planilha de origem — zera e marca pra revisão manual.
+UPDATE public."EMPREGADOS"
+SET "Cargo" = NULL, "Nome do Cargo" = 'AMBÍGUO - REVISAR MANUALMENTE'
+WHERE "Cargo" IN (194, 195, 196, 197, 199, 200, 201, 205, 206, 207, 208, 209, 210, 214, 215, 216, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228);
+
+-- 2) Recodificação: código antigo → código novo sequencial + nome do cargo.
+UPDATE public."EMPREGADOS" e
+SET "Cargo" = v.novo, "Nome do Cargo" = v.nome
+FROM (VALUES
+(1, 55, 'AUXILIAR ADMINISTRATIVO'),
+  (2, 206, 'VIGIA DE PORTARIA'),
+  (3, 55, 'AUXILIAR ADMINISTRATIVO'),
+  (4, 201, 'VARREDOR DE RUA - LIMPEZA URBANA'),
+  (5, 170, 'SERVIÇOS GERAIS'),
+  (6, 201, 'VARREDOR DE RUA - LIMPEZA URBANA'),
+  (7, 185, 'SUPERVISOR OPERACIONAL'),
+  (8, 201, 'VARREDOR DE RUA - LIMPEZA URBANA'),
+  (9, 2, 'AGENTE DE PORTARIA'),
+  (10, 56, 'AUXILIAR ADMNISTRATIVO'),
+  (11, 2, 'AGENTE DE PORTARIA'),
+  (12, 205, 'VIGIA'),
+  (13, 154, 'PORTEIRO'),
+  (14, 205, 'VIGIA'),
+  (15, 165, 'SERVENTE DE LIMPEZA'),
+  (16, 101, 'ESTAGIARIO'),
+  (17, 165, 'SERVENTE DE LIMPEZA'),
+  (18, 89, 'COZINHEIRA HOSPITALAR'),
+  (19, 91, 'COZINHEIRO GERAL'),
+  (20, 172, 'SOCIO'),
+  (21, 60, 'AUXILIAR DE COZINHA'),
+  (22, 60, 'AUXILIAR DE COZINHA'),
+  (23, 60, 'AUXILIAR DE COZINHA'),
+  (24, 166, 'SERVENTE DE LIMPEZA - D'),
+  (25, 111, 'JARDINEIRO'),
+  (26, 200, 'TRATORISTA FUGS'),
+  (27, 53, 'AUX ADMINISTRATIVO DE PESSOAL'),
+  (28, 157, 'PSICOLOGA DO TRABALHO'),
+  (29, 150, 'PEDAGOGA'),
+  (30, 134, 'MOTORISTA'),
+  (31, 151, 'PEDREIRO'),
+  (32, 204, 'VIDRACEIRO'),
+  (33, 97, 'ELETRICISTA'),
+  (34, 96, 'ELETRECISTA'),
+  (35, 97, 'ELETRICISTA'),
+  (36, 168, 'SERVENTE DE OBRAS'),
+  (37, 153, 'PINTOR'),
+  (38, 77, 'CARPINTEIRO'),
+  (39, 133, 'MESTRE DE OBRAS'),
+  (40, 98, 'ENCANADOR'),
+  (41, 158, 'RECEPCIONISTA'),
+  (42, 54, 'AUX. ADMINISTRATIVO'),
+  (43, 29, 'APRENDIZ AUXILIAR ADMINISTRATIVO'),
+  (44, 18, 'ANALISTA DE LOGISTICA'),
+  (45, 66, 'AUXILIAR DE PINTOR'),
+  (46, 18, 'ANALISTA DE LOGISTICA'),
+  (47, 132, 'MERENDEIRA'),
+  (48, 105, 'GERENTE ADMINISTRATIVO'),
+  (49, 132, 'MERENDEIRA'),
+  (50, 19, 'ANALISTA DE RECURSOS HUMANOS'),
+  (51, 88, 'COZINHEIRA'),
+  (52, 19, 'ANALISTA DE RECURSOS HUMANOS'),
+  (53, 146, 'OPERADOR DE MAQUINA'),
+  (54, 185, 'SUPERVISOR OPERACIONAL'),
+  (55, 146, 'OPERADOR DE MAQUINA'),
+  (56, 65, 'AUXILIAR DE MANUTENÇÃO PREDIAL'),
+  (57, 72, 'AUXILIAR FINANCEIRO'),
+  (58, 65, 'AUXILIAR DE MANUTENÇÃO PREDIAL'),
+  (59, 158, 'RECEPCIONISTA'),
+  (60, 73, 'AUXILIAR NOS SERVIÇOS DE ALIMENTAÇÃO'),
+  (61, 158, 'RECEPCIONISTA'),
+  (62, 167, 'SERVENTE DE LIMPEZA - II'),
+  (63, 62, 'AUXILIAR DE LAVANDERIA'),
+  (64, 155, 'PROFESSOR'),
+  (65, 190, 'TEC AGRICOLA'),
+  (66, 19, 'ANALISTA DE RECURSOS HUMANOS'),
+  (67, 52, 'ATENDENTE DE CRECHE'),
+  (68, 128, 'MECANICO'),
+  (69, 18, 'ANALISTA DE LOGISTICA'),
+  (70, 100, 'ESTAGIARIA'),
+  (71, 87, 'COVEIRO'),
+  (72, 154, 'PORTEIRO'),
+  (73, 61, 'AUXILIAR DE EDUCACAO INFANTIL'),
+  (74, 104, 'EXUMADOR'),
+  (75, 84, 'COPEIRO'),
+  (76, 191, 'TECNICA EM ENFERMAGEM'),
+  (77, 90, 'COZINHEIRO'),
+  (78, 191, 'TECNICA EM ENFERMAGEM'),
+  (79, 188, 'SUPERVISORA DE COZINHA'),
+  (80, 199, 'TRATORISTA'),
+  (81, 207, 'ZELADOR'),
+  (82, 58, 'AUXILIAR DE ALMOXARIFADO'),
+  (83, 202, 'VENDEDORA'),
+  (84, 67, 'AUXILIAR DE SERVICOS GERAIS'),
+  (85, 140, 'OFFICEBOY'),
+  (86, 92, 'CUIDADOR EM SAUDE'),
+  (87, 58, 'AUXILIAR DE ALMOXARIFADO'),
+  (88, 193, 'TECNICO EM SEGURANCA DO TRABALHO'),
+  (89, 121, 'LIDER DE SERVENTE DE LIMPEZA'),
+  (90, 207, 'ZELADOR'),
+  (91, 134, 'MOTORISTA'),
+  (92, 8, 'ALMOXARIFE'),
+  (93, 64, 'AUXILIAR DE MANUTENCAO PREDIAL'),
+  (94, 57, 'AUXILIAR DE ALMOXARIDADO'),
+  (95, 104, 'EXUMADOR'),
+  (96, 58, 'AUXILIAR DE ALMOXARIFADO'),
+  (97, 87, 'COVEIRO'),
+  (98, 3, 'AJUDANTE DE CARGA E DESCARGA'),
+  (99, 128, 'MECANICO'),
+  (100, 174, 'SUPERVISOR ADMINISTRATIVO'),
+  (101, 169, 'SERVENTE DE OBRAS - MEIO OFICIAL'),
+  (102, 67, 'AUXILIAR DE SERVICOS GERAIS'),
+  (103, 152, 'PEDREIRO - OFICIAL'),
+  (104, 84, 'COPEIRO'),
+  (105, 101, 'ESTAGIARIO'),
+  (106, 144, 'OPERADOR DE BOB-CAT'),
+  (107, 132, 'MERENDEIRA'),
+  (108, 30, 'ARQUIVISTA'),
+  (109, 143, 'OFICIAL DE MANUTENÇAO PREDIAL'),
+  (110, 59, 'AUXILIAR DE ARQUIVO'),
+  (111, 97, 'ELETRICISTA'),
+  (112, 125, 'MAQUEIRO'),
+  (113, 195, 'TELEFONISTA'),
+  (114, 164, 'SECRETARIO EXECUTIVO'),
+  (115, 148, 'OPERADOR DE MAQUINAS'),
+  (116, 192, 'TECNICO EM SECRETARIADO'),
+  (117, 199, 'TRATORISTA'),
+  (118, 99, 'ENCARREGADO ADMINISTRATIVO'),
+  (119, 138, 'MOTORISTA DE CAMINHAO'),
+  (120, 195, 'TELEFONISTA'),
+  (121, 128, 'MECANICO'),
+  (122, 63, 'AUXILIAR DE LIMPEZA'),
+  (123, 130, 'MEIO OFICIAL - PEDREIRO'),
+  (124, 141, 'OFICIAL - LIDER DE MANUTENCAO PREDIAL'),
+  (125, 194, 'TELEATENDENTE'),
+  (126, 142, 'OFICIAL DE MANUTENCAO'),
+  (127, 129, 'MEIO OFICIAL'),
+  (128, 129, 'MEIO OFICIAL'),
+  (129, 60, 'AUXILIAR DE COZINHA'),
+  (130, 113, 'LAVADOR DE ROUPAS A MAQUINA'),
+  (131, 85, 'COSTUREIRO'),
+  (132, 75, 'CAMAREIRO'),
+  (133, 114, 'LAVADOR DE VEICULO'),
+  (134, 82, 'COLETOR DE LIXO'),
+  (135, 52, 'ATENDENTE DE CRECHE'),
+  (136, 71, 'AUXILIAR EM SAUDE BUCAL'),
+  (137, 182, 'SUPERVISOR DE SERVICOS DE SAUDE'),
+  (138, 134, 'MOTORISTA'),
+  (139, 198, 'TRADUTOR E INTERPRETE DE LIBRAS'),
+  (140, 197, 'TRABALHADOR VOLANTE DA AGRICULTURA'),
+  (141, 78, 'CARREGADOR'),
+  (142, 74, 'AUXLIAR DE ALMOXARIFADO'),
+  (143, 69, 'AUXILIAR DE VETERINARIO'),
+  (144, 160, 'RECEPCIONISTA HOSPITALAR'),
+  (145, 110, 'GUARDADOR DE VEÍCULOS'),
+  (146, 154, 'PORTEIRO'),
+  (147, 181, 'SUPERVISOR DE RECEPCIONISTAS'),
+  (148, 159, 'RECEPCIONISTA BILINGUE'),
+  (149, 132, 'MERENDEIRA'),
+  (150, 81, 'CARREGADOR NAO EXCLUSIVO'),
+  (151, 194, 'TELEATENDENTE'),
+  (152, 32, 'ASSISTENTE ADMINISTRATIVO'),
+  (153, 176, 'SUPERVISOR DE ATENDIMENTO'),
+  (154, 102, 'ESTAGIARIO EM  PEDAGOGIA'),
+  (155, 135, 'MOTORISTA CAT B'),
+  (156, 136, 'MOTORISTA CAT C'),
+  (157, 137, 'MOTORISTA CAT D'),
+  (158, 76, 'Sem Nome'),
+  (159, 145, 'OPERADOR DE ESCAVADEIRA'),
+  (160, 183, 'SUPERVISOR DE TRANSPORTES'),
+  (161, 186, 'SUPERVISOR TECNICO OPERACIONAL'),
+  (162, 83, 'COORDENADOR ADMINISTRATIVO'),
+  (163, 6, 'ALMOX. HU DIURNO 12X36'),
+  (164, 7, 'ALMOX. HU NOTURNO 12X36'),
+  (165, 4, 'ALMOX. HU 36H 6X1'),
+  (166, 5, 'ALMOX. HU 40H 5X2'),
+  (167, 80, 'CARREGADOR HU 40H 5X2 INSALUB.'),
+  (168, 79, 'CARREGADOR HU 40H 5X2'),
+  (169, 86, 'COSTUREIRO HU 40H 5X2'),
+  (170, 127, 'MAQUEIRO HU 30H 5X2 INSALUB.'),
+  (171, 163, 'ROUPEIRO 44H 6X1 INSALUB.'),
+  (172, 126, 'MAQUEIRO HU 30H 5X2'),
+  (173, 161, 'ROUPEIRO 220H  12X36'),
+  (174, 103, 'ESTAGIO ADMINISTRATIVO'),
+  (175, 120, 'LIDER DE RECURSOS HUMANOS'),
+  (176, 124, 'LIDER OPERACIONAL'),
+  (177, 118, 'LIDER DE LICITACOES'),
+  (178, 122, 'LIDER FINANCEIRO'),
+  (179, 115, 'LIDER DE COMPRAS'),
+  (180, 119, 'LIDER DE QUALIDADE'),
+  (181, 117, 'LIDER DE IMPORTAÇÃO'),
+  (182, 1, 'ADVOGADO'),
+  (183, 131, 'MENSAGEIRO'),
+  (193, 123, 'LIDER JURIDICO'),
+  (198, 41, 'ASSISTENTE FINANCEIRO I'),
+  (202, 43, 'ASSISTENTE FINANCEIRO III'),
+  (203, 149, 'OPERADOR DE RADIO CHAMADA - OPERADOR CENTRAL DE MONITORAMENT'),
+  (204, 173, 'SUPERVISOR'),
+  (211, 171, 'SERVIÇOS GERAIS-CARGA E DESCAR'),
+  (212, 9, 'ANALISTA DE COMPRAS JUNIOR'),
+  (213, 180, 'SUPERVISOR DE LIMPEZA'),
+  (217, 28, 'APRENDIZ'),
+  (229, 107, 'GERENTE DE SUPLY'),
+  (1051, 88, 'COZINHEIRA'),
+  (1100, 13, 'ANALISTA DE DEP PESSOAL I'),
+  (1101, 38, 'ASSISTENTE DE DEP PESSOAL II'),
+  (1102, 21, 'ANALISTA FINANCEIRO I'),
+  (1103, 22, 'ANALISTA FINANCEIRO II'),
+  (1104, 14, 'ANALISTA DE DEP PESSOAL JR'),
+  (1105, 35, 'ASSISTENTE DE COMPRAS I'),
+  (1106, 50, 'ASSISTENTE OPERACIONAL III'),
+  (1107, 50, 'ASSISTENTE OPERACIONAL III')
+) AS v(antigo, novo, nome)
+WHERE e."Cargo" = v.antigo;
+
+NOTIFY pgrst, 'reload schema';
+
+-- =========================================================================
+-- CARGOS — tabela de referência de cargos (migration 20260702000001)
+--
+-- "Cargo" (código) e "Nome do Cargo" deixam de ser campos independentes na
+-- EMPREGADOS: passam a referenciar esta tabela. A tela RH → Colaboradores
+-- seleciona o cargo daqui e permite criar um novo (que recebe o próximo
+-- código sequencial).
+--
+-- A tabela pode já ter sido criada à mão no banco do app (Table Editor) —
+-- tudo aqui é idempotente: garante PK, unicidade de nome, RLS/GRANT e
+-- semeia a partir dos pares (Cargo, Nome do Cargo) já gravados na
+-- EMPREGADOS pela recodificação (migration 20260701000003).
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS public."CARGOS" (
+  "Cargo"         bigint NOT NULL,
+  "Nome do Cargo" text   NOT NULL
+);
+
+-- PK em "Cargo" (a tabela criada à mão pode não ter).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public."CARGOS"'::regclass AND contype = 'p'
+  ) THEN
+    ALTER TABLE public."CARGOS" ADD PRIMARY KEY ("Cargo");
+  END IF;
+END $$;
+
+-- Um código por nome: evita cadastrar o mesmo cargo duas vezes.
+CREATE UNIQUE INDEX IF NOT EXISTS cargos_nome_unico
+  ON public."CARGOS" (upper(btrim("Nome do Cargo")));
+
+-- Semeia com o que a recodificação já gravou na EMPREGADOS
+-- (ignora "Vazio" e os marcados como ambíguos).
+INSERT INTO public."CARGOS" ("Cargo", "Nome do Cargo")
+SELECT DISTINCT ON (e."Cargo") e."Cargo", btrim(e."Nome do Cargo")
+FROM public."EMPREGADOS" e
+WHERE e."Cargo" IS NOT NULL
+  AND COALESCE(btrim(e."Nome do Cargo"), '') NOT IN ('', 'Vazio', 'AMBÍGUO - REVISAR MANUALMENTE')
+ORDER BY e."Cargo"
+ON CONFLICT DO NOTHING;
+
+-- Tabela criada pelo Table Editor vem com RLS ligado e SEM policy — o app
+-- (authenticated) lê vazio. Libera leitura/escrita para usuários logados.
+ALTER TABLE public."CARGOS" ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public."CARGOS" TO authenticated;
+DROP POLICY IF EXISTS cargos_all_auth ON public."CARGOS";
+CREATE POLICY cargos_all_auth ON public."CARGOS"
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';

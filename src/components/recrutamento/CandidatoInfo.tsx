@@ -246,11 +246,22 @@ const papelHistCor = (p?: string): string => (({
 export function HistoricoCandidato({ candidatoId, nome }: { candidatoId: number; nome?: string }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<any[]>([]);
+  const [nomesPorEmail, setNomesPorEmail] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const abrir = async () => {
     setOpen(true); setLoading(true);
     const { data } = await (supabase as any).from("RECRUTAMENTO_HISTORICO").select("*").eq("candidato_id", candidatoId).order("created_at", { ascending: true });
-    setRows(data ?? []); setLoading(false);
+    const historico = data ?? [];
+    // Nome gravado no histórico às vezes é só o e-mail (quando o usuário não
+    // tinha nome no metadata) — busca o nome completo real em EMPREGADOS.
+    const emails = Array.from(new Set(historico.map((r: any) => r.usuario_email).filter(Boolean)));
+    let mapa: Record<string, string> = {};
+    if (emails.length) {
+      const { data: emps } = await (supabase as any).from("EMPREGADOS").select('"Nome","email"').in("email", emails);
+      (emps ?? []).forEach((e: any) => { if (e.email && e["Nome"]) mapa[e.email] = e["Nome"]; });
+    }
+    setNomesPorEmail(mapa);
+    setRows(historico); setLoading(false);
   };
   return (
     <>
@@ -267,6 +278,7 @@ export function HistoricoCandidato({ candidatoId, nome }: { candidatoId: number;
                   {rows.map((e, i) => {
                     const c = papelHistCor(e.papel);
                     const dt = String(e.created_at ?? "").replace("T", " ").slice(0, 16);
+                    const nomeExibido = nomesPorEmail[e.usuario_email] || e.usuario_nome || "—";
                     return (
                       <div key={i} style={{ display: "flex", gap: 12, paddingBottom: i === rows.length - 1 ? 0 : 18 }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
@@ -280,7 +292,7 @@ export function HistoricoCandidato({ candidatoId, nome }: { candidatoId: number;
                           </div>
                           {(e.de_status || e.para_status) && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{e.de_status ? `${e.de_status} → ` : ""}{e.para_status || ""}</div>}
                           {e.detalhe && <div style={{ fontSize: 12, color: "#475569", marginTop: 4, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 9px", whiteSpace: "pre-wrap" }}>{e.detalhe}</div>}
-                          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{e.usuario_nome || "—"} · {dt}</div>
+                          <div style={{ fontSize: 12.5, color: "#0f172a", marginTop: 4 }}><span style={{ fontWeight: 800 }}>{nomeExibido}</span><span style={{ color: "#94a3b8", fontWeight: 400 }}> · {dt}</span></div>
                         </div>
                       </div>
                     );

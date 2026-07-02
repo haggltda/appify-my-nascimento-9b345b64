@@ -242,6 +242,7 @@ export default function Recrutamento() {
   const [showKanbanCand, setShowKanbanCand] = useState(false);   // painel dedicado do kanban
   const [showHistorico, setShowHistorico]   = useState(false);   // painel de histórico
   const [historico, setHistorico]           = useState<any[]>([]);
+  const [nomesPorEmailHist, setNomesPorEmailHist] = useState<Record<string, string>>({}); // nome real (EMPREGADOS) por e-mail, p/ histórico
   const [epiModal, setEpiModal]             = useState<{ id: number; nome: string } | null>(null);
   const [epiRows, setEpiRows]               = useState<{ item: string; tamanho: string; quantidade: string; periodicidade: string; observacoes: string; obrigatorio: boolean }[]>([]);
   // Roteiro de entrevista (ENTREVISTA / ENTREVISTA GESTOR)
@@ -458,7 +459,17 @@ export default function Recrutamento() {
       .select("*")
       .eq("solicitacao_id", solicitacaoId)
       .order("created_at", { ascending: true });
-    setHistorico(data ?? []);
+    const eventos = data ?? [];
+    // usuario_nome pode ter ficado só com o e-mail (usuário sem nome no metadata)
+    // — busca o nome completo real em EMPREGADOS pra exibir no lugar.
+    const emails = Array.from(new Set(eventos.map((r: any) => r.usuario_email).filter(Boolean)));
+    let mapa: Record<string, string> = {};
+    if (emails.length) {
+      const { data: emps } = await (supabase as any).from("EMPREGADOS").select('"Nome","email"').in("email", emails);
+      (emps ?? []).forEach((e: any) => { if (e.email && e["Nome"]) mapa[e.email] = e["Nome"]; });
+    }
+    setNomesPorEmailHist(mapa);
+    setHistorico(eventos);
   }, []);
 
   // ── Abrir Detalhe ─────────────────────────────────────────────
@@ -1199,6 +1210,7 @@ export default function Recrutamento() {
         {eventos.map((e: any, i: number) => {
           const cor = papelCor(e.papel);
           const dthora = String(e.created_at ?? "").replace("T", " ").slice(0, 16);
+          const nomeExibido = nomesPorEmailHist[e.usuario_email] || e.usuario_nome || "—";
           return (
             <div key={i} style={{ display: "flex", gap: 12, paddingBottom: i === eventos.length - 1 ? 0 : 18 }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
@@ -1213,7 +1225,7 @@ export default function Recrutamento() {
                 {(e.de_status || e.para_status) && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{e.de_status ? `${e.de_status} → ` : ""}{e.para_status || ""}</div>}
                 {e.candidato_nome && <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>Candidato: <b>{e.candidato_nome}</b></div>}
                 {e.detalhe && <div style={{ fontSize: 12, color: "#475569", marginTop: 4, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 9px", whiteSpace: "pre-wrap" }}>{e.detalhe}</div>}
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>{e.usuario_nome || "—"} · {dthora || "—"}</div>
+                <div style={{ fontSize: 12.5, color: "#0f172a", marginTop: 4 }}><span style={{ fontWeight: 800 }}>{nomeExibido}</span><span style={{ color: "#94a3b8", fontWeight: 400 }}> · {dthora || "—"}</span></div>
               </div>
             </div>
           );

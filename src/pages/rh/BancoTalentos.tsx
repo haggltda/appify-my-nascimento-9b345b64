@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { Toasts, btnStyle, EtapaChip } from "@/components/recrutamento/CandidatoInfo";
+import { Toasts, btnStyle, EtapaChip, Modal } from "@/components/recrutamento/CandidatoInfo";
 
 // =====================================================================
 // RH / RECRUTAMENTO — Banco de Talentos
@@ -11,9 +11,42 @@ import { Toasts, btnStyle, EtapaChip } from "@/components/recrutamento/Candidato
 // Fonte: WA_CURRICULOS + RECRUTAMENTO_CANDIDATO_ARQUIVOS.
 // =====================================================================
 
-const fmtDt = (s?: string) => (!s ? "—" : String(s).replace("T", " ").slice(0, 10));
+const fmtDt = (s?: string) => (!s ? "—" : String(s).slice(0, 10).split("-").reverse().join("/"));
 const simNao = (b: any) => (b === true ? "Sim" : b === false ? "Não" : "—");
+const digitsOf = (s?: string) => String(s ?? "").replace(/\D/g, "");
 type Aba = "favoritos" | "banco" | "vaga" | "todos";
+
+// Junta candidaturas da MESMA PESSOA: mesmo CPF (cpf ou cpf_cand) OU mesmo
+// e-mail — candidaturas antigas nem sempre têm os dois. Um registro que
+// conecta dois grupos (CPF num, e-mail noutro) funde os grupos.
+function agruparPessoas(list: any[]): any[][] {
+  const chavesDe = (c: any): string[] => {
+    const ks: string[] = [];
+    const d = digitsOf(c.cpf || c.cpf_cand);
+    if (d.length === 11) ks.push("cpf:" + d);
+    const em = String(c.email ?? "").trim().toLowerCase();
+    if (em) ks.push("em:" + em);
+    return ks.length ? ks : ["id:" + c.id];
+  };
+  const porChave = new Map<string, any[]>();
+  const grupos: any[][] = [];
+  list.forEach((c: any) => {
+    const ks = chavesDe(c);
+    const achados = [...new Set(ks.map(k => porChave.get(k)).filter(Boolean))] as any[][];
+    let g: any[];
+    if (achados.length === 0) { g = []; grupos.push(g); }
+    else {
+      g = achados[0];
+      for (const outro of achados.slice(1)) {
+        g.push(...outro); outro.length = 0;
+        for (const [k, arr] of porChave) if (arr === outro) porChave.set(k, g);
+      }
+    }
+    g.push(c);
+    ks.forEach(k => porChave.set(k, g));
+  });
+  return grupos.filter(g => g.length);
+}
 
 export default function BancoTalentos() {
   const { user } = useAuth();
@@ -27,10 +60,10 @@ export default function BancoTalentos() {
   const [arquivos, setArquivos] = useState<Record<number, any[]>>({});
   const [sols, setSols] = useState<any[]>([]);                 // solicitações (cargo/status)
   const [vagasComCand, setVagasComCand] = useState<{ vaga_id: number; n: number }[]>([]);
-  const [contadores, setContadores] = useState({ banco: 0, favoritos: 0, todos: 0 });
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [puxar, setPuxar] = useState<any | null>(null);
+  const [detalhe, setDetalhe] = useState<{ latest: any; items: any[]; n: number } | null>(null);
   const [vagaSel, setVagaSel] = useState<string>("");
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
 
@@ -43,13 +76,11 @@ export default function BancoTalentos() {
   const cargoDe = (id?: number | null) => sols.find(s => s.id === id)?.cargo || (id ? `#${id}` : "—");
   const vagasAbertas = sols.filter(s => s.status === "Vaga aberta - Seleção de Currículos");
 
+  // Carrega TODAS as candidaturas de uma vez; o recorte por aba é feito por
+  // PESSOA (client-side), pra pessoa aparecer inteira em qualquer aba.
   const load = useCallback(async () => {
     setLoading(true);
-    let q = (supabase as any).from("WA_CURRICULOS").select("*");
-    if (aba === "favoritos") q = q.eq("favorito", true);
-    else if (aba === "banco") q = q.eq("tipo_candidatura", "geral").is("vaga_id", null).is("etapa_processo", null);
-    else if (aba === "vaga") q = q.not("vaga_id", "is", null);
-    const { data, error } = await q.order("created_at", { ascending: false });
+    const { data, error } = await (supabase as any).from("WA_CURRICULOS").select("*").order("created_at", { ascending: false });
     setLoading(false);
     if (error) { toast("Erro ao carregar: " + error.message, "err"); return; }
     const list = data ?? [];
@@ -61,24 +92,18 @@ export default function BancoTalentos() {
       (arq ?? []).forEach((a: any) => { (map[a.candidato_id] = map[a.candidato_id] || []).push(a); });
       setArquivos(map);
     } else setArquivos({});
-  }, [aba]);
+  }, []);
 
   // Metadados (uma vez): solicitações + contadores + vagas com candidatura.
   const loadMeta = useCallback(async () => {
     const [{ data: s }, { data: all }] = await Promise.all([
       (supabase as any).from("SISTEMA_RECRUTAMENTO").select("id,cargo,cidade,status"),
-      (supabase as any).from("WA_CURRICULOS").select("id,vaga_id,favorito,tipo_candidatura,etapa_processo"),
+      (supabase as any).from("WA_CURRICULOS").select("id,vaga_id"),
     ]);
     setSols(s ?? []);
-    const rows = all ?? [];
     const porVaga = new Map<number, number>();
-    rows.forEach((c: any) => { if (c.vaga_id) porVaga.set(c.vaga_id, (porVaga.get(c.vaga_id) || 0) + 1); });
+    (all ?? []).forEach((c: any) => { if (c.vaga_id) porVaga.set(c.vaga_id, (porVaga.get(c.vaga_id) || 0) + 1); });
     setVagasComCand(Array.from(porVaga, ([vaga_id, n]) => ({ vaga_id, n })).sort((a, b) => b.n - a.n));
-    setContadores({
-      todos: rows.length,
-      favoritos: rows.filter((c: any) => c.favorito).length,
-      banco: rows.filter((c: any) => c.tipo_candidatura === "geral" && !c.vaga_id && !c.etapa_processo).length,
-    });
   }, []);
 
   useEffect(() => { loadMeta(); }, [loadMeta]);
@@ -91,12 +116,13 @@ export default function BancoTalentos() {
     window.open(data.signedUrl, "_blank", "noopener");
   };
 
-  const favoritar = async (c: any) => {
-    const novo = !c.favorito;
-    const { error } = await (supabase as any).from("WA_CURRICULOS").update({ favorito: novo }).eq("id", c.id);
+  // Favorita/desfavorita a PESSOA (todas as candidaturas do card juntas).
+  const favoritar = async (items: any[]) => {
+    const novo = !items.some((it: any) => it.favorito);
+    const ids = items.map((it: any) => it.id);
+    const { error } = await (supabase as any).from("WA_CURRICULOS").update({ favorito: novo }).in("id", ids);
     if (error) { toast("Erro: " + error.message, "err"); return; }
-    setRows(rs => rs.map(x => x.id === c.id ? { ...x, favorito: novo } : x).filter(x => aba !== "favoritos" || x.favorito));
-    setContadores(cn => ({ ...cn, favoritos: cn.favoritos + (novo ? 1 : -1) }));
+    setRows(rs => rs.map(x => ids.includes(x.id) ? { ...x, favorito: novo } : x));
     toast(novo ? "⭐ Favoritado." : "Removido dos favoritos.", "ok");
   };
 
@@ -120,7 +146,6 @@ export default function BancoTalentos() {
     load();
   };
 
-  const digitsOf = (s?: string) => String(s ?? "").replace(/\D/g, "");
   // Vagas que receberam currículo agrupadas por CARGO.
   const cargosComCand = (() => {
     const m = new Map<string, number>();
@@ -128,24 +153,38 @@ export default function BancoTalentos() {
     return Array.from(m, ([cargo, n]) => ({ cargo, n })).sort((a, b) => b.n - a.n);
   })();
 
-  const termo = busca.trim().toLowerCase();
-  const filtrados = rows.filter((c: any) => {
-    if (aba === "vaga" && cargoFiltro && cargoDe(c.vaga_id) !== cargoFiltro) return false;
-    if (!termo) return true;
-    return [c.nome, c.cpf, c.cargos_interesse, c.cidade_desejada, c.cidade_residencia, c.escolaridade, cargoDe(c.vaga_id)]
-      .some(v => String(v ?? "").toLowerCase().includes(termo));
-  });
-
-  // Junta candidaturas do MESMO CPF num só card (informa a quantidade).
-  const agrupados = (() => {
-    const m = new Map<string, any[]>();
-    filtrados.forEach((c: any) => {
-      const d = digitsOf(c.cpf);
-      const k = d.length === 11 ? d : `id:${c.id}`;
-      const arr = m.get(k); if (arr) arr.push(c); else m.set(k, [c]);
-    });
-    return Array.from(m.values()).map(items => ({ latest: items[0], items, n: items.length }));
+  // Opções do filtro por cargo de interesse ("cargos_interesse" vem como
+  // string separada por vírgula do formulário público).
+  const cargosOpc = (() => {
+    const s = new Set<string>();
+    rows.forEach((c: any) => String(c.cargos_interesse ?? "").split(",").forEach((p: string) => { const v = p.trim(); if (v) s.add(v); }));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
   })();
+
+  const termo = busca.trim().toLowerCase();
+  // Um card por PESSOA, com todas as candidaturas dela (mais recente primeiro).
+  const grupos = agruparPessoas(rows).map(items => {
+    const ord = [...items].sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")));
+    return { latest: ord[0], items: ord, n: ord.length };
+  });
+  // Banco geral = TODAS as pessoas (candidatura geral ou por vaga, em processo ou não).
+  // Contadores das abas = nº de PESSOAS em cada recorte.
+  const contadores = {
+    todos: grupos.length,
+    favoritos: grupos.filter(g => g.items.some((it: any) => it.favorito)).length,
+    banco: grupos.length,
+  };
+  const agrupados = grupos.filter(g => {
+    if (aba === "favoritos" && !g.items.some((it: any) => it.favorito)) return false;
+    if (aba === "vaga") {
+      if (!g.items.some((it: any) => it.vaga_id)) return false;
+      if (cargoFiltro && !g.items.some((it: any) => it.vaga_id && cargoDe(it.vaga_id) === cargoFiltro)) return false;
+    }
+    if (!termo) return true;
+    return g.items.some((c: any) =>
+      [c.nome, c.cpf, c.cpf_cand, c.cargos_interesse, c.cidade_desejada, c.cidade_residencia, c.escolaridade, cargoDe(c.vaga_id)]
+        .some(v => String(v ?? "").toLowerCase().includes(termo)));
+  });
 
   const info = (label: string, val: any) => (val || val === false ? (
     <div style={{ fontSize: 12, color: "#475569" }}><span style={{ color: "#94a3b8", fontWeight: 700 }}>{label}: </span>{typeof val === "boolean" ? simNao(val) : val}</div>
@@ -218,29 +257,44 @@ export default function BancoTalentos() {
               const c = g.latest;
               const arqsG = g.items.flatMap((it: any) => arquivos[it.id] || []);
               const semVaga = g.items.find((it: any) => !it.vaga_id);
+              // Dado pessoal: pega da candidatura mais recente que tiver (as antigas completam as novas).
+              const deG = (campo: string) => g.items.map((it: any) => it[campo]).find((v: any) => v || v === false);
+              const fav = g.items.some((it: any) => it.favorito);
+              const interesses = deG("cargos_interesse");
               return (
               <div key={c.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.06)", position: "relative" }}>
                 <div style={{ height: 3, background: "#0f3171" }} />
-                <button onClick={() => favoritar(c)} title={c.favorito ? "Remover dos favoritos" : "Favoritar"} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer", fontSize: 20, lineHeight: 1, filter: c.favorito ? "none" : "grayscale(1) opacity(.4)" }}>⭐</button>
+                <button onClick={() => favoritar(g.items)} title={fav ? "Remover dos favoritos" : "Favoritar"} style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer", fontSize: 20, lineHeight: 1, filter: fav ? "none" : "grayscale(1) opacity(.4)" }}>⭐</button>
                 <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", paddingRight: 28, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     {c.nome || "Sem nome"}
                     {g.n > 1 && <span style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: "#eef4ff", border: "1px solid #dbe4f0", color: "#0f3171" }}>📩 {g.n} candidaturas</span>}
                   </div>
-                  {c.vaga_id && <div style={{ fontSize: 11.5, color: "#0369a1" }}>Candidatou-se: <b>{cargoDe(c.vaga_id)}</b> {c.etapa_processo && <EtapaChip etapa={c.etapa_processo} />}</div>}
+                  {(g.n > 1 || c.vaga_id) && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                      {g.items.map((it: any) => (
+                        <div key={it.id} style={{ fontSize: 11.5, color: it.vaga_id ? "#0369a1" : "#64748b" }}>
+                          {it.vaga_id
+                            ? <>Candidatou-se: <b>{cargoDe(it.vaga_id)}</b> {it.etapa_processo && <EtapaChip etapa={it.etapa_processo} />}</>
+                            : <>Candidatura geral (banco de talentos)</>}
+                          <span style={{ color: "#94a3b8", whiteSpace: "nowrap" }}> · {fmtDt(it.created_at)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 14px" }}>
-                    {info("CPF", c.cpf)}
-                    {info("Nasc.", fmtDt(c.data_nascimento))}
-                    {info("Fone", c.telefone)}
-                    {info("Email", c.email)}
-                    {info("Escolaridade", c.escolaridade)}
-                    {info("Reside", c.cidade_residencia)}
-                    {info("Deseja", [c.cidade_desejada, c.estado_desejado].filter(Boolean).join("/"))}
-                    {info("CNH", c.possui_cnh)}
-                    {info("Horários", c.disponibilidade_horarios)}
-                    {info("Experiência", c.experiencia_previa)}
+                    {info("CPF", deG("cpf") || deG("cpf_cand"))}
+                    {info("Nasc.", fmtDt(deG("data_nascimento")))}
+                    {info("Fone", deG("telefone"))}
+                    {info("Email", deG("email"))}
+                    {info("Escolaridade", deG("escolaridade"))}
+                    {info("Reside", deG("cidade_residencia"))}
+                    {info("Deseja", [deG("cidade_desejada"), deG("estado_desejado")].filter(Boolean).join("/"))}
+                    {info("CNH", deG("possui_cnh"))}
+                    {info("Horários", deG("disponibilidade_horarios"))}
+                    {info("Experiência", deG("experiencia_previa"))}
                   </div>
-                  {c.cargos_interesse && <div style={{ fontSize: 12, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 9px" }}><b style={{ color: "#0f3171" }}>Interesse:</b> {c.cargos_interesse}</div>}
+                  {interesses && <div style={{ fontSize: 12, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 9px" }}><b style={{ color: "#0f3171" }}>Interesse:</b> {interesses}</div>}
                   {arqsG.length > 0 && (
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {arqsG.map((a: any) => (
@@ -250,7 +304,10 @@ export default function BancoTalentos() {
                   )}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 2 }}>
                     <span style={{ fontSize: 10.5, color: "#94a3b8" }}>Cadastro em {fmtDt(c.created_at)}</span>
-                    {podeAgir && semVaga && <button onClick={() => { setVagaSel(""); setPuxar(semVaga); }} style={btnStyle("#16a34a", "none", "#fff")}>✓ Puxar para vaga</button>}
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => setDetalhe(g)} style={btnStyle("rgba(15,49,113,.08)", "1px solid rgba(15,49,113,.2)", "#0f3171")}>🔍 Detalhes</button>
+                      {podeAgir && semVaga && <button onClick={() => { setVagaSel(""); setPuxar(semVaga); }} style={btnStyle("#16a34a", "none", "#fff")}>✓ Puxar para vaga</button>}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -284,6 +341,66 @@ export default function BancoTalentos() {
           </div>
         </div>
       )}
+
+      {/* Modal: todas as informações do candidato (dados das candidaturas se completam) */}
+      {detalhe && (() => {
+        const dg = (campo: string) => detalhe.items.map((it: any) => it[campo]).find((v: any) => v || v === false);
+        const arqsD = detalhe.items.flatMap((it: any) => arquivos[it.id] || []);
+        const tit = { fontSize: 11, fontWeight: 800, color: "#0f3171", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: ".4px" };
+        const bloco = { background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px" };
+        const nascimento = dg("data_nascimento");
+        const experiencias = [dg("experiencia_1"), dg("experiencia_2"), dg("experiencia_3")].filter(Boolean).join(" · ");
+        return (
+          <Modal title={`🔍 ${detalhe.latest.nome || "Candidato"}`} sub={`${detalhe.n} candidatura(s) · cadastro mais recente em ${fmtDt(detalhe.latest.created_at)}`} onClose={() => setDetalhe(null)} maxWidth={680}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={bloco}>
+                <div style={tit}>Candidaturas</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {detalhe.items.map((it: any) => (
+                    <div key={it.id} style={{ fontSize: 12, color: it.vaga_id ? "#0369a1" : "#64748b", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      {it.vaga_id
+                        ? <>Vaga: <b>{cargoDe(it.vaga_id)}</b> {it.etapa_processo && <EtapaChip etapa={it.etapa_processo} />}</>
+                        : <>Candidatura geral (banco de talentos)</>}
+                      <span style={{ color: "#94a3b8", whiteSpace: "nowrap" }}>· {fmtDt(it.created_at)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={bloco}>
+                <div style={tit}>Dados pessoais</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 14px" }}>
+                  {info("CPF", dg("cpf") || dg("cpf_cand"))}
+                  {info("RG", dg("rg"))}
+                  {info("Nascimento", nascimento ? fmtDt(nascimento) : null)}
+                  {info("Sexo", dg("sexo"))}
+                  {info("Nome da mãe", dg("nome_mae"))}
+                  {info("Nome do pai", dg("nome_pai"))}
+                  {info("Fone", dg("telefone"))}
+                  {info("Email", dg("email"))}
+                  {info("Escolaridade", dg("escolaridade"))}
+                  {info("Reside", dg("cidade_residencia"))}
+                  {info("Deseja trabalhar", [dg("cidade_desejada"), dg("estado_desejado")].filter(Boolean).join("/"))}
+                  {info("CNH", dg("possui_cnh"))}
+                  {info("Disp. horários", dg("disponibilidade_horarios"))}
+                  {info("Fim de semana", dg("disp_fim_semana"))}
+                  {info("Experiência prévia", dg("experiencia_previa"))}
+                  {info("Estrangeiro", dg("estrangeiro"))}
+                </div>
+                {dg("cargos_interesse") && <div style={{ marginTop: 6, fontSize: 12, color: "#475569" }}><span style={{ color: "#94a3b8", fontWeight: 700 }}>Cargos de interesse: </span>{dg("cargos_interesse")}</div>}
+                {experiencias && <div style={{ marginTop: 4, fontSize: 12, color: "#475569" }}><span style={{ color: "#94a3b8", fontWeight: 700 }}>Experiências: </span>{experiencias}</div>}
+                {dg("mensagem") && <div style={{ marginTop: 4, fontSize: 12, color: "#475569", whiteSpace: "pre-wrap" }}><span style={{ color: "#94a3b8", fontWeight: 700 }}>Mensagem: </span>{dg("mensagem")}</div>}
+              </div>
+              {arqsD.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {arqsD.map((a: any) => (
+                    <button key={a.id} onClick={() => baixar(a)} style={btnStyle(a.tipo === "ctps" ? "rgba(139,92,246,.12)" : "rgba(249,115,22,.12)", `1px solid ${a.tipo === "ctps" ? "rgba(139,92,246,.3)" : "rgba(249,115,22,.3)"}`, a.tipo === "ctps" ? "#7c3aed" : "#ea580c")}>↓ {a.tipo === "ctps" ? "CTPS" : "Currículo"}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
 
       <Toasts toasts={toasts} />
     </div>

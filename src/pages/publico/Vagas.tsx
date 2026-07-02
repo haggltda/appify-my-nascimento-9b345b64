@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ESTADOS_BR, municipiosDe } from "@/data/municipios-brasil";
 import logoGN from "@/assets/logo-grupo-nascimento.png";
+import { TrendingUp, Users, MapPin, Search, Inbox, CheckCircle2, Paperclip, Building2 } from "lucide-react";
 
 // =====================================================================
 // PORTAL PÚBLICO DE VAGAS / CANDIDATURA  (rota /vagas — sem login)
@@ -213,14 +214,14 @@ export default function Vagas() {
         <div className="pv-fg"><label>CPF *</label>
           <input className="pv-fi" inputMode="numeric" value={form.cpf} onChange={e => upd("cpf", maskCpf(e.target.value))} placeholder="000.000.000-00"
             style={form.cpf.replace(/\D/g, "").length === 11 && !isValidCpf(form.cpf) ? { borderColor: "#dc2626", boxShadow: "0 0 0 4px rgba(220,38,38,.12)" } : undefined} />
-          {form.cpf.replace(/\D/g, "").length === 11 && !isValidCpf(form.cpf) && <div style={{ fontSize: 12, color: "#dc2626", marginTop: 5, fontWeight: 600 }}>CPF inválido — confira os números.</div>}</div>
+          {form.cpf.replace(/\D/g, "").length === 11 && !isValidCpf(form.cpf) && <div style={{ fontSize: 12, color: "#dc2626", marginTop: 5, fontWeight: 600 }}>CPF inválido. Confira os números.</div>}</div>
         <div className="pv-fg"><label>RG *</label>
           <input className="pv-fi" value={form.rg} onChange={e => upd("rg", e.target.value)} placeholder="0000000" /></div>
       </div>
       <div className="pv-row">
         <div className="pv-fg"><label>Sexo *</label>
           <select className="pv-fi" value={form.sexo} onChange={e => upd("sexo", e.target.value)}>
-            <option value="">— Selecione —</option>{SEXOS.map(s => <option key={s}>{s}</option>)}</select></div>
+            <option value="">Selecione...</option>{SEXOS.map(s => <option key={s}>{s}</option>)}</select></div>
         <div className="pv-fg"><label>Celular (WhatsApp) *</label>
           <input className="pv-fi" inputMode="numeric" value={form.telefone} onChange={e => upd("telefone", maskFone(e.target.value))} placeholder="(51) 99999-9999" /></div>
       </div>
@@ -232,26 +233,26 @@ export default function Vagas() {
       </div>
       <div className="pv-fg"><label>Grau de escolaridade (comprovado) *</label>
         <select className="pv-fi" value={form.escolaridade} onChange={e => upd("escolaridade", e.target.value)}>
-          <option value="">— Selecione —</option>{ESCOLARIDADES.map(s => <option key={s}>{s}</option>)}</select></div>
+          <option value="">Selecione...</option>{ESCOLARIDADES.map(s => <option key={s}>{s}</option>)}</select></div>
 
       {/* Cidade onde reside */}
       <div className="pv-row">
         <div className="pv-fg"><label>Estado onde reside *</label>
           <select className="pv-fi" value={form.uf_residencia} onChange={e => setForm(s => ({ ...s, uf_residencia: e.target.value, cidade_residencia: "" }))}>
-            <option value="">— UF —</option>{ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} — {e.nome}</option>)}</select></div>
+            <option value="">UF</option>{ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} · {e.nome}</option>)}</select></div>
         <div className="pv-fg"><label>Cidade onde reside *</label>
           <select className="pv-fi" value={form.cidade_residencia} disabled={!form.uf_residencia} onChange={e => upd("cidade_residencia", e.target.value)}>
-            <option value="">{form.uf_residencia ? "— Selecione —" : "Selecione o estado"}</option>{municipiosDe(form.uf_residencia).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+            <option value="">{form.uf_residencia ? "Selecione..." : "Selecione o estado"}</option>{municipiosDe(form.uf_residencia).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
       </div>
 
       {modo === "geral" && (
         <div className="pv-row">
           <div className="pv-fg"><label>Estado onde deseja trabalhar *</label>
             <select className="pv-fi" value={form.uf_desejada} onChange={e => setForm(s => ({ ...s, uf_desejada: e.target.value, cidade_desejada: "" }))}>
-              <option value="">— UF —</option>{ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} — {e.nome}</option>)}</select></div>
+              <option value="">UF</option>{ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} · {e.nome}</option>)}</select></div>
           <div className="pv-fg"><label>Cidade onde deseja trabalhar *</label>
             <select className="pv-fi" value={form.cidade_desejada} disabled={!form.uf_desejada} onChange={e => upd("cidade_desejada", e.target.value)}>
-              <option value="">{form.uf_desejada ? "— Selecione —" : "Selecione o estado"}</option>{municipiosDe(form.uf_desejada).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+              <option value="">{form.uf_desejada ? "Selecione..." : "Selecione o estado"}</option>{municipiosDe(form.uf_desejada).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
         </div>
       )}
 
@@ -301,9 +302,9 @@ export default function Vagas() {
       </div>
 
       {/* Anexos */}
-      <FileMulti label={`Anexe seu currículo ${modo === "geral" ? "(opcional)" : "(opcional)"} — até ${MAX_FILES} arquivos, ${MAX_MB} MB cada`}
+      <FileMulti label={`Anexe seu currículo ${modo === "geral" ? "(opcional)" : "(opcional)"} · até ${MAX_FILES} arquivos, ${MAX_MB} MB cada`}
         files={cvFiles} onAdd={l => addFiles(cvFiles, setCvFiles, l)} onRemove={i => setCvFiles(cvFiles.filter((_, j) => j !== i))} />
-      <FileMulti label={`Anexe sua CTPS Digital ${modo === "geral" ? "*" : "(opcional)"} — até ${MAX_FILES} arquivos, ${MAX_MB} MB cada`}
+      <FileMulti label={`Anexe sua CTPS Digital ${modo === "geral" ? "*" : "(opcional)"} · até ${MAX_FILES} arquivos, ${MAX_MB} MB cada`}
         files={ctpsFiles} onAdd={l => addFiles(ctpsFiles, setCtpsFiles, l)} onRemove={i => setCtpsFiles(ctpsFiles.filter((_, j) => j !== i))} />
 
       {modo === "vaga" && (
@@ -442,23 +443,23 @@ export default function Vagas() {
         <section className="pv-hero">
           <div className="pv-wrap pv-hero-grid">
             <div>
-              <span className="pv-eyebrow">🧡 Trabalhe Conosco</span>
+              <span className="pv-eyebrow"><Building2 size={13} /> Trabalhe Conosco</span>
               <h1>Seu próximo passo de carreira começa <span className="hl">aqui.</span></h1>
-              <p className="pv-hero-sub">Candidate-se a uma vaga aberta na sua cidade — ou faça seu cadastro geral no nosso Banco de Talentos para qualquer oportunidade futura.</p>
+              <p className="pv-hero-sub">Candidate-se a uma vaga aberta na sua cidade ou faça seu cadastro geral no nosso Banco de Talentos para qualquer oportunidade futura.</p>
               <div className="pv-hero-cta">
                 <button className="pv-btn pv-btn-pri" onClick={() => irPara("vagas")}>Ver vagas abertas →</button>
                 <button className="pv-btn-ghost" onClick={abrirFormGeral}>Entrar ao Banco de Talentos</button>
               </div>
               {!loadingCid && totalVagas > 0 && (
-                <div style={{ marginTop: 16 }}><span className="pv-stat-inline">🟢 <b>{totalVagas}</b> vaga{totalVagas > 1 ? "s" : ""} em <b>{cidades.length}</b> cidade{cidades.length > 1 ? "s" : ""}</span></div>
+                <div style={{ marginTop: 16 }}><span className="pv-stat-inline"><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} /> <b>{totalVagas}</b> vaga{totalVagas > 1 ? "s" : ""} em <b>{cidades.length}</b> cidade{cidades.length > 1 ? "s" : ""}</span></div>
               )}
             </div>
             <div className="pv-hero-art">
               <Arco className="arco" /><div className="glow" />
               <div className="lbl">Vagas abertas agora</div>
-              <div className="big">{loadingCid ? "—" : totalVagas}<small>oportunidade{totalVagas !== 1 ? "s" : ""}</small></div>
+              <div className="big">{loadingCid ? "…" : totalVagas}<small>oportunidade{totalVagas !== 1 ? "s" : ""}</small></div>
               <div className="mini">
-                <div className="chip">{loadingCid ? "—" : cidades.length}<span>cidades</span></div>
+                <div className="chip">{loadingCid ? "…" : cidades.length}<span>cidades</span></div>
                 <div className="chip">100%<span>online</span></div>
                 <div className="chip">Banco<span>de talentos</span></div>
               </div>
@@ -470,30 +471,30 @@ export default function Vagas() {
           <div className="pv-wrap">
             <div className="pv-sec-h"><div className="kick">Por que a Nascimento</div><h2>Um lugar pra crescer de verdade</h2><p>Mais do que uma vaga, um time que valoriza as pessoas no dia a dia.</p></div>
             <div className="pv-pillars">
-              <div className="pv-pillar"><div className="ic">🚀</div><h3>Crescimento</h3><p>Oportunidades reais de evolução, novos desafios e reconhecimento pelo seu trabalho.</p></div>
-              <div className="pv-pillar"><div className="ic">🤝</div><h3>Time que cuida</h3><p>Um ambiente próximo, com respeito e apoio para você fazer o seu melhor.</p></div>
-              <div className="pv-pillar"><div className="ic">📍</div><h3>Perto de você</h3><p>Vagas em diversas cidades onde atuamos — trabalhe perto de casa.</p></div>
+              <div className="pv-pillar"><div className="ic"><TrendingUp size={22} color="#ea580c" /></div><h3>Crescimento</h3><p>Oportunidades reais de evolução, novos desafios e reconhecimento pelo seu trabalho.</p></div>
+              <div className="pv-pillar"><div className="ic"><Users size={22} color="#ea580c" /></div><h3>Time que cuida</h3><p>Um ambiente próximo, com respeito e apoio para você fazer o seu melhor.</p></div>
+              <div className="pv-pillar"><div className="ic"><MapPin size={22} color="#ea580c" /></div><h3>Perto de você</h3><p>Vagas em diversas cidades onde atuamos, trabalhe perto de casa.</p></div>
             </div>
           </div>
         </section>
 
         <section id="vagas" className="pv-sec">
           <div className="pv-wrap">
-            <div className="pv-sec-h"><div className="kick">Vagas abertas</div><h2>Selecione a sua cidade</h2><p>Escolha a cidade para ver as vagas — ou use o <b>cadastro geral</b> acima para qualquer vaga.</p></div>
+            <div className="pv-sec-h"><div className="kick">Vagas abertas</div><h2>Selecione a sua cidade</h2><p>Escolha a cidade para ver as vagas, ou use o <b>cadastro geral</b> acima para qualquer vaga.</p></div>
             <div className="pv-card">
               <div className="pv-body">
                 {loadingCid ? (<div className="pv-empty">Carregando cidades…</div>
                 ) : cidades.length === 0 ? (
-                  <div className="pv-empty"><div className="ico">📭</div>Nenhuma vaga aberta no momento. Faça seu <b>cadastro geral</b> para ser avisado de futuras oportunidades!
+                  <div className="pv-empty"><div className="ico"><Inbox size={40} color="#94a3b8" /></div>Nenhuma vaga aberta no momento. Faça seu <b>cadastro geral</b> para ser avisado de futuras oportunidades!
                     <div style={{ marginTop: 16 }}><button className="pv-btn pv-btn-pri" onClick={abrirFormGeral}>Entrar ao Banco de Talentos →</button></div></div>
                 ) : (<>
-                  <input className="pv-search" value={buscaCidade} onChange={e => setBuscaCidade(e.target.value)} placeholder="🔎 Buscar cidade…" inputMode="search" />
+                  <input className="pv-search" value={buscaCidade} onChange={e => setBuscaCidade(e.target.value)} placeholder="Buscar cidade..." inputMode="search" />
                   {cidadesFiltradas.length === 0 ? (<div className="pv-empty">Nenhuma cidade encontrada para “{buscaCidade}”.</div>
                   ) : (
                     <div className="pv-grid">
                       {cidadesFiltradas.map(c => (
                         <button key={c.cidade} className="pv-tile" onClick={() => escolherCidade(c.cidade)}>
-                          <span className="pin">📍</span>
+                          <span className="pin"><MapPin size={18} color="#0f3171" /></span>
                           <span><div className="city">{c.cidade}</div><div className="n">{c.vagas} vaga{c.vagas > 1 ? "s" : ""} disponível{c.vagas > 1 ? "is" : ""}</div></span>
                           <span className="arrow">›</span>
                         </button>
@@ -518,7 +519,7 @@ export default function Vagas() {
                 </div>
                 <div className="pv-body">
                   {loadingVagas ? (<div className="pv-empty">Carregando vagas…</div>
-                  ) : vagas.length === 0 ? (<div className="pv-empty"><div className="ico">🔍</div>Nenhuma vaga aberta nesta cidade agora.</div>
+                  ) : vagas.length === 0 ? (<div className="pv-empty"><div className="ico"><Search size={40} color="#94a3b8" /></div>Nenhuma vaga aberta nesta cidade agora.</div>
                   ) : vagas.map(v => (
                     <div key={v.id} className="pv-vaga">
                       <div className="cargo">{v.cargo}</div>
@@ -545,7 +546,7 @@ export default function Vagas() {
 
               {step === "form-geral" && (<>
                 <div className="pv-card-hd">
-                  <div><h2>Cadastro geral — Banco de Talentos</h2><div className="crumb">Candidatura para qualquer vaga</div></div>
+                  <div><h2>Cadastro geral · Banco de Talentos</h2><div className="crumb">Candidatura para qualquer vaga</div></div>
                   <button className="pv-back" onClick={voltarInicio}>← início</button>
                 </div>
                 <div className="pv-body">{renderCampos("geral")}</div>
@@ -553,7 +554,7 @@ export default function Vagas() {
 
               {step === "ok" && (
                 <div className="pv-ok">
-                  <div className="ico">✅</div>
+                  <div className="ico"><CheckCircle2 size={60} color="#16a34a" /></div>
                   <h2>Candidatura enviada!</h2>
                   <p>{vaga ? <>Recebemos sua candidatura para <b>{vaga.cargo}</b> em {vaga.cidade}.</> : <>Seu cadastro foi adicionado ao nosso <b>Banco de Talentos</b>.</>} Nossa equipe de recrutamento entrará em contato caso seu perfil seja selecionado. Boa sorte!</p>
                   <button className="pv-btn pv-btn-pri" onClick={voltarInicio}>Voltar ao início</button>
@@ -571,7 +572,7 @@ export default function Vagas() {
             <div className="pv-logo" style={{ background: "rgba(255,255,255,.1)" }}><img src={logoGN} alt="" /></div>
             <div className="nm">Grupo Nascimento</div>
           </div>
-          <div className="cp">© {new Date().getFullYear()} Grupo Nascimento — Todos os direitos reservados</div>
+          <div className="cp">© {new Date().getFullYear()} Grupo Nascimento · Todos os direitos reservados</div>
         </div>
       </footer>
     </div>
@@ -592,7 +593,7 @@ function FileMulti({ label, files, onAdd, onRemove }: { label: string; files: Fi
         <div className="pv-filelist">
           {files.map((f, i) => (
             <div key={i} className="pv-fileitem">
-              <span>📎 {f.name} <span style={{ color: "#94a3b8" }}>({(f.size / 1024 / 1024).toFixed(1)} MB)</span></span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Paperclip size={14} color="#64748b" /> {f.name} <span style={{ color: "#94a3b8" }}>({(f.size / 1024 / 1024).toFixed(1)} MB)</span></span>
               <button type="button" onClick={() => onRemove(i)} title="Remover">✕</button>
             </div>
           ))}
