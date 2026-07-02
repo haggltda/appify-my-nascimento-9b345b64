@@ -3,7 +3,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
-  APROVACOES_TESTES_INTERNOS, COMPLEXIDADE_LABEL, CRITERIO_TRIAGEM_LABEL, ETAPAS, STATUS_DESENVOLVIMENTO_LABEL,
+  APROVACOES_TESTES_INTERNOS, BENEFICIOS_ESPERADOS_OPCOES, CLASSIFICACAO_DEMANDA_OPCOES,
+  COMPLEXIDADE_LABEL, CRITERIO_TRIAGEM_LABEL, DOCUMENTOS_APOIO_OPCOES, ETAPAS,
+  GRAU_URGENCIA_LABEL, IMPACTO_TIPO_OPCOES, STATUS_DESENVOLVIMENTO_LABEL,
   TIPO_COMENTARIO_BORDA, TIPO_COMENTARIO_LABEL, fmtData, nomeUsuario,
   type Anexo, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
@@ -73,6 +75,20 @@ export function temDadoResumo(
   }
 }
 
+function LvItem({ label, valor }: { label: string; valor: ReactNode }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <div className="text-xs whitespace-pre-wrap">{valor || <span className="text-muted-foreground">—</span>}</div>
+    </div>
+  );
+}
+
+function listLabels(valores: string[] | null | undefined, opcoes: { value: string; label: string }[]): string {
+  if (!valores || valores.length === 0) return "—";
+  return valores.map((v) => opcoes.find((o) => o.value === v)?.label ?? v).join(", ");
+}
+
 function Bloco({ etapaKey, children }: { etapaKey: string; children: ReactNode }) {
   return (
     <div className="space-y-2 rounded-md border border-dashed border-border p-3 opacity-90">
@@ -125,6 +141,56 @@ function CampoTexto({ titulo, texto, prazo }: { titulo: string; texto: string | 
       {texto && <p className="whitespace-pre-wrap text-xs text-muted-foreground">{texto}</p>}
       {prazo && <p className="text-[11px] text-muted-foreground">Prazo: {fmtData(prazo)}</p>}
     </div>
+  );
+}
+
+function ResumoSolicitacaoDemanda({ card }: ResumoProps) {
+  const temParteA = !!(card.area_solicitante || card.responsavel_solicitacao || (card.classificacao_demanda && card.classificacao_demanda.length > 0) || card.descricao_necessidade);
+  return (
+    <Bloco etapaKey="solicitacao_demanda">
+      {!temParteA ? (
+        <div className="space-y-2">
+          {card.objetivo_solicitacao && <LvItem label="Objetivo" valor={card.objetivo_solicitacao} />}
+          {card.problema_atual && <LvItem label="Problema atual" valor={card.problema_atual} />}
+          {card.justificativa && <LvItem label="Justificativa" valor={card.justificativa} />}
+          {card.beneficio_esperado && <LvItem label="Benefício esperado" valor={card.beneficio_esperado} />}
+          {card.impacto_operacional && <LvItem label="Impacto operacional" valor={card.impacto_operacional} />}
+          {card.grau_urgencia && <LvItem label="Grau de urgência" valor={GRAU_URGENCIA_LABEL[card.grau_urgencia] ?? card.grau_urgencia} />}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {card.area_solicitante && <LvItem label="Área Solicitante" valor={card.area_solicitante} />}
+          {card.responsavel_solicitacao && <LvItem label="Responsável" valor={card.responsavel_solicitacao} />}
+          {card.cargo_solicitante && <LvItem label="Cargo" valor={card.cargo_solicitante} />}
+          {card.email_solicitante && <LvItem label="E-mail" valor={card.email_solicitante} />}
+          {card.telefone_solicitante && <LvItem label="Telefone" valor={card.telefone_solicitante} />}
+          {card.classificacao_demanda && card.classificacao_demanda.length > 0 && (
+            <LvItem label="Classificação da Demanda" valor={listLabels(card.classificacao_demanda, CLASSIFICACAO_DEMANDA_OPCOES)} />
+          )}
+          {card.descricao_necessidade && <LvItem label="Descrição da Necessidade" valor={card.descricao_necessidade} />}
+          {card.problema_atual && <LvItem label="Situação Atual" valor={card.problema_atual} />}
+          {card.situacao_desejada && <LvItem label="Situação Desejada" valor={card.situacao_desejada} />}
+          {card.justificativa && <LvItem label="Justificativa" valor={card.justificativa} />}
+          {card.beneficios_esperados_lista && card.beneficios_esperados_lista.length > 0 && (
+            <LvItem label="Benefícios Esperados" valor={listLabels(card.beneficios_esperados_lista, BENEFICIOS_ESPERADOS_OPCOES)} />
+          )}
+          {card.impacto_tipo && (
+            <LvItem label="Impacto" valor={IMPACTO_TIPO_OPCOES.find((o) => o.value === card.impacto_tipo)?.label ?? card.impacto_tipo} />
+          )}
+          {card.areas_impactadas && <LvItem label="Áreas Impactadas" valor={card.areas_impactadas} />}
+          {card.grau_urgencia && <LvItem label="Grau de Urgência" valor={GRAU_URGENCIA_LABEL[card.grau_urgencia] ?? card.grau_urgencia} />}
+          {card.justificativa_urgencia && <LvItem label="Justificativa da Urgência" valor={card.justificativa_urgencia} />}
+          {card.existe_processo_documentado != null && (
+            <LvItem label="Processo Documentado" valor={card.existe_processo_documentado ? "Sim" : "Não"} />
+          )}
+          {card.codigo_processo && <LvItem label="Código do Processo" valor={card.codigo_processo} />}
+          {card.tipos_documentos_apoio && card.tipos_documentos_apoio.length > 0 && (
+            <LvItem label="Documentos de Apoio" valor={listLabels(card.tipos_documentos_apoio, DOCUMENTOS_APOIO_OPCOES)} />
+          )}
+          {card.observacoes_abertura && <LvItem label="Observações" valor={card.observacoes_abertura} />}
+        </div>
+      )}
+    </Bloco>
   );
 }
 
@@ -274,6 +340,7 @@ function ResumoAcompanhamentoAssistido({ anexos, onDownloadAnexo }: ResumoProps)
 }
 
 export const RESUMOS: Record<string, (props: ResumoProps) => JSX.Element> = {
+  solicitacao_demanda: ResumoSolicitacaoDemanda,
   triagem_inicial: ResumoTriagemInicial,
   analise_necessidade: ResumoAnaliseNecessidade,
   levantamento_funcional: ResumoLevantamentoFuncional,

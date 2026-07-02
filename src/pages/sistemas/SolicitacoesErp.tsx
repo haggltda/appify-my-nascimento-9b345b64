@@ -39,7 +39,6 @@ import { ImplantacaoPanel } from "./etapas/ImplantacaoPanel";
 import { AcompanhamentoAssistidoPanel } from "./etapas/AcompanhamentoAssistidoPanel";
 import { EncerramentoPanel } from "./etapas/EncerramentoPanel";
 import { DocumentosAssinaturasTab } from "./etapas/DocumentosAssinaturasTab";
-import { exportarPdfCaptura } from "./etapas/exportarPdfCaptura";
 
 const BUCKET = "sistema-solicitacoes";
 
@@ -516,14 +515,6 @@ export default function SolicitacoesErp() {
     if (ok) setNovoComentario("");
   };
 
-  const exportarPdfDetalhes = async (nomeArquivo: string) => {
-    const abaAnterior = aba;
-    setAba("detalhes");
-    await new Promise<void>((resolve) => setTimeout(resolve, 150));
-    await exportarPdfCaptura("pdf-capture-target", nomeArquivo);
-    setAba(abaAnterior);
-  };
-
   const PainelEtapa = cardDetalhe ? PAINEIS[cardDetalhe.etapa] : null;
   const totalNaColuna = cardDetalhe ? (grouped.get(cardDetalhe.etapa)?.length ?? 0) : 0;
   const prioridadesUsadas = cardDetalhe
@@ -760,7 +751,6 @@ export default function SolicitacoesErp() {
                   comentarios={comentarios}
                   convidados={convidados}
                   onDownloadAnexo={downloadAnexo}
-                  onExportarPdf={exportarPdfDetalhes}
                 />
               )}
 
