@@ -32,6 +32,18 @@ export async function exportarPdfCaptura(
     node = node.parentElement;
   }
 
+  // html2canvas não renderiza corretamente placeholder de <input> via padding/flex.
+  // Injeta CSS temporário para forçar centralização via line-height antes de capturar.
+  const pdfStyle = document.createElement("style");
+  pdfStyle.textContent = `
+    #${elementId} input {
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      line-height: 2.5rem !important;
+    }
+  `;
+  document.head.appendChild(pdfStyle);
+
   try {
     const canvas = await html2canvas(el, {
       scale: 1.5,
@@ -60,6 +72,7 @@ export async function exportarPdfCaptura(
     pdf.addImage(imgData, "JPEG", MARGEM, MARGEM, larguraMm, alturaMm);
     pdf.save(nomeArquivo);
   } finally {
+    pdfStyle.remove();
     restaurar.forEach(({ el: e, overflow, maxHeight, height }) => {
       e.style.overflow = overflow;
       e.style.maxHeight = maxHeight;

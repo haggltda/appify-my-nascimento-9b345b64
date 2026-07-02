@@ -18,6 +18,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import logoNascimento from "@/assets/logo-nascimento-icon.png";
 import {
   ETAPAS, CAMPOS_ABERTURA, TIPO_SOLICITACAO_LABEL, GRAU_URGENCIA_LABEL, STATUS_DESENVOLVIMENTO_LABEL, STATUS_DESENVOLVIMENTO_COR,
+  CLASSIFICACAO_DEMANDA_OPCOES, BENEFICIOS_ESPERADOS_OPCOES, IMPACTO_TIPO_OPCOES, DOCUMENTOS_APOIO_OPCOES,
   nomeUsuario, iniciais, fmtData, statusPrazoEtapa, sdNumero,
   type Solicitacao, type Anexo, type Comentario, type Convidado, type Papeis, type AprovadorTesteInterno, type Assinatura,
 } from "./etapas/types";
@@ -109,8 +110,22 @@ function DescricaoExpandivel({ texto }: { texto: string }) {
   );
 }
 
+function CampoAbertura({ label, valor }: { label: string; valor: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="whitespace-pre-wrap break-words text-sm">{valor || "—"}</p>
+    </div>
+  );
+}
+
 function DetalhesAberturaExpandivel({ card }: { card: Solicitacao }) {
   const [aberto, setAberto] = useState(false);
+  const temParteA = !!(
+    card.area_solicitante || card.responsavel_solicitacao ||
+    (card.classificacao_demanda && card.classificacao_demanda.length > 0) ||
+    card.descricao_necessidade
+  );
   return (
     <div className="rounded-md border border-border">
       <button
@@ -123,20 +138,56 @@ function DetalhesAberturaExpandivel({ card }: { card: Solicitacao }) {
       </button>
       {aberto && (
         <div className="space-y-3 border-t border-border p-3">
-          {CAMPOS_ABERTURA.map((c) => (
-            <div key={c.key}>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{c.label}</p>
-              <p className="whitespace-pre-wrap break-words text-sm">{(card[c.key] as string | null) || "—"}</p>
-            </div>
-          ))}
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Grau de urgência</p>
-            <p className="text-sm">{card.grau_urgencia ? GRAU_URGENCIA_LABEL[card.grau_urgencia] ?? card.grau_urgencia : "—"}</p>
-          </div>
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo da solicitação</p>
-            <p className="text-sm">{card.tipo_solicitacao ? TIPO_SOLICITACAO_LABEL[card.tipo_solicitacao] ?? card.tipo_solicitacao : "—"}</p>
-          </div>
+          {!temParteA ? (
+            <>
+              {CAMPOS_ABERTURA.map((c) => (
+                <CampoAbertura key={c.key} label={c.label} valor={(card[c.key] as string | null)} />
+              ))}
+              <CampoAbertura label="Grau de urgência" valor={card.grau_urgencia ? GRAU_URGENCIA_LABEL[card.grau_urgencia] ?? card.grau_urgencia : null} />
+              <CampoAbertura label="Tipo da solicitação" valor={card.tipo_solicitacao ? TIPO_SOLICITACAO_LABEL[card.tipo_solicitacao] ?? card.tipo_solicitacao : null} />
+            </>
+          ) : (
+            <>
+              {card.area_solicitante && <CampoAbertura label="Área Solicitante" valor={card.area_solicitante} />}
+              {card.responsavel_solicitacao && <CampoAbertura label="Responsável" valor={card.responsavel_solicitacao} />}
+              {card.cargo_solicitante && <CampoAbertura label="Cargo" valor={card.cargo_solicitante} />}
+              {card.email_solicitante && <CampoAbertura label="E-mail" valor={card.email_solicitante} />}
+              {card.telefone_solicitante && <CampoAbertura label="Telefone" valor={card.telefone_solicitante} />}
+              {card.classificacao_demanda && card.classificacao_demanda.length > 0 && (
+                <CampoAbertura
+                  label="Classificação da Demanda"
+                  valor={card.classificacao_demanda.map((v) => CLASSIFICACAO_DEMANDA_OPCOES.find((o) => o.value === v)?.label ?? v).join(", ")}
+                />
+              )}
+              {card.descricao_necessidade && <CampoAbertura label="Descrição da Necessidade" valor={card.descricao_necessidade} />}
+              {card.problema_atual && <CampoAbertura label="Situação Atual" valor={card.problema_atual} />}
+              {card.situacao_desejada && <CampoAbertura label="Situação Desejada" valor={card.situacao_desejada} />}
+              {card.justificativa && <CampoAbertura label="Justificativa" valor={card.justificativa} />}
+              {card.beneficios_esperados_lista && card.beneficios_esperados_lista.length > 0 && (
+                <CampoAbertura
+                  label="Benefícios Esperados"
+                  valor={card.beneficios_esperados_lista.map((v) => BENEFICIOS_ESPERADOS_OPCOES.find((o) => o.value === v)?.label ?? v).join(", ")}
+                />
+              )}
+              {card.impacto_tipo && (
+                <CampoAbertura label="Impacto" valor={IMPACTO_TIPO_OPCOES.find((o) => o.value === card.impacto_tipo)?.label ?? card.impacto_tipo} />
+              )}
+              {card.areas_impactadas && <CampoAbertura label="Áreas Impactadas" valor={card.areas_impactadas} />}
+              {card.grau_urgencia && <CampoAbertura label="Grau de Urgência" valor={GRAU_URGENCIA_LABEL[card.grau_urgencia] ?? card.grau_urgencia} />}
+              {card.justificativa_urgencia && <CampoAbertura label="Justificativa da Urgência" valor={card.justificativa_urgencia} />}
+              {card.existe_processo_documentado != null && (
+                <CampoAbertura label="Processo Documentado" valor={card.existe_processo_documentado ? "Sim" : "Não"} />
+              )}
+              {card.codigo_processo && <CampoAbertura label="Código do Processo" valor={card.codigo_processo} />}
+              {card.tipos_documentos_apoio && card.tipos_documentos_apoio.length > 0 && (
+                <CampoAbertura
+                  label="Documentos de Apoio"
+                  valor={card.tipos_documentos_apoio.map((v) => DOCUMENTOS_APOIO_OPCOES.find((o) => o.value === v)?.label ?? v).join(", ")}
+                />
+              )}
+              {card.observacoes_abertura && <CampoAbertura label="Observações Adicionais" valor={card.observacoes_abertura} />}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -819,7 +870,7 @@ export default function SolicitacoesErp() {
                       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Anexos gerais</p>
                       <div className="space-y-1">
                         {anexosGerais.map((a) => (
-                          <div key={a.id} className="flex items-center justify-between rounded border border-border px-2 py-1.5 text-xs">
+                          <div key={a.id} className="flex justify-between rounded border border-border px-2 py-1.5 text-xs leading-4">
                             <span className="truncate" title={a.nome_arquivo}>{a.nome_arquivo}</span>
                             <button type="button" onClick={() => downloadAnexo(a.storage_path)} className="ml-2 shrink-0 text-primary hover:underline">
                               abrir

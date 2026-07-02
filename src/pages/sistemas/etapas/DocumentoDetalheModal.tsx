@@ -3,12 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, FileDown } from "lucide-react";
+import { exportarPdfCaptura } from "./exportarPdfCaptura";
 import {
   CAMPOS_ABERTURA, ETAPAS, GRAU_URGENCIA_LABEL, PESQUISA_ENCERRAMENTO,
   PESQUISA_PODE_ENCERRAR_OPCOES, PESQUISA_PODE_ENCERRAR_PERGUNTA, TIPO_SOLICITACAO_LABEL, nomeUsuario,
   type Anexo, type Assinatura, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
-import { exportarPdfCaptura } from "./exportarPdfCaptura";
 import { RESUMOS, temDadoResumo } from "./Resumos";
 import { Historico } from "./Historico";
 import { PdfDocumento, fmtDataHoraPdf } from "./pdfHelpers";
@@ -205,12 +205,28 @@ export function DocumentoDetalheModal({
   const assinaturasDaEtapa = (etapaKey: string) => assinaturas.filter((a) => a.etapa === etapaKey);
   const Resumo = RESUMOS[documento.etapaOrigem];
 
+  const nomeArquivoPdf = `${documento.sigla}-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`;
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Anexo {documento.numero} – {documento.nome} ({documento.sigla})</DialogTitle>
         </DialogHeader>
+
+        {/* Botões de exportar ficam FORA da área de captura para não aparecer no PDF */}
+        {(documento.tipo === "anexo_etapa" || documento.tipo === "encerramento_completo") && (
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => exportarPdfCaptura("pdf-doc-capture-target", nomeArquivoPdf)}
+            >
+              <FileDown className="h-3.5 w-3.5" /> Exportar PDF
+            </Button>
+          </div>
+        )}
 
         <div id="pdf-doc-capture-target" className="space-y-4">
           {documento.tipo === "anexos_gerais" && (
@@ -230,19 +246,14 @@ export function DocumentoDetalheModal({
             </>
           )}
 
-          {documento.tipo === "anexo_etapa" && Resumo && (
+          {documento.tipo === "anexo_etapa" && (
             <>
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => exportarPdfCaptura("pdf-capture-target", `${documento.sigla}-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}
-                >
-                  <FileDown className="h-3.5 w-3.5" /> Exportar PDF
-                </Button>
+              {/* Título visível no PDF */}
+              <div className="border-b border-border pb-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</p>
+                <h2 className="text-base font-bold text-[#153169]">{documento.nome} ({documento.sigla})</h2>
               </div>
-              <Resumo card={card} anexos={anexos} comentarios={comentarios} usuarios={usuarios} onDownloadAnexo={onDownloadAnexo} />
+              {Resumo && <Resumo card={card} anexos={anexos} comentarios={comentarios} usuarios={usuarios} onDownloadAnexo={onDownloadAnexo} />}
               <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL[documento.etapaOrigem]} assinaturas={assinaturasDaEtapa(documento.etapaOrigem)} usuarios={usuarios} />
             </>
           )}
@@ -260,15 +271,10 @@ export function DocumentoDetalheModal({
 
           {documento.tipo === "encerramento_completo" && (
             <>
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => exportarEncerramentoPdf(card, titulo, solicitacaoId, anexos, comentarios, usuarios, assinaturas, logs)}
-                >
-                  <FileDown className="h-3.5 w-3.5" /> Exportar PDF
-                </Button>
+              {/* Título visível no PDF */}
+              <div className="border-b border-border pb-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</p>
+                <h2 className="text-base font-bold text-[#153169]">{documento.nome} ({documento.sigla})</h2>
               </div>
 
               <div className="space-y-3">
@@ -280,7 +286,18 @@ export function DocumentoDetalheModal({
                 })}
               </div>
 
-              <div className="max-h-[300px] overflow-y-auto rounded-md border border-border p-3">
+              {/* Pesquisa de Avaliação da Demanda (conteúdo do Anexo VIII) */}
+              {(card.pesquisa_atendeu_necessidade != null || card.pesquisa_pode_encerrar != null) && (
+                <div className="rounded-md border border-dashed border-border p-3 opacity-90">
+                  <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Pesquisa de Avaliação da Demanda <span className="font-normal">— concluído</span>
+                  </p>
+                  <PesquisaVisual card={card} />
+                </div>
+              )}
+
+              {/* Sem max-h para que html2canvas capture o histórico completo */}
+              <div className="rounded-md border border-border p-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Histórico</p>
                 <Historico solicitacaoId={solicitacaoId} usuarios={usuarios} />
               </div>

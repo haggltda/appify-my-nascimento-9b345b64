@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, FileDown } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { nomeUsuario, type EtapaPanelProps } from "./types";
 import { AnexoSimples } from "./AnexoSimples";
-import { exportarPdfCaptura } from "./exportarPdfCaptura";
 
 const OPCOES = [
   { value: "sim", label: "Sim" },
@@ -29,11 +28,6 @@ export function ImplantacaoPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => exportarPdfCaptura("pdf-capture-target", `implantacao-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}>
-          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
-        </Button>
-      </div>
       <p className="text-sm font-medium">Foi implantado corretamente?</p>
       <div className="flex gap-2">
         {OPCOES.map((o) => (

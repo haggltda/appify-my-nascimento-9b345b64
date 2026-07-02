@@ -3,13 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRight, Ban, Undo2, FileDown } from "lucide-react";
+import { ArrowRight, Ban, Undo2 } from "lucide-react";
 import {
   TRIAGEM_CLASSIFICACAO_LABEL, TRIAGEM_DECISAO_LABEL,
   type EtapaPanelProps,
 } from "./types";
 import { RecusadoPanel } from "./RecusadoPanel";
-import { exportarPdfCaptura } from "./exportarPdfCaptura";
 
 function CampoLabel({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -37,21 +36,10 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
   }
 
   const podeEditar = papeis.controladoria || papeis.comite;
-  const podeAvancar = podeEditar && !!card.triagem_classificacao && !!card.triagem_decisao;
+  const podeAvancar = podeEditar && card.triagem_classificacao === "sistema" && !!card.triagem_decisao;
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5"
-          onClick={() => exportarPdfCaptura("pdf-capture-target", `triagem-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`)}
-        >
-          <FileDown className="h-3.5 w-3.5" /> Exportar PDF
-        </Button>
-      </div>
-
       <div className="space-y-3 rounded-md border border-border p-3">
         <p className="text-[10px] font-bold uppercase tracking-wider text-[#153169]">Parte B — Triagem Inicial</p>
 
@@ -194,7 +182,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
         <p className="text-[11px] text-muted-foreground">Só Controladoria ou Comitê agem nesta etapa.</p>
       )}
       {podeEditar && !podeAvancar && (
-        <p className="text-[11px] text-muted-foreground">Preencha a Classificação e a Decisão para avançar.</p>
+        <p className="text-[11px] text-muted-foreground">Selecione "Necessidade de Sistemas" na Classificação e preencha a Decisão para avançar.</p>
       )}
       {card.triagem_decisao === "devolvido_ajustes" && (
         <p className="text-[11px] text-muted-foreground">Decisão: Devolvido para ajustes — use "Voltar ao painel" para retornar à coluna 1.</p>
