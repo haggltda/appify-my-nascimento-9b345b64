@@ -286,6 +286,16 @@ export function DocumentoDetalheModal({
                 })}
               </div>
 
+              {/* Pesquisa de Avaliação da Demanda (conteúdo do Anexo VIII) */}
+              {(card.pesquisa_atendeu_necessidade != null || card.pesquisa_pode_encerrar != null) && (
+                <div className="rounded-md border border-dashed border-border p-3 opacity-90">
+                  <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Pesquisa de Avaliação da Demanda <span className="font-normal">— concluído</span>
+                  </p>
+                  <PesquisaVisual card={card} />
+                </div>
+              )}
+
               {/* Sem max-h para que html2canvas capture o histórico completo */}
               <div className="rounded-md border border-border p-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Histórico</p>
