@@ -10,7 +10,13 @@ import {
   calcPrazo,
 } from "@/hooks/useImplantacao";
 import type { ImplantacaoContrato, ChecklistItem, Resposta } from "@/hooks/useImplantacao";
-import { CheckCircle2, Circle, Clock, Pencil, Eye, ArrowRight } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Pencil, Eye, ArrowRight, Trash2 } from "lucide-react";
+import { usePermissoes } from "@/context/PermissoesContext";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +42,8 @@ import { Label } from "@/components/ui/label";
 export default function Implantacao() {
   const { empresa } = useEmpresaAtiva();
   const empresaAtivaId = empresa.id;
+  const { roles } = usePermissoes();
+  const isAdmin = roles.includes("admin");
   const { data: contratos = [], isLoading, error } = useImplantacaoContratos(empresaAtivaId);
   const { data: checklistItems = [] } = useChecklistItems();
 
@@ -43,6 +51,7 @@ export default function Implantacao() {
   const [momentoFiltro, setMomentoFiltro] = useState<string>("");
   const [setorFiltro, setSetorFiltro] = useState<string>("");
   const [editandoNome, setEditandoNome] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ImplantacaoContrato | null>(null);
   const [nomeConfirmados, setNomeConfirmados] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem("implantacao:nomes-confirmados");
@@ -74,6 +83,17 @@ export default function Implantacao() {
 
   const { data: respostas = [] } = useRespostas(contratoSelecionado, empresaAtivaId ?? null);
   const upsert = useRespostaUpsert(empresaAtivaId ?? "");
+
+  async function handleDeleteContrato(id: string) {
+    const { error } = await supabase.from("implantacao_contrato").delete().eq("id", id);
+    if (error) { toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Contrato excluído." });
+    qc.removeQueries({ queryKey: ["implantacao", empresaAtivaId] });
+    const restantes = contratos.filter((c) => c.id !== id);
+    setContratoSelecionado(restantes[0]?.id ?? null);
+    setDeleteTarget(null);
+    qc.invalidateQueries({ queryKey: ["implantacao", empresaAtivaId] });
+  }
 
   const respostaMap = useMemo(() => {
     const m: Record<string, Resposta> = {};
@@ -135,6 +155,11 @@ export default function Implantacao() {
                 Início: <span className="font-medium text-foreground">{contrato.data_inicio ?? "—"}</span>
                 {" · "}Abertura: <span className="font-medium text-foreground">{contrato.abertura ?? "—"}</span>
               </div>
+            )}
+            {isAdmin && contrato && (
+              <Button variant="ghost" size="icon" className="ml-auto text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(contrato)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
             )}
           </div>
 
@@ -247,6 +272,23 @@ export default function Implantacao() {
           }}
         />
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir contrato?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O contrato <strong>{deleteTarget?.nome}</strong> e todo o seu checklist serão removidos permanentemente. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteTarget && handleDeleteContrato(deleteTarget.id)}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

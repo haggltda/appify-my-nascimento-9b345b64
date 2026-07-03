@@ -21,7 +21,10 @@ const CHART_COLORS = [
 ];
 
 const fmtCompact = (v: number) =>
-  v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${(v / 1_000).toFixed(0)}k` : `${v}`;
+  v >= 1_000_000_000 ? `${(v / 1_000_000_000).toFixed(1)}B`
+  : v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M`
+  : v >= 1_000 ? `${(v / 1_000).toFixed(0)}k`
+  : `${v}`;
 
 const formatBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -185,7 +188,10 @@ export default function PainelExecutivo() {
                 <XAxis dataKey="mes" stroke="hsl(220 15% 25%)" fontSize={12} />
                 <YAxis yAxisId="l" stroke="hsl(var(--primary))" fontSize={11} tickFormatter={(v) => fmtCompact(v)} />
                 <YAxis yAxisId="r" orientation="right" stroke="hsl(var(--accent))" fontSize={11} />
-                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                  formatter={(v: number, name: string) => name === "Valor (R$)" ? formatBRL(v) : v}
+                />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Line yAxisId="l" type="monotone" dataKey="valor" name="Valor (R$)" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 4 }}>
                   <LabelList dataKey="valor" position="top" formatter={(v: number) => fmtCompact(v)} fill="hsl(220 15% 20%)" fontSize={11} fontWeight={600} />
