@@ -36,7 +36,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
   }
 
   const podeEditar = papeis.controladoria || papeis.comite;
-  const podeAvancar = podeEditar && card.triagem_classificacao === "sistema" && !!card.triagem_decisao;
+  const podeAvancar = papeis.controladoria && card.triagem_classificacao === "sistema" && !!card.triagem_decisao;
 
   return (
     <div className="space-y-4">
