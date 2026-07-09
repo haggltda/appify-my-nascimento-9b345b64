@@ -10,7 +10,9 @@ import {
   calcPrazo,
 } from "@/hooks/useImplantacao";
 import type { ImplantacaoContrato, ChecklistItem, Resposta } from "@/hooks/useImplantacao";
-import { CheckCircle2, Circle, Clock, Pencil, Eye, ArrowRight, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, Clock, Pencil, Eye, ArrowRight, Trash2, MapPin, X as XIcon, CheckCircle } from "lucide-react";
+import { useDocTipos } from "@/hooks/useDocumentos";
+import { usePlanilhaCustos } from "@/hooks/usePlanilhaCusto";
 import { usePermissoes } from "@/context/PermissoesContext";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -49,7 +51,7 @@ export default function Implantacao() {
 
   const [contratoSelecionado, setContratoSelecionado] = useState<string | null>(null);
   const [momentoFiltro, setMomentoFiltro] = useState<string>("");
-  const [setorFiltro, setSetorFiltro] = useState<string>("");
+  const [responsavelFiltro, setResponsavelFiltro] = useState<string>("");
   const [editandoNome, setEditandoNome] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ImplantacaoContrato | null>(null);
   const [nomeConfirmados, setNomeConfirmados] = useState<Set<string>>(() => {
@@ -68,18 +70,18 @@ export default function Implantacao() {
     }
   }, [contratos, contratoSelecionado]);
 
-  const momentos = useMemo(() => [...new Set(checklistItems.map((i) => i.momento).filter(Boolean) as string[])], [checklistItems]);
-  const setores  = useMemo(() => [...new Set(checklistItems.map((i) => i.setor).filter(Boolean)  as string[])], [checklistItems]);
+  const momentos      = useMemo(() => [...new Set(checklistItems.map((i) => i.momento).filter(Boolean) as string[])], [checklistItems]);
+  const responsaveis  = useMemo(() => [...new Set(checklistItems.map((i) => i.responsavel_acao).filter(Boolean) as string[])].sort(), [checklistItems]);
 
   const itensFiltrados = useMemo(() => {
     return checklistItems.filter((i) => {
       if (momentoFiltro && i.momento !== momentoFiltro) return false;
-      if (setorFiltro  && i.setor   !== setorFiltro)   return false;
+      if (responsavelFiltro && i.responsavel_acao !== responsavelFiltro && i.responsavel_acao !== "Todos") return false;
       return true;
     });
-  }, [checklistItems, momentoFiltro, setorFiltro]);
+  }, [checklistItems, momentoFiltro, responsavelFiltro]);
 
-  const setoresFiltrados = useMemo(() => [...new Set(itensFiltrados.map((i) => i.setor))], [itensFiltrados]);
+  const responsaveisFiltrados = useMemo(() => [...new Set(itensFiltrados.map((i) => i.responsavel_acao))], [itensFiltrados]);
 
   const { data: respostas = [] } = useRespostas(contratoSelecionado, empresaAtivaId ?? null);
   const upsert = useRespostaUpsert(empresaAtivaId ?? "");
@@ -207,12 +209,12 @@ export default function Implantacao() {
             </div>
           )}
 
-          {/* Filtro de Setor */}
-          {setores.length > 0 && (
+          {/* Filtro de Responsável */}
+          {responsaveis.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              <FiltroBtn active={setorFiltro === ""} onClick={() => setSetorFiltro("")} variant="setor">Todos setores</FiltroBtn>
-              {setores.map((s) => (
-                <FiltroBtn key={s} active={setorFiltro === s} onClick={() => setSetorFiltro(setorFiltro === s ? "" : s)} variant="setor">{s}</FiltroBtn>
+              <FiltroBtn active={responsavelFiltro === ""} onClick={() => setResponsavelFiltro("")} variant="setor">Todos responsáveis</FiltroBtn>
+              {responsaveis.map((r) => (
+                <FiltroBtn key={r} active={responsavelFiltro === r} onClick={() => setResponsavelFiltro(responsavelFiltro === r ? "" : r)} variant="setor">{r}</FiltroBtn>
               ))}
             </div>
           )}
@@ -222,15 +224,15 @@ export default function Implantacao() {
             <Empty title="Checklist vazio" message="Nenhum item de checklist cadastrado." />
           ) : contrato ? (
             <div className="space-y-6">
-              {setoresFiltrados.map((setor) => {
-                const itensSetor = itensFiltrados.filter((i) => i.setor === setor);
+              {responsaveisFiltrados.map((responsavel) => {
+                const itensSetor = itensFiltrados.filter((i) => i.responsavel_acao === responsavel);
                 const respSetor  = itensSetor.filter((i) => respostaMap[i.id]?.resposta).length;
                 return (
-                  <section key={setor}>
-                    {/* Header do setor */}
+                  <section key={responsavel}>
+                    {/* Header do responsável */}
                     <div className="flex items-center gap-3 border-b border-border pb-2 mb-3 flex-wrap">
-                      <span className="bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">{setor}</span>
-                      <span className="font-bold text-sm">{setor}</span>
+                      <span className="bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">{responsavel}</span>
+                      <span className="font-bold text-sm">{responsavel}</span>
                       <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{respSetor}/{itensSetor.length}</span>
                         <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -295,6 +297,101 @@ export default function Implantacao() {
 
 // ── Card individual ───────────────────────────────────────────────────────────
 
+function isDocsItem(item: { categoria?: string | null; item: string }) {
+  return item.categoria?.toLowerCase().includes("document") || item.item.toLowerCase().includes("document");
+}
+function isEnderecosItem(item: { item: string }) {
+  return item.item.toLowerCase().includes("endere");
+}
+
+function DocMultiSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { data: tipos = [] } = useDocTipos();
+  const [expanded, setExpanded] = useState(false);
+  const selected: string[] = useMemo(() => {
+    try { return value ? JSON.parse(value) : []; } catch { return value ? [value] : []; }
+  }, [value]);
+
+  function toggle(nome: string) {
+    const next = selected.includes(nome) ? selected.filter((s) => s !== nome) : [...selected, nome];
+    onChange(next.length ? JSON.stringify(next) : "");
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Resumo sempre visível */}
+      {selected.length > 0 && (
+        <button onClick={() => setExpanded((p) => !p)}
+          className="w-full text-left rounded-md bg-primary/5 border border-primary/20 px-3 py-2 space-y-1 hover:bg-primary/10 transition-colors">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-primary">✓ {selected.length} documento{selected.length !== 1 ? "s" : ""} selecionado{selected.length !== 1 ? "s" : ""}</span>
+            <span className="text-[10px] text-primary/70">{expanded ? "▲ fechar" : "▼ editar"}</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {selected.map((nome) => (
+              <span key={nome} className="text-[10px] text-primary/80">• {nome}</span>
+            ))}
+          </div>
+        </button>
+      )}
+
+      {/* Lista completa — abre ao clicar ou quando vazio */}
+      {(expanded || selected.length === 0) && (
+        <div className="space-y-1">
+          {selected.length > 0 && (
+            <div className="flex flex-wrap gap-1 pb-1">
+              {selected.map((nome) => (
+                <span key={nome} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  {nome}
+                  <button onClick={() => toggle(nome)} className="hover:text-destructive"><XIcon className="w-2.5 h-2.5" /></button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="max-h-40 overflow-y-auto rounded-md border border-border divide-y divide-border">
+            {tipos.map((t) => {
+              const ativo = selected.includes(t.nome);
+              return (
+                <button key={t.id} onClick={() => toggle(t.nome)}
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors hover:bg-muted/40 ${ativo ? "bg-primary/5 font-medium text-primary" : ""}`}>
+                  <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${ativo ? "border-primary bg-primary text-white" : "border-border"}`}>
+                    {ativo && <CheckCircle className="w-2.5 h-2.5" />}
+                  </span>
+                  {t.nome}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EnderecosPostos({ contratoNome }: { contratoNome: string }) {
+  const { data: planilhaRows = [] } = usePlanilhaCustos();
+  const postos = useMemo(() => {
+    const seen = new Set<string>();
+    return planilhaRows
+      .filter((r) => r.orexec === "EXECUTADO" && r.contrato === contratoNome && r.posto)
+      .filter((r) => { if (seen.has(r.posto)) return false; seen.add(r.posto); return true; })
+      .map((r) => r.posto).sort();
+  }, [planilhaRows, contratoNome]);
+
+  if (postos.length === 0)
+    return <p className="text-xs text-muted-foreground italic">Nenhum posto encontrado para este contrato na Planilha de Custo.</p>;
+
+  return (
+    <div className="rounded-md border border-border divide-y divide-border max-h-48 overflow-y-auto">
+      {postos.map((p) => (
+        <div key={p} className="flex items-center gap-2 px-3 py-2 text-xs">
+          <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <span>{p}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CardChecklist({
   item,
   contrato,
@@ -306,8 +403,10 @@ function CardChecklist({
   resposta: Resposta | null;
   onSave: (resposta: string, obs: string) => Promise<unknown>;
 }) {
-  const isSimNao   = item.tipo_resposta === "simnao";
-  const prazo      = calcPrazo(item, contrato);
+  const isSimNao    = item.tipo_resposta === "simnao";
+  const isDocs      = isDocsItem(item);
+  const isEnderecos = isEnderecosItem(item);
+  const prazo       = calcPrazo(item, contrato);
   const answered   = !!savedResp?.resposta;
 
   const [localResp, setLocalResp] = useState<string>(savedResp?.resposta ?? "");
@@ -361,31 +460,28 @@ function CardChecklist({
       {/* Resposta */}
       <div className="space-y-1">
         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Resposta</span>
-        {isSimNao ? (
+        {isEnderecos ? (
+          <EnderecosPostos contratoNome={contrato.nome} />
+        ) : isDocs ? (
+          <DocMultiSelect value={localResp} onChange={setLocalResp} />
+        ) : isSimNao ? (
           <div className="flex gap-2">
             {(["Sim", "Não", "N/A"] as const).map((op) => (
-              <button
-                key={op}
-                onClick={() => setLocalResp(localResp === op ? "" : op)}
+              <button key={op} onClick={() => setLocalResp(localResp === op ? "" : op)}
                 className={cn(
                   "flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all",
-                  localResp === op && op === "Sim"  && "bg-emerald-50 border-emerald-500 text-emerald-700",
-                  localResp === op && op === "Não"  && "bg-red-50 border-red-500 text-red-700",
-                  localResp === op && op === "N/A"  && "bg-muted border-muted-foreground/40 text-muted-foreground",
+                  localResp === op && op === "Sim" && "bg-emerald-50 border-emerald-500 text-emerald-700",
+                  localResp === op && op === "Não" && "bg-red-50 border-red-500 text-red-700",
+                  localResp === op && op === "N/A" && "bg-muted border-muted-foreground/40 text-muted-foreground",
                   localResp !== op && "bg-card border-border text-foreground hover:bg-muted/50"
-                )}
-              >
+                )}>
                 {op === "Sim" ? "✓ Sim" : op === "Não" ? "✗ Não" : "N/A"}
               </button>
             ))}
           </div>
         ) : (
-          <Textarea
-            placeholder="Digite a resposta…"
-            className="min-h-[52px] text-xs resize-y"
-            value={localResp}
-            onChange={(e) => setLocalResp(e.target.value)}
-          />
+          <Textarea placeholder="Digite a resposta…" className="min-h-[52px] text-xs resize-y"
+            value={localResp} onChange={(e) => setLocalResp(e.target.value)} />
         )}
       </div>
 
