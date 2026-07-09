@@ -181,7 +181,12 @@ export default function PlanoAcaoDetalhe() {
   const uploadFile = async (file: File, planId: string) => {
     const { data: u } = await supabase.auth.getUser();
     const timestamp = Date.now();
-    const path = `${empresaId}/${planId}/${timestamp}_${file.name}`;
+    // A key do storage não aceita acentos/espaços ("Invalid key") —
+    // sanitiza só o nome usado no path; o nome original fica intacto em nome_arquivo.
+    const nomeSanitizado = file.name
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${empresaId}/${planId}/${timestamp}_${nomeSanitizado}`;
     const { error: uploadError } = await supabase.storage.from("anexos").upload(path, file);
     if (uploadError) throw uploadError;
     const { error: dbErr } = await supabase.from("plano_acao_anexo").insert({

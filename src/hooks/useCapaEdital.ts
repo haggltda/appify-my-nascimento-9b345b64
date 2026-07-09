@@ -142,6 +142,19 @@ export function useCapaUpdate(empresaId: string) {
         historico.push({ ts: now, campo: "Homologação", de: "—", para: today });
       }
 
+      // Sincroniza grade: Ganhamos → posicao=1 + Finalizada; Perdemos → posicao=2 + Finalizada
+      if (changes.status && changes.status !== current.status && current.grade_id) {
+        const gradeChanges =
+          changes.status === "Ganhamos"
+            ? { posicao: 1, fase: "Finalizada" }
+            : changes.status === "Perdemos"
+            ? { posicao: 2, fase: "Finalizada" }
+            : null;
+        if (gradeChanges) {
+          await supabase.from("grade").update(gradeChanges).eq("id", current.grade_id);
+        }
+      }
+
       // Stamp preenchido_em quando campos do formulário são salvos
       const formFields = new Set([
         "cidade","objeto","modalidade","abertura","local","prazo_contrato",

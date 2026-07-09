@@ -224,6 +224,9 @@ export default function SolicitacoesErp() {
   const [novoComentario, setNovoComentario] = useState("");
   const [enviandoComentario, setEnviandoComentario] = useState(false);
   const [filtroResponsavelDev, setFiltroResponsavelDev] = useState<string | null>(null);
+  const [filtroTitulo, setFiltroTitulo] = useState("");
+  const [filtroAreaSolicitante, setFiltroAreaSolicitante] = useState("");
+  const [filtroId, setFiltroId] = useState("");
 
   const papeis: Papeis = {
     comite: access?.codes.has("sistemas_comite") ?? false,
@@ -301,11 +304,19 @@ export default function SolicitacoesErp() {
   const grouped = useMemo(() => {
     const m = new Map<string, Solicitacao[]>();
     ETAPAS.forEach((e) => m.set(e.key, []));
-    rows.forEach((r) => m.get(r.etapa)?.push(r));
+    const tituloLc = filtroTitulo.trim().toLowerCase();
+    const areaLc = filtroAreaSolicitante.trim().toLowerCase();
+    const idLc = filtroId.trim().toLowerCase();
+    rows.forEach((r) => {
+      if (tituloLc && !r.titulo?.toLowerCase().includes(tituloLc)) return;
+      if (areaLc && !r.area_solicitante?.toLowerCase().includes(areaLc)) return;
+      if (idLc && !sdNumero(r).toLowerCase().includes(idLc)) return;
+      m.get(r.etapa)?.push(r);
+    });
     // Recusados sempre por último na coluna.
     m.forEach((lista) => lista.sort((a, b) => (a.recusado === b.recusado ? 0 : a.recusado ? 1 : -1)));
     return m;
-  }, [rows]);
+  }, [rows, filtroTitulo, filtroAreaSolicitante, filtroId]);
 
   const cardDetalhe = rows.find((r) => r.id === detalheId) ?? null;
 
@@ -627,6 +638,37 @@ export default function SolicitacoesErp() {
       />
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Input
+          className="h-8 w-52 text-sm"
+          placeholder="Título da solicitação…"
+          value={filtroTitulo}
+          onChange={(e) => setFiltroTitulo(e.target.value)}
+        />
+        <Input
+          className="h-8 w-44 text-sm"
+          placeholder="Área solicitante…"
+          value={filtroAreaSolicitante}
+          onChange={(e) => setFiltroAreaSolicitante(e.target.value)}
+        />
+        <Input
+          className="h-8 w-36 text-sm"
+          placeholder="ID do pedido…"
+          value={filtroId}
+          onChange={(e) => setFiltroId(e.target.value)}
+        />
+        {(filtroTitulo || filtroAreaSolicitante || filtroId) && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs"
+            onClick={() => { setFiltroTitulo(""); setFiltroAreaSolicitante(""); setFiltroId(""); }}
+          >
+            Limpar filtros
+          </Button>
+        )}
+      </div>
 
       <div className="-mb-4 flex h-[calc(100vh-170px)] min-h-[420px] gap-3 overflow-x-auto pb-0 sm:-mb-6 lg:-mb-8">
         {ETAPAS_COR.map((etapa) => (

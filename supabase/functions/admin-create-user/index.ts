@@ -23,6 +23,7 @@ interface Body {
   display_name?: string | null;
   empresa_id?: string | null;
   roles?: string[];
+  telefone?: string | null;
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -40,6 +41,16 @@ function normalizeTextOrNull(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+// Normaliza pra dígitos puros com DDI 55 na frente (ex: "(51) 99659-4681" →
+// "5551996594681"). Se já vier com 12-13 dígitos começando com 55, mantém.
+function normalizeTelefone(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) return digits;
+  return `55${digits}`;
 }
 
 function uniqueStrings(values: unknown): string[] {
@@ -104,6 +115,7 @@ Deno.serve(async (req) => {
     const email = normalizeEmail(body.email);
     const password = typeof body.password === "string" ? body.password : "";
     const display_name = normalizeTextOrNull(body.display_name);
+    const telefone = normalizeTelefone(body.telefone);
     const empresa_id = normalizeTextOrNull(body.empresa_id);
     const requestedRoles = uniqueStrings(body.roles);
 
@@ -192,6 +204,7 @@ Deno.serve(async (req) => {
         display_name,
         empresa_id,
         empresa_atual_id: empresa_id,
+        telefone,
         must_change_password: true,
         ativo: true,
       }, { onConflict: "id" });

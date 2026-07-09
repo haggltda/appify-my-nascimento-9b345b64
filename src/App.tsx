@@ -166,7 +166,7 @@ const App = () => (
             <Route path="painel-executivo" element={<PainelExecutivo />} />
             <Route path="painel-executivo/tv" element={<PainelExecutivoTV />} />
             <Route path="presidencia" element={<Presidencia />} />
-            <Route path="pipeline" element={<Pipeline />} />
+            <Route path="licitacoes/grade" element={<Pipeline />} />
             <Route path="editais" element={<CadastroEdital />} />
             <Route path="documentos" element={<Documentos />} />
             <Route path="triagem" element={<TriagemIA />} />

@@ -93,7 +93,7 @@ const licitacoesModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Painel Executivo", to: "/app/painel-executivo", icon: LayoutDashboard },
-        { label: "Grade de Licitações", to: "/app/pipeline", icon: FolderKanban, badge: "__grade_ativa__" },
+        { label: "Grade de Licitações", to: "/app/licitacoes/grade", icon: FolderKanban, badge: "__grade_ativa__" },
       ],
     },
     {
