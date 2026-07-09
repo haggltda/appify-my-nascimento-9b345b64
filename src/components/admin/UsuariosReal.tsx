@@ -46,6 +46,15 @@ interface ProfileRow {
   display_name: string | null;
   empresa_id: string | null;
   avatar_url: string | null;
+  telefone: string | null;
+}
+
+// Máscara local de telefone BR — mesmo padrão inline já usado em
+// src/pages/publico/Vagas.tsx (não existe componente de máscara compartilhado).
+function maskFone(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 10) return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
+  return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
 }
 
 export function UsuariosReal() {
@@ -66,7 +75,7 @@ export function UsuariosReal() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id,email,display_name,empresa_id,avatar_url")
+        .select("id,email,display_name,empresa_id,avatar_url,telefone")
         .order("display_name");
       if (error) throw error;
       return (data ?? []) as ProfileRow[];
@@ -237,6 +246,7 @@ function EditarUsuarioDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [displayName, setDisplayName] = useState(profile.display_name ?? "");
+  const [telefone, setTelefone] = useState(maskFone(profile.telefone?.replace(/^55/, "") ?? ""));
   const [empresaId, setEmpresaId] = useState<string>(profile.empresa_id ?? "_none");
   const [selectedRoles, setSelectedRoles] = useState<Role[]>(currentRoles);
   const [acessaTodas, setAcessaTodas] = useState<boolean>(false);
@@ -295,6 +305,7 @@ function EditarUsuarioDialog({
           display_name: displayName || null,
           empresa_id: empresaId === "_none" ? null : empresaId,
           acessa_todas_empresas: acessaTodas,
+          telefone: telefone.replace(/\D/g, "") ? `55${telefone.replace(/\D/g, "")}` : null,
         } as any)
         .eq("id", profile.id);
       if (pErr) throw pErr;
@@ -395,6 +406,10 @@ function EditarUsuarioDialog({
           <div>
             <Label>Nome de exibição</Label>
             <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ex.: Messias Souza" />
+          </div>
+          <div>
+            <Label>Telefone</Label>
+            <Input value={telefone} onChange={(e) => setTelefone(maskFone(e.target.value))} placeholder="(51) 99659-4681" />
           </div>
           <div>
             <Label>Empresa padrão (de cadastro)</Label>
@@ -606,6 +621,7 @@ function NovoUsuarioDialog({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
+  const [telefone, setTelefone] = useState("");
   const [empresaId, setEmpresaId] = useState<string>("_none");
   const [selectedRoles, setSelectedRoles] = useState<Role[]>([]);
   const [saving, setSaving] = useState(false);
@@ -617,7 +633,7 @@ function NovoUsuarioDialog({
   } | null>(null);
 
   const reset = () => {
-    setDisplayName(""); setEmail(""); setPassword("");
+    setDisplayName(""); setEmail(""); setPassword(""); setTelefone("");
     setEmpresaId("_none"); setSelectedRoles([]); setShowPwd(false);
   };
 
@@ -651,6 +667,7 @@ function NovoUsuarioDialog({
           display_name: displayName.trim() || null,
           empresa_id: empresaId === "_none" ? null : empresaId,
           roles: selectedRoles,
+          telefone: telefone.trim() || null,
         },
       });
       if (error) {
@@ -746,6 +763,10 @@ function NovoUsuarioDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Telefone</Label>
+              <Input value={telefone} onChange={(e) => setTelefone(maskFone(e.target.value))} placeholder="(51) 99659-4681" />
             </div>
             <div>
               <Label>Perfis (roles)</Label>
