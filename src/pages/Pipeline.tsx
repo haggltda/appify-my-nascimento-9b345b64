@@ -721,13 +721,15 @@ function GradeCard({
         </span>
         <span><span className="font-medium text-foreground">Responsável:</span> {item.responsavel || "—"}</span>
         <span><span className="font-medium text-foreground">Posição:</span> {item.posicao != null ? `${item.posicao}º` : "—"}</span>
-        {item.valor_global && (
+        {item.valor_global ? (
           <span className="col-span-2"><span className="font-medium text-foreground">Valor:</span> {
             Number(item.valor_global)
               ? Number(item.valor_global).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
               : item.valor_global
           }</span>
-        )}
+        ) : item.fase === "Finalizada" ? (
+          <span className="col-span-2 text-destructive font-semibold">⚠ Valor Global não preenchido</span>
+        ) : null}
       </div>
 
       {item.status_obs && (
@@ -826,6 +828,10 @@ function GradeSheet({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!f.valor_global) {
+      alert("Valor Global é obrigatório.");
+      return;
+    }
     onSave({
       edital: f.edital || null,
       fase: f.fase,
@@ -952,7 +958,7 @@ function GradeSheet({
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">Valor Global</Label>
+            <Label className="text-xs">Valor Global <span className="text-destructive">*</span></Label>
             <CurrencyInput
               value={f.valor_global}
               onChange={(v) => setF((p) => ({ ...p, valor_global: v }))}
