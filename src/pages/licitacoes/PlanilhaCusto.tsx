@@ -129,6 +129,8 @@ export default function PlanilhaCusto() {
   const [clientesOpen, setClientesOpen] = useState(false);
   const [postosViewOpen, setPostosViewOpen] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
+  const [filtroOrexec, setFiltroOrexec] = useState<"" | "ORÇADO" | "EXECUTADO">("");
+  const [filtroVigencia, setFiltroVigencia] = useState<"" | "EM VIGÊNCIA" | "HISTÓRICO" | "A INICIAR">("");
   const [updateFromRow, setUpdateFromRow] = useState<PlanilhaCustoRow | undefined>();
   const [postosRow, setPostosRow] = useState<PlanilhaCustoRow | null>(null);
   const { empresa } = useEmpresaAtiva();
@@ -141,7 +143,9 @@ export default function PlanilhaCusto() {
 
   const filtered = rows.filter((r) => {
     const status = statusMap.get(r.id) ?? "";
-    if (!showHistorico && status === "HISTÓRICO") return false;
+    if (!showHistorico && status === "HISTÓRICO" && !filtroVigencia) return false;
+    if (filtroVigencia && status !== filtroVigencia) return false;
+    if (filtroOrexec && r.orexec !== filtroOrexec) return false;
     return (
       r.cliente.toLowerCase().includes(q.toLowerCase()) ||
       r.contrato.toLowerCase().includes(q.toLowerCase()) ||
@@ -253,6 +257,27 @@ export default function PlanilhaCusto() {
               className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary"
             />
           </div>
+          <select
+            value={filtroOrexec}
+            onChange={(e) => { setFiltroOrexec(e.target.value as typeof filtroOrexec); setPage(1); }}
+            className="h-9 rounded-md border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-primary"
+          >
+            <option value="">Orçado / Executado</option>
+            <option value="ORÇADO">Orçado</option>
+            <option value="EXECUTADO">Executado</option>
+          </select>
+
+          <select
+            value={filtroVigencia}
+            onChange={(e) => { setFiltroVigencia(e.target.value as typeof filtroVigencia); setPage(1); }}
+            className="h-9 rounded-md border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-primary"
+          >
+            <option value="">Vigência</option>
+            <option value="EM VIGÊNCIA">Em Vigência</option>
+            <option value="A INICIAR">A Iniciar</option>
+            <option value="HISTÓRICO">Histórico</option>
+          </select>
+
           <button
             onClick={() => { setShowHistorico((v) => !v); setPage(1); }}
             className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition-colors ${
@@ -352,13 +377,15 @@ export default function PlanilhaCusto() {
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
                       </button>
-                      <button
-                        onClick={() => setPostosRow(r)}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                        title="Definir postos / localizações"
-                      >
-                        <MapPin className="h-3.5 w-3.5" />
-                      </button>
+                      {r.orexec === "EXECUTADO" && statusMap.get(r.id) === "EM VIGÊNCIA" && (
+                        <button
+                          onClick={() => setPostosRow(r)}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                          title="Definir postos / localizações"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(r.id)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"

@@ -66,6 +66,7 @@ export function usePainelLicitacao(filters?: PainelFilters) {
 
     // Valor contratos ganhos: grade finalizados em 1º lugar, usando valor_global
     const valorGlobal = ganhasItems.reduce((s, i) => s + parseValor(i.valor_global), 0);
+    const qtdPessoasGanhos = ganhasItems.reduce((s, i) => s + (i.qtd_pessoas ?? 0), 0);
 
     // Valor ganho no mês atual
     const agora = new Date();
@@ -184,6 +185,7 @@ export function usePainelLicitacao(filters?: PainelFilters) {
       totalCapa,
       perdidas,
       valorGlobal,
+      qtdPessoasGanhos,
       valorMes,
       valorPipeline,
       taxaVitoria,
