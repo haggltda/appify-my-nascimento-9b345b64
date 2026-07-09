@@ -87,19 +87,33 @@ function fmtDate(d: string | null) {
 }
 
 // ─── KPI Card ────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, sub2, icon, color }: {
-  label: string; value: string; sub?: string; sub2?: string;
+function KpiCard({ label, value, sub, sub2, sub3, icon, color }: {
+  label: string; value: string; sub?: string; sub2?: string; sub3?: string;
   icon: React.ReactNode; color: string;
 }) {
+  // extrai a cor base do color (ex: "bg-blue-100" → usamos a variante 200 no ícone BG)
   return (
-    <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-        <span className={`flex h-8 w-8 items-center justify-center rounded-full ${color}`}>{icon}</span>
+    <div className="relative overflow-hidden rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 flex flex-col min-h-[110px]">
+      {/* Ícone gigante de fundo com fade da direita para o centro */}
+      <div
+        className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 text-slate-400 opacity-100"
+        style={{
+          fontSize: 0,
+          WebkitMaskImage: "linear-gradient(to left, black 0%, black 30%, rgba(0,0,0,0.6) 60%, transparent 100%)",
+          maskImage: "linear-gradient(to left, black 0%, black 30%, rgba(0,0,0,0.6) 60%, transparent 100%)",
+        }}
+      >
+        <span className="[&>svg]:h-32 [&>svg]:w-32">{icon}</span>
       </div>
-      <p className="text-2xl font-bold text-slate-900 leading-tight">{value}</p>
-      {sub && <p className="mt-0.5 text-[11px] text-slate-500 leading-snug">{sub}</p>}
-      {sub2 && <p className="text-[11px] text-slate-400">{sub2}</p>}
+
+      {/* Conteúdo */}
+      <p className="relative z-10 text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3">{label}</p>
+      <p className="relative z-10 text-3xl font-bold text-slate-900 leading-none">{value}</p>
+      <div className="relative z-10 mt-auto pt-3">
+        {sub && <p className="text-[11px] text-slate-500 leading-snug">{sub}</p>}
+        {sub2 && <p className="text-[11px] text-slate-400">{sub2}</p>}
+        {sub3 && <p className="text-[11px] text-slate-400">{sub3}</p>}
+      </div>
     </div>
   );
 }
@@ -271,19 +285,19 @@ export default function PainelExecutivo() {
         </div>
 
         {/* ── KPIs (6) ─────────────────────────────────────────────────────── */}
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:items-stretch">
           <KpiCard
             label="Valor total participado"
             value={fmtBRLKPI(stats.valorPipeline)}
             sub="Editais em andamento"
-            icon={<TrendingUp className="h-4 w-4 text-blue-600" />}
+            icon={<TrendingUp className="text-blue-300" />}
             color="bg-blue-100"
           />
           <KpiCard
             label="Taxa de vitória (período)"
             value={`${stats.taxaVitoria.toFixed(0)}%`}
             sub={`${stats.ganhas} ganhos · ${stats.perdidas} perdidos`}
-            icon={<Trophy className="h-4 w-4 text-emerald-600" />}
+            icon={<Trophy className="text-emerald-300" />}
             color="bg-emerald-100"
           />
           <KpiCard
@@ -291,28 +305,37 @@ export default function PainelExecutivo() {
             value={fmtBRLKPI(stats.valorGlobal)}
             sub="Valor Global"
             sub2={`Mês: ${fmtBRLKPI(stats.valorMes)}`}
-            icon={<Award className="h-4 w-4 text-green-600" />}
+            icon={<Award className="text-green-300" />}
             color="bg-green-100"
           />
+          <KpiCard
+            label="Pessoas nos contratos ganhos"
+            value={stats.qtdPessoasGanhos.toLocaleString("pt-BR")}
+            sub="Qtd. pessoas (editais finalizados ganhos)"
+            icon={<Target className="text-teal-300" />}
+            color="bg-teal-100"
+          />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 xl:items-stretch">
           <KpiCard
             label="Alertas de abertura (próx. 7 dias)"
             value={String(stats.alertas.length)}
             sub="Editais com abertura próxima"
-            icon={<AlertTriangle className="h-4 w-4 text-orange-500" />}
+            icon={<AlertTriangle className="text-orange-300" />}
             color="bg-orange-100"
           />
           <KpiCard
             label="Editais lidos"
             value={String(stats.editaisLidos)}
             sub="No período selecionado"
-            icon={<BookOpen className="h-4 w-4 text-purple-600" />}
+            icon={<BookOpen className="text-purple-300" />}
             color="bg-purple-100"
           />
           <KpiCard
             label="Editais participados"
             value={String(stats.editaisParticipados)}
             sub="Excluindo: Não Participado, Suspenso e Revogado"
-            icon={<FileText className="h-4 w-4 text-cyan-600" />}
+            icon={<FileText className="text-cyan-300" />}
             color="bg-cyan-100"
           />
         </div>
