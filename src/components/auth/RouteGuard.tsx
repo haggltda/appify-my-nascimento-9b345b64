@@ -5,6 +5,7 @@ import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useFeatureFlag } from "@/lib/featureFlags";
+import { ACESSO_ABERTO_SEM_PERMISSOES } from "@/lib/acesso";
 
 /**
  * Bloco V3 — Rotas governadas por feature flag soberana de fase.
@@ -62,9 +63,13 @@ export function RouteGuard({ children }: { children: ReactNode }) {
   // Acesso determinado exclusivamente pelo painel de usuários em /app/administracao?tab=modulos.
   // Cargo/role não concede nenhum bypass — a RPC list_accessible_menus retorna apenas
   // menus com allow=true explícito para TODOS os usuários (incluindo admin).
+  // Na fase de ACESSO ABERTO (ver src/lib/acesso.ts) o enforcement fica suspenso:
+  // qualquer autenticado passa; só as feature flags de fase continuam bloqueando.
   const allowed =
     phaseFlagEnabled &&
-    (!data || (menuCode ? data.codes.has(menuCode) : inAllowlist(pathname)));
+    (ACESSO_ABERTO_SEM_PERMISSOES ||
+      !data ||
+      (menuCode ? data.codes.has(menuCode) : inAllowlist(pathname)));
 
   useEffect(() => {
     if (isLoading || allowed) return;
@@ -89,7 +94,7 @@ export function RouteGuard({ children }: { children: ReactNode }) {
 
   // Só bloqueia na primeira carga (sem dados). Com dados em cache (mesmo query key
   // diferente), mantém o children montado para não perder estado da Lista.
-  if (!data) return null;
+  if (!ACESSO_ABERTO_SEM_PERMISSOES && !data) return null;
   if (allowed) return <>{children}</>;
 
   return (

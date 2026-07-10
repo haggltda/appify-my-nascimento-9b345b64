@@ -46,6 +46,7 @@ import {
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
 import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
+import { ACESSO_ABERTO_SEM_PERMISSOES } from "@/lib/acesso";
 import { useGradeAtivaCount } from "@/hooks/useGradeAtivaCount";
 import { EmpresaAtivaContext } from "@/context/EmpresaAtivaContext";
 import { Inbox } from "lucide-react";
@@ -581,7 +582,9 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
       return badge;
     };
 
-    const base = !access ? allModules : (() => {
+    // Na fase de ACESSO ABERTO (ver src/lib/acesso.ts) a sidebar mostra todos
+    // os módulos e telas; o filtro por menus acessíveis volta com as permissões.
+    const base = ACESSO_ABERTO_SEM_PERMISSOES || !access ? allModules : (() => {
       const canSee = (to: string) => {
         const code = matchMenuCode(to, access.routes);
         if (code) return access.codes.has(code);
