@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
-import { BookOpen, ShieldAlert, ArrowRight, type LucideIcon } from "lucide-react";
+import { BookOpen, ShieldAlert, ClipboardList, ArrowRight, type LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface Servico {
@@ -23,6 +23,12 @@ const servicos: Servico[] = [
     icon: ShieldAlert,
     title: "Denúncias (Canal de Ética)",
     desc: "Denúncias anônimas recebidas pela plataforma Contato Seguro. O conteúdo é confidencial — a RLS do banco só devolve os dados para administradores.",
+  },
+  {
+    to: "/app/central-servicos/formularios",
+    icon: ClipboardList,
+    title: "Nascimento Formulários",
+    desc: "Crie formulários e pesquisas com vários tipos de pergunta e imagens, publique numa URL com prazo definido e acompanhe as respostas.",
   },
 ];
 
