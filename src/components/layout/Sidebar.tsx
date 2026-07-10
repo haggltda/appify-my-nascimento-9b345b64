@@ -45,7 +45,6 @@ import {
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
-import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
 import { useGradeAtivaCount } from "@/hooks/useGradeAtivaCount";
 import { EmpresaAtivaContext } from "@/context/EmpresaAtivaContext";
 import { Inbox } from "lucide-react";
@@ -562,7 +561,6 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const location = useLocation();
   const { perms } = usePlanoAcaoPermissao();
   const { temAlcada, pendentes } = useTemAlcada();
-  const { data: access } = useAccessibleMenus("visualizar");
   const empresaCtx = useContext(EmpresaAtivaContext);
   const { data: gradeAtivaCount } = useGradeAtivaCount(empresaCtx?.empresa?.id ?? null);
 
@@ -572,34 +570,15 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
     integracaoModule,
   ];
 
-  // Sidebar filtra itens com base nos menus acessíveis do usuário.
-  // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/duvidas", "/app/juridico/processos", "/app/juridico/processos/dashboard", "/app/juridico/processos/audiencias", "/app/juridico/advertencias", "/app/juridico/candidatos", "/app/sst/aso", "/app/rh/novas-admissoes", "/app/rh/banco-talentos", "/app/rh/recrutamento-dashboard", "/app/sistemas/solicitacoes-erp", "/app/central-servicos/orientacoes-juridicas"];
+  // Sem regra de permissão no front: a sidebar mostra todos os módulos e telas.
   const visibleModules = useMemo(() => {
     const resolvedBadge = (badge: string | undefined) => {
       if (badge === "__grade_ativa__") return gradeAtivaCount != null ? String(gradeAtivaCount) : undefined;
       return badge;
     };
 
-    const base = !access ? allModules : (() => {
-      const canSee = (to: string) => {
-        const code = matchMenuCode(to, access.routes);
-        if (code) return access.codes.has(code);
-        return SIDEBAR_TECHNICAL_ALLOWLIST.includes(to);
-      };
-      return allModules
-        .map((mod) => {
-          if (!mod.groups) return mod;
-          const groups = mod.groups
-            .map((g) => ({ ...g, items: g.items.filter((i) => canSee(i.to)) }))
-            .filter((g) => g.items.length > 0);
-          return { ...mod, groups };
-        })
-        .filter((mod) => !mod.groups || mod.groups.length > 0);
-    })();
-
     // Resolve sentinels de badge dinâmico
-    return base.map((mod) => ({
+    return allModules.map((mod) => ({
       ...mod,
       badge: resolvedBadge(mod.badge),
       groups: mod.groups?.map((g) => ({
@@ -607,7 +586,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
         items: g.items.map((item) => ({ ...item, badge: resolvedBadge(item.badge) })),
       })),
     }));
-  }, [allModules, access, gradeAtivaCount]);
+  }, [allModules, gradeAtivaCount]);
 
   // Módulo ativo = aquele cujo ITEM (link real) casa com a rota atual.
   // Detecção por basePath não serve porque o Licitações usa basePath "/app"

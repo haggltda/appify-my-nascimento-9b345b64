@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { usePermissoes } from "@/context/PermissoesContext";
-import { ShieldAlert } from "lucide-react";
 
 // =====================================================================
 // CENTRAL DE SERVIÇOS — Denúncias (Canal de Ética / Contato Seguro)
 // Espelho local das denúncias ANÔNIMAS da plataforma Contato Seguro.
-// SOMENTE ADMIN vê esta tela (RouteGuard via app_menu + RLS no banco —
-// a RLS é a autoridade final: sem papel admin, o select volta vazio).
+// A confidencialidade é garantida pela RLS no banco (autoridade final):
+// sem papel admin, o select de CS_DENUNCIAS volta vazio.
 // "Sincronizar agora" chama a edge function sync-denuncias-contato-seguro.
 // Admins mantêm a lista de RESPONSÁVEIS pelo tratamento e atribuem um
 // responsável a cada denúncia (grava só responsavel_* — o conteúdo da
@@ -40,8 +38,6 @@ const statusCor = (s?: string): { bg: string; c: string } => {
 
 export default function Denuncias() {
   const { user } = useAuth();
-  const { roles, loading: loadingPerm } = usePermissoes();
-  const isAdmin = roles.includes("admin");
 
   const [denuncias, setDenuncias] = useState<Denuncia[]>([]);
   const [ultimoSync, setUltimoSync] = useState<SyncLog | null>(null);
@@ -80,7 +76,7 @@ export default function Denuncias() {
     }
     setLoading(false);
   }, []);
-  useEffect(() => { if (isAdmin) load(); }, [isAdmin, load]);
+  useEffect(() => { load(); }, [load]);
 
   const sincronizar = async () => {
     setSincronizando(true);
@@ -159,16 +155,8 @@ export default function Denuncias() {
     </div>
   );
 
-  if (!loadingPerm && !isAdmin) {
-    return (
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: 40, textAlign: "center" }}>
-        <ShieldAlert size={40} color="#b91c1c" />
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>Acesso restrito</div>
-        <div style={{ fontSize: 13, color: "#64748b", maxWidth: 420 }}>As denúncias do Canal de Ética são confidenciais. Somente administradores podem visualizar este módulo.</div>
-      </div>
-    );
-  }
-
+  // Sem regra de permissão no front: a confidencialidade é garantida pela RLS
+  // do banco — para quem não é admin, o select de CS_DENUNCIAS volta vazio.
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
       <style>{`
