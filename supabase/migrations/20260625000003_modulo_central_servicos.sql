@@ -1,9 +1,9 @@
 -- Módulo "Central de Serviços": cadastra só o módulo em app_modulo, com o
 -- mesmo modelo de permissão por usuário de todo o resto do ERP (sem bypass de
 -- role) — controlado em /app/administracao?tab=modulos.
--- A rota /app/central-servicos é o hub do próprio módulo (headerLink no
--- Sidebar, sem submódulos) — não cadastrar tela em app_menu para ela, senão
--- a rota fica duplicada na matriz de menus (ver 20260710000002).
+-- A tela do hub (/app/central-servicos) é cadastrada UMA única vez em
+-- 20260710000003 (guardada por rota) — a linha duplicada que esta migration
+-- criava foi removida em 20260710000002.
 
 INSERT INTO public.app_modulo (codigo, nome, ordem, icone)
 SELECT 'central_servicos', 'Central de Serviços',

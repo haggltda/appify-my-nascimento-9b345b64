@@ -2,10 +2,10 @@
 -- CENTRAL DE SERVIÇOS — remove o menu duplicado do hub
 --
 -- A migration 20260625000003 cadastrou em app_menu a tela
--- 'central_servicos_dashboard' com rota /app/central-servicos, mas essa
--- rota já existe no sistema como o próprio módulo (o Sidebar abre o hub
--- pelo headerLink do módulo, sem submódulos). O código não referencia esse
--- menu em lugar nenhum — era só uma entrada duplicada na matriz de menus.
+-- 'central_servicos_dashboard' com rota /app/central-servicos, duplicando
+-- uma rota que já existia no sistema. O código não referencia esse codigo
+-- em lugar nenhum. A tela canônica do hub (única, gerenciada pelo painel
+-- Módulos & Menus) é garantida em 20260710000003, com seed de acesso geral.
 --
 -- O módulo app_modulo 'central_servicos' permanece (é o pai do menu de
 -- Denúncias). Idempotente.

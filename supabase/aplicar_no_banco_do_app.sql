@@ -2770,9 +2770,8 @@ DROP POLICY IF EXISTS cs_denuncias_sync_log_select_admin ON public."CS_DENUNCIAS
 CREATE POLICY cs_denuncias_sync_log_select_admin ON public."CS_DENUNCIAS_SYNC_LOG"
   FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
 
--- Garante o módulo pai (20260625000003). A rota /app/central-servicos é o
--- hub do próprio módulo (headerLink no Sidebar) — não cadastrar tela em
--- app_menu para ela, senão duplica a rota na matriz de menus (20260710000002).
+-- Garante o módulo pai (20260625000003). A tela do hub (/app/central-servicos)
+-- é cadastrada UMA única vez, guardada por rota, na seção 20260710000003.
 INSERT INTO public.app_modulo (codigo, nome, ordem, icone)
 SELECT 'central_servicos', 'Central de Serviços',
        COALESCE((SELECT ordem FROM public.app_modulo WHERE codigo = 'sistemas'), 200) + 5,
@@ -2966,9 +2965,10 @@ NOTIFY pgrst, 'reload schema';
 -- ===== 20260710000002_remove_menu_duplicado_central_servicos =====
 -- =========================================================================
 -- CENTRAL DE SERVIÇOS — remove o menu duplicado do hub
--- A rota /app/central-servicos já existe como o próprio módulo (headerLink
--- no Sidebar); a tela 'central_servicos_dashboard' em app_menu era uma
--- entrada duplicada, não referenciada pelo código. Idempotente.
+-- A tela 'central_servicos_dashboard' duplicava uma rota que já existia no
+-- sistema e não é referenciada pelo código. A tela canônica do hub (única,
+-- gerenciada pelo painel Módulos & Menus) é garantida na seção 20260710000003,
+-- com seed de acesso geral. Idempotente.
 -- =========================================================================
 DELETE FROM public.screen_permission_user
  WHERE menu_codigo = 'central_servicos_dashboard';
@@ -2976,5 +2976,59 @@ DELETE FROM public.screen_permission_user
 DELETE FROM public.app_menu
  WHERE codigo = 'central_servicos_dashboard'
    AND rota = '/app/central-servicos';
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ===== 20260710000003_registra_telas_no_painel_modulos =====
+-- =========================================================================
+-- GOVERNANÇA DE ACESSO — cadastra as telas novas no painel Módulos & Menus
+-- REGRA DO PROJETO: todo acesso é gerenciado em /app/administracao?tab=modulos.
+-- Rota nova = tela cadastrada em app_menu; liberação por usuário no painel.
+-- INSERTs guardados por ROTA: cadastro manual pré-existente não é duplicado.
+-- Central de Serviços (hub + Orientações) é de acesso geral: seed de
+-- 'visualizar' para todos os usuários atuais. Denúncias segue restrita.
+-- =========================================================================
+INSERT INTO public.app_modulo (codigo, nome, ordem, icone)
+SELECT x.codigo, x.nome, x.ordem, x.icone
+  FROM (VALUES
+    ('juridico', 'Jurídico', 72, 'Scale'),
+    ('sst',      'SST',      74, 'HardHat')
+  ) AS x(codigo, nome, ordem, icone)
+ WHERE NOT EXISTS (SELECT 1 FROM public.app_modulo m WHERE m.codigo = x.codigo);
+
+INSERT INTO public.app_menu (modulo_id, codigo, nome, rota, ordem)
+SELECT m.id, x.codigo, x.nome, x.rota, x.ordem
+  FROM (VALUES
+    ('central_servicos', 'central_servicos_hub',         'Central de Serviços (hub)',      '/app/central-servicos',                       10),
+    ('central_servicos', 'central_servicos_orientacoes', 'Orientações Jurídicas',          '/app/central-servicos/orientacoes-juridicas', 15),
+    ('rh',               'rh_recrutamento',              'Recrutamento & Seleção',         '/app/rh/recrutamento',                        40),
+    ('rh',               'rh_recrutamento_dashboard',    'Dashboard de Recrutamento',      '/app/rh/recrutamento-dashboard',              41),
+    ('rh',               'rh_banco_talentos',            'Banco de Talentos',              '/app/rh/banco-talentos',                      42),
+    ('rh',               'rh_novas_admissoes',           'Novas Admissões',                '/app/rh/novas-admissoes',                     43),
+    ('rh',               'rh_ferias',                    'Férias',                         '/app/rh/ferias',                              44),
+    ('sst',              'sst_aso',                      'ASO / Admissão (Exame Médico)',  '/app/sst/aso',                                10),
+    ('juridico',         'juridico_patrimonios',         'Gestão Patrimonial',             '/app/juridico/patrimonios',                   10),
+    ('juridico',         'juridico_processos',           'Processos Jurídicos',            '/app/juridico/processos',                     20),
+    ('juridico',         'juridico_advertencias',        'Advertências',                   '/app/juridico/advertencias',                  30),
+    ('juridico',         'juridico_candidatos',          'Verificação de Candidatos',      '/app/juridico/candidatos',                    40),
+    ('juridico',         'juridico_duvidas',             'Central de Dúvidas Jurídicas',   '/app/juridico/duvidas',                       50)
+  ) AS x(modulo, codigo, nome, rota, ordem)
+  JOIN public.app_modulo m ON m.codigo = x.modulo
+ WHERE NOT EXISTS (SELECT 1 FROM public.app_menu am WHERE am.rota = x.rota);
+
+INSERT INTO public.screen_permission_user (user_id, menu_codigo, acao, allow, empresa_id, motivo)
+SELECT u.id, am.codigo, 'visualizar'::public.app_acao, true, NULL,
+       'Central de Serviços: acesso geral (hub e Orientações Jurídicas)'
+  FROM auth.users u
+ CROSS JOIN public.app_menu am
+ WHERE am.rota IN ('/app/central-servicos', '/app/central-servicos/orientacoes-juridicas')
+   AND NOT EXISTS (
+         SELECT 1 FROM public.screen_permission_user s
+          WHERE s.user_id     = u.id
+            AND s.menu_codigo = am.codigo
+            AND s.acao        = 'visualizar'::public.app_acao
+            AND s.empresa_id IS NULL
+       );
 
 NOTIFY pgrst, 'reload schema';
