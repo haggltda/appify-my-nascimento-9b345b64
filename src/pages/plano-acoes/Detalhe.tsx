@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
-import { STATUS_LABELS, STATUS_ORDEM, STATUS_COR, PRIORIDADES, PRIORIDADE_LABEL, VISIBILIDADE_OPTIONS, VISIBILIDADE_LABEL, type VisibilidadeType } from "@/types/planoAcao";
+import { STATUS_LABELS, STATUS_ORDEM, STATUS_COR, PRIORIDADES, PRIORIDADE_LABEL, VISIBILIDADE_OPTIONS, VISIBILIDADE_LABEL, type VisibilidadeType, TIPO_ACAO_OPTIONS, TIPO_ACAO_LABEL } from "@/types/planoAcao";
 import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Paperclip, Download } from "lucide-react";
@@ -37,6 +37,7 @@ export default function PlanoAcaoDetalhe() {
   const { user } = useAuth();
 
   const [form, setForm] = useState<any>({
+    tipo_acao: "acao",
     titulo: "", problema: "", acao: "", comite: "", area: "", setor: "",
     prioridade_normalizada: "media", status_normalizado: "a_definir",
     responsavel_profile_id: null,
@@ -251,6 +252,7 @@ export default function PlanoAcaoDetalhe() {
         _comentarios: form.comentarios || null,
         _visibilidade: form.visibilidade ?? "privado",
         _usuarios_visibilidade: usuariosParaRPC,
+        _tipo_acao: form.tipo_acao ?? "acao",
       } as any);
       if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
       const ins = { id: novoId as string };
@@ -263,6 +265,7 @@ export default function PlanoAcaoDetalhe() {
       nav(`/app/plano-acoes/${ins.id}`);
     } else {
       const { error } = await supabase.from("plano_acao").update({
+        tipo_acao: form.tipo_acao ?? "acao",
         titulo: form.titulo, problema: form.problema, acao: form.acao,
         comite: form.comite, area: form.area, setor: form.setor || null,
         prioridade_normalizada: form.prioridade_normalizada,
@@ -365,6 +368,15 @@ export default function PlanoAcaoDetalhe() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-4 lg:col-span-2">
           <div className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label>Tipo de Ação</Label>
+              <Select value={form.tipo_acao ?? "acao"} disabled={!podeEdit} onValueChange={v => set("tipo_acao", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TIPO_ACAO_OPTIONS.map(t => <SelectItem key={t} value={t}>{TIPO_ACAO_LABEL[t]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="sm:col-span-2">
               <Label>Título</Label>
               <Input value={form.titulo ?? ""} disabled={!podeEdit} onChange={e => set("titulo", e.target.value)} />
