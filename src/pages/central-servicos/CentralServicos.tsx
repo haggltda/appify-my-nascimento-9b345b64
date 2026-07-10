@@ -2,15 +2,12 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { BookOpen, ShieldAlert, ArrowRight, type LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { usePermissoes } from "@/context/PermissoesContext";
 
 interface Servico {
   to: string;
   icon: LucideIcon;
   title: string;
   desc: string;
-  /** Se true, o card só aparece para usuários com papel admin (a tela em si é protegida por RouteGuard + RLS). */
-  somenteAdmin?: boolean;
 }
 
 // Serviços disponíveis na Central de Serviços (cada um é um card que leva à sua tela).
@@ -25,16 +22,11 @@ const servicos: Servico[] = [
     to: "/app/central-servicos/denuncias",
     icon: ShieldAlert,
     title: "Denúncias (Canal de Ética)",
-    desc: "Denúncias anônimas recebidas pela plataforma Contato Seguro. Conteúdo confidencial — acesso exclusivo de administradores.",
-    somenteAdmin: true,
+    desc: "Denúncias anônimas recebidas pela plataforma Contato Seguro. O conteúdo é confidencial — a RLS do banco só devolve os dados para administradores.",
   },
 ];
 
 export default function CentralServicos() {
-  const { roles } = usePermissoes();
-  const isAdmin = roles.includes("admin");
-  const visiveis = servicos.filter((s) => !s.somenteAdmin || isAdmin);
-
   return (
     <div>
       <PageHeader
@@ -43,7 +35,7 @@ export default function CentralServicos() {
         module="Central de Serviços"
       />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {visiveis.map((s) => (
+        {servicos.map((s) => (
           <Link key={s.to} to={s.to} className="group">
             <Card className="flex h-full flex-col gap-3 p-5 transition-all hover:border-primary/40 hover:shadow-md">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
