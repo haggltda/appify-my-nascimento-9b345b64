@@ -130,23 +130,15 @@ DROP POLICY IF EXISTS cs_forms_storage_delete ON storage.objects;
 CREATE POLICY cs_forms_storage_delete ON storage.objects
   FOR DELETE TO authenticated USING (bucket_id = 'cs-formularios');
 
--- ── Tela no painel Módulos & Menus (guardada por rota) + seed p/ admins ──
+-- ── Tela no painel Módulos & Menus (guardada por rota) ───────────────────
+-- Sem seed de permissão: a liberação é feita no painel
+-- /app/administracao?tab=modulos, como todo o resto do ERP. Quem pode
+-- criar formulários e quem vê cada formulário é configurado dentro do
+-- próprio sistema (ver 20260710000005).
 INSERT INTO public.app_menu (modulo_id, codigo, nome, rota, ordem)
 SELECT m.id, 'central_servicos_formularios', 'Nascimento Formulários', '/app/central-servicos/formularios', 30
   FROM public.app_modulo m
  WHERE m.codigo = 'central_servicos'
    AND NOT EXISTS (SELECT 1 FROM public.app_menu am WHERE am.rota = '/app/central-servicos/formularios');
-
-INSERT INTO public.screen_permission_user (user_id, menu_codigo, acao, allow, empresa_id, motivo)
-SELECT ur.user_id, 'central_servicos_formularios', 'visualizar'::public.app_acao, true, NULL,
-       'Nascimento Formulários: gestão liberada aos admins atuais'
-  FROM public.user_roles ur
- WHERE ur.role = 'admin'::public.app_role
-   AND NOT EXISTS (
-         SELECT 1 FROM public.screen_permission_user s
-          WHERE s.user_id = ur.user_id
-            AND s.menu_codigo = 'central_servicos_formularios'
-            AND s.acao = 'visualizar'::public.app_acao
-            AND s.empresa_id IS NULL);
 
 NOTIFY pgrst, 'reload schema';

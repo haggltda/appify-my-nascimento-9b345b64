@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { parseSurveyMonkey, ImportResultado } from "@/utils/surveyMonkeyImporter";
 
 // =====================================================================
 // CENTRAL DE SERVIÇOS — Nascimento Formulários (gestão)
@@ -18,6 +19,7 @@ export interface Formulario {
   inicia_em?: string | null; encerra_em?: string | null;
   max_respostas?: number | null; coleta_identificacao: boolean;
   imagem_capa_url?: string | null; criado_por_nome?: string | null;
+  criado_por?: string | null; visibilidade?: "todos" | "restrita";
 }
 
 export const fmtDt = (s?: string | null) => { if (!s) return "—"; const d = new Date(s); return isNaN(+d) ? String(s) : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
@@ -50,6 +52,10 @@ export default function Formularios() {
   const [busca, setBusca] = useState("");
   const [criando, setCriando] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
+  const [importPreview, setImportPreview] = useState<ImportResultado | null>(null);
+  const [importTitulo, setImportTitulo] = useState("");
+  const [importando, setImportando] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
   const toast = (msg: string, t = "info") => { const id = Date.now() + Math.random(); setToasts(x => [...x, { id, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== id)), 4200); };
 
@@ -88,6 +94,61 @@ export default function Formularios() {
   const copiarUrl = async (f: Formulario) => {
     try { await navigator.clipboard.writeText(urlPublica(f.slug)); toast("URL copiada!", "ok"); }
     catch { toast(urlPublica(f.slug), "info"); }
+  };
+
+  // ── Importação do SurveyMonkey (xlsx: resumo por pergunta OU respostas) ──
+  const abrirImport = async (file: File) => {
+    try {
+      const preview = parseSurveyMonkey(await file.arrayBuffer());
+      setImportTitulo(preview.titulo);
+      setImportPreview(preview);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Não foi possível ler o arquivo.", "err");
+    }
+  };
+
+  const importar = async () => {
+    if (!importPreview) return;
+    const titulo = importTitulo.trim() || importPreview.titulo;
+    setImportando(true);
+    const nome = user?.user_metadata?.nome ?? user?.email ?? "";
+    const temIdent = importPreview.respostas.some(r => r.respondente_nome || r.respondente_email);
+    const { data: form, error: e1 } = await (supabase as any).from("CS_FORMULARIOS").insert({
+      titulo, slug: slugify(titulo), criado_por_nome: nome, coleta_identificacao: temIdent,
+      descricao: "Importado do SurveyMonkey em " + new Date().toLocaleDateString("pt-BR") + ".",
+    }).select("id").single();
+    if (e1) { setImportando(false); toast("Erro ao criar formulário: " + e1.message, "err"); return; }
+
+    const { data: pergs, error: e2 } = await (supabase as any).from("CS_FORM_PERGUNTAS").insert(
+      importPreview.perguntas.map((p, i) => ({
+        formulario_id: form.id, ordem: i, tipo: p.tipo, titulo: p.titulo,
+        descricao: p.descricao ?? null, obrigatoria: false, opcoes: p.opcoes, config: p.config,
+      })),
+    ).select("id, ordem");
+    if (e2) { setImportando(false); toast("Erro nas perguntas: " + e2.message, "err"); return; }
+
+    // Índice da pergunta → id real, para gravar os itens das respostas.
+    const idPorOrdem: Record<number, string> = {};
+    (pergs ?? []).forEach((p: any) => { idPorOrdem[p.ordem] = p.id; });
+
+    let importadas = 0;
+    for (let i = 0; i < importPreview.respostas.length; i += 200) {
+      const lote = importPreview.respostas.slice(i, i + 200).map(r => ({
+        formulario_id: form.id,
+        enviado_em: r.enviado_em ?? new Date().toISOString(),
+        respondente_nome: r.respondente_nome ?? null,
+        respondente_email: r.respondente_email ?? null,
+        itens: Object.fromEntries(Object.entries(r.itens).map(([idx, v]) => [idPorOrdem[Number(idx)], v]).filter(([k]) => k)),
+      }));
+      const { error: e3 } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(lote);
+      if (e3) { setImportando(false); toast(`Erro nas respostas (${importadas} importadas): ` + e3.message, "err"); load(); return; }
+      importadas += lote.length;
+    }
+
+    setImportando(false);
+    setImportPreview(null);
+    toast(`Importado: ${importPreview.perguntas.length} pergunta(s)${importadas ? ` e ${importadas} resposta(s)` : ""}. Revise e publique quando quiser.`, "ok");
+    nav(`/app/central-servicos/formularios/${form.id}`);
   };
 
   const duplicar = async (f: Formulario) => {
@@ -129,7 +190,14 @@ export default function Formularios() {
           <div style={{ fontSize: 19, fontWeight: 800, color: "#0f3171" }}>📋 Nascimento Formulários</div>
           <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Crie formulários e pesquisas, publique numa URL e acompanhe as respostas.</div>
         </div>
-        <button onClick={() => { setNovoTitulo(""); setCriando(true); }} style={btn("#0f3171")}>+ Novo formulário</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={() => nav("/app/central-servicos/formularios/dashboard")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>📊 Dashboard</button>
+          <button onClick={() => nav("/app/central-servicos/formularios/config")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>⚙️ Configurações</button>
+          <button onClick={() => importRef.current?.click()} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬆ Importar SurveyMonkey</button>
+          <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) abrirImport(f); e.target.value = ""; }} />
+          <button onClick={() => { setNovoTitulo(""); setCriando(true); }} style={btn("#0f3171")}>+ Novo formulário</button>
+        </div>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 24px" }}>
@@ -209,6 +277,44 @@ export default function Formularios() {
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
               <button onClick={() => setCriando(false)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Cancelar</button>
               <button onClick={criar} style={btn("#0f3171")}>Criar e montar →</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: importar do SurveyMonkey */}
+      {importPreview && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900, padding: 16 }} onClick={() => !importando && setImportPreview(null)}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 22, width: 640, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Importar do SurveyMonkey</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>
+              {importPreview.formato === "respostas"
+                ? `Export de respostas individuais: ${importPreview.perguntas.length} pergunta(s) e ${importPreview.respostas.length} resposta(s).`
+                : `Export de resumo por pergunta: ${importPreview.perguntas.length} pergunta(s) — o formulário será replicado.`}
+            </div>
+            {importPreview.avisos.map((a, i) => (
+              <div key={i} style={{ fontSize: 12, background: "#fffbeb", border: "1px solid #fde68a", color: "#a16207", borderRadius: 9, padding: "8px 10px", marginBottom: 10 }}>⚠️ {a}</div>
+            ))}
+            <label style={{ display: "block", fontSize: 10.5, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Título do formulário</label>
+            <input value={importTitulo} onChange={e => setImportTitulo(e.target.value)}
+              style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 11px", fontSize: 13.5, outline: "none", marginBottom: 12 }} />
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, maxHeight: 300, overflowY: "auto" }}>
+              {importPreview.perguntas.map((p, i) => (
+                <div key={i} style={{ padding: "8px 12px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 8, alignItems: "baseline" }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", flexShrink: 0 }}>#{i + 1}</span>
+                  <span style={{ fontSize: 12.5, color: "#0f172a", flex: 1 }}>{p.titulo}</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: "#eef2ff", color: "#4338ca", whiteSpace: "nowrap", flexShrink: 0 }}>
+                    {({ texto_curto: "Texto curto", texto_longo: "Texto longo", multipla_escolha: "Múltipla escolha", caixas_selecao: "Caixas de seleção", lista_suspensa: "Lista", escala: "Escala", data: "Data", numero: "Número" } as Record<string, string>)[p.tipo] ?? p.tipo}
+                    {p.opcoes.length ? ` · ${p.opcoes.length} opções` : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => setImportPreview(null)} disabled={importando} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Cancelar</button>
+              <button onClick={importar} disabled={importando} style={btn(importando ? "#94a3b8" : "#16a34a")}>
+                {importando ? "Importando..." : `✓ Importar${importPreview.respostas.length ? ` (${importPreview.respostas.length} respostas)` : ""}`}
+              </button>
             </div>
           </div>
         </div>
