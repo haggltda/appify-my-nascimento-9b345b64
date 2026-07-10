@@ -172,7 +172,7 @@ export default function Vagas() {
       const cargosFinal = cargos.map(c => c === "Outro" && f.cargo_outro.trim() ? `Outro: ${f.cargo_outro.trim()}` : c);
       const payload: Record<string, any> = {
         vaga_id: modo === "vaga" && vaga ? vaga.id : null,
-        nome: f.nome, email: f.email, telefone: f.telefone, cpf: f.cpf, rg: f.rg,
+        nome: f.nome.trim().toUpperCase(), email: f.email, telefone: f.telefone, cpf: f.cpf, rg: f.rg,
         data_nascimento: f.data_nascimento, sexo: f.sexo, nome_mae: f.nome_mae, nome_pai: f.nome_pai,
         escolaridade: f.escolaridade, cidade_residencia: `${f.cidade_residencia}/${f.uf_residencia}`,
         estado_desejado: modo === "geral" ? f.uf_desejada : "",

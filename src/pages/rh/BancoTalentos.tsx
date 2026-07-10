@@ -83,7 +83,7 @@ export default function BancoTalentos() {
     const { data, error } = await (supabase as any).from("WA_CURRICULOS").select("*").order("created_at", { ascending: false });
     setLoading(false);
     if (error) { toast("Erro ao carregar: " + error.message, "err"); return; }
-    const list = data ?? [];
+    const list = (data ?? []).map((c: any) => ({ ...c, nome: String(c.nome ?? "").trim().toUpperCase() }));
     setRows(list);
     const ids = list.map((c: any) => c.id);
     if (ids.length) {

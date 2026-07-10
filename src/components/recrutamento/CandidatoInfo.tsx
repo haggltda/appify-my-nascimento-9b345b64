@@ -32,12 +32,13 @@ export function CandidatoInfo({ cand, hideCurriculo }: { cand: any; hideCurricul
     let vivo = true;
     (async () => {
       if (!cand?.candidato_id) return;
-      const [{ data: p }, { data: a }] = await Promise.all([
-        (supabase as any).from("WA_CURRICULOS").select("data_nascimento,rg,sexo,nome_mae,nome_pai,escolaridade,cidade_residencia,estado_desejado,cidade_desejada,cargos_interesse,disponibilidade_horarios,disp_fim_semana,possui_cnh,experiencia_previa,estrangeiro,experiencia_1,experiencia_2,experiencia_3,sst_data_exame,sst_hora_exame,sst_local_exame,compras_data_chegada").eq("id", cand.candidato_id).maybeSingle(),
-        (supabase as any).from("RECRUTAMENTO_CANDIDATO_ARQUIVOS").select("*").eq("candidato_id", cand.candidato_id).order("id"),
-      ]);
+      const COLS = "data_nascimento,rg,sexo,nome_mae,nome_pai,escolaridade,cidade_residencia,estado_desejado,cidade_desejada,cargos_interesse,disponibilidade_horarios,disp_fim_semana,possui_cnh,experiencia_previa,estrangeiro,experiencia_1,experiencia_2,experiencia_3,sst_data_exame,sst_hora_exame,sst_local_exame";
+      // sst_maps_url é recente — se o banco ainda não tiver a coluna, refaz sem ela.
+      let pr = await (supabase as any).from("WA_CURRICULOS").select(COLS + ",sst_maps_url").eq("id", cand.candidato_id).maybeSingle();
+      if (pr.error) pr = await (supabase as any).from("WA_CURRICULOS").select(COLS).eq("id", cand.candidato_id).maybeSingle();
+      const { data: a } = await (supabase as any).from("RECRUTAMENTO_CANDIDATO_ARQUIVOS").select("*").eq("candidato_id", cand.candidato_id).order("id");
       if (!vivo) return;
-      setPerfil(p ?? null); setArqs(a ?? []);
+      setPerfil(pr.data ?? null); setArqs(a ?? []);
     })();
     return () => { vivo = false; };
   }, [cand?.candidato_id]);
@@ -143,14 +144,12 @@ export function CandidatoInfo({ cand, hideCurriculo }: { cand: any; hideCurricul
         </div>
       )}
 
-      {/* Agendamento do exame (SST) / chegada dos EPIs */}
+      {/* Agendamento do exame (SST) */}
       {perfil?.sst_data_exame && (
         <div style={{ fontSize: 12, background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 8, padding: "8px 10px", color: "#15803d" }}>
           🗓 <b>Exame agendado:</b> {fmtD(perfil.sst_data_exame)}{perfil.sst_hora_exame ? ` às ${perfil.sst_hora_exame}` : ""}{perfil.sst_local_exame ? ` · ${perfil.sst_local_exame}` : ""}
+          {(perfil.sst_maps_url || perfil.sst_local_exame) && <> · <a href={perfil.sst_maps_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(perfil.sst_local_exame)}`} target="_blank" rel="noopener noreferrer" style={{ color: "#0369a1", fontWeight: 700 }}>📍 Ver no mapa</a></>}
         </div>
-      )}
-      {perfil?.compras_data_chegada && (
-        <div style={{ fontSize: 12, color: "#9a3412" }}><b>📦 Chegada dos EPIs:</b> {fmtD(perfil.compras_data_chegada)}</div>
       )}
 
       {/* Anexos (Currículo / CTPS) — currículo pode ser ocultado por setor */}
@@ -162,12 +161,6 @@ export function CandidatoInfo({ cand, hideCurriculo }: { cand: any; hideCurricul
         </div>
       )}
 
-      {/* EPIs/Uniforme (informado pelo Recrutamento) */}
-      {cand.compras_necessidades && (
-        <div style={{ fontSize: 12, background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "8px 10px", color: "#9a3412" }}>
-          <b>🦺 EPIs / Uniforme:</b> {cand.compras_necessidades}
-        </div>
-      )}
           </div>
         </div>
       )}

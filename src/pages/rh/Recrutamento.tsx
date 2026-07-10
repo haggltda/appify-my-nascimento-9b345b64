@@ -72,7 +72,6 @@ interface Curriculo {
   juridico_obs?: string;
   sst_obs?: string;
   motivo_reprovacao?: string;
-  compras_necessidades?: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -237,14 +236,13 @@ export default function Recrutamento() {
 
   // Kanban interno de candidatos (solicitação em "Seleção de Candidato")
   const [candidatos, setCandidatos]         = useState<Curriculo[]>([]);
+  const [buscaCand, setBuscaCand]           = useState(""); // busca no kanban de candidatos
   const [candModal, setCandModal]           = useState<{ id: number; novaEtapa: string; nome: string } | null>(null);
   const [candObs, setCandObs]               = useState("");
   const [showKanbanCand, setShowKanbanCand] = useState(false);   // painel dedicado do kanban
   const [showHistorico, setShowHistorico]   = useState(false);   // painel de histórico
   const [historico, setHistorico]           = useState<any[]>([]);
   const [nomesPorEmailHist, setNomesPorEmailHist] = useState<Record<string, string>>({}); // nome real (EMPREGADOS) por e-mail, p/ histórico
-  const [epiModal, setEpiModal]             = useState<{ id: number; nome: string } | null>(null);
-  const [epiRows, setEpiRows]               = useState<{ item: string; tamanho: string; quantidade: string; periodicidade: string; observacoes: string; obrigatorio: boolean }[]>([]);
   // Roteiro de entrevista (ENTREVISTA / ENTREVISTA GESTOR)
   const [roteiroModal, setRoteiroModal]     = useState<{ id: number; nome: string; etapa: string } | null>(null);
   const [roteiroRows, setRoteiroRows]       = useState<{ pergunta: string; resposta: string }[]>([]);
@@ -414,7 +412,7 @@ export default function Recrutamento() {
   // ── Candidatos no processo (kanban interno) ───────────────────
   const mapCurriculo = (c: any): Curriculo => ({
     ...c,
-    nome: c.nome ?? c.nome_cand ?? c.nome_candidato ?? "",
+    nome: String(c.nome ?? c.nome_cand ?? c.nome_candidato ?? "").trim().toUpperCase(),
     email: c.email ?? c.email_cand ?? "",
     cpf: c.cpf ?? c.cpf_cand ?? "",
     storage_path: c.storage_path ?? c.arquivo_path ?? c.path ?? "",
@@ -660,6 +658,17 @@ export default function Recrutamento() {
     }
   };
 
+  // Link do WhatsApp do candidato com mensagem já preenchida com o nome dele.
+  const waLinkDe = (c: any): string | null => {
+    const d = String(c.telefone ?? "").replace(/\D/g, "");
+    if (d.length < 10) return null;
+    const num = d.startsWith("55") && d.length >= 12 ? d : "55" + d;
+    const pn = String(c.nome ?? "").trim().split(/\s+/)[0] || "";
+    const primeiroNome = pn.charAt(0).toUpperCase() + pn.slice(1).toLowerCase(); // "PABLO" → "Pablo"
+    const msg = `Olá ${primeiroNome}, tudo bem? Estamos entrando em contato sobre o seu processo seletivo.`;
+    return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+  };
+
   // Download do currículo: signed URL temporária no bucket privado 'curriculos'.
   const baixarCurriculo = async (cv: Curriculo) => {
     if (!cv.storage_path) return;
@@ -736,38 +745,6 @@ export default function Recrutamento() {
     "EXAME SST": "→ Compras",
     COMPRAS: "Confirmar → Documentação",
   } as Record<string, string>)[etapa] || "Avançar";
-
-  // ── EPIs / TR (Recrutamento informa o Compras) ────────────────
-  const novaLinhaEpi = () => ({ item: "", tamanho: "", quantidade: "", periodicidade: "", observacoes: "", obrigatorio: false });
-  const abrirEpis = async (cv: Curriculo) => {
-    const { data } = await (supabase as any).from("RECRUTAMENTO_EPIS").select("*").eq("candidato_id", cv.id).order("id");
-    const rows = (data ?? []).map((r: any) => ({ item: r.item || "", tamanho: r.tamanho || "", quantidade: r.quantidade || "", periodicidade: r.periodicidade || "", observacoes: r.observacoes || "", obrigatorio: !!r.obrigatorio }));
-    setEpiRows(rows.length ? rows : [novaLinhaEpi()]);
-    setEpiModal({ id: cv.id, nome: cv.nome || "Candidato" });
-  };
-  const salvarEpis = async (enviar: boolean) => {
-    if (!epiModal) return;
-    const nome = user?.user_metadata?.nome ?? user?.email ?? "";
-    const rows = epiRows.filter(r => r.item.trim());
-    await (supabase as any).from("RECRUTAMENTO_EPIS").delete().eq("candidato_id", epiModal.id);
-    if (rows.length) {
-      const { error } = await (supabase as any).from("RECRUTAMENTO_EPIS").insert(rows.map(r => ({
-        candidato_id: epiModal.id, vaga_id: drawerId, item: r.item.trim(),
-        tamanho: r.tamanho.trim() || null, quantidade: r.quantidade.trim() || null,
-        periodicidade: r.periodicidade.trim() || null, observacoes: r.observacoes.trim() || null,
-        obrigatorio: r.obrigatorio, responsavel: nome,
-      })));
-      if (error) { toast("Erro ao salvar TR: " + error.message, "err"); return; }
-    }
-    if (enviar) {
-      if (!rows.length) { toast("Adicione ao menos 1 item do TR.", "err"); return; }
-      await (supabase as any).from("WA_CURRICULOS").update({ epis_informados: true, epis_informados_em: new Date().toISOString() }).eq("id", epiModal.id);
-      if (drawerId) await logHistorico(drawerId, "EPIs/TR informados → Compras", { papel: "Recrutamento", candidatoId: epiModal.id, candidatoNome: epiModal.nome });
-    }
-    toast(enviar ? "EPIs/TR informados — enviado ao Compras." : "TR salvo.", "ok");
-    setEpiModal(null); setEpiRows([]);
-    if (drawerId) loadCandidatos(drawerId);
-  };
 
   // DOCUMENTAÇÃO → envia o candidato para a Admissão (RH).
   const enviarAdmissao = async (cv: Curriculo) => {
@@ -1079,8 +1056,8 @@ export default function Recrutamento() {
       .kb-col{flex:0 0 252px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;display:flex;flex-direction:column;max-height:100%;overflow:hidden;transition:.15s;box-shadow:0 8px 24px rgba(15,23,42,.06)}
       .kb-col.drag-over{border-color:#0f3171;background:rgba(15,49,113,.04)}
       .kb-col-head{padding:10px 12px 8px;border-bottom:1px solid #e2e8f0;flex-shrink:0;display:flex;align-items:center;gap:6px;background:#fcfdff}
-      .kb-col-body{flex:1;overflow-y:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px}
-      .kb-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;cursor:pointer;transition:transform .12s,border-color .12s;box-shadow:0 8px 24px rgba(15,23,42,.06)}
+      .kb-col-body{flex:1;overflow-y:auto;padding:8px 6px;display:flex;flex-direction:column;gap:6px;user-select:none}
+      .kb-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;cursor:pointer;transition:transform .12s,border-color .12s;box-shadow:0 8px 24px rgba(15,23,42,.06);user-select:none}
       .kb-card:hover{border-color:#cbd5e1;transform:translateY(-2px)}
       .kb-card.dragging{opacity:.3;transform:scale(.96)}
       .cv-panel-ov{position:fixed;inset:0;z-index:800;background:rgba(15,23,42,.48);backdrop-filter:blur(5px);display:flex;justify-content:flex-end}
@@ -1184,7 +1161,7 @@ export default function Recrutamento() {
     return btns;
   };
 
-  const abrirKanbanCand = () => { setShowKanbanCand(true); if (drawerId) loadCandidatos(drawerId); };
+  const abrirKanbanCand = () => { setShowKanbanCand(true); setBuscaCand(""); if (drawerId) loadCandidatos(drawerId); };
 
   // ── Histórico (timeline): sintetiza a criação + eventos logados ──
   const papelCor = (p?: string): string => (({
@@ -1237,7 +1214,32 @@ export default function Recrutamento() {
   // ── Kanban interno: candidatos da solicitação ─────────────────
   const renderCandidatosKanban = () => {
     const grupos: Record<string, Curriculo[]> = {};
-    for (const c of candidatos) {
+    // Arrastar para rolar a coluna verticalmente (sem selecionar texto).
+    const dragScrollCol = (e: any) => {
+      if (e.button !== 0) return;
+      if ((e.target as HTMLElement).closest("button, a, input, textarea, select")) return;
+      const el = e.currentTarget as HTMLDivElement;
+      const startY = e.clientY, startTop = el.scrollTop;
+      let moved = false;
+      const onMove = (ev: MouseEvent) => {
+        const dy = ev.clientY - startY;
+        if (Math.abs(dy) > 3) moved = true;
+        if (moved) { el.scrollTop = startTop - dy; ev.preventDefault(); }
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    };
+
+    // Busca: filtra os cards em todas as colunas (nome, CPF ou telefone).
+    const q = buscaCand.trim().toLowerCase();
+    const candVisiveis = q
+      ? candidatos.filter(c => [c.nome, c.cpf, (c as any).telefone].some(v => String(v ?? "").toLowerCase().includes(q)))
+      : candidatos;
+    for (const c of candVisiveis) {
       const e = c.etapa_processo || "Selecionado";
       (grupos[e] = grupos[e] || []).push(c);
     }
@@ -1246,11 +1248,16 @@ export default function Recrutamento() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "0 0 12px", flexWrap: "wrap", flexShrink: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: "#0f3171", display: "flex", alignItems: "center", gap: 8 }}>
             👥 Candidatos no processo
-            <span style={{ fontSize: 11, fontWeight: 700, background: "#eef4ff", border: "1px solid #dbe4f0", borderRadius: 20, padding: "1px 9px", color: "#0f3171" }}>{candidatos.length}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, background: "#eef4ff", border: "1px solid #dbe4f0", borderRadius: 20, padding: "1px 9px", color: "#0f3171" }}>{q ? `${candVisiveis.length} de ${candidatos.length}` : candidatos.length}</span>
           </div>
-          {podeRecrutar && (
-            <button onClick={abrirCurriculos} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(34,197,94,.25)", background: "rgba(34,197,94,.1)", color: "#22c55e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Selecionar dos currículos</button>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <input value={buscaCand} onChange={e => setBuscaCand(e.target.value)} placeholder="🔎 Buscar candidato (nome, CPF, fone)…"
+              style={{ height: 30, width: 240, border: "1px solid #e2e8f0", borderRadius: 8, padding: "0 10px", fontSize: 12, outline: "none", background: "#fff", color: "#0f172a" }} />
+            {q && <button onClick={() => setBuscaCand("")} style={{ height: 30, padding: "0 10px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", color: "#475569", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Limpar</button>}
+            {podeRecrutar && (
+              <button onClick={abrirCurriculos} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(34,197,94,.25)", background: "rgba(34,197,94,.1)", color: "#22c55e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Selecionar dos currículos</button>
+            )}
+          </div>
         </div>
         {candidatos.length === 0 ? (
           <div style={{ border: "1px dashed #cbd5e1", borderRadius: 12, padding: "26px 16px", textAlign: "center", color: "#94a3b8", fontSize: 12.5 }}>
@@ -1268,7 +1275,7 @@ export default function Recrutamento() {
                     <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".4px", flex: 1, textTransform: "uppercase", color: meta.label }}>{etapa}</span>
                     <span style={{ fontSize: 10, fontWeight: 800, background: "#eef2f7", borderRadius: 20, padding: "1px 7px", color: "#94a3b8" }}>{cards.length}</span>
                   </div>
-                  <div className="kb-col-body">
+                  <div className="kb-col-body" onMouseDown={dragScrollCol}>
                     {cards.length === 0 ? (
                       <div style={{ textAlign: "center", padding: "16px 8px", color: "#94a3b8", fontSize: 10, opacity: .6 }}>—</div>
                     ) : cards.map(c => {
@@ -1279,24 +1286,36 @@ export default function Recrutamento() {
                       const avancaBtn = bFull;
                       // Cor do card pela decisão do Jurídico (cinza=pendente, verde=ok, vermelho=reprovado).
                       const cor = c.juridico_ok === true ? "#16a34a" : c.juridico_ok === false ? "#dc2626" : meta.accent;
-                      const compEpiOk = etapa === "COMPRAS" && (c as any).epis_informados;
                       return (
                         <div key={c.id} className="kb-card" style={{ cursor: "default", borderColor: c.juridico_ok === true ? "#bbf7d0" : c.juridico_ok === false ? "#fecaca" : undefined }}>
                           <div style={{ height: 3, background: cor }} />
                           <div style={{ padding: "9px 10px 8px" }}>
-                            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.nome || "Sem nome"}</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>{c.nome || "Sem nome"}</div>
+                              <button onClick={() => setDetalheEmp({ nome: c.nome || "Candidato", cpf: c.cpf || "", telefone: c.telefone, email: c.email, itens: [c], emps: [] })} title="Ver todos os detalhes do candidato"
+                                style={{ flexShrink: 0, width: 20, height: 20, padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: 10.5 }}>🔍</button>
+                            </div>
                             {c.cpf && <div style={{ fontSize: 10, color: "#94a3b8" }}>CPF {c.cpf}</div>}
-                            {c.telefone && <div style={{ fontSize: 10, color: "#475569" }}>📞 {c.telefone}</div>}
+                            {c.telefone && (
+                              <div style={{ fontSize: 10, color: "#475569", display: "flex", alignItems: "center", gap: 5 }}>
+                                <span>📞 {c.telefone}</span>
+                                {waLinkDe(c) && (
+                                  <a href={waLinkDe(c)!} target="_blank" rel="noopener noreferrer" title="Chamar no WhatsApp"
+                                    style={{ flexShrink: 0, width: 17, height: 17, borderRadius: "50%", background: "#25d366", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="#fff" aria-hidden>
+                                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                                    </svg>
+                                  </a>
+                                )}
+                              </div>
+                            )}
                             {c.juridico_ok === true && <div style={{ fontSize: 9.5, color: "#15803d", marginTop: 3, fontWeight: 700 }}>✓ Jurídico aprovado</div>}
                             {c.juridico_ok === false && <div style={{ fontSize: 9.5, color: "#b91c1c", marginTop: 3, fontWeight: 700 }}>⛔ Restrito (Jurídico)</div>}
                             {etapa === "Reprovado" && c.motivo_reprovacao && <div style={{ fontSize: 10.5, color: "#b91c1c", marginTop: 4 }}>Motivo: {c.motivo_reprovacao}</div>}
-                            {etapa === "COMPRAS" && <div style={{ fontSize: 9.5, color: compEpiOk ? "#15803d" : "#b45309", marginTop: 4, fontWeight: 700 }}>{compEpiOk ? "EPIs informados ✓" : "Aguardando informe de EPIs"}</div>}
                             {etapa === "DOCUMENTAÇÃO" && (c as any).enviado_admissao_em && <div style={{ fontSize: 9.5, color: "#15803d", marginTop: 4, fontWeight: 700 }}>✓ Contratado — na Admissão (RH)</div>}
                             <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 10 }}>
                               {/* ENTREVISTA/GESTOR: roteiro de entrevista */}
                               {(etapa === "ENTREVISTA" || etapa === "ENTREVISTA GESTOR") && podeRecrutar && <button onClick={() => abrirRoteiro(c, etapa)} style={{ ...bFull, background: "rgba(59,130,246,.1)", color: "#2563eb", border: "1px solid rgba(59,130,246,.3)" }}>📋 Roteiro de entrevista</button>}
-                              {/* COMPRAS: Recrutamento informa o TR de EPIs */}
-                              {etapa === "COMPRAS" && podeRecrutar && <button onClick={() => abrirEpis(c)} style={{ ...bFull, background: "rgba(249,115,22,.12)", color: "#ea580c", border: "1px solid rgba(249,115,22,.3)" }}>🦺 Informar EPIs (TR)</button>}
                               {/* Avançar — com ramificação em TRIAGEM e ENTREVISTA */}
                               {etapa === "TRIAGEM" && podeAqui ? (<>
                                 <button onClick={() => pedirMoverCand(c, "JURÍDICO")} style={{ ...avancaBtn, background: "#8b5cf6" }}>Enviar ao Jurídico</button>
@@ -1306,7 +1325,7 @@ export default function Recrutamento() {
                                 <button onClick={() => pedirMoverCand(c, "APROVADOS")} style={bSkip}>Pular Gestor →</button>
                               </>) : etapa === "DOCUMENTAÇÃO" ? (
                                 podeRecrutar && !(c as any).enviado_admissao_em && <button onClick={() => enviarAdmissao(c)} style={{ ...avancaBtn, background: "#16a34a" }}>✓ Contratar (enviar à Admissão)</button>
-                              ) : (CAND_PROX[etapa] && podeAqui && (etapa !== "COMPRAS" || compEpiOk) && (
+                              ) : (CAND_PROX[etapa] && podeAqui && (
                                 <button onClick={() => pedirMoverCand(c, CAND_PROX[etapa])} style={{ ...avancaBtn, background: "#16a34a" }}>{labelProx(etapa)}</button>
                               ))}
                               {etapa !== "DOCUMENTAÇÃO" && etapa !== "Reprovado" && podeAqui && <button onClick={() => pedirMoverCand(c, "Reprovado")} style={{ width: "100%", fontSize: 10.5, fontWeight: 700, padding: "4px", borderRadius: 7, background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}>Reprovar</button>}
@@ -1704,59 +1723,6 @@ export default function Recrutamento() {
         </div>
       )}
 
-      {/* ── Modal: EPIs / Uniforme — Tabela do TR (Recrutamento informa o Compras) ── */}
-      {epiModal && (
-        <div className="rec-modal-ov" style={{ zIndex: 850 }}>
-          <div className="rec-modal" style={{ maxWidth: 860 }}>
-            <button onClick={() => { setEpiModal(null); setEpiRows([]); }} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
-            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>🦺 EPIs / Uniforme — Tabela do TR</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>{epiModal.nome} — informe ao Compras os itens necessários. Responsável: <b>{user?.user_metadata?.nome ?? user?.email ?? "—"}</b>.</div>
-            <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: 10 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 720 }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc" }}>
-                    {["Itens do TR *", "Tamanho", "Qtd. prevista", "Periodicidade", "Observações", "Obrig.", ""].map(h => (
-                      <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".4px", borderBottom: "1px solid #e2e8f0" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {epiRows.map((r, i) => {
-                    const upd = (k: string, v: string) => setEpiRows(rs => rs.map((x, j) => j === i ? { ...x, [k]: v } : x));
-                    const cell = (k: keyof typeof r, ph: string) => (
-                      <td style={{ padding: "4px 6px", borderBottom: "1px solid #f1f5f9" }}>
-                        <input value={(r as any)[k]} onChange={e => upd(k, e.target.value)} placeholder={ph} style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 7, padding: "6px 8px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
-                      </td>
-                    );
-                    return (
-                      <tr key={i}>
-                        {cell("item", "Ex.: Botina de segurança")}
-                        {cell("tamanho", "42")}
-                        {cell("quantidade", "1 par")}
-                        {cell("periodicidade", "Anual")}
-                        {cell("observacoes", "—")}
-                        <td style={{ padding: "4px 6px", borderBottom: "1px solid #f1f5f9", textAlign: "center" }}>
-                          <input type="checkbox" checked={r.obrigatorio} onChange={e => setEpiRows(rs => rs.map((x, j) => j === i ? { ...x, obrigatorio: e.target.checked } : x))} title="Obrigatório para início" style={{ width: 16, height: 16, accentColor: "#dc2626", cursor: "pointer" }} />
-                        </td>
-                        <td style={{ padding: "4px 6px", borderBottom: "1px solid #f1f5f9", textAlign: "center" }}>
-                          <button onClick={() => setEpiRows(rs => rs.filter((_, j) => j !== i))} title="Remover" style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 14 }}>✕</button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <button onClick={() => setEpiRows(rs => [...rs, novaLinhaEpi()])} style={{ marginTop: 10, padding: "6px 12px", borderRadius: 8, border: "1px dashed #cbd5e1", background: "#fff", color: "#0f3171", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ Adicionar item</button>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-              <button onClick={() => { setEpiModal(null); setEpiRows([]); }} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
-              <button onClick={() => salvarEpis(false)} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #0f3171", background: "#fff", color: "#0f3171", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Salvar rascunho</button>
-              <button onClick={() => salvarEpis(true)} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Confirmar e enviar ao Compras</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Modal: Roteiro de Entrevista ── */}
       {roteiroModal && (
         <div className="rec-modal-ov" style={{ zIndex: 850 }}>
@@ -1950,6 +1916,37 @@ export default function Recrutamento() {
                   ))}
                 </div>
               </div>
+
+              {/* Dados pessoais do formulário (o que existir em qualquer envio) */}
+              {(() => {
+                const dg = (campo: string) => detalheEmp.itens.map((it: any) => it[campo]).find((v: any) => v || v === false);
+                const linhas = ([
+                  ["Nascimento", dg("data_nascimento") ? fmtDt(dg("data_nascimento")) : null],
+                  ["RG", dg("rg")],
+                  ["Sexo", dg("sexo")],
+                  ["Nome da mãe", dg("nome_mae")],
+                  ["Nome do pai", dg("nome_pai")],
+                  ["Escolaridade", dg("escolaridade")],
+                  ["Reside", dg("cidade_residencia")],
+                  ["Deseja trabalhar", [dg("cidade_desejada"), dg("estado_desejado")].filter(Boolean).join("/")],
+                  ["CNH", dg("possui_cnh")],
+                  ["Disp. horários", dg("disponibilidade_horarios")],
+                  ["Fim de semana", dg("disp_fim_semana")],
+                  ["Experiência prévia", dg("experiencia_previa")],
+                  ["Estrangeiro", dg("estrangeiro")],
+                  ["Cargos de interesse", dg("cargos_interesse")],
+                  ["Experiências", [dg("experiencia_1"), dg("experiencia_2"), dg("experiencia_3")].filter(Boolean).join(" · ")],
+                ] as [string, any][]).filter(([, v]) => v || v === false);
+                if (!linhas.length) return null;
+                return (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".5px", color: "#0f3171", marginBottom: 8 }}>🪪 Dados pessoais (formulário)</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 16px", fontSize: 12, color: "#334155" }}>
+                      {linhas.map(([l, v]) => <div key={l}><span style={{ color: "#94a3b8", fontWeight: 700 }}>{l}: </span>{v === true ? "Sim" : v === false ? "Não" : v}</div>)}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Cadastros na empresa (EMPREGADOS) */}
               {detalheEmp.emps.length > 0 && (

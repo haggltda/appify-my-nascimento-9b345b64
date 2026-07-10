@@ -206,13 +206,6 @@ const suprimentosModule: ModuleDef = {
   status: "active",
   groups: [
     {
-      label: "Recrutamento",
-      defaultOpen: true,
-      items: [
-        { label: "EPIs/Uniforme de Admissão", to: "/app/suprimentos/candidatos", icon: HardHat },
-      ],
-    },
-    {
       label: "Cadastros",
       defaultOpen: true,
       items: [
@@ -581,7 +574,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
 
   // Sidebar filtra itens com base nos menus acessíveis do usuário.
   // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/duvidas", "/app/juridico/processos", "/app/juridico/processos/dashboard", "/app/juridico/processos/audiencias", "/app/juridico/advertencias", "/app/juridico/candidatos", "/app/sst/aso", "/app/suprimentos/candidatos", "/app/rh/novas-admissoes", "/app/rh/banco-talentos", "/app/rh/recrutamento-dashboard", "/app/sistemas/solicitacoes-erp", "/app/central-servicos/orientacoes-juridicas"];
+  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/juridico/duvidas", "/app/juridico/processos", "/app/juridico/processos/dashboard", "/app/juridico/processos/audiencias", "/app/juridico/advertencias", "/app/juridico/candidatos", "/app/sst/aso", "/app/rh/novas-admissoes", "/app/rh/banco-talentos", "/app/rh/recrutamento-dashboard", "/app/sistemas/solicitacoes-erp", "/app/central-servicos/orientacoes-juridicas"];
   const visibleModules = useMemo(() => {
     const resolvedBadge = (badge: string | undefined) => {
       if (badge === "__grade_ativa__") return gradeAtivaCount != null ? String(gradeAtivaCount) : undefined;

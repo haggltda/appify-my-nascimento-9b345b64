@@ -106,11 +106,11 @@ import Processos from "./pages/juridico/Processos";
 import Advertencias from "./pages/juridico/Advertencias";
 import VerificacaoCandidatos from "./pages/juridico/VerificacaoCandidatos";
 import AsoCandidatos from "./pages/sst/AsoCandidatos";
-import ComprasCandidatos from "./pages/suprimentos/ComprasCandidatos";
 import NovasAdmissoes from "./pages/rh/NovasAdmissoes";
 import BancoTalentos from "./pages/rh/BancoTalentos";
 import RecrutamentoDashboard from "./pages/rh/RecrutamentoDashboard";
 import OrientacoesJuridicas from "./pages/central-servicos/OrientacoesJuridicas";
+import Denuncias from "./pages/central-servicos/Denuncias";
 import Ferias from "./pages/rh/Ferias";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
 import BIDashboard from "./pages/bi/Dashboard";
@@ -219,7 +219,6 @@ const App = () => (
             <Route path="suprimentos/categorias" element={<CategoriasProduto />} />
             <Route path="suprimentos/almoxarifados" element={<Almoxarifados />} />
             <Route path="suprimentos/estoque" element={<Estoque />} />
-            <Route path="suprimentos/candidatos" element={<ComprasCandidatos />} />
             <Route path="suprimentos/movimentos" element={<MovimentosEstoque />} />
             <Route path="suprimentos/nf-entrada" element={<NFEntrada />} />
             <Route path="suprimentos/requisicoes" element={<Requisicoes />} />
@@ -273,6 +272,7 @@ const App = () => (
             {/* SST — ASO / Admissão (fila do Recrutamento) */}
             <Route path="sst/aso" element={<AsoCandidatos />} />
             <Route path="central-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
+            <Route path="central-servicos/denuncias" element={<Denuncias />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}
