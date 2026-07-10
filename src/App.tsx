@@ -101,6 +101,22 @@ import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
 import Recrutamento from "./pages/rh/Recrutamento";
 import Patrimonios from "./pages/juridico/Patrimonios";
+import CentralDuvidas from "./pages/juridico/CentralDuvidas";
+import Processos from "./pages/juridico/Processos";
+import Advertencias from "./pages/juridico/Advertencias";
+import VerificacaoCandidatos from "./pages/juridico/VerificacaoCandidatos";
+import AsoCandidatos from "./pages/sst/AsoCandidatos";
+import NovasAdmissoes from "./pages/rh/NovasAdmissoes";
+import BancoTalentos from "./pages/rh/BancoTalentos";
+import RecrutamentoDashboard from "./pages/rh/RecrutamentoDashboard";
+import OrientacoesJuridicas from "./pages/central-servicos/OrientacoesJuridicas";
+import Denuncias from "./pages/central-servicos/Denuncias";
+import Formularios from "./pages/central-servicos/Formularios";
+import FormularioEditor from "./pages/central-servicos/FormularioEditor";
+import FormularioRespostas from "./pages/central-servicos/FormularioRespostas";
+import FormulariosDashboard from "./pages/central-servicos/FormulariosDashboard";
+import FormulariosConfig from "./pages/central-servicos/FormulariosConfig";
+import FormularioPublico from "./pages/publico/FormularioPublico";
 import Ferias from "./pages/rh/Ferias";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
 import BIDashboard from "./pages/bi/Dashboard";
@@ -147,6 +163,8 @@ const App = () => (
           {/* Portal público de candidatura (sem login) */}
           <Route path="/vagas" element={<Vagas />} />
           <Route path="/candidatura" element={<Navigate to="/vagas" replace />} />
+          {/* Nascimento Formulários — resposta pública, sem login */}
+          <Route path="/formularios/:slug" element={<FormularioPublico />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<Inicio />} />
             <Route path="encarregados" element={<Navigate to="/app/encarregados/minhas-solicitacoes" replace />} />
@@ -249,11 +267,29 @@ const App = () => (
             <Route path="rh/colaboradores" element={<Colaboradores />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             <Route path="rh/folha" element={<Folha />} />
+            <Route path="rh/novas-admissoes" element={<NovasAdmissoes />} />
+            <Route path="rh/banco-talentos" element={<BancoTalentos />} />
+            <Route path="rh/recrutamento-dashboard" element={<RecrutamentoDashboard />} />
             <Route path="rh/ferias" element={<Ferias />} />
             <Route path="rh/recrutamento" element={<Recrutamento />} />
             {/* Jurídico — Gestão Patrimonial */}
             <Route path="juridico" element={<Navigate to="/app/juridico/patrimonios" replace />} />
             <Route path="juridico/patrimonios" element={<Patrimonios />} />
+            <Route path="juridico/processos/dashboard" element={<Processos view="dashboard" />} />
+            <Route path="juridico/processos" element={<Processos view="processos" />} />
+            <Route path="juridico/processos/audiencias" element={<Processos view="audiencias" />} />
+            <Route path="juridico/advertencias" element={<Advertencias />} />
+            <Route path="juridico/candidatos" element={<VerificacaoCandidatos />} />
+            <Route path="juridico/duvidas" element={<CentralDuvidas />} />
+            {/* SST — ASO / Admissão (fila do Recrutamento) */}
+            <Route path="sst/aso" element={<AsoCandidatos />} />
+            <Route path="central-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
+            <Route path="central-servicos/denuncias" element={<Denuncias />} />
+            <Route path="central-servicos/formularios" element={<Formularios />} />
+            <Route path="central-servicos/formularios/dashboard" element={<FormulariosDashboard />} />
+            <Route path="central-servicos/formularios/config" element={<FormulariosConfig />} />
+            <Route path="central-servicos/formularios/:id" element={<FormularioEditor />} />
+            <Route path="central-servicos/formularios/:id/respostas" element={<FormularioRespostas />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}

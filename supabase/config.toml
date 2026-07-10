@@ -26,3 +26,6 @@ verify_jwt = true
 
 [functions.erp-caixa-export]
 verify_jwt = true
+
+[functions.sync-denuncias-contato-seguro]
+verify_jwt = true

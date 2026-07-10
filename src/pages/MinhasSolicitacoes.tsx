@@ -25,15 +25,23 @@ function mesLabel(s?: string) {
 function badgeStatusCls(st: string) {
   const m: Record<string, string> = {
     "Aguardando Aprovação": "bg-yellow-100 text-yellow-800 border-yellow-200",
+    "Pendente Operacional": "bg-yellow-100 text-yellow-800 border-yellow-200",
+    "Pendente Recrutamento": "bg-purple-100 text-purple-700 border-purple-200",
+    "Seleção de Candidato": "bg-blue-100 text-blue-700 border-blue-200",
     "Aguardando Recrutamento": "bg-purple-100 text-purple-700 border-purple-200",
+    "Aguardando Jurídico": "bg-purple-100 text-purple-700 border-purple-200",
+    "Concluída": "bg-green-100 text-green-700 border-green-200",
     Pendente: "bg-yellow-100 text-yellow-800 border-yellow-200",
     Aprovada: "bg-green-100 text-green-700 border-green-200",
     Reprovada: "bg-red-100 text-red-700 border-red-200",
     Cancelada: "bg-slate-100 text-slate-600 border-slate-200",
     Contratado: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    Respondida: "bg-green-100 text-green-700 border-green-200",
+    Aberta: "bg-orange-100 text-orange-700 border-orange-200",
   };
   return m[st] ?? "bg-blue-100 text-blue-700 border-blue-200";
 }
+
 function brToISO(d?: string): string | null {
   const m = String(d ?? "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
@@ -54,6 +62,12 @@ const FERIAS_RESET = {
   colaborador_cargo: "", colaborador_filial: "", colaborador_admissao: "",
   data_saida: "", dias_ferias: "30", dias_vendidos: "0", observacoes: "",
 };
+const ADV_RESET = {
+  colaborador_id: null as number | null, colaborador_nome: "", colaborador_cpf: "",
+  colaborador_cargo: "", colaborador_filial: "", contrato: "", contrato_id: null as number | null,
+  tipo_advertencia: "", grau: "", data_ocorrido: "", descricao_ocorrido: "",
+  advertencia_verbal_dada: "Não", data_advertencia_verbal: "",
+};
 const VAGA_RESET = {
   motivo_vaga: "", nome_substituido: "", contrato: "", cargo: "",
   estado: "", cidade: "", quantidade_vagas: "1", data_inicio_prevista: "",
@@ -66,7 +80,7 @@ const VAGA_RESET = {
 
 interface SolItem {
   tipo: string; icon: string; id: number; titulo: string; status: string; data: string;
-  substituido?: string; motivo?: string; qtdVagas?: number; statusDesde?: string;
+  substituido?: string; motivo?: string; qtdVagas?: number; statusDesde?: string; excecao?: boolean;
 }
 
 export default function MinhasSolicitacoes() {
@@ -87,6 +101,12 @@ export default function MinhasSolicitacoes() {
   // Modal férias
   const [modalFerias, setModalFerias] = useState(false);
   const [ferias, setFerias] = useState({ ...FERIAS_RESET });
+
+  // Modal advertência
+  const [modalAdv, setModalAdv] = useState(false);
+  const [adv, setAdv] = useState({ ...ADV_RESET });
+  const [advHistorico, setAdvHistorico] = useState<any[]>([]);
+  const [advExc, setAdvExc] = useState({ open: false, justificativa: "" });
 
   // Histórico unificado
   const [minhasSols, setMinhasSols] = useState<SolItem[]>([]);
@@ -125,6 +145,7 @@ export default function MinhasSolicitacoes() {
     if (vg.error) vg = await vagaQuery("id, cargo, contrato, status, created_at, nome_substituido, quantidade_vagas, motivo_vaga");
 
     const fr = await (supabase as any).from("SISTEMA_SOLICITACOES_FERIAS").select("id, colaborador_nome, status, criado_em").eq("solicitante_email", email).order("criado_em", { ascending: false }).limit(30);
+    const ad = await (supabase as any).from("SISTEMA_SOLICITACOES_ADVERTENCIA").select("id, colaborador_nome, tipo_advertencia, status, created_at, status_changed_at, excecao").eq("solicitante_email", email).order("created_at", { ascending: false }).limit(30);
     const itens: SolItem[] = [
       ...(vg.data ?? []).map((r: any) => ({
         tipo: "Vaga", icon: "🎯", id: r.id,
@@ -135,17 +156,18 @@ export default function MinhasSolicitacoes() {
         statusDesde: r.status_changed_at || r.created_at,
       })),
       ...(fr.data ?? []).map((r: any) => ({ tipo: "Férias", icon: "📅", id: r.id, titulo: `Férias — ${r.colaborador_nome || ""}`, status: r.status, data: r.criado_em, statusDesde: r.criado_em })),
+      ...(ad.data ?? []).map((r: any) => ({ tipo: "Advertência", icon: "⚠️", id: r.id, titulo: `Advertência ${r.tipo_advertencia || ""} — ${r.colaborador_nome || ""}`, status: r.status, data: r.created_at, statusDesde: r.status_changed_at || r.created_at, excecao: r.excecao })),
     ].sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
     setLoadingSols(false);
     setMinhasSols(itens);
-  }, [user?.email]);
+  }, [user?.email, user?.id]);
 
   useEffect(() => { carregarMinhasSols(); }, [carregarMinhasSols]);
 
   // ── Contratos ───────────────────────────────────────────────────────
   const carregarContratos = async () => {
     const { data } = await (supabase as any)
-      .from("CONTRATOS").select('"NOME CONTRATO", Filial').eq("ATIVO", "SIM").order('"NOME CONTRATO"');
+      .from("CONTRATOS").select('id, "NOME CONTRATO", Filial').eq("ATIVO", "SIM").order('"NOME CONTRATO"');
     if (data) {
       setContratosFull(data);
       const nomes = Array.from(new Set(data.map((c: any) => c["NOME CONTRATO"] ?? "").filter(Boolean)));
@@ -212,7 +234,7 @@ export default function MinhasSolicitacoes() {
     const payload = {
       ...vaga,
       quantidade_vagas: parseInt(vaga.quantidade_vagas) || 1,
-      status: "Aguardando Aprovação",
+      status: "Pendente Operacional",
       solicitante_nome: user?.user_metadata?.nome ?? user?.email ?? "",
       solicitante_cpf: user?.email ?? "",
     };
@@ -259,6 +281,79 @@ export default function MinhasSolicitacoes() {
     if (error) { toast("Erro ao solicitar férias: " + error.message, "err"); return; }
     toast(`Férias solicitadas para ${ferias.colaborador_nome}! (#${data?.id})`, "ok");
     setModalFerias(false); setFerias({ ...FERIAS_RESET }); setEmpSearch(""); carregarMinhasSols();
+  };
+
+  // ── Advertência ─────────────────────────────────────────────────────
+  const selecionarColabAdv = async (emp: any) => {
+    const contratoMatch = contratosFull.find((c: any) => c.Filial === emp.Filial);
+    setAdv(a => ({
+      ...a,
+      colaborador_id: emp.ID ?? null, colaborador_nome: emp.Nome ?? "", colaborador_cpf: emp.CPF ?? "",
+      colaborador_cargo: emp["Título do Cargo"] ?? "", colaborador_filial: emp["Nome Filial"] ?? "",
+      contrato: contratoMatch ? contratoMatch["NOME CONTRATO"] : "",
+      contrato_id: contratoMatch ? (contratoMatch.id ?? null) : null,
+    }));
+    setEmpSearch(emp.Nome ?? ""); setShowEmpDrop(false);
+    // Histórico de advertências do colaborador (2ª advertência reabre o mesmo histórico).
+    setAdvHistorico([]);
+    if (emp.ID != null) {
+      const { data } = await (supabase as any).from("SISTEMA_SOLICITACOES_ADVERTENCIA")
+        .select("id, tipo_advertencia, grau, status, data_ocorrido, created_at")
+        .eq("colaborador_id", emp.ID).order("created_at", { ascending: false }).limit(20);
+      setAdvHistorico(data ?? []);
+    }
+  };
+
+  const abrirModalAdv = () => {
+    setModalAdv(true); setAdv({ ...ADV_RESET }); setEmpSearch(""); setShowEmpDrop(false); setEmpregados([]); setAdvHistorico([]);
+    if (!contratos.length) carregarContratos();
+  };
+
+  // Trava: grau Baixo exige advertência verbal antes da escrita.
+  const advBloqueada = adv.grau === "Baixo" && adv.advertencia_verbal_dada === "Não";
+
+  // Data do ocorrido com mais de 3 dias → fora do prazo (vira EXCEÇÃO com justificativa).
+  const advForaDoPrazo = () => {
+    if (!adv.data_ocorrido) return false;
+    const limite = new Date(); limite.setHours(0, 0, 0, 0); limite.setDate(limite.getDate() - 3);
+    return new Date(adv.data_ocorrido + "T00:00:00") < limite;
+  };
+
+  const submitAdv = async () => {
+    if (!adv.colaborador_id) { toast("Selecione o colaborador.", "err"); return; }
+    if (!adv.tipo_advertencia) { toast("Selecione o tipo de advertência.", "err"); return; }
+    if (!adv.grau) { toast("Selecione o grau da advertência.", "err"); return; }
+    if (!adv.data_ocorrido) { toast("Informe a data do ocorrido.", "err"); return; }
+    if (adv.descricao_ocorrido.trim().length < 50) { toast("A descrição do ocorrido precisa ter pelo menos 50 caracteres.", "err"); return; }
+    if (adv.advertencia_verbal_dada === "Sim" && !adv.data_advertencia_verbal) { toast("Informe a data em que a advertência verbal foi aplicada.", "err"); return; }
+    if (advBloqueada) { toast("Primeiro dê a advertência verbal para dar a escrita.", "err"); return; }
+    if (advForaDoPrazo()) { setAdvExc({ open: true, justificativa: "" }); return; }  // pede justificativa de exceção
+    await doSubmitAdv(false, null);
+  };
+
+  const confirmarExcecao = async () => {
+    if (advExc.justificativa.trim().length < 10) { toast("Justifique a exceção (mín. 10 caracteres).", "err"); return; }
+    await doSubmitAdv(true, advExc.justificativa.trim());
+  };
+
+  const doSubmitAdv = async (excecao: boolean, justificativa: string | null) => {
+    const payload = {
+      solicitante_nome: displayName || user?.email || "", solicitante_email: user?.email ?? "",
+      colaborador_id: adv.colaborador_id, colaborador_nome: adv.colaborador_nome, colaborador_cpf: adv.colaborador_cpf,
+      colaborador_cargo: adv.colaborador_cargo, colaborador_filial: adv.colaborador_filial,
+      contrato: adv.contrato || null, contrato_id: adv.contrato_id,
+      tipo_advertencia: adv.tipo_advertencia, grau: adv.grau, data_ocorrido: adv.data_ocorrido,
+      descricao_ocorrido: adv.descricao_ocorrido.trim(),
+      advertencia_verbal_dada: adv.advertencia_verbal_dada === "Sim",
+      data_advertencia_verbal: adv.advertencia_verbal_dada === "Sim" ? (adv.data_advertencia_verbal || null) : null,
+      status: "Aguardando Aprovação",
+      excecao, justificativa_excecao: justificativa,
+    };
+    const { error, data } = await (supabase as any).from("SISTEMA_SOLICITACOES_ADVERTENCIA").insert(payload).select("id").single();
+    if (error) { toast("Erro ao solicitar advertência: " + error.message, "err"); return; }
+    toast(`Advertência solicitada${excecao ? " (EXCEÇÃO)" : ""} para ${adv.colaborador_nome}! (#${data?.id})`, "ok");
+    setAdvExc({ open: false, justificativa: "" });
+    setModalAdv(false); setAdv({ ...ADV_RESET }); setEmpSearch(""); carregarMinhasSols();
   };
 
   // ── CSS ─────────────────────────────────────────────────────────────
@@ -312,7 +407,7 @@ export default function MinhasSolicitacoes() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
             <button onClick={abrirModalVaga} className="ini-sol-create"><span className="icon">🎯</span><span>Solicitar Vaga</span></button>
             <button onClick={abrirModalFerias} className="ini-sol-create"><span className="icon">📅</span><span>Solicitar Férias</span></button>
-            <button className="ini-sol-create" style={{ opacity: .5, cursor: "not-allowed" }} disabled title="Em breve"><span className="icon">⚠️</span><span>Advertência</span></button>
+            <button onClick={abrirModalAdv} className="ini-sol-create"><span className="icon">⚠️</span><span>Advertência</span></button>
             <button className="ini-sol-create" style={{ opacity: .5, cursor: "not-allowed" }} disabled title="Em breve"><span className="icon">🚪</span><span>Solicitar Demissão</span></button>
           </div>
         </div>
@@ -323,7 +418,7 @@ export default function MinhasSolicitacoes() {
         <div className="ini-card-hd">
           <h3>🗂 Histórico & Status</h3>
           <div style={{ display: "flex", gap: 6 }}>
-            {["", "Vaga", "Férias"].map(f => (
+            {["", "Vaga", "Férias", "Advertência"].map(f => (
               <button key={f || "all"} onClick={() => setFiltro(f)}
                 style={{ padding: "4px 10px", borderRadius: 16, fontSize: 11, fontWeight: 700, cursor: "pointer",
                   border: `1px solid ${filtro === f ? "#0f3171" : "#e2e8f0"}`, background: filtro === f ? "#0f3171" : "#fff", color: filtro === f ? "#fff" : "#475569" }}>
@@ -361,6 +456,7 @@ export default function MinhasSolicitacoes() {
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                       <span className={`ini-badge ${badgeStatusCls(s.status)}`}>{s.status}</span>
+                      {s.excecao && <span className="ini-badge" style={{ background: "#fef3c7", color: "#b45309", borderColor: "#fde68a" }}>EXCEÇÃO</span>}
                       {dias !== null && (
                         <span className="ini-sol-dias" title={`Tempo parado no status atual: ${s.status}`}>
                           ⏱ {dias === 0 ? "hoje" : `há ${dias} dia${dias > 1 ? "s" : ""}`} neste status
@@ -530,6 +626,103 @@ export default function MinhasSolicitacoes() {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, paddingTop: 14, borderTop: "1px solid #e2e8f0" }}>
               <button onClick={() => setModalFerias(false)} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
               <button onClick={submitFerias} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Solicitar Férias</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Advertência ── */}
+      {modalAdv && (
+        <div className="ini-modal-ov">
+          <div className="ini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <button onClick={() => setModalAdv(false)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>⚠️ Solicitar Advertência</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Selecione o colaborador e responda as questões. Segue para o analista do contrato aprovar e depois para o Jurídico.</div>
+
+            <div className="ini-fg" style={{ position: "relative" }} onBlur={() => setTimeout(() => setShowEmpDrop(false), 150)}>
+              <label>Colaborador *</label>
+              <input className="ini-fi" placeholder="Digite o nome do colaborador..." value={empSearch} autoComplete="off"
+                onChange={e => { const v = e.target.value; setEmpSearch(v); setAdv(a => ({ ...a, colaborador_id: null })); if (v.length >= 2) { setShowEmpDrop(true); buscarEmpregados(v); } else { setShowEmpDrop(false); setEmpregados([]); } }} />
+              {showEmpDrop && empSearch.length >= 2 && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 999, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 8px 24px rgba(15,23,42,.14)", maxHeight: 220, overflowY: "auto", marginTop: 2 }}>
+                  {loadingEmps ? <div style={{ padding: "12px", fontSize: 12, color: "#94a3b8", textAlign: "center" }}>Buscando...</div>
+                    : empregados.length === 0 ? <div style={{ padding: "12px", fontSize: 12, color: "#94a3b8", textAlign: "center" }}>Nenhum colaborador encontrado.</div>
+                      : empregados.slice(0, 40).map((emp, i) => (
+                        <div key={i} onMouseDown={() => selecionarColabAdv(emp)} style={{ padding: "8px 12px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid #f1f5f9", color: "#0f172a" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#f0f4ff")} onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
+                          <div style={{ fontWeight: 600 }}>{emp.Nome}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8" }}>{emp["Título do Cargo"]}{emp["Nome Filial"] ? ` · ${emp["Nome Filial"]}` : ""}</div>
+                        </div>
+                      ))}
+                </div>
+              )}
+            </div>
+            {adv.colaborador_id && (
+              <div style={{ margin: "-6px 0 14px", padding: "8px 12px", borderRadius: 10, background: "#f0f4ff", border: "1px solid #dbe4f0", fontSize: 12, color: "#475569" }}>
+                <strong style={{ color: "#0f172a" }}>{adv.colaborador_nome}</strong>{adv.colaborador_cargo ? ` · ${adv.colaborador_cargo}` : ""}{adv.colaborador_filial ? ` · ${adv.colaborador_filial}` : ""}
+              </div>
+            )}
+
+            {adv.colaborador_id && advHistorico.length > 0 && (
+              <div style={{ margin: "-6px 0 14px", padding: "8px 12px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 12, color: "#9a3412" }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ {advHistorico.length} advertência(s) anterior(es) deste colaborador:</div>
+                {advHistorico.slice(0, 5).map((h: any) => (
+                  <div key={h.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, borderTop: "1px solid #fed7aa", padding: "3px 0" }}>
+                    <span>{h.tipo_advertencia || "—"} · grau {h.grau || "—"}</span>
+                    <span style={{ color: "#b45309" }}>{fmtDt(h.data_ocorrido || h.created_at)} · {h.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="ini-fg">
+              <label>Contrato (puxado automaticamente do colaborador)</label>
+              <input className="ini-fi" readOnly value={adv.contrato || "—"} style={{ background: "#f8fafc", color: "#475569", cursor: "not-allowed" }} />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="ini-fg"><label>Tipo de advertência *</label><select className="ini-fi" value={adv.tipo_advertencia} onChange={e => setAdv(a => ({ ...a, tipo_advertencia: e.target.value }))}><option value="">— Selecione —</option>{["Verbal", "Escrita", "Suspensão"].map(o => <option key={o}>{o}</option>)}</select></div>
+              <div className="ini-fg"><label>Grau *</label><select className="ini-fi" value={adv.grau} onChange={e => setAdv(a => ({ ...a, grau: e.target.value }))}><option value="">— Selecione —</option>{["Baixo", "Médio", "Alto"].map(o => <option key={o}>{o}</option>)}</select></div>
+            </div>
+
+            <div className="ini-fg"><label>Data do ocorrido *</label><input className="ini-fi" type="date" max={hojeMaisDias(0)} value={adv.data_ocorrido} onChange={e => setAdv(a => ({ ...a, data_ocorrido: e.target.value }))} /><div style={{ fontSize: 11, color: advForaDoPrazo() ? "#dc2626" : "#94a3b8", marginTop: 3, fontWeight: 600 }}>{advForaDoPrazo() ? "⚠️ Mais de 3 dias atrás — será registrada como Exceção (com justificativa)." : "Prazo ideal: até 3 dias atrás."}</div></div>
+            <div className="ini-fg">
+              <label>Descrição do ocorrido * (mín. 50 caracteres)</label>
+              <textarea className="ini-fi" rows={4} placeholder="Descreva o que aconteceu, com detalhes..." value={adv.descricao_ocorrido} onChange={e => setAdv(a => ({ ...a, descricao_ocorrido: e.target.value }))} />
+              <div style={{ fontSize: 11, color: adv.descricao_ocorrido.trim().length >= 50 ? "#16a34a" : "#94a3b8", marginTop: 3, fontWeight: 600 }}>{adv.descricao_ocorrido.trim().length}/50 caracteres</div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="ini-fg"><label>Advertência verbal já foi dada para o mesmo fato?</label><select className="ini-fi" value={adv.advertencia_verbal_dada} onChange={e => setAdv(a => ({ ...a, advertencia_verbal_dada: e.target.value, tipo_advertencia: (e.target.value === "Sim" && !a.tipo_advertencia) ? "Escrita" : a.tipo_advertencia }))}><option>Não</option><option>Sim</option></select></div>
+              {adv.advertencia_verbal_dada === "Sim" && (
+                <div className="ini-fg"><label>Data da advertência verbal *</label><input className="ini-fi" type="date" max={hojeMaisDias(0)} value={adv.data_advertencia_verbal} onChange={e => setAdv(a => ({ ...a, data_advertencia_verbal: e.target.value }))} /></div>
+              )}
+            </div>
+
+            {advBloqueada && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, marginBottom: 14, fontWeight: 600 }}>
+                Primeiro dê a advertência verbal para dar a escrita.
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, paddingTop: 14, borderTop: "1px solid #e2e8f0" }}>
+              <button onClick={() => setModalAdv(false)} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={submitAdv} disabled={advBloqueada} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: advBloqueada ? "#cbd5e1" : "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: advBloqueada ? "not-allowed" : "pointer" }}>✓ Solicitar Advertência</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Confirmação de Exceção (advertência fora do prazo de 3 dias) ── */}
+      {advExc.open && (
+        <div className="ini-modal-ov">
+          <div className="ini-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4, color: "#b45309" }}>⚠️ Advertência fora do prazo</div>
+            <div style={{ fontSize: 12.5, color: "#475569", marginBottom: 14, lineHeight: 1.5 }}>A advertência está sendo aplicada fora do período correto (mais de 3 dias após o ocorrido). Poderá ser aceita como <b>Exceção</b>. Justifique:</div>
+            <div className="ini-fg"><label>Justificativa da exceção *</label><textarea className="ini-fi" rows={3} placeholder="Explique por que está sendo solicitada fora do prazo…" value={advExc.justificativa} onChange={e => setAdvExc(s => ({ ...s, justificativa: e.target.value }))} /></div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+              <button onClick={() => setAdvExc({ open: false, justificativa: "" })} style={{ padding: "7px 14px", borderRadius: 10, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+              <button onClick={confirmarExcecao} style={{ padding: "7px 14px", borderRadius: 10, border: "none", background: "#d97706", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Confirmar como Exceção</button>
             </div>
           </div>
         </div>
