@@ -20,13 +20,22 @@ export interface ChecklistItem {
   ordem: number;
 }
 
+export interface HistoricoEntry {
+  resposta: string | null;
+  obs: string | null;
+  por: string | null;
+  ts: string;
+}
+
 export interface Resposta {
   id: string;
   empresa_id: string;
   contrato_id: string;
-  checklist_item_id: string;
+  row_index: number;
   resposta: string | null;
   obs: string | null;
+  historico: HistoricoEntry[];
+  updated_by: string | null;
 }
 
 export interface ImplantacaoContrato {
@@ -172,7 +181,7 @@ export function useRespostas(contratoId: string | null, empresaId: string | null
     enabled: !!contratoId && !!empresaId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("respostas")
+        .from("checklist_respostas")
         .select("*")
         .eq("contrato_id", contratoId!)
         .eq("empresa_id", empresaId!);
@@ -187,24 +196,49 @@ export function useRespostaUpsert(empresaId: string) {
   return useMutation({
     mutationFn: async ({
       contratoId,
-      itemId,
+      rowIndex,
       resposta,
       obs,
     }: {
       contratoId: string;
-      itemId: string;
+      rowIndex: number;
       resposta: string;
       obs?: string | null;
     }) => {
-      const { error } = await supabase.from("respostas").upsert(
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Busca resposta atual para empurrar no histórico
+      const { data: atual } = await supabase
+        .from("checklist_respostas")
+        .select("resposta, obs, historico, updated_by")
+        .eq("contrato_id", contratoId)
+        .eq("row_index", rowIndex)
+        .maybeSingle();
+
+      const historicoAtual: HistoricoEntry[] = (atual?.historico as HistoricoEntry[]) ?? [];
+      const novoHistorico: HistoricoEntry[] = atual?.resposta
+        ? [
+            ...historicoAtual,
+            {
+              resposta: atual.resposta,
+              obs: atual.obs ?? null,
+              por: atual.updated_by ?? null,
+              ts: new Date().toISOString(),
+            },
+          ]
+        : historicoAtual;
+
+      const { error } = await supabase.from("checklist_respostas").upsert(
         {
           empresa_id: empresaId,
           contrato_id: contratoId,
-          checklist_item_id: itemId,
+          row_index: rowIndex,
           resposta,
           obs: obs ?? null,
+          historico: novoHistorico,
+          updated_by: user?.id ?? null,
         },
-        { onConflict: "contrato_id,checklist_item_id" }
+        { onConflict: "contrato_id,row_index" }
       );
       if (error) throw error;
     },
