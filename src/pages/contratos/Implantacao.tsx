@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { cn } from "@/lib/utils";
@@ -9,8 +9,9 @@ import {
   useRespostaUpsert,
   calcPrazo,
 } from "@/hooks/useImplantacao";
-import type { ImplantacaoContrato, ChecklistItem, Resposta } from "@/hooks/useImplantacao";
-import { CheckCircle2, Circle, Clock, Pencil, Eye, ArrowRight, Trash2, MapPin, X as XIcon, CheckCircle } from "lucide-react";
+import type { ImplantacaoContrato, ChecklistItem, Resposta, HistoricoEntry } from "@/hooks/useImplantacao";
+import { CheckCircle2, Circle, Clock, Pencil, Eye, ArrowRight, Trash2, MapPin, X as XIcon, CheckCircle, History } from "lucide-react";
+import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
 import { useDocTipos } from "@/hooks/useDocumentos";
 import { usePlanilhaCustos } from "@/hooks/usePlanilhaCusto";
 import { usePermissoes } from "@/context/PermissoesContext";
@@ -85,6 +86,12 @@ export default function Implantacao() {
 
   const { data: respostas = [] } = useRespostas(contratoSelecionado, empresaAtivaId ?? null);
   const upsert = useRespostaUpsert(empresaAtivaId ?? "");
+  const { data: usuarios = [] } = useUsuariosEmpresa();
+  const usuariosMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    usuarios.forEach((u) => { m[u.id] = u.display_name ?? u.email ?? u.id; });
+    return m;
+  }, [usuarios]);
 
   async function handleDeleteContrato(id: string) {
     const { error } = await supabase.from("implantacao_contrato").delete().eq("id", id);
@@ -98,13 +105,13 @@ export default function Implantacao() {
   }
 
   const respostaMap = useMemo(() => {
-    const m: Record<string, Resposta> = {};
-    respostas.forEach((r) => { m[r.checklist_item_id] = r; });
+    const m: Record<number, Resposta> = {};
+    respostas.forEach((r) => { m[r.row_index] = r; });
     return m;
   }, [respostas]);
 
   const total       = checklistItems.length;
-  const respondidos = checklistItems.filter((i) => respostaMap[i.id]?.resposta).length;
+  const respondidos = checklistItems.filter((i) => respostaMap[i.row_index]?.resposta).length;
   const pct         = total > 0 ? Math.round((respondidos / total) * 100) : 0;
 
   function confirmarNome(id: string) {
@@ -249,9 +256,10 @@ export default function Implantacao() {
                           key={item.id}
                           item={item}
                           contrato={contrato}
-                          resposta={respostaMap[item.id] ?? null}
+                          resposta={respostaMap[item.row_index] ?? null}
+                          usuariosMap={usuariosMap}
                           onSave={(resposta, obs) =>
-                            upsert.mutateAsync({ contratoId: contratoSelecionado!, itemId: item.id, resposta, obs })
+                            upsert.mutateAsync({ contratoId: contratoSelecionado!, rowIndex: item.row_index, resposta, obs })
                           }
                         />
                       ))}
@@ -396,11 +404,13 @@ function CardChecklist({
   item,
   contrato,
   resposta: savedResp,
+  usuariosMap,
   onSave,
 }: {
   item: ChecklistItem;
   contrato: ImplantacaoContrato;
   resposta: Resposta | null;
+  usuariosMap: Record<string, string>;
   onSave: (resposta: string, obs: string) => Promise<unknown>;
 }) {
   const isSimNao    = item.tipo_resposta === "simnao";
@@ -412,6 +422,15 @@ function CardChecklist({
   const [localResp, setLocalResp] = useState<string>(savedResp?.resposta ?? "");
   const [localObs,  setLocalObs]  = useState<string>(savedResp?.obs ?? "");
   const [state, setState]         = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [showHistorico, setShowHistorico] = useState(false);
+  const historico: HistoricoEntry[] = savedResp?.historico ?? [];
+
+  useEffect(() => {
+    if (state === "idle") {
+      setLocalResp(savedResp?.resposta ?? "");
+      setLocalObs(savedResp?.obs ?? "");
+    }
+  }, [savedResp]);
 
   async function handleSave() {
     if (!localResp) return;
@@ -496,19 +515,27 @@ function CardChecklist({
         />
       </div>
 
-      {/* Salvar */}
-      <Button
-        size="sm"
-        className={cn(
-          "w-full text-xs font-semibold",
-          state === "saved"  && "bg-emerald-600 hover:bg-emerald-600",
-          state === "failed" && "bg-destructive hover:bg-destructive",
+      {/* Salvar + Histórico */}
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          className={cn(
+            "flex-1 text-xs font-semibold",
+            state === "saved"  && "bg-emerald-600 hover:bg-emerald-600",
+            state === "failed" && "bg-destructive hover:bg-destructive",
+          )}
+          disabled={state === "saving" || !localResp}
+          onClick={handleSave}
+        >
+          {state === "saving" ? "Salvando…" : state === "saved" ? "✓ Salvo" : state === "failed" ? "✗ Falhou" : "Salvar"}
+        </Button>
+        {historico.length > 0 && (
+          <Button size="sm" variant="outline" className="px-2.5" title="Ver histórico" onClick={() => setShowHistorico(true)}>
+            <History className="h-3.5 w-3.5" />
+            <span className="ml-1 text-xs">{historico.length}</span>
+          </Button>
         )}
-        disabled={state === "saving" || !localResp}
-        onClick={handleSave}
-      >
-        {state === "saving" ? "Salvando…" : state === "saved" ? "✓ Salvo" : state === "failed" ? "✗ Falhou" : "Salvar"}
-      </Button>
+      </div>
 
       {/* Meta-block */}
       {(item.plano_acao || item.responsavel_acao || item.onde || prazo) && (
@@ -520,6 +547,44 @@ function CardChecklist({
           {prazo && <MetaRow label="Prazo" value={prazo} highlight />}
         </div>
       )}
+
+      {/* Modal histórico */}
+      <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <History className="h-4 w-4" /> Histórico de alterações
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.item}</p>
+          </DialogHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="pb-2 pr-4 font-medium">Data</th>
+                  <th className="pb-2 pr-4 font-medium">Resposta</th>
+                  <th className="pb-2 pr-4 font-medium">Observações</th>
+                  <th className="pb-2 font-medium">Por</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {[...historico].reverse().map((h, i) => (
+                  <tr key={i} className="align-top">
+                    <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">
+                      {new Date(h.ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                    <td className="py-2 pr-4 max-w-[200px]">{h.resposta || "—"}</td>
+                    <td className="py-2 pr-4 max-w-[200px] text-muted-foreground">{h.obs || "—"}</td>
+                    <td className="py-2 text-muted-foreground whitespace-nowrap">
+                      {h.por ? (usuariosMap[h.por] ?? h.por) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
