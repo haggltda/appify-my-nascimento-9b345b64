@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    watch: {
+      // worker/ é um projeto Node separado (não faz parte do app Vite) —
+      // tem node_modules próprio e o perfil do Chrome do WhatsApp
+      // (.wwebjs_auth), cujos arquivos ficam travados pelo SO enquanto em
+      // uso. Vite tentando vigiar isso trava o dev server (EBUSY).
+      ignored: ["**/worker/**"],
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

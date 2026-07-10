@@ -387,11 +387,11 @@ const sistemasModule: ModuleDef = {
   ],
 };
 
-// Central de Serviços — em construção
+// Central de Serviços
 const centralServicosModule: ModuleDef = {
   id: "central_servicos",
   label: "Central de Serviços",
-  description: "Em construção",
+  description: "Atas de reunião e mais",
   icon: Headset,
   basePath: "/app/central-servicos",
   status: "active",
@@ -401,6 +401,7 @@ const centralServicosModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Central de Serviços", to: "/app/central-servicos", icon: Headset },
+        { label: "Agenda de Reunião", to: "/app/central-servicos/reunioes", icon: CalendarRange },
       ],
     },
   ],

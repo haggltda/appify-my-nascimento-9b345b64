@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { MinhasReunioesCard } from "@/pages/central-servicos/reunioes/componentes/MinhasReunioesCard";
 
 const QA = [
   { to: "/app/editais",                 icon: "📋", label: "Licitações" },
@@ -49,6 +50,15 @@ export default function Inicio() {
       .ini-qa-btn:hover{border-color:#0f3171;background:#eef4ff;color:#0f3171;transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,49,113,.1);}
       .ini-qa-btn .icon{font-size:1.3rem;}
       .ini-qa-btn span{font-size:.72rem;font-weight:600;line-height:1.2;}
+      .ini-reuniao-lista{display:flex;flex-direction:column;gap:8px;}
+      .ini-reuniao-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;transition:all .15s;}
+      .ini-reuniao-item:hover{border-color:#0f3171;background:#f8fafc;}
+      .ini-reuniao-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-decoration:none;color:inherit;}
+      .ini-reuniao-titulo{font-size:.86rem;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .ini-reuniao-meta{font-size:.74rem;color:#64748b;}
+      .ini-reuniao-badge{flex-shrink:0;font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid;}
+      .ini-reuniao-remover{flex-shrink:0;background:none;border:none;cursor:pointer;font-size:.85rem;opacity:.55;padding:2px;}
+      .ini-reuniao-remover:hover{opacity:1;}
     `;
     document.head.appendChild(style);
     return () => { document.getElementById("inicio-styles")?.remove(); };
@@ -91,6 +101,9 @@ export default function Inicio() {
           </div>
         </div>
       </div>
+
+      {/* ── Minhas Reuniões ── */}
+      <MinhasReunioesCard />
 
     </div>
   );
