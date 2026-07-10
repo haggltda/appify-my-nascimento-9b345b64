@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
-import { BookOpen, ShieldAlert, ClipboardList, ArrowRight, type LucideIcon } from "lucide-react";
+import { BookOpen, ShieldAlert, ClipboardList, CalendarRange, ArrowRight, type LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface Servico {
@@ -29,6 +29,12 @@ const servicos: Servico[] = [
     icon: ClipboardList,
     title: "Nascimento Formulários",
     desc: "Crie formulários e pesquisas com vários tipos de pergunta e imagens, publique numa URL com prazo definido e acompanhe as respostas.",
+  },
+  {
+    to: "/app/central-servicos/reunioes",
+    icon: CalendarRange,
+    title: "Agenda de Reunião",
+    desc: "Agende reuniões, registre atas com anexos e assinaturas e exporte para o calendário ou em PDF.",
   },
 ];
 

@@ -139,6 +139,8 @@ import AjudaTopico from "./pages/ajuda/AjudaTopico";
 import InboxAprovacoes from "./pages/aprovacoes/Inbox";
 import SolicitacoesErp from "./pages/sistemas/SolicitacoesErp";
 import CentralServicos from "./pages/central-servicos/CentralServicos";
+import Reunioes from "./pages/central-servicos/reunioes/Reunioes";
+import ReuniaoDetalhe from "./pages/central-servicos/reunioes/ReuniaoDetalhe";
 
 const queryClient = new QueryClient();
 
@@ -171,6 +173,8 @@ const App = () => (
             <Route path="sistemas/solicitacoes-erp" element={<SolicitacoesErp />} />
             {/* Central de Serviços */}
             <Route path="central-servicos" element={<CentralServicos />} />
+            <Route path="central-servicos/reunioes" element={<Reunioes />} />
+            <Route path="central-servicos/reunioes/:id" element={<ReuniaoDetalhe />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
             <Route path="painel-executivo/tv" element={<PainelExecutivoTV />} />
             <Route path="presidencia" element={<Presidencia />} />
