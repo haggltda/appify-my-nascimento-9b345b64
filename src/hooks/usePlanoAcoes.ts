@@ -7,6 +7,7 @@ export interface PlanoAcaoRow {
   empresa_id: string;
   id_importacao: string | null;
   ordem: number | null;
+  tipo_acao: string;
   titulo: string | null;
   comite: string | null;
   area: string | null;

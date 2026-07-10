@@ -57,6 +57,13 @@ export const PERMISSOES_FLAGS = [
 ] as const;
 export type PermissaoFlag = (typeof PERMISSOES_FLAGS)[number];
 
+export const TIPO_ACAO_OPTIONS = ["acao", "tarefa"] as const;
+export type TipoAcao = (typeof TIPO_ACAO_OPTIONS)[number];
+export const TIPO_ACAO_LABEL: Record<TipoAcao, string> = {
+  acao: "Ação",
+  tarefa: "Tarefa",
+};
+
 export const VISIBILIDADE_OPTIONS = ["privado", "publico", "especifico"] as const;
 export type VisibilidadeType = (typeof VISIBILIDADE_OPTIONS)[number];
 
