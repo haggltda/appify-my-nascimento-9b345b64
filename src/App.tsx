@@ -39,7 +39,6 @@ import ParecerDiretorOperacional from "./pages/pareceres/ParecerDiretorOperacion
 import ParecerDiretorAdministrativo from "./pages/pareceres/ParecerDiretorAdministrativo";
 import Implantacao from "./pages/contratos/Implantacao";
 import PlanilhaCusto from "./pages/licitacoes/PlanilhaCusto";
-import ChecklistImplantacao from "./pages/licitacoes/ChecklistImplantacao";
 import ContratosAtivos from "./pages/contratos/Ativos";
 import Empenhos from "./pages/contratos/Empenhos";
 import Postos from "./pages/contratos/Postos";
@@ -73,6 +72,7 @@ import Recebimentos from "./pages/suprimentos/Recebimentos";
 import Cotacoes from "./pages/suprimentos/Cotacoes";
 import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
+import Cobrancas from "./pages/cobrancas/Cobrancas";
 import FluxoCaixa from "./pages/financeiro/FluxoCaixa";
 import FluxoCaixaDiario from "./pages/financeiro/FluxoCaixaDiario";
 import CapitalGiro from "./pages/financeiro/CapitalGiro";
@@ -199,7 +199,6 @@ const App = () => (
             <Route path="prontas-contrato" element={<ProntasContrato />} />
             <Route path="contratos/implantacao" element={<Implantacao />} />
             <Route path="licitacoes/planilha-custo" element={<PlanilhaCusto />} />
-            <Route path="licitacoes/checklist" element={<ChecklistImplantacao />} />
             <Route path="licitacoes/implantacao" element={<Implantacao />} />
             <Route path="contratos/ativos" element={<ContratosAtivos />} />
             <Route path="contratos/empenhos" element={<Empenhos />} />
@@ -241,6 +240,7 @@ const App = () => (
             {/* Financeiro */}
             <Route path="financeiro/contas-pagar" element={<ContasPagar />} />
             <Route path="financeiro/contas-receber" element={<ContasReceber />} />
+            <Route path="cobrancas" element={<Cobrancas />} />
             <Route path="financeiro/fluxo-caixa" element={<FluxoCaixa />} />
             <Route path="financeiro/fluxo-caixa-diario" element={<FluxoCaixaDiario />} />
             <Route path="financeiro/capital-giro" element={<CapitalGiro />} />
