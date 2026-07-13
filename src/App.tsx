@@ -73,6 +73,7 @@ import Cotacoes from "./pages/suprimentos/Cotacoes";
 import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
 import Cobrancas from "./pages/cobrancas/Cobrancas";
+import RelatorioServicos from "./pages/financeiro/RelatorioServicos";
 import FluxoCaixa from "./pages/financeiro/FluxoCaixa";
 import FluxoCaixaDiario from "./pages/financeiro/FluxoCaixaDiario";
 import CapitalGiro from "./pages/financeiro/CapitalGiro";
@@ -141,14 +142,6 @@ import SolicitacoesErp from "./pages/sistemas/SolicitacoesErp";
 import CentralServicos from "./pages/central-servicos/CentralServicos";
 import Reunioes from "./pages/central-servicos/reunioes/Reunioes";
 import ReuniaoDetalhe from "./pages/central-servicos/reunioes/ReuniaoDetalhe";
-import OrientacoesJuridicas from "./pages/central-servicos/OrientacoesJuridicas";
-import Denuncias from "./pages/central-servicos/Denuncias";
-import Formularios from "./pages/central-servicos/Formularios";
-import FormularioEditor from "./pages/central-servicos/FormularioEditor";
-import FormularioRespostas from "./pages/central-servicos/FormularioRespostas";
-import FormulariosDashboard from "./pages/central-servicos/FormulariosDashboard";
-import FormulariosConfig from "./pages/central-servicos/FormulariosConfig";
-import FormularioPublico from "./pages/publico/FormularioPublico";
 
 const queryClient = new QueryClient();
 
@@ -258,6 +251,7 @@ const App = () => (
             <Route path="financeiro/contas-pagar" element={<ContasPagar />} />
             <Route path="financeiro/contas-receber" element={<ContasReceber />} />
             <Route path="cobrancas" element={<Cobrancas />} />
+            <Route path="financeiro/relatorio-servicos" element={<RelatorioServicos />} />
             <Route path="financeiro/fluxo-caixa" element={<FluxoCaixa />} />
             <Route path="financeiro/fluxo-caixa-diario" element={<FluxoCaixaDiario />} />
             <Route path="financeiro/capital-giro" element={<CapitalGiro />} />
@@ -300,13 +294,6 @@ const App = () => (
             <Route path="juridico/duvidas" element={<CentralDuvidas />} />
             {/* SST — ASO / Admissão (fila do Recrutamento) */}
             <Route path="sst/aso" element={<AsoCandidatos />} />
-            <Route path="central-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
-            <Route path="central-servicos/denuncias" element={<Denuncias />} />
-            <Route path="central-servicos/formularios" element={<Formularios />} />
-            <Route path="central-servicos/formularios/dashboard" element={<FormulariosDashboard />} />
-            <Route path="central-servicos/formularios/config" element={<FormulariosConfig />} />
-            <Route path="central-servicos/formularios/:id" element={<FormularioEditor />} />
-            <Route path="central-servicos/formularios/:id/respostas" element={<FormularioRespostas />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}
