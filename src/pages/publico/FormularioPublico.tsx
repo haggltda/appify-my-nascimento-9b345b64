@@ -21,6 +21,9 @@ interface Perg {
   obrigatoria: boolean; imagem_url?: string | null; opcoes: string[]; config: Record<string, any>;
 }
 
+// Escalas de trabalho (enum posto_jornada do banco).
+const ESCALAS_TRABALHO = ["12x36", "8 horas", "6 horas", "4 horas", "Escala 5x2", "Escala 6x1", "Outra"];
+
 const fmtDt = (s?: string | null) => { if (!s) return ""; const d = new Date(s); return isNaN(+d) ? "" : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "18px 20px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" };
 const inp: React.CSSProperties = { border: "1px solid #cbd5e1", borderRadius: 9, padding: "9px 11px", fontSize: 14, outline: "none", fontFamily: "inherit", width: "100%", background: "#fff" };
@@ -212,6 +215,12 @@ export default function FormularioPublico() {
               {p.tipo === "texto_curto" && <input value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} style={inp} placeholder="Sua resposta" />}
               {p.tipo === "texto_longo" && <textarea value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} rows={4} style={{ ...inp, resize: "vertical" }} placeholder="Sua resposta" />}
               {p.tipo === "colaborador" && <ColaboradorSelect value={valores[p.id] ?? ""} onChange={v => setVal(p.id, v)} />}
+              {p.tipo === "escala_trabalho" && (
+                <select value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} style={{ ...inp, maxWidth: 300 }}>
+                  <option value="">Selecione a escala…</option>
+                  {ESCALAS_TRABALHO.map(esc => <option key={esc} value={esc}>{esc}</option>)}
+                </select>
+              )}
               {p.tipo === "numero" && <input type="number" value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value === "" ? "" : Number(e.target.value))} style={{ ...inp, maxWidth: 220 }} placeholder="0" />}
               {p.tipo === "data" && <input type="date" value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} style={{ ...inp, maxWidth: 220 }} />}
               {p.tipo === "lista_suspensa" && (() => {

@@ -16,6 +16,7 @@ export const TIPOS: { valor: string; rotulo: string; temOpcoes: boolean }[] = [
   { valor: "texto_curto",      rotulo: "Texto curto",              temOpcoes: false },
   { valor: "texto_longo",      rotulo: "Texto longo (parágrafo)",  temOpcoes: false },
   { valor: "colaborador",      rotulo: "Selecionar colaborador (cadastro)", temOpcoes: false },
+  { valor: "escala_trabalho",  rotulo: "Escala de trabalho (turno)", temOpcoes: false },
   { valor: "multipla_escolha", rotulo: "Múltipla escolha (1 opção)", temOpcoes: true },
   { valor: "caixas_selecao",   rotulo: "Caixas de seleção (várias)", temOpcoes: true },
   { valor: "lista_suspensa",   rotulo: "Lista suspensa",           temOpcoes: true },
