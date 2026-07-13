@@ -41,7 +41,7 @@ export default function PlanoAcaoDetalhe() {
     titulo: "", problema: "", acao: "", comite: "", area: "", setor: "",
     prioridade_normalizada: "media", status_normalizado: "a_definir",
     responsavel_profile_id: null,
-    responsavel_nome_origem: "", lider_comite_nome_origem: "",
+    responsavel_nome_origem: "", lider_comite_nome_origem: "", lider_comite_profile_id: null,
     data_inicio_planejado: null,
     data_fim_planejado: null,
     comentarios: "",
@@ -142,17 +142,35 @@ export default function PlanoAcaoDetalhe() {
     [areasDoComite, form.area]
   );
 
+  // Reset de área/setor quando o mapa de comitês termina de carregar depois
+  // do registro (form.comite não muda, só comitesMap fica disponível depois).
+  // O líder NÃO é sincronizado aqui de propósito — ver handleComiteChange,
+  // que só roda quando o usuário efetivamente troca o comitê (nunca ao
+  // carregar uma ação já salva, para não apagar um líder salvo manualmente).
   useEffect(() => {
     if (!form.comite) return;
     const info = comitesMap[form.comite];
     if (!info) return;
     setForm((f: any) => {
-      const next = { ...f };
-      if (info.lider) next.lider_comite_nome_origem = info.lider;
-      if (f.area && !info.areasNomes.includes(f.area)) { next.area = ""; next.setor = ""; }
-      return next;
+      if (!f.area || info.areasNomes.includes(f.area)) return f;
+      return { ...f, area: "", setor: "" };
     });
   }, [form.comite, comitesMap]);
+
+  // Só roda a partir de interação real do usuário com o dropdown de Comitê —
+  // por isso a lógica fica no onValueChange, não num useEffect que também
+  // dispararia ao carregar uma ação existente.
+  const handleComiteChange = (v: string) => {
+    const novoComite = v === "__none" ? "" : v;
+    const info = novoComite ? comitesMap[novoComite] : undefined;
+    setForm((f: any) => {
+      const next = { ...f, comite: novoComite };
+      next.lider_comite_profile_id = info?.liderProfileId ?? null;
+      next.lider_comite_nome_origem = info?.lider ?? null;
+      if (!info || (f.area && !info.areasNomes.includes(f.area))) { next.area = ""; next.setor = ""; }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!form.area) return;
@@ -247,6 +265,7 @@ export default function PlanoAcaoDetalhe() {
         _responsavel_profile_id: form.responsavel_profile_id ?? null,
         _responsavel_nome_origem: form.responsavel_nome_origem || null,
         _lider_comite_nome_origem: form.lider_comite_nome_origem || null,
+        _lider_comite_profile_id: form.lider_comite_profile_id ?? null,
         _data_inicio_planejado: form.data_inicio_planejado || null,
         _data_fim_planejado: form.data_fim_planejado || null,
         _comentarios: form.comentarios || null,
@@ -273,6 +292,7 @@ export default function PlanoAcaoDetalhe() {
         responsavel_profile_id: form.responsavel_profile_id ?? null,
         responsavel_nome_origem: form.responsavel_nome_origem,
         lider_comite_nome_origem: form.lider_comite_nome_origem,
+        lider_comite_profile_id: form.lider_comite_profile_id ?? null,
         comentarios: form.comentarios,
         data_inicio_planejado: form.data_inicio_planejado || null,
         data_fim_planejado: form.data_fim_planejado || null,
@@ -392,7 +412,7 @@ export default function PlanoAcaoDetalhe() {
             <div>
               <Label>Comitê</Label>
               {comitesList.length > 0 ? (
-                <Select value={form.comite || "__none"} disabled={!podeEdit} onValueChange={v => set("comite", v === "__none" ? "" : v)}>
+                <Select value={form.comite || "__none"} disabled={!podeEdit} onValueChange={handleComiteChange}>
                   <SelectTrigger><SelectValue placeholder="Selecione o comitê" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">—</SelectItem>
@@ -468,8 +488,22 @@ export default function PlanoAcaoDetalhe() {
               {rpcSemPermissao && <p className="mt-1 text-xs text-destructive">Sem permissão para listar usuários desta empresa.</p>}
             </div>
             <div>
-              <Label>Líder do comitê <span className="text-xs text-muted-foreground">(automático)</span></Label>
-              <Input value={form.lider_comite_nome_origem ?? ""} readOnly placeholder={form.comite ? "—" : "Selecione o comitê"} className="bg-muted/40" />
+              <Label>Líder do Comitê</Label>
+              <SearchableSelect
+                value={form.lider_comite_profile_id ?? null}
+                onChange={(v) => {
+                  const opt = usuariosOptions.find((o) => o.value === v);
+                  setForm((f: any) => ({ ...f, lider_comite_profile_id: v || null, lider_comite_nome_origem: opt?.label ?? null }));
+                }}
+                options={usuariosOptions}
+                placeholder={rpcSemPermissao ? "Sem permissão para listar usuários" : "Selecione o líder"}
+                disabled={!podeEdit || rpcSemPermissao}
+                allowClear
+                clearValue=""
+              />
+              {!form.lider_comite_profile_id && form.lider_comite_nome_origem && (
+                <p className="mt-1 text-xs text-muted-foreground">Líder pendente de vínculo · texto original: {form.lider_comite_nome_origem}</p>
+              )}
             </div>
             <div className="sm:col-span-2">
               <Label>Visibilidade</Label>
