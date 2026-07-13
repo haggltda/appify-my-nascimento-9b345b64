@@ -47,6 +47,8 @@ export default function FormularioEditor() {
   const [setoresErp, setSetoresErp] = useState<string[]>([]);   // setores distintos de EMPREGADOS
   const [mostrarEncerra, setMostrarEncerra] = useState(false);
   const [maisOpcoes, setMaisOpcoes] = useState(false);
+  const [massaOpen, setMassaOpen] = useState(false);   // adicionar perguntas em massa
+  const [massaTexto, setMassaTexto] = useState("");
   const toast = (msg: string, t = "info") => { const tid = Date.now() + Math.random(); setToasts(x => [...x, { id: tid, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== tid)), 4200); };
 
   const load = useCallback(async () => {
@@ -73,6 +75,12 @@ export default function FormularioEditor() {
   const mudaPerg = (i: number, patch: Partial<Pergunta>) => { setPergs(ps => ps.map((p, j) => j === i ? { ...p, ...patch } : p)); setSujo(true); };
 
   const addPergunta = () => { setPergs(ps => [...ps, { id: novoUuid(), tipo: "texto_curto", titulo: "", obrigatoria: false, opcoes: [], config: {} }]); setSujo(true); };
+  const addEmMassa = () => {
+    const linhas = massaTexto.split("\n").map(l => l.trim()).filter(Boolean);
+    if (!linhas.length) { setMassaOpen(false); return; }
+    setPergs(ps => [...ps, ...linhas.map(t => ({ id: novoUuid(), tipo: "texto_curto", titulo: t, obrigatoria: false, opcoes: [] as string[], config: {} as Record<string, any> }))]);
+    setMassaTexto(""); setMassaOpen(false); setSujo(true);
+  };
   const removePergunta = (i: number) => { setPergs(ps => ps.filter((_, j) => j !== i)); setSujo(true); };
   const move = (i: number, dir: -1 | 1) => {
     setPergs(ps => { const a = [...ps]; const j = i + dir; if (j < 0 || j >= a.length) return ps; [a[i], a[j]] = [a[j], a[i]]; return a; });
@@ -227,7 +235,22 @@ export default function FormularioEditor() {
           {/* Perguntas */}
           {pergs.map((p, i) => <PerguntaCard key={p.id} p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} setores={setoresErp} />)}
 
-          <button onClick={addPergunta} style={{ ...btn("#fff", "#0f3171", "2px dashed #cbd5e1"), padding: "14px", fontSize: 13.5, borderRadius: 14 }}>+ Adicionar pergunta</button>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={addPergunta} style={{ ...btn("#fff", "#0f3171", "2px dashed #cbd5e1"), flex: 1, minWidth: 200, padding: "14px", fontSize: 13.5, borderRadius: 14 }}>+ Adicionar pergunta</button>
+            <button onClick={() => setMassaOpen(v => !v)} style={{ ...btn(massaOpen ? "#0f3171" : "#fff", massaOpen ? "#fff" : "#0f3171", "2px dashed #cbd5e1"), padding: "14px", fontSize: 13.5, borderRadius: 14 }}>➕ Adicionar em massa</button>
+          </div>
+
+          {massaOpen && (
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0f3171", marginBottom: 4 }}>Adicionar várias perguntas de uma vez</div>
+              <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 8 }}>Uma pergunta por linha. Entram como “Texto curto” - depois é só ajustar o tipo de cada uma.</div>
+              <textarea value={massaTexto} onChange={e => setMassaTexto(e.target.value)} rows={7} placeholder={"Pergunta 1\nPergunta 2\nPergunta 3\nPergunta 4\nPergunta 5"} style={{ ...inp, width: "100%", resize: "vertical", fontFamily: "inherit" }} />
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
+                <button onClick={() => { setMassaOpen(false); setMassaTexto(""); }} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Cancelar</button>
+                <button onClick={addEmMassa} style={btn("#0f3171")}>Adicionar {massaTexto.split("\n").map(l => l.trim()).filter(Boolean).length} pergunta(s)</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
