@@ -127,6 +127,17 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
         }
       }
 
+      const conflitoResponsavel = await verificarConflitoParticipante({
+        userId: form.responsavel,
+        dataHoraIso: dataHora,
+        duracaoMinutos: form.duracao_minutos,
+      });
+      if (conflitoResponsavel) {
+        const nome = opcoesUsuarios.find((o) => o.value === form.responsavel)?.label ?? "O responsável";
+        setErroConflito(`${nome} já está em outra reunião nesse horário (reunião "${conflitoResponsavel.titulo}").`);
+        return;
+      }
+
       for (const convidadoId of form.convidados) {
         const conflito = await verificarConflitoParticipante({
           userId: convidadoId,
