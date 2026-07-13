@@ -42,6 +42,8 @@ import {
   Wrench,
   FileOutput,
   Headset,
+  ShieldAlert,
+  ClipboardList,
   Bell,
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
@@ -393,15 +395,27 @@ const sistemasModule: ModuleDef = {
   ],
 };
 
-// Central de Serviços — sem submódulos: clicar abre o painel (hub) com os cards.
+// Central de Serviços
 const centralServicosModule: ModuleDef = {
   id: "central_servicos",
   label: "Central de Serviços",
   description: "Atendimento e orientações ao colaborador",
   icon: Headset,
   basePath: "/app/central-servicos",
-  headerLink: "/app/central-servicos",
   status: "active",
+  groups: [
+    {
+      label: "Central de Serviços",
+      defaultOpen: true,
+      items: [
+        { label: "Central de Serviços", to: "/app/central-servicos", icon: Headset },
+        { label: "Orientações Jurídicas", to: "/app/central-servicos/orientacoes-juridicas", icon: BookOpen },
+        { label: "Denúncias (Canal de Ética)", to: "/app/central-servicos/denuncias", icon: ShieldAlert },
+        { label: "Nascimento Formulários", to: "/app/central-servicos/formularios", icon: ClipboardList },
+        { label: "Agenda de Reunião", to: "/app/central-servicos/reunioes", icon: CalendarRange },
+      ],
+    },
+  ],
 };
 
 // Jurídico — Gestão Patrimonial e Obrigações
