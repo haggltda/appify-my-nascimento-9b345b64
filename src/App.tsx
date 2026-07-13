@@ -141,14 +141,6 @@ import SolicitacoesErp from "./pages/sistemas/SolicitacoesErp";
 import CentralServicos from "./pages/central-servicos/CentralServicos";
 import Reunioes from "./pages/central-servicos/reunioes/Reunioes";
 import ReuniaoDetalhe from "./pages/central-servicos/reunioes/ReuniaoDetalhe";
-import OrientacoesJuridicas from "./pages/central-servicos/OrientacoesJuridicas";
-import Denuncias from "./pages/central-servicos/Denuncias";
-import Formularios from "./pages/central-servicos/Formularios";
-import FormularioEditor from "./pages/central-servicos/FormularioEditor";
-import FormularioRespostas from "./pages/central-servicos/FormularioRespostas";
-import FormulariosDashboard from "./pages/central-servicos/FormulariosDashboard";
-import FormulariosConfig from "./pages/central-servicos/FormulariosConfig";
-import FormularioPublico from "./pages/publico/FormularioPublico";
 
 const queryClient = new QueryClient();
 
@@ -300,13 +292,6 @@ const App = () => (
             <Route path="juridico/duvidas" element={<CentralDuvidas />} />
             {/* SST — ASO / Admissão (fila do Recrutamento) */}
             <Route path="sst/aso" element={<AsoCandidatos />} />
-            <Route path="central-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
-            <Route path="central-servicos/denuncias" element={<Denuncias />} />
-            <Route path="central-servicos/formularios" element={<Formularios />} />
-            <Route path="central-servicos/formularios/dashboard" element={<FormulariosDashboard />} />
-            <Route path="central-servicos/formularios/config" element={<FormulariosConfig />} />
-            <Route path="central-servicos/formularios/:id" element={<FormularioEditor />} />
-            <Route path="central-servicos/formularios/:id/respostas" element={<FormularioRespostas />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}

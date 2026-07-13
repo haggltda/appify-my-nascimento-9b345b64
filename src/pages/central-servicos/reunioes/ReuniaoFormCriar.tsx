@@ -7,9 +7,24 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2 } from "lucide-react";
-import { useCriarReuniao, useUsuariosAtivos, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
+import { useCriarReuniao, useCriarReunioesRecorrentes, useUsuariosAtivos, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
 import { SALAS_PRESENCIAIS } from "./types";
+
+const MAX_OCORRENCIAS_RECORRENCIA = 60;
+
+/** Gera as datas ISO da recorrência semanal: mesma hora da primeira reunião, a cada 7 dias, até repetirAte (inclusive). */
+function gerarDatasRecorrencia(dataHoraInicialIso: string, repetirAte: string): string[] {
+  const datas: string[] = [];
+  const fim = new Date(`${repetirAte}T23:59:59`);
+  let atual = new Date(dataHoraInicialIso);
+  while (atual <= fim && datas.length < MAX_OCORRENCIAS_RECORRENCIA + 1) {
+    datas.push(atual.toISOString());
+    atual = new Date(atual.getTime() + 7 * 24 * 60 * 60 * 1000);
+  }
+  return datas;
+}
 
 interface PautaRascunho {
   titulo_topico: string;
@@ -28,6 +43,8 @@ const VAZIO = {
   local_ou_link: "",
   responsavel: "",
   convidados: [] as string[],
+  repetir: false,
+  repetirAte: "",
 };
 
 export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -38,6 +55,7 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
   const [verificando, setVerificando] = useState(false);
   const { data: usuarios = [] } = useUsuariosAtivos();
   const criar = useCriarReuniao();
+  const criarRecorrentes = useCriarReunioesRecorrentes();
 
   const opcoesUsuarios = usuarios.map((u) => ({ value: u.id, label: u.display_name }));
 
@@ -58,12 +76,42 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
     form.duracao_minutos > 0 &&
     localFinal &&
     form.responsavel &&
-    pauta.length > 0;
+    pauta.length > 0 &&
+    (!form.repetir || (form.repetirAte && form.repetirAte >= form.data));
+
+  const qtdOcorrencias = form.repetir && form.data && form.hora && form.repetirAte && form.repetirAte >= form.data
+    ? gerarDatasRecorrencia(new Date(`${form.data}T${form.hora}:00`).toISOString(), form.repetirAte).length
+    : null;
 
   const salvar = async () => {
     if (!valido) return;
     setErroConflito("");
     const dataHora = new Date(`${form.data}T${form.hora}:00`).toISOString();
+
+    if (form.repetir) {
+      const datas = gerarDatasRecorrencia(dataHora, form.repetirAte);
+      if (datas.length > MAX_OCORRENCIAS_RECORRENCIA) {
+        setErroConflito(`Essa recorrência geraria ${datas.length} reuniões — o limite é ${MAX_OCORRENCIAS_RECORRENCIA}. Escolha uma data final mais próxima.`);
+        return;
+      }
+      await criarRecorrentes.mutateAsync({
+        base: {
+          titulo: form.titulo.trim(),
+          objetivo: form.objetivo.trim(),
+          duracao_minutos: form.duracao_minutos,
+          tipo_local: form.tipo_local,
+          local_ou_link: localFinal,
+          responsavel_preenchimento_user_id: form.responsavel,
+          pauta,
+          convidados: form.convidados,
+        },
+        datas,
+      });
+      setForm(VAZIO);
+      setPauta([]);
+      onOpenChange(false);
+      return;
+    }
 
     setVerificando(true);
     try {
@@ -196,6 +244,26 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
             )}
           </div>
 
+          <div className="space-y-1.5 rounded-md border border-border p-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="repetir-semanal">Repetir semanalmente</Label>
+              <Switch
+                id="repetir-semanal"
+                checked={form.repetir}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, repetir: v }))}
+              />
+            </div>
+            {form.repetir && (
+              <div className="space-y-1.5 pt-1.5">
+                <Label>Repetir até *</Label>
+                <Input type="date" value={form.repetirAte} min={form.data || undefined} onChange={(e) => setForm((f) => ({ ...f, repetirAte: e.target.value }))} />
+                <p className="text-xs text-muted-foreground">
+                  Cria uma reunião toda semana, no mesmo dia e horário, até essa data.
+                </p>
+              </div>
+            )}
+          </div>
+
           {erroConflito && (
             <p className="rounded border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{erroConflito}</p>
           )}
@@ -247,8 +315,14 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={salvar} disabled={!valido || criar.isPending || verificando}>
-            {verificando ? "Verificando sala…" : criar.isPending ? "Agendando…" : "Agendar reunião"}
+          <Button onClick={salvar} disabled={!valido || criar.isPending || criarRecorrentes.isPending || verificando}>
+            {verificando
+              ? "Verificando sala…"
+              : criar.isPending || criarRecorrentes.isPending
+              ? "Agendando…"
+              : qtdOcorrencias !== null
+              ? `Agendar ${qtdOcorrencias} reuniões`
+              : "Agendar reunião"}
           </Button>
         </DialogFooter>
       </DialogContent>

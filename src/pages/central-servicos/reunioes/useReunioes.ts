@@ -131,60 +131,63 @@ interface NovaReuniao {
   convidados: string[];
 }
 
+/** Cria uma reunião (linha reuniao + pauta + convidados + notificação + log). Usado tanto pra criação avulsa quanto, em loop, pra recorrência. */
+async function criarUmaReuniao(nova: NovaReuniao): Promise<string> {
+  const { data: reuniao, error } = await (supabase as any)
+    .from("reuniao")
+    .insert({
+      titulo: nova.titulo,
+      objetivo: nova.objetivo || null,
+      data_hora: nova.data_hora,
+      duracao_minutos: nova.duracao_minutos,
+      tipo_local: nova.tipo_local,
+      local_ou_link: nova.local_ou_link,
+      responsavel_preenchimento_user_id: nova.responsavel_preenchimento_user_id,
+    })
+    .select("id")
+    .single();
+  if (error) {
+    if (error.code === "23P01") {
+      throw new Error(`Sala "${nova.local_ou_link}" já está reservada nesse horário.`);
+    }
+    throw error;
+  }
+  const reuniaoId = reuniao.id as string;
+
+  if (nova.pauta.length > 0) {
+    const { error: pautaErr } = await (supabase as any).from("reuniao_pauta").insert(
+      nova.pauta.map((p, i) => ({
+        reuniao_id: reuniaoId,
+        ordem: i,
+        titulo_topico: p.titulo_topico,
+        descricao: p.descricao || null,
+      })),
+    );
+    if (pautaErr) throw pautaErr;
+  }
+
+  if (nova.convidados.length > 0) {
+    const { error: convidadosErr } = await (supabase as any).from("reuniao_convidado").insert(
+      nova.convidados.map((userId) => ({ reuniao_id: reuniaoId, user_id: userId })),
+    );
+    if (convidadosErr) throw convidadosErr;
+  }
+
+  supabase.functions
+    .invoke("enviar-notificacao-push-reuniao", { body: { reuniao_id: reuniaoId, evento: "agendada" } })
+    .catch(() => {});
+
+  registrarLog(reuniaoId, "reuniao_agendada", `Reunião "${nova.titulo}" agendada`);
+
+  return reuniaoId;
+}
+
 export function useCriarReuniao() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (nova: NovaReuniao) => {
-      const { data: reuniao, error } = await (supabase as any)
-        .from("reuniao")
-        .insert({
-          titulo: nova.titulo,
-          objetivo: nova.objetivo || null,
-          data_hora: nova.data_hora,
-          duracao_minutos: nova.duracao_minutos,
-          tipo_local: nova.tipo_local,
-          local_ou_link: nova.local_ou_link,
-          responsavel_preenchimento_user_id: nova.responsavel_preenchimento_user_id,
-        })
-        .select("id")
-        .single();
-      if (error) {
-        if (error.code === "23P01") {
-          throw new Error(`Sala "${nova.local_ou_link}" já está reservada nesse horário.`);
-        }
-        throw error;
-      }
-      const reuniaoId = reuniao.id as string;
-
-      if (nova.pauta.length > 0) {
-        const { error: pautaErr } = await (supabase as any).from("reuniao_pauta").insert(
-          nova.pauta.map((p, i) => ({
-            reuniao_id: reuniaoId,
-            ordem: i,
-            titulo_topico: p.titulo_topico,
-            descricao: p.descricao || null,
-          })),
-        );
-        if (pautaErr) throw pautaErr;
-      }
-
-      if (nova.convidados.length > 0) {
-        const { error: convidadosErr } = await (supabase as any).from("reuniao_convidado").insert(
-          nova.convidados.map((userId) => ({ reuniao_id: reuniaoId, user_id: userId })),
-        );
-        if (convidadosErr) throw convidadosErr;
-      }
-
-      supabase.functions
-        .invoke("enviar-notificacao-push-reuniao", { body: { reuniao_id: reuniaoId, evento: "agendada" } })
-        .catch(() => {});
-
-      registrarLog(reuniaoId, "reuniao_agendada", `Reunião "${nova.titulo}" agendada`);
-
-      return reuniaoId;
-    },
+    mutationFn: criarUmaReuniao,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["reuniao-calendario"] });
       qc.invalidateQueries({ queryKey: ["reuniao-minhas"] });
@@ -192,6 +195,51 @@ export function useCriarReuniao() {
     },
     onError: (error: any) => {
       toast({ title: "Erro ao agendar reunião", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+interface ResultadoRecorrencia {
+  criadas: number;
+  puladas: { dataHoraIso: string; motivo: string }[];
+}
+
+/** Cria uma série de reuniões (mesmo conteúdo, datas diferentes) — cada data é uma tentativa independente, igual a criar uma avulsa; se uma data específica já estiver ocupada, só ela fica de fora. */
+export function useCriarReunioesRecorrentes() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ base, datas }: { base: Omit<NovaReuniao, "data_hora">; datas: string[] }): Promise<ResultadoRecorrencia> => {
+      const resultado: ResultadoRecorrencia = { criadas: 0, puladas: [] };
+      for (const dataHoraIso of datas) {
+        try {
+          await criarUmaReuniao({ ...base, data_hora: dataHoraIso });
+          resultado.criadas += 1;
+        } catch (e) {
+          resultado.puladas.push({ dataHoraIso, motivo: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      return resultado;
+    },
+    onSuccess: (resultado) => {
+      qc.invalidateQueries({ queryKey: ["reuniao-calendario"] });
+      qc.invalidateQueries({ queryKey: ["reuniao-minhas"] });
+      if (resultado.puladas.length === 0) {
+        toast({ title: `${resultado.criadas} reuniões agendadas` });
+        return;
+      }
+      const datasPuladas = resultado.puladas
+        .map((p) => new Date(p.dataHoraIso).toLocaleDateString("pt-BR"))
+        .join(", ");
+      toast({
+        title: `${resultado.criadas} reuniões agendadas, ${resultado.puladas.length} pulada(s)`,
+        description: `Datas com conflito: ${datasPuladas}`,
+        variant: resultado.criadas === 0 ? "destructive" : undefined,
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao agendar reuniões recorrentes", description: error.message, variant: "destructive" });
     },
   });
 }
