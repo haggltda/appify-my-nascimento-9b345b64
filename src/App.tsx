@@ -125,6 +125,14 @@ import SolicitacoesErp from "./pages/sistemas/SolicitacoesErp";
 import CentralServicos from "./pages/central-servicos/CentralServicos";
 import Reunioes from "./pages/central-servicos/reunioes/Reunioes";
 import ReuniaoDetalhe from "./pages/central-servicos/reunioes/ReuniaoDetalhe";
+import OrientacoesJuridicas from "./pages/central-servicos/OrientacoesJuridicas";
+import Denuncias from "./pages/central-servicos/Denuncias";
+import Formularios from "./pages/central-servicos/Formularios";
+import FormularioEditor from "./pages/central-servicos/FormularioEditor";
+import FormularioRespostas from "./pages/central-servicos/FormularioRespostas";
+import FormulariosDashboard from "./pages/central-servicos/FormulariosDashboard";
+import FormulariosConfig from "./pages/central-servicos/FormulariosConfig";
+import FormularioPublico from "./pages/publico/FormularioPublico";
 
 const queryClient = new QueryClient();
 
@@ -146,6 +154,8 @@ const App = () => (
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
           {/* Portal público de candidatura (sem login) */}
           <Route path="/vagas" element={<Vagas />} />
+          {/* Portal público de resposta a formulários (sem login) */}
+          <Route path="/formularios/:slug" element={<FormularioPublico />} />
           <Route path="/candidatura" element={<Navigate to="/vagas" replace />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<Inicio />} />
@@ -157,6 +167,13 @@ const App = () => (
             <Route path="central-servicos" element={<CentralServicos />} />
             <Route path="central-servicos/reunioes" element={<Reunioes />} />
             <Route path="central-servicos/reunioes/:id" element={<ReuniaoDetalhe />} />
+            <Route path="central-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
+            <Route path="central-servicos/denuncias" element={<Denuncias />} />
+            <Route path="central-servicos/formularios" element={<Formularios />} />
+            <Route path="central-servicos/formularios/dashboard" element={<FormulariosDashboard />} />
+            <Route path="central-servicos/formularios/config" element={<FormulariosConfig />} />
+            <Route path="central-servicos/formularios/:id" element={<FormularioEditor />} />
+            <Route path="central-servicos/formularios/:id/respostas" element={<FormularioRespostas />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
             <Route path="painel-executivo/tv" element={<PainelExecutivoTV />} />
             <Route path="presidencia" element={<Presidencia />} />

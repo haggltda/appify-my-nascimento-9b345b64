@@ -42,6 +42,8 @@ import {
   Wrench,
   FileOutput,
   Headset,
+  ShieldAlert,
+  ClipboardList,
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
@@ -401,6 +403,9 @@ const centralServicosModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Central de Serviços", to: "/app/central-servicos", icon: Headset },
+        { label: "Orientações Jurídicas", to: "/app/central-servicos/orientacoes-juridicas", icon: BookOpen },
+        { label: "Denúncias (Canal de Ética)", to: "/app/central-servicos/denuncias", icon: ShieldAlert },
+        { label: "Nascimento Formulários", to: "/app/central-servicos/formularios", icon: ClipboardList },
         { label: "Agenda de Reunião", to: "/app/central-servicos/reunioes", icon: CalendarRange },
       ],
     },
