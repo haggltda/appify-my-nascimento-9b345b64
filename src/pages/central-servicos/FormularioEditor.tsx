@@ -338,10 +338,13 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
       {setores.length > 0 && (
         <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 8, marginBottom: 4 }}>
           <button onClick={() => setMostrarSetor(v => !v)} style={{ background: "none", border: "none", color: setoresVis.length ? "#0f3171" : "#94a3b8", fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0 }}>
-            👁 {setoresVis.length ? `Só ${setoresVis.length} setor(es) responde(m)` : "Todos os setores respondem"} {mostrarSetor ? "▴" : "▾"}
+            👁 {setoresVis.length
+              ? `Só ${setoresVis.length} setor(es) ${p.tipo === "texto_info" ? "veem" : "respondem"}`
+              : `Todos os setores ${p.tipo === "texto_info" ? "veem" : "respondem"}`} {mostrarSetor ? "▴" : "▾"}
           </button>
           {mostrarSetor && (
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+              <span style={{ width: "100%", fontSize: 11, color: "#94a3b8", marginBottom: 2 }}>{p.tipo === "texto_info" ? "Apenas esses setores veem este texto:" : "Apenas esses setores respondem esta pergunta:"}</span>
               {setores.map(s => {
                 const on = setoresVis.includes(s);
                 return <span key={s} onClick={() => { const set = new Set(setoresVis); on ? set.delete(s) : set.add(s); muda(i, { config: { ...p.config, setores: set.size ? [...set] : undefined } }); }}
