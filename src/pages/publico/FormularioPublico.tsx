@@ -50,6 +50,9 @@ export default function FormularioPublico() {
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
+  // "Outro": quando o respondente escolhe Outro, descreve num texto livre.
+  const [outroOn, setOutroOn] = useState<Record<string, boolean>>({});
+  const [outroTxt, setOutroTxt] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -163,33 +166,64 @@ export default function FormularioPublico() {
               {p.tipo === "texto_longo" && <textarea value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} rows={4} style={{ ...inp, resize: "vertical" }} placeholder="Sua resposta" />}
               {p.tipo === "numero" && <input type="number" value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value === "" ? "" : Number(e.target.value))} style={{ ...inp, maxWidth: 220 }} placeholder="0" />}
               {p.tipo === "data" && <input type="date" value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} style={{ ...inp, maxWidth: 220 }} />}
-              {p.tipo === "lista_suspensa" && (
-                <select value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} style={{ ...inp, maxWidth: 380 }}>
-                  <option value="">Selecione...</option>
-                  {p.opcoes.map((o, oi) => <option key={oi} value={o}>{o}</option>)}
-                </select>
-              )}
+              {p.tipo === "lista_suspensa" && (() => {
+                const on = !!outroOn[p.id];
+                return (
+                  <div>
+                    <select value={on ? "__outro__" : (valores[p.id] ?? "")}
+                      onChange={e => { const v = e.target.value; if (v === "__outro__") { setOutroOn(x => ({ ...x, [p.id]: true })); setVal(p.id, outroTxt[p.id] ?? ""); } else { setOutroOn(x => ({ ...x, [p.id]: false })); setVal(p.id, v); } }}
+                      style={{ ...inp, maxWidth: 380 }}>
+                      <option value="">Selecione...</option>
+                      {p.opcoes.map((o, oi) => <option key={oi} value={o}>{o}</option>)}
+                      {p.config.outro && <option value="__outro__">Outro…</option>}
+                    </select>
+                    {on && <input value={outroTxt[p.id] ?? ""} onChange={e => { const t = e.target.value; setOutroTxt(x => ({ ...x, [p.id]: t })); setVal(p.id, t); }} placeholder="Descreva…" style={{ ...inp, maxWidth: 380, marginTop: 8 }} />}
+                  </div>
+                );
+              })()}
               {p.tipo === "multipla_escolha" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {p.opcoes.map((o, oi) => (
                     <label key={oi} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 14, color: "#0f172a", cursor: "pointer" }}>
-                      <input type="radio" name={p.id} checked={valores[p.id] === o} onChange={() => setVal(p.id, o)} style={{ width: 16, height: 16 }} />
+                      <input type="radio" name={p.id} checked={!outroOn[p.id] && valores[p.id] === o} onChange={() => { setOutroOn(x => ({ ...x, [p.id]: false })); setVal(p.id, o); }} style={{ width: 16, height: 16 }} />
                       {o}
                     </label>
                   ))}
+                  {p.config.outro && (
+                    <label style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 14, color: "#0f172a", cursor: "pointer", flexWrap: "wrap" }}>
+                      <input type="radio" name={p.id} checked={!!outroOn[p.id]} onChange={() => { setOutroOn(x => ({ ...x, [p.id]: true })); setVal(p.id, outroTxt[p.id] ?? ""); }} style={{ width: 16, height: 16 }} />
+                      Outro:
+                      <input value={outroTxt[p.id] ?? ""} disabled={!outroOn[p.id]} onChange={e => { const t = e.target.value; setOutroTxt(x => ({ ...x, [p.id]: t })); setVal(p.id, t); }} placeholder="descreva…" style={{ ...inp, flex: 1, minWidth: 180, opacity: outroOn[p.id] ? 1 : .5 }} />
+                    </label>
+                  )}
                 </div>
               )}
               {p.tipo === "caixas_selecao" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {p.opcoes.map((o, oi) => {
+                  {(() => {
                     const arr: string[] = Array.isArray(valores[p.id]) ? valores[p.id] : [];
+                    const fixedSel = arr.filter(x => p.opcoes.includes(x));
+                    const oOn = !!outroOn[p.id];
+                    const oTxt = outroTxt[p.id] ?? "";
+                    const rebuild = (fixed: string[], on: boolean, txt: string) => setVal(p.id, [...fixed, ...(on && txt.trim() ? [txt.trim()] : [])]);
                     return (
-                      <label key={oi} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 14, color: "#0f172a", cursor: "pointer" }}>
-                        <input type="checkbox" checked={arr.includes(o)} onChange={e => setVal(p.id, e.target.checked ? [...arr, o] : arr.filter(x => x !== o))} style={{ width: 16, height: 16 }} />
-                        {o}
-                      </label>
+                      <>
+                        {p.opcoes.map((o, oi) => (
+                          <label key={oi} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 14, color: "#0f172a", cursor: "pointer" }}>
+                            <input type="checkbox" checked={fixedSel.includes(o)} onChange={e => rebuild(e.target.checked ? [...fixedSel, o] : fixedSel.filter(x => x !== o), oOn, oTxt)} style={{ width: 16, height: 16 }} />
+                            {o}
+                          </label>
+                        ))}
+                        {p.config.outro && (
+                          <label style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 14, color: "#0f172a", cursor: "pointer", flexWrap: "wrap" }}>
+                            <input type="checkbox" checked={oOn} onChange={e => { setOutroOn(x => ({ ...x, [p.id]: e.target.checked })); rebuild(fixedSel, e.target.checked, oTxt); }} style={{ width: 16, height: 16 }} />
+                            Outro:
+                            <input value={oTxt} disabled={!oOn} onChange={e => { const t = e.target.value; setOutroTxt(x => ({ ...x, [p.id]: t })); rebuild(fixedSel, oOn, t); }} placeholder="descreva…" style={{ ...inp, flex: 1, minWidth: 180, opacity: oOn ? 1 : .5 }} />
+                          </label>
+                        )}
+                      </>
                     );
-                  })}
+                  })()}
                 </div>
               )}
               {p.tipo === "escala" && (() => {

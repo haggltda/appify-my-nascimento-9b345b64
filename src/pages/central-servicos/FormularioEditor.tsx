@@ -213,7 +213,7 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload }: {
         </select>
       </div>
 
-      <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição/ajuda (opcional)"
+      <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição / ajuda — aparece abaixo do título (opcional)"
         style={{ border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 9px", fontSize: 12, color: "#64748b", outline: "none", width: "100%", marginBottom: 10, background: "#fafbfc" }} />
 
       {p.imagem_url && (
@@ -235,6 +235,10 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload }: {
           ))}
           <button onClick={() => muda(i, { opcoes: [...p.opcoes, `Opção ${p.opcoes.length + 1}`] })}
             style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#0369a1", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "2px 0" }}>+ Adicionar opção</button>
+          <label style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600, color: "#0f172a", marginTop: 4 }}>
+            <input type="checkbox" checked={!!p.config.outro} onChange={e => muda(i, { config: { ...p.config, outro: e.target.checked } })} style={{ width: 14, height: 14 }} />
+            Permitir opção “Outro” — o respondente descreve
+          </label>
         </div>
       )}
 
