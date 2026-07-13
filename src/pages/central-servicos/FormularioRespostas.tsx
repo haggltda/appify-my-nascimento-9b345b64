@@ -14,8 +14,11 @@ interface Resposta {
   id: string; enviado_em: string;
   respondente_nome?: string | null; respondente_email?: string | null;
   setor?: string | null; respondente_cadastro?: Record<string, any> | null;
+  duracao_seg?: number | null;
   itens: Record<string, any>;
 }
+
+const fmtDur = (s?: number | null) => { if (s == null) return "—"; const m = Math.floor(s / 60), ss = s % 60; return m ? `${m}m ${ss}s` : `${ss}s`; };
 
 // Rótulos amigáveis do snapshot de cadastro (respondente_cadastro).
 const CADASTRO_CAMPOS: { k: string; rotulo: string }[] = [
@@ -111,6 +114,7 @@ export default function FormularioRespostas() {
                   {r.respondente_email && <span style={{ fontSize: 11.5, color: "#64748b" }}>{r.respondente_email}</span>}
                   <span style={{ fontSize: 11, color: "#94a3b8" }}>{fmtDt(r.enviado_em)}</span>
                   {r.setor && <span style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: "#eef2ff", color: "#4338ca" }}>{r.setor}</span>}
+                  {r.duracao_seg != null && <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#f1f5f9", color: "#64748b" }}>⏱ {fmtDur(r.duracao_seg)}</span>}
                   <div style={{ flex: 1 }} />
                   {r.respondente_cadastro && <button onClick={() => setDetalhe(r)} style={btn("rgba(15,49,113,.08)", "#0f3171", "1px solid rgba(15,49,113,.2)")}>👤 Detalhes</button>}
                   <button onClick={() => excluirResp(r)} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 11.5, fontWeight: 700 }}>Excluir</button>

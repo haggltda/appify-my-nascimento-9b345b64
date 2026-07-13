@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
@@ -14,7 +14,7 @@ interface Form {
   id: string; titulo: string; descricao?: string | null; slug: string;
   status: string; inicia_em?: string | null; encerra_em?: string | null;
   coleta_identificacao: boolean; imagem_capa_url?: string | null;
-  pergunta_setor_id?: string | null;
+  pergunta_setor_id?: string | null; setores_acesso?: string[] | null;
 }
 interface Perg {
   id: string; tipo: string; titulo: string; descricao?: string | null;
@@ -37,9 +37,41 @@ function Aviso({ emoji, titulo, texto }: { emoji: string; titulo: string; texto:
   );
 }
 
+// Pergunta "colaborador": busca um empregado no cadastro (EMPREGADOS) e o valor
+// da resposta é o nome escolhido.
+function ColaboradorSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [busca, setBusca] = useState("");
+  const [resultados, setResultados] = useState<{ id: number; nome: string; setor?: string; cargo?: string }[]>([]);
+  const [aberto, setAberto] = useState(false);
+  const buscar = async (q: string) => {
+    setBusca(q); setAberto(true);
+    if (q.trim().length < 2) { setResultados([]); return; }
+    const { data } = await (supabase as any).from("EMPREGADOS")
+      .select('"ID","Nome","Setor_ERP","Título do Cargo"').ilike("Nome", `%${q.trim()}%`).limit(12);
+    setResultados((data ?? []).map((r: any) => ({ id: r["ID"], nome: r["Nome"] ?? "", setor: r["Setor_ERP"], cargo: r["Título do Cargo"] })));
+  };
+  return (
+    <div style={{ position: "relative", maxWidth: 420 }}>
+      <input value={aberto ? busca : (value || "")} onChange={e => buscar(e.target.value)} onFocus={() => { setAberto(true); setBusca(value || ""); }}
+        placeholder="Buscar colaborador pelo nome…" style={inp} />
+      {aberto && resultados.length > 0 && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 20, overflow: "hidden", maxHeight: 260, overflowY: "auto" }}>
+          {resultados.map(r => (
+            <div key={r.id} onClick={() => { onChange(r.nome); setAberto(false); setResultados([]); }} style={{ padding: "8px 11px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{r.nome}</div>
+              <div style={{ fontSize: 11, color: "#94a3b8" }}>{[r.setor, r.cargo].filter(Boolean).join(" · ")}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FormularioPublico() {
   const { slug } = useParams();
-  const { empregado } = useVinculoEmpregado();  // cadastro do respondente logado (null se anônimo)
+  const { empregado, loading: vinculoLoading } = useVinculoEmpregado();  // cadastro do respondente logado (null se anônimo)
+  const abertoEm = useRef(Date.now());  // p/ tempo de conclusão
   const [form, setForm] = useState<Form | null>(null);
   const [pergs, setPergs] = useState<Perg[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +88,7 @@ export default function FormularioPublico() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: f } = await (supabase as any).from("CS_FORMULARIOS").select("id,titulo,descricao,slug,status,inicia_em,encerra_em,coleta_identificacao,imagem_capa_url,perguntas,pergunta_setor_id").eq("slug", slug).maybeSingle();
+    const { data: f } = await (supabase as any).from("CS_FORMULARIOS").select("*").eq("slug", slug).maybeSingle();
     if (!f) { setLoading(false); setNaoEncontrado(true); return; }
     setForm(f);
     setPergs((Array.isArray(f.perguntas) ? f.perguntas : []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} })));
@@ -64,7 +96,7 @@ export default function FormularioPublico() {
   }, [slug]);
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <Aviso emoji="⏳" titulo="Carregando..." texto="Um instante." />;
+  if (loading || vinculoLoading) return <Aviso emoji="⏳" titulo="Carregando..." texto="Um instante." />;
   if (naoEncontrado || !form) return <Aviso emoji="🔍" titulo="Formulário não encontrado" texto="O link pode estar errado ou o formulário não está mais disponível." />;
 
   const now = Date.now();
@@ -72,13 +104,27 @@ export default function FormularioPublico() {
     return <Aviso emoji="🗓" titulo="Ainda não abriu" texto={`Este formulário abre em ${fmtDt(form.inicia_em)}. Volte depois!`} />;
   if (form.encerra_em && now > +new Date(form.encerra_em))
     return <Aviso emoji="⛔" titulo="Formulário encerrado" texto={`O prazo para responder terminou em ${fmtDt(form.encerra_em)}.`} />;
+  // Acesso por setor: se restrito, só quem é dos setores liberados responde.
+  const acesso = form.setores_acesso ?? [];
+  if (acesso.length > 0) {
+    if (!empregado) return <Aviso emoji="🔒" titulo="Formulário restrito" texto="Este formulário é restrito a setores específicos. Entre com seu usuário do ERP para responder." />;
+    if (!acesso.includes(empregado.setor)) return <Aviso emoji="🔒" titulo="Sem acesso" texto={`Este formulário é só para os setores: ${acesso.join(", ")}. O seu (${empregado.setor || "—"}) não está liberado.`} />;
+  }
   if (enviado)
     return <Aviso emoji="✅" titulo="Resposta enviada!" texto="Obrigado por responder. Você já pode fechar esta página." />;
 
   const setVal = (pid: string, v: any) => { setValores(x => ({ ...x, [pid]: v })); setErro(""); };
 
+  // Perguntas visíveis ao respondente: uma pergunta pode ser limitada a setores
+  // (config.setores). Sem cadastro (anônimo), perguntas restritas ficam ocultas.
+  const perguntaVisivel = (p: Perg) => {
+    const s: string[] = Array.isArray(p.config?.setores) ? p.config.setores : [];
+    return s.length === 0 || (!!empregado && s.includes(empregado.setor));
+  };
+  const pergsVisiveis = pergs.filter(perguntaVisivel);
+
   const enviar = async () => {
-    for (const p of pergs) {
+    for (const p of pergsVisiveis) {
       if (!p.obrigatoria) continue;
       const v = valores[p.id];
       const vazio = v == null || v === "" || (Array.isArray(v) && v.length === 0);
@@ -102,9 +148,10 @@ export default function FormularioPublico() {
     const nomeResp = cadastro?.nome?.trim() || (form.coleta_identificacao ? nome.trim() : "") || null;
     const emailResp = cadastro?.email?.trim() || (form.coleta_identificacao ? email.trim() : "") || null;
     // criado_por é preenchido pelo default (auth.uid()) quando logado; anônimo sem dono.
+    const duracao_seg = Math.max(0, Math.round((Date.now() - abertoEm.current) / 1000));  // tempo de conclusão
     const base = { formulario_id: form.id, respondente_nome: nomeResp, respondente_email: emailResp, itens: valores };
-    let { error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert({ ...base, setor, respondente_cadastro: cadastro });
-    // Banco ainda sem as colunas novas (setor/cadastro): reenvia só o básico.
+    let { error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert({ ...base, setor, respondente_cadastro: cadastro, duracao_seg });
+    // Banco ainda sem as colunas novas (setor/cadastro/duração): reenvia só o básico.
     if (error && /column|schema cache/i.test(error.message)) ({ error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(base));
     setEnviando(false);
     if (error) {
@@ -153,8 +200,8 @@ export default function FormularioPublico() {
           </div>
         ) : null}
 
-        {/* Perguntas */}
-        {pergs.map((p, i) => (
+        {/* Perguntas (só as visíveis para o setor do respondente) */}
+        {pergsVisiveis.map((p, i) => (
           <div key={p.id} id={`perg-${p.id}`} style={card}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
               {i + 1}. {p.titulo} {p.obrigatoria && <span style={{ color: "#dc2626" }}>*</span>}
@@ -164,6 +211,7 @@ export default function FormularioPublico() {
             <div style={{ marginTop: 12 }}>
               {p.tipo === "texto_curto" && <input value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} style={inp} placeholder="Sua resposta" />}
               {p.tipo === "texto_longo" && <textarea value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} rows={4} style={{ ...inp, resize: "vertical" }} placeholder="Sua resposta" />}
+              {p.tipo === "colaborador" && <ColaboradorSelect value={valores[p.id] ?? ""} onChange={v => setVal(p.id, v)} />}
               {p.tipo === "numero" && <input type="number" value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value === "" ? "" : Number(e.target.value))} style={{ ...inp, maxWidth: 220 }} placeholder="0" />}
               {p.tipo === "data" && <input type="date" value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} style={{ ...inp, maxWidth: 220 }} />}
               {p.tipo === "lista_suspensa" && (() => {
