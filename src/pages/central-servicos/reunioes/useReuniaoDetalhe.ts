@@ -143,7 +143,8 @@ export function useReuniaoDetalhe(id: string | undefined) {
 
   const invalidarReuniao = () => {
     qc.invalidateQueries({ queryKey: ["reuniao", id] });
-    qc.invalidateQueries({ queryKey: ["reuniao"] });
+    qc.invalidateQueries({ queryKey: ["reuniao-calendario"] });
+    qc.invalidateQueries({ queryKey: ["reuniao-minhas"] });
   };
 
   const notificar = (evento: string) => {

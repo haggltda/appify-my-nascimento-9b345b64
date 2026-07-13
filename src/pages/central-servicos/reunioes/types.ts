@@ -53,6 +53,20 @@ export interface Reuniao {
   updated_at: string;
 }
 
+/** Recorte mínimo pro calendário — todas as reuniões da empresa, sem objetivo/motivo_cancelamento. */
+export interface ReuniaoCalendario {
+  id: string;
+  titulo: string;
+  data_hora: string;
+  duracao_minutos: number;
+  tipo_local: "presencial" | "online";
+  local_ou_link: string;
+  etapa: ReuniaoEtapa;
+  criado_por: string;
+  responsavel_preenchimento_user_id: string;
+  convidados: string[];
+}
+
 export interface ReuniaoPauta {
   id: string;
   reuniao_id: string;

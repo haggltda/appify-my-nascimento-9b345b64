@@ -7,7 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { ETAPA_COR, nomeUsuario, type Reuniao, type Usuario } from "../types";
+import { ETAPA_COR, nomeUsuario, type ReuniaoCalendario, type Usuario } from "../types";
 
 const DIAS_SEMANA = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"];
 
@@ -22,7 +22,7 @@ export function CalendarioMes({
   onMudarMes: (data: Date) => void;
   diaSelecionado: Date;
   onSelecionarDia: (data: Date) => void;
-  reunioes: Reuniao[];
+  reunioes: ReuniaoCalendario[];
   usuarios: Usuario[];
 }) {
   const navigate = useNavigate();
