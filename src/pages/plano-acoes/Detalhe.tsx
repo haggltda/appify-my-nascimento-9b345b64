@@ -22,6 +22,11 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
 
+// "Reunião Extraordinária"/"Reunião Ordinária" são linhas da mesma tabela
+// comite (mesma coluna plano_acao.comite por baixo), mas exibidas num campo
+// separado de "Tipo de Reunião" para não misturar com os comitês de verdade.
+const TIPOS_REUNIAO = ["Reunião Extraordinária", "Reunião Ordinária"];
+
 export default function PlanoAcaoDetalhe() {
   const { id } = useParams<{ id: string }>();
   const isNew = !id || id === "nova";
@@ -133,6 +138,8 @@ export default function PlanoAcaoDetalhe() {
 
   const { data: comitesMap = {} } = useComitesMap();
   const comitesList = useMemo(() => Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR")), [comitesMap]);
+  const comitesReais = useMemo(() => comitesList.filter(c => !TIPOS_REUNIAO.includes(c)), [comitesList]);
+  const tiposReuniaoDisponiveis = useMemo(() => comitesList.filter(c => TIPOS_REUNIAO.includes(c)), [comitesList]);
   const areasDoComite = useMemo(
     () => (form.comite && comitesMap[form.comite]?.areas) || [],
     [form.comite, comitesMap]
@@ -412,17 +419,37 @@ export default function PlanoAcaoDetalhe() {
             <div>
               <Label>Comitê</Label>
               {comitesList.length > 0 ? (
-                <Select value={form.comite || "__none"} disabled={!podeEdit} onValueChange={handleComiteChange}>
+                <Select
+                  value={!TIPOS_REUNIAO.includes(form.comite) ? (form.comite || "__none") : "__none"}
+                  disabled={!podeEdit}
+                  onValueChange={handleComiteChange}
+                >
                   <SelectTrigger><SelectValue placeholder="Selecione o comitê" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">—</SelectItem>
-                    {comitesList.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    {form.comite && !comitesList.includes(form.comite) && <SelectItem value={form.comite}>{form.comite}</SelectItem>}
+                    {comitesReais.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {form.comite && !comitesReais.includes(form.comite) && !TIPOS_REUNIAO.includes(form.comite) && (
+                      <SelectItem value={form.comite}>{form.comite}</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               ) : (
                 <Input value={form.comite ?? ""} disabled={!podeEdit} onChange={e => set("comite", e.target.value)} />
               )}
+            </div>
+            <div>
+              <Label>Tipo de Reunião</Label>
+              <Select
+                value={TIPOS_REUNIAO.includes(form.comite) ? form.comite : "__none"}
+                disabled={!podeEdit}
+                onValueChange={handleComiteChange}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione o tipo de reunião" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">—</SelectItem>
+                  {tiposReuniaoDisponiveis.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Setor</Label>
