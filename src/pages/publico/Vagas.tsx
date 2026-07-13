@@ -5,7 +5,7 @@ import logoGN from "@/assets/logo-grupo-nascimento.png";
 import { TrendingUp, Users, MapPin, Search, Inbox, CheckCircle2, Paperclip, Building2 } from "lucide-react";
 
 // =====================================================================
-// PORTAL PÚBLICO DE VAGAS / CANDIDATURA  (rota /vagas — sem login)
+// PORTAL PÚBLICO DE VAGAS / CANDIDATURA  (rota /vagas - sem login)
 // Dois fluxos: candidatura GERAL (Banco de Talentos) e candidatura a uma VAGA.
 // Tudo via RPCs SECURITY DEFINER (portal_*) + upload no bucket 'curriculos'.
 // =====================================================================

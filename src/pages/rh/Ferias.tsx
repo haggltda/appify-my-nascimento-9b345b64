@@ -4,9 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 function fmtDt(s?: string) {
-  if (!s) return "—";
+  if (!s) return "-";
   const d = new Date(s.length <= 10 ? s + "T12:00:00" : s);
-  return isNaN(+d) ? (s ?? "—") : d.toLocaleDateString("pt-BR");
+  return isNaN(+d) ? (s ?? "-") : d.toLocaleDateString("pt-BR");
 }
 
 const STATUS_CFG: Record<string, { bg: string; fg: string; bd: string }> = {
@@ -128,7 +128,7 @@ export default function Ferias() {
     <div style={{ padding: "4px 2px 40px" }}>
       <div style={{ marginBottom: 18 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>📅 Gestão de Férias</h1>
-        <p style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>Solicitações de férias dos colaboradores — aprove, reprove ou acompanhe.</p>
+        <p style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>Solicitações de férias dos colaboradores - aprove, reprove ou acompanhe.</p>
       </div>
 
       {/* KPIs */}
@@ -180,7 +180,7 @@ export default function Ferias() {
                 </td>
                 <td style={{ padding: "11px 14px", fontSize: 12, color: "#475569" }}>{fmtDt(r.data_saida)} → {fmtDt(r.data_retorno)}</td>
                 <td style={{ padding: "11px 14px", fontSize: 12, color: "#475569" }}>{r.dias_ferias}d{r.dias_vendidos ? ` +${r.dias_vendidos} abono` : ""}</td>
-                <td style={{ padding: "11px 14px", fontSize: 12, color: "#475569" }}>{r.solicitante_nome || "—"}</td>
+                <td style={{ padding: "11px 14px", fontSize: 12, color: "#475569" }}>{r.solicitante_nome || "-"}</td>
                 <td style={{ padding: "11px 14px" }}><StatusBadge status={r.status} /></td>
                 <td style={{ padding: "11px 14px", fontSize: 11, color: "#94a3b8" }}>{fmtDt(r.criado_em)}</td>
               </tr>
@@ -214,9 +214,9 @@ export default function Ferias() {
                   ["Retorno", fmtDt(sol.data_retorno)],
                   ["Dias de férias", `${sol.dias_ferias} dias`],
                   ["Abono (vendidos)", `${sol.dias_vendidos || 0} dias`],
-                  ["CPF", sol.colaborador_cpf || "—"],
+                  ["CPF", sol.colaborador_cpf || "-"],
                   ["Admissão", fmtDt(sol.colaborador_admissao)],
-                  ["Solicitante", sol.solicitante_nome || "—"],
+                  ["Solicitante", sol.solicitante_nome || "-"],
                   ["Criado em", fmtDt(sol.criado_em)],
                 ].map(([k, v]) => (
                   <div key={k} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px" }}>

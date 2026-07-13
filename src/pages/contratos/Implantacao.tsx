@@ -127,7 +127,7 @@ export default function Implantacao() {
       <PageHeader
         title="Implantação de Contratos"
         breadcrumb={["Contratos", "Implantação"]}
-        subtitle="Checklist de implantação por contrato — acompanhe cada setor até a operação plena."
+        subtitle="Checklist de implantação por contrato - acompanhe cada setor até a operação plena."
       />
 
       {/* KPIs */}
@@ -161,8 +161,8 @@ export default function Implantacao() {
             </Select>
             {contrato && (
               <div className="text-xs text-muted-foreground">
-                Início: <span className="font-medium text-foreground">{contrato.data_inicio ?? "—"}</span>
-                {" · "}Abertura: <span className="font-medium text-foreground">{contrato.abertura ?? "—"}</span>
+                Início: <span className="font-medium text-foreground">{contrato.data_inicio ?? "-"}</span>
+                {" · "}Abertura: <span className="font-medium text-foreground">{contrato.abertura ?? "-"}</span>
               </div>
             )}
             {isAdmin && contrato && (
@@ -342,7 +342,7 @@ function DocMultiSelect({ value, onChange }: { value: string; onChange: (v: stri
         </button>
       )}
 
-      {/* Lista completa — abre ao clicar ou quando vazio */}
+      {/* Lista completa - abre ao clicar ou quando vazio */}
       {(expanded || selected.length === 0) && (
         <div className="space-y-1">
           {selected.length > 0 && (
@@ -540,7 +540,7 @@ function CardChecklist({
       {/* Meta-block */}
       {(item.plano_acao || item.responsavel_acao || item.onde || prazo) && (
         <div className="bg-muted/60 rounded-lg px-3 py-2.5 space-y-1.5 text-[11px]">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Meta-block — contexto para execução</p>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Meta-block - contexto para execução</p>
           {item.plano_acao && <MetaRow label="Plano de ação" value={item.plano_acao} />}
           {item.responsavel_acao && <MetaRow label="Resp. ação" value={item.responsavel_acao} />}
           {item.onde && <MetaRow label="Onde" value={item.onde} />}
@@ -573,10 +573,10 @@ function CardChecklist({
                     <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">
                       {new Date(h.ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
                     </td>
-                    <td className="py-2 pr-4 max-w-[200px]">{h.resposta || "—"}</td>
-                    <td className="py-2 pr-4 max-w-[200px] text-muted-foreground">{h.obs || "—"}</td>
+                    <td className="py-2 pr-4 max-w-[200px]">{h.resposta || "-"}</td>
+                    <td className="py-2 pr-4 max-w-[200px] text-muted-foreground">{h.obs || "-"}</td>
                     <td className="py-2 text-muted-foreground whitespace-nowrap">
-                      {h.por ? (usuariosMap[h.por] ?? h.por) : "—"}
+                      {h.por ? (usuariosMap[h.por] ?? h.por) : "-"}
                     </td>
                   </tr>
                 ))}

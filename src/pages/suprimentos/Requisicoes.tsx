@@ -51,7 +51,7 @@ function OrcamentoBadge({ empresaId, centroCustoId, valor }: { empresaId: string
   }
   return (
     <div className="mt-2 flex items-center justify-end gap-2 text-xs text-muted-foreground">
-      <AlertTriangle className="h-3.5 w-3.5" /> Sem saldo no CC. "Vincular orçamento" desativado — segue só com a aprovação de retirada.
+      <AlertTriangle className="h-3.5 w-3.5" /> Sem saldo no CC. "Vincular orçamento" desativado - segue só com a aprovação de retirada.
     </div>
   );
 }
@@ -179,7 +179,7 @@ export default function Requisicoes() {
                     <TableCell className="font-medium">{r.numero}</TableCell>
                     <TableCell><Badge variant="outline">{r.tipo}</Badge></TableCell>
                     <TableCell><Badge variant="outline">{r.prioridade}</Badge></TableCell>
-                    <TableCell>{r.data_necessidade ? new Date(r.data_necessidade).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                    <TableCell>{r.data_necessidade ? new Date(r.data_necessidade).toLocaleDateString("pt-BR") : "-"}</TableCell>
                     <TableCell>{Number(r.valor_estimado ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
                     <TableCell><StatusBadge status={r.status_v2} /></TableCell>
                     <TableCell className="text-right">
@@ -378,7 +378,7 @@ function NovaRCDialog({
             <Select value={centroCustoId} onValueChange={setCentroCustoId}>
               <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
               <SelectContent>
-                {ccs.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>)}
+                {ccs.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.codigo} - {c.nome}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -387,7 +387,7 @@ function NovaRCDialog({
             <Select value={contratoId} onValueChange={setContratoId}>
               <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
               <SelectContent>
-                {contratos.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.numero} — {c.objeto?.slice(0, 40)}</SelectItem>)}
+                {contratos.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.numero} - {c.objeto?.slice(0, 40)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -511,7 +511,7 @@ function RCDetailDialog({ rcId, onClose, onChanged }: { rcId: string; onClose: (
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div><span className="text-muted-foreground">Tipo:</span> <strong>{rc.tipo}</strong></div>
           <div><span className="text-muted-foreground">Prioridade:</span> <strong>{rc.prioridade}</strong></div>
-          <div><span className="text-muted-foreground">Necessidade:</span> {rc.data_necessidade ? new Date(rc.data_necessidade).toLocaleDateString("pt-BR") : "—"}</div>
+          <div><span className="text-muted-foreground">Necessidade:</span> {rc.data_necessidade ? new Date(rc.data_necessidade).toLocaleDateString("pt-BR") : "-"}</div>
           <div><span className="text-muted-foreground">Valor estimado:</span> {Number(rc.valor_estimado ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
         </div>
 

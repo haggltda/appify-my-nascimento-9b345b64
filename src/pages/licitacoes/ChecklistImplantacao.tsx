@@ -360,7 +360,7 @@ export default function ChecklistImplantacao() {
         </div>
         <Select value={contratoId} onValueChange={setContratoId}>
           <SelectTrigger className="w-72">
-            <SelectValue placeholder="— Selecione o contrato —" />
+            <SelectValue placeholder="- Selecione o contrato -" />
           </SelectTrigger>
           <SelectContent>
             {contratos.map((c) => (

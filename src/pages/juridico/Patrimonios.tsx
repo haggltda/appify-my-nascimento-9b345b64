@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 // =====================================================================
-// JURÍDICO — Gestão Patrimonial e Obrigações
+// JURÍDICO - Gestão Patrimonial e Obrigações
 // Patrimônios (imóveis, veículos...) + obrigações/contas (despesas, seguros,
 // água, luz...) + acessos (portais), contatos, documentos, histórico e
 // comentários do setor Jurídico.
@@ -33,8 +33,8 @@ const TIPOS = ["Imóvel", "Veículo", "Terreno", "Equipamento", "Outros"];
 const CATEGORIAS = ["IPTU", "Condomínio", "Energia", "Água", "Luz", "Internet", "Telefone", "Seguro", "Aluguel", "Imposto", "IPVA", "Licenciamento", "Manutenção", "Rastreamento", "Outros"];
 const PERIODICIDADES = ["Mensal", "Bimestral", "Trimestral", "Semestral", "Anual", "Único"];
 
-const fmtDt = (s?: string) => { if (!s) return "—"; const d = new Date(s.length <= 10 ? s + "T12:00:00" : s); return isNaN(+d) ? s : d.toLocaleDateString("pt-BR"); };
-const money = (v?: number | null) => (v == null || isNaN(Number(v))) ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtDt = (s?: string) => { if (!s) return "-"; const d = new Date(s.length <= 10 ? s + "T12:00:00" : s); return isNaN(+d) ? s : d.toLocaleDateString("pt-BR"); };
+const money = (v?: number | null) => (v == null || isNaN(Number(v))) ? "-" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const hoje = () => new Date().toISOString().slice(0, 10);
 // Recorrência das contas: passo em meses por periodicidade + navegação por mês.
 const PERIOD_STEP: Record<string, number> = { Mensal: 1, Bimestral: 2, Trimestral: 3, Semestral: 6, Anual: 12 };
@@ -83,7 +83,7 @@ export default function Patrimonios() {
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
   const [novoComentario, setNovoComentario] = useState("");
 
-  // empregados do setor Jurídico (Trabalhando) — opções de "Responsável"
+  // empregados do setor Jurídico (Trabalhando) - opções de "Responsável"
   const [empsJuridico, setEmpsJuridico] = useState<EmpJuridico[]>([]);
 
   // sub-modal obrigação
@@ -424,7 +424,7 @@ export default function Patrimonios() {
                 const venc = o.vencimento!;
                 const dias = Math.round((new Date(venc + "T00:00:00").getTime() - new Date(hoje() + "T00:00:00").getTime()) / 86400000);
                 const atrasada = dias < 0;
-                const patN = pats.find(p => p.id === o.patrimonio_id)?.descricao || "—";
+                const patN = pats.find(p => p.id === o.patrimonio_id)?.descricao || "-";
                 return (
                   <div key={o.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", background: "#fff", border: "1px solid #fee2d5", borderRadius: 10, padding: "8px 12px" }}>
                     <div style={{ minWidth: 0 }}>
@@ -489,7 +489,7 @@ export default function Patrimonios() {
                           <td style={{ padding: "11px 14px", color: "#475569", textAlign: "center" }}>{x.n}</td>
                           <td style={{ padding: "11px 14px", color: "#0f172a", fontWeight: 700, textAlign: "right" }}>{money(x.prev)}</td>
                           <td style={{ padding: "11px 14px", color: "#15803d", textAlign: "right" }}>{money(x.pg)}</td>
-                          <td style={{ padding: "11px 14px", textAlign: "center" }}>{x.venc > 0 ? <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: "#fee2e2", color: "#dc2626" }}>{x.venc}</span> : <span style={{ color: "#94a3b8" }}>—</span>}</td>
+                          <td style={{ padding: "11px 14px", textAlign: "center" }}>{x.venc > 0 ? <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: "#fee2e2", color: "#dc2626" }}>{x.venc}</span> : <span style={{ color: "#94a3b8" }}>-</span>}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -532,8 +532,8 @@ export default function Patrimonios() {
                       onMouseEnter={e => (e.currentTarget.style.background = "#f8fbff")} onMouseLeave={e => (e.currentTarget.style.background = "#fff")}>
                       <td style={{ padding: "11px 14px", fontWeight: 700, color: "#0f172a" }}>{p.descricao}{p.codigo ? <span style={{ color: "#94a3b8", fontWeight: 500 }}> · {p.codigo}</span> : ""}</td>
                       <td style={{ padding: "11px 14px", color: "#475569" }}>{p.tipo}</td>
-                      <td style={{ padding: "11px 14px", color: "#475569" }}>{[p.localizacao, p.cidade].filter(Boolean).join(" · ") || p.placa || "—"}</td>
-                      <td style={{ padding: "11px 14px", color: "#475569" }}>{p.empresa || "—"}</td>
+                      <td style={{ padding: "11px 14px", color: "#475569" }}>{[p.localizacao, p.cidade].filter(Boolean).join(" · ") || p.placa || "-"}</td>
+                      <td style={{ padding: "11px 14px", color: "#475569" }}>{p.empresa || "-"}</td>
                       <td style={{ padding: "11px 14px" }}>{p.transferida ? <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: "#dcfce7", color: "#15803d" }}>Transferida</span> : <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: "#fff7ed", color: "#ea580c" }}>Pendente</span>}</td>
                       <td style={{ padding: "11px 14px" }}><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: p.status === "Ativo" ? "#dcfce7" : "#f1f5f9", color: p.status === "Ativo" ? "#15803d" : "#64748b" }}>{p.status}</span></td>
                     </tr>
@@ -548,7 +548,7 @@ export default function Patrimonios() {
         {viewPag === "contas" && (() => {
           const contasMes = mesContas ? obrAll.filter(o => (o.vencimento || "").slice(0, 7) === mesContas) : obrAll;
           const navMesC = (delta: number) => setMesContas(addMonthsISO((mesContas || hoje().slice(0, 7)) + "-01", delta).slice(0, 7));
-          const patNome = (id: number) => pats.find(p => p.id === id)?.descricao || "—";
+          const patNome = (id: number) => pats.find(p => p.id === id)?.descricao || "-";
           const grupos = new Map<string, Obrigacao[]>();
           for (const o of contasMes) { const k = o.categoria || "Outros"; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k)!.push(o); }
           const cats = [...grupos.entries()].map(([cat, items]) => ({ cat, items, total: items.reduce((s, o) => s + (Number(o.valor) || 0), 0) })).sort((a, b) => b.total - a.total);
@@ -574,7 +574,7 @@ export default function Patrimonios() {
                     {[...g.items].sort((a, b) => String(a.vencimento || "").localeCompare(String(b.vencimento || ""))).map(o => { const st = statusObr(o); const cor = st === "Pago" ? "#16a34a" : st === "Vencido" ? "#dc2626" : "#ea580c"; return (
                       <tr key={o.id} style={{ borderTop: "1px solid #f1f5f9" }}>
                         <td style={{ padding: "10px 16px" }}><div style={{ fontWeight: 700, color: "#0f172a" }}>{patNome(o.patrimonio_id)}</div>{o.descricao && <div style={{ fontSize: 11.5, color: "#94a3b8" }}>{o.descricao}</div>}{o.onde_pagar && (ehLink(o.onde_pagar) ? <a href={o.onde_pagar} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: "#0f3171", fontWeight: 700, textDecoration: "none" }}>🔗 Pagar aqui</a> : <div style={{ fontSize: 11.5, color: "#94a3b8" }}>📍 {o.onde_pagar}</div>)}</td>
-                        <td style={{ padding: "10px 14px", color: "#475569", whiteSpace: "nowrap" }}>{o.vencimento ? "Venc. " + fmtDt(o.vencimento) : "—"}</td>
+                        <td style={{ padding: "10px 14px", color: "#475569", whiteSpace: "nowrap" }}>{o.vencimento ? "Venc. " + fmtDt(o.vencimento) : "-"}</td>
                         <td style={{ padding: "10px 14px", fontWeight: 700, color: "#0f172a", textAlign: "right", whiteSpace: "nowrap" }}>{money(o.valor)}</td>
                         <td style={{ padding: "10px 14px", textAlign: "center" }}><span style={{ fontSize: 11, fontWeight: 800, padding: "2px 10px", borderRadius: 20, background: cor + "20", color: cor }}>{st}</span></td>
                         <td style={{ padding: "10px 16px", textAlign: "right", whiteSpace: "nowrap" }}><div style={{ display: "inline-flex", gap: 6 }}>{o.comprovante_path && <button className="jp-btn" title="Ver comprovante" onClick={() => verComprovante(o)} style={{ background: "#eef4ff", color: "#0f3171", border: "1px solid #dbe4f0", padding: "5px 9px" }}>📎</button>}{st !== "Pago" && <button className="jp-btn" title={ehLink(o.onde_pagar) ? "Abre o link de pagamento e pede o comprovante" : "Pedir comprovante e marcar como paga"} onClick={() => pagarConta(o)} style={{ background: "#0f3171", color: "#fff", border: "1px solid #0f3171", padding: "5px 13px", fontWeight: 700 }}>{ehLink(o.onde_pagar) ? "🔗 Pagar" : "Pagar"}</button>}</div></td>
@@ -683,7 +683,7 @@ export default function Patrimonios() {
                         {o.comprovante_path && <button className="jp-btn" onClick={() => verComprovante(o)} style={{ background: "#eef4ff", color: "#0f3171", border: "1px solid #dbe4f0", padding: "5px 11px" }}>📎 Comprovante</button>}
                         <button className="jp-btn" onClick={() => abrirEditarObr(o)} style={{ background: "#f1f5f9", color: "#475569", padding: "5px 11px" }}>Editar</button>
                         {(o.status === "Pago" && o.comprovante_path)
-                          ? <span title="Conta paga com comprovante não pode ser excluída — registrada no histórico." style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#94a3b8", padding: "5px 8px" }}>🔒 Bloqueada</span>
+                          ? <span title="Conta paga com comprovante não pode ser excluída - registrada no histórico." style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#94a3b8", padding: "5px 8px" }}>🔒 Bloqueada</span>
                           : <button className="jp-btn" onClick={() => excluirObr(o)} style={{ background: "none", color: "#dc2626", padding: "5px 8px" }}>Excluir</button>}
                       </div>
                     </div>
@@ -802,7 +802,7 @@ export default function Patrimonios() {
               <div className="jp-fg"><label>Vencimento</label><input className="jp-fi" type="date" value={obr.vencimento} onChange={e => setObr(v => ({ ...v, vencimento: e.target.value }))} /></div>
               <div className="jp-fg"><label>Periodicidade</label><select className="jp-fi" value={obr.periodicidade} onChange={e => setObr(v => ({ ...v, periodicidade: e.target.value }))}>{PERIODICIDADES.map(p => <option key={p}>{p}</option>)}</select></div>
               {!!PERIOD_STEP[obr.periodicidade] && (
-                <div className="jp-fg"><label>Gerar nos próximos meses</label><input className="jp-fi" type="number" min={0} max={36} value={obr.repetir} onChange={e => setObr(v => ({ ...v, repetir: e.target.value }))} placeholder="0 = só este mês; 11 = ano todo" /><div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 3 }}>“{obr.periodicidade}” é só o rótulo — informe quantos meses gerar pra criar as contas dos próximos meses (não duplica os que já existem).</div></div>
+                <div className="jp-fg"><label>Gerar nos próximos meses</label><input className="jp-fi" type="number" min={0} max={36} value={obr.repetir} onChange={e => setObr(v => ({ ...v, repetir: e.target.value }))} placeholder="0 = só este mês; 11 = ano todo" /><div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 3 }}>“{obr.periodicidade}” é só o rótulo - informe quantos meses gerar pra criar as contas dos próximos meses (não duplica os que já existem).</div></div>
               )}
               <div className="jp-fg"><label>Forma de pagamento</label><input className="jp-fi" value={obr.forma_pagamento} onChange={e => setObr(v => ({ ...v, forma_pagamento: e.target.value }))} placeholder="Boleto, Débito em conta…" /></div>
               <div className="jp-fg"><label>Responsável (Jurídico)</label>

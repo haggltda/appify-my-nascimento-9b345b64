@@ -121,7 +121,7 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Título *</Label>
-            <Input value={form.titulo} onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))} placeholder="Ex: Reunião de alinhamento — Diretoria" />
+            <Input value={form.titulo} onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))} placeholder="Ex: Reunião de alinhamento - Diretoria" />
           </div>
 
           <div className="space-y-1.5">

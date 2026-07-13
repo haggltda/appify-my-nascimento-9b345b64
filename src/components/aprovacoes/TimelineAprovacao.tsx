@@ -96,7 +96,7 @@ export function TimelineAprovacao({ alvo, referenciaId }: Props) {
                   <div>
                     <p className="text-sm font-medium">{e.ordem}. {e.nome}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      Responsável: {resp?.display_name || resp?.email || "—"}
+                      Responsável: {resp?.display_name || resp?.email || "-"}
                       {e.prazo_horas && <> · Prazo: {e.prazo_horas}h</>}
                     </p>
                   </div>

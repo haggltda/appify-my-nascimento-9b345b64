@@ -45,7 +45,7 @@ export interface Solicitacao {
   created_at: string;
   // Número sequencial (SD-AAAA-NNNN)
   numero: number | null;
-  // FSD Parte A — preenchida pelo solicitante na criação
+  // FSD Parte A - preenchida pelo solicitante na criação
   area_solicitante: string | null;
   responsavel_solicitacao: string | null;
   cargo_solicitante: string | null;
@@ -62,7 +62,7 @@ export interface Solicitacao {
   codigo_processo: string | null;
   tipos_documentos_apoio: string[] | null;
   observacoes_abertura: string | null;
-  // FSD Parte B — preenchida pela Controladoria na Triagem Inicial
+  // FSD Parte B - preenchida pela Controladoria na Triagem Inicial
   triagem_recebido_por: string | null;
   triagem_concluida_em: string | null;
   triagem_classificacao: string | null;
@@ -126,7 +126,7 @@ export interface Papeis {
   verTodas: boolean;
 }
 
-// 14 etapas (reestruturação pedida pelo CEO — ver KANBAN CARDS.xlsx). "Projeto"
+// 14 etapas (reestruturação pedida pelo CEO - ver KANBAN CARDS.xlsx). "Projeto"
 // virou 4 colunas independentes; "Aprovações e Priorização" + "Definição de
 // Responsável" virou 1 coluna só.
 export const ETAPAS: Array<{ key: string; label: string }> = [
@@ -147,7 +147,7 @@ export const ETAPAS: Array<{ key: string; label: string }> = [
 ];
 
 // Prazo normal em dias úteis por etapa (espelha public.prazo_dias_uteis_etapa
-// no banco) — etapas ausentes daqui não têm prazo. Usado só pro badge visual;
+// no banco) - etapas ausentes daqui não têm prazo. Usado só pro badge visual;
 // quem decide de verdade se o prazo venceu é o servidor.
 export const PRAZO_DIAS_UTEIS: Record<string, number> = {
   triagem_inicial: 2,
@@ -163,7 +163,7 @@ export const PRAZO_DIAS_UTEIS: Record<string, number> = {
 
 export const DIAS_UTEIS_PRORROGACAO = 2;
 
-// Aprovações nominais dos Testes Internos — nomes só aqui (front-end), as
+// Aprovações nominais dos Testes Internos - nomes só aqui (front-end), as
 // colunas no banco (testes_interno_aprov_1/2/3) são genéricas pra não acoplar
 // schema a pessoas. Cada slot só pode ser marcado pela própria pessoa vinculada
 // (ver public.testes_interno_aprovador_user_id no banco).
@@ -173,7 +173,7 @@ export const APROVACOES_TESTES_INTERNOS: Record<"testes_interno_aprov_1" | "test
   testes_interno_aprov_3: "Iury de Jesus Silva",
 };
 
-// 6 campos de texto da abertura — "Tipo da Solicitação" e "Grau de Urgência"
+// 6 campos de texto da abertura - "Tipo da Solicitação" e "Grau de Urgência"
 // são dropdowns fixos (TIPO_SOLICITACAO_LABEL / GRAU_URGENCIA_LABEL), não
 // entram nessa lista.
 export const CAMPOS_ABERTURA: Array<{ key: keyof Solicitacao; label: string; placeholder: string }> = [
@@ -228,7 +228,7 @@ export const STATUS_DESENVOLVIMENTO_COR: Record<string, string> = {
   finalizado: "bg-success/15 text-success border-success/30",
 };
 
-// Pesquisa de Avaliação da Demanda — respondida na etapa Encerramento por quem
+// Pesquisa de Avaliação da Demanda - respondida na etapa Encerramento por quem
 // criou, convidados, ou Controladoria. As 5 primeiras são escala 1-5; a última
 // é sim/não e só tem caráter informativo (não bloqueia o "Finalizar demanda").
 export const PESQUISA_ENCERRAMENTO: Array<{
@@ -294,7 +294,7 @@ export const TIPO_COMENTARIO_BORDA: Record<string, string> = {
   erro_documental: "border-l-warning",
 };
 
-// FSD — constantes de opções para Parte A (criação)
+// FSD - constantes de opções para Parte A (criação)
 export const CLASSIFICACAO_DEMANDA_OPCOES = [
   { value: "correcao_falha", label: "Correção de Falha (Bug)" },
   { value: "melhoria_processo", label: "Melhoria de Processo" },
@@ -340,8 +340,8 @@ export const TRIAGEM_CLASSIFICACAO_LABEL: Record<string, string> = {
 };
 
 export const TRIAGEM_DECISAO_LABEL: Record<string, string> = {
-  aprovado: "Aprovado — encaminhar para Análise de Necessidade",
-  reprovado: "Reprovado — encerrar solicitação",
+  aprovado: "Aprovado - encaminhar para Análise de Necessidade",
+  reprovado: "Reprovado - encerrar solicitação",
   devolvido_ajustes: "Devolvido para ajustes ao solicitante",
 };
 
@@ -365,7 +365,7 @@ export function fmtData(data: string | null): string | null {
   return `${dia}/${mes}/${ano}`;
 }
 
-// Conta dias úteis (seg-sex) entre 2 datas — espelha public.dias_uteis_entre no
+// Conta dias úteis (seg-sex) entre 2 datas - espelha public.dias_uteis_entre no
 // banco. Só pra exibição; quem decide de verdade é o servidor.
 export function diasUteisEntre(inicio: Date, fim: Date): number {
   let dias = 0;
@@ -412,7 +412,7 @@ export interface EtapaPanelProps {
   totalNaColuna: number;
   prioridadesUsadas: number[];
   aprovadoresTestesInternos: AprovadorTesteInterno[];
-  /** Atualiza colunas da própria solicitação (etapa, campos, flags) — já passa pelas regras do trigger no banco. */
+  /** Atualiza colunas da própria solicitação (etapa, campos, flags) - já passa pelas regras do trigger no banco. */
   onUpdate: (patch: Record<string, unknown>) => Promise<boolean>;
   onComentar: (texto: string, tipo?: string) => Promise<boolean>;
   onAnexar: (file: File, campo?: string) => Promise<boolean>;

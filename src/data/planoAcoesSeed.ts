@@ -1,4 +1,4 @@
-// Carga inicial — ações Nascimento (atualizado da planilha Tático 4).
+// Carga inicial - ações Nascimento (atualizado da planilha Tático 4).
 // Gerado automaticamente. NÃO EDITAR.
 export const PLANO_ACOES_SEED = [
 {

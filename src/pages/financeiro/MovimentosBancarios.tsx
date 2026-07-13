@@ -26,12 +26,12 @@ export default function MovimentosBancarios() {
         { key: "data_movimento", label: "Data", render: (r) => fmtDate(r.data_movimento) },
         { key: "conta_bancaria_id", label: "Conta", render: (r) => {
           const c = contas.find((x: any) => x.id === r.conta_bancaria_id);
-          return c ? `${c.banco_nome} ${c.agencia}/${c.conta}` : "—";
+          return c ? `${c.banco_nome} ${c.agencia}/${c.conta}` : "-";
         } },
         { key: "tipo", label: "Tipo", render: (r) => <Badge variant={r.tipo === "credito" ? "default" : "destructive"}>{r.tipo}</Badge> },
         { key: "valor", label: "Valor", render: (r) => fmtBRL(r.valor) },
         { key: "descricao", label: "Descrição" },
-        { key: "conciliado", label: "Conc.", render: (r) => r.conciliado ? "✓" : "—" },
+        { key: "conciliado", label: "Conc.", render: (r) => r.conciliado ? "✓" : "-" },
       ]}
     />
   );

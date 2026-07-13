@@ -93,7 +93,7 @@ export default function TrocarSenha() {
           <p>
             <strong>Atenção:</strong> guarde esta nova senha em local seguro (cofre de senhas,
             gerenciador de credenciais ou outro meio confiável). Por segurança, ela não será
-            exibida novamente e não pode ser recuperada — apenas redefinida.
+            exibida novamente e não pode ser recuperada - apenas redefinida.
           </p>
         </div>
 

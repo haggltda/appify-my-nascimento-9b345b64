@@ -21,7 +21,7 @@ import AnalisePeriodoTab from "./pagar/AnalisePeriodoTab";
 import { Textarea } from "@/components/ui/textarea";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("pt-BR") : "-";
 
 const statusBadge = (s: string) => {
   const map: Record<string, any> = {
@@ -40,7 +40,7 @@ const remessaBadge = (s: string) => {
   if (s === "enviado") return <Badge variant="default">Em remessa</Badge>;
   if (s === "pago") return <Badge variant="default">Pago</Badge>;
   if (s === "rejeitado") return <Badge variant="destructive">Rejeitado</Badge>;
-  return <Badge variant="outline">—</Badge>;
+  return <Badge variant="outline">-</Badge>;
 };
 
 export default function ContasPagar() {
@@ -164,7 +164,7 @@ export default function ContasPagar() {
                         <TableRow key={t.id} className={vencido ? "bg-destructive/5" : ""}>
                           <TableCell>{podeSel && <Checkbox checked={sel.includes(t.id)} onCheckedChange={() => toggleSel(t.id)} />}</TableCell>
                           <TableCell className="font-mono text-xs">{t.numero_documento}</TableCell>
-                          <TableCell>{t.fornecedor?.razao_social ?? "—"}</TableCell>
+                          <TableCell>{t.fornecedor?.razao_social ?? "-"}</TableCell>
                           <TableCell>{t.parcela_num}/{t.parcela_total}</TableCell>
                           <TableCell>{fmtDate(t.data_vencimento)}{t.data_agendamento && <div className="text-xs text-muted-foreground"><Clock className="inline h-3 w-3" /> {fmtDate(t.data_agendamento)}</div>}</TableCell>
                           <TableCell className="text-right">{fmtMoney(t.valor)}</TableCell>
@@ -213,7 +213,7 @@ export default function ContasPagar() {
                   {remessas.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-mono text-xs">{r.numero}</TableCell>
-                      <TableCell>{r.conta_bancaria?.banco_codigo} — {r.conta_bancaria?.banco_nome}</TableCell>
+                      <TableCell>{r.conta_bancaria?.banco_codigo} - {r.conta_bancaria?.banco_nome}</TableCell>
                       <TableCell>#{r.sequencia_arquivo}</TableCell>
                       <TableCell>{fmtDate(r.data_geracao)}</TableCell>
                       <TableCell className="text-right">{r.qtd_titulos} / {fmtMoney(r.valor_total)}</TableCell>
@@ -294,7 +294,7 @@ function AgendarDialog({ tituloId, onClose }: { tituloId: string; onClose: () =>
               onChange={setContaId}
               options={contas.map((c: any) => ({
                 value: c.id,
-                label: `${c.banco_codigo} — ${c.banco_nome}`,
+                label: `${c.banco_codigo} - ${c.banco_nome}`,
                 hint: `Ag ${c.agencia} / Cc ${c.conta}`,
               }))}
               placeholder="Selecione..."
@@ -349,7 +349,7 @@ function RemessaDialog({ tituloIds, onClose }: { tituloIds: string[]; onClose: (
       return data;
     },
     onSuccess: (d: any) => {
-      toast.success(`Remessa ${d.numero} gerada — ${d.qtd_titulos} títulos, ${fmtMoney(d.valor_total)}`);
+      toast.success(`Remessa ${d.numero} gerada - ${d.qtd_titulos} títulos, ${fmtMoney(d.valor_total)}`);
       // baixa arquivo automaticamente
       if (d.arquivo_nome) {
         // busca o conteúdo
@@ -378,7 +378,7 @@ function RemessaDialog({ tituloIds, onClose }: { tituloIds: string[]; onClose: (
                 .filter((c: any) => c.cnab_convenio && c.cnab_codigo_empresa)
                 .map((c: any) => ({
                   value: c.id,
-                  label: `${c.banco_codigo} — ${c.banco_nome}`,
+                  label: `${c.banco_codigo} - ${c.banco_nome}`,
                   hint: `Ag ${c.agencia} / Cc ${c.conta}`,
                 }))}
               placeholder="Selecione..."
@@ -388,8 +388,8 @@ function RemessaDialog({ tituloIds, onClose }: { tituloIds: string[]; onClose: (
           </div>
           {conta && (
             <div className="text-xs text-muted-foreground bg-muted p-3 rounded-md">
-              <p>Convênio: <strong>{conta.cnab_convenio || "—"}</strong></p>
-              <p>Código empresa: <strong>{conta.cnab_codigo_empresa || "—"}</strong></p>
+              <p>Convênio: <strong>{conta.cnab_convenio || "-"}</strong></p>
+              <p>Código empresa: <strong>{conta.cnab_codigo_empresa || "-"}</strong></p>
               <p>Próxima sequência: <strong>#{conta.cnab_proxima_sequencia}</strong></p>
               {(!conta.cnab_convenio || !conta.cnab_codigo_empresa) && (
                 <p className="text-destructive mt-1">⚠ Configure os dados CNAB em Cadastros &gt; Contas Bancárias antes de gerar.</p>
@@ -452,7 +452,7 @@ function BaixarDialog({ titulo, onClose }: { titulo: any; onClose: () => void })
         <DialogHeader>
           <DialogTitle>Baixar pagamento</DialogTitle>
           <DialogDescription>
-            {titulo.numero_documento} — Saldo: {fmtMoney(saldo)}
+            {titulo.numero_documento} - Saldo: {fmtMoney(saldo)}
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
@@ -462,7 +462,7 @@ function BaixarDialog({ titulo, onClose }: { titulo: any; onClose: () => void })
             <Label>Conta bancária</Label>
             <Select value={contaId} onValueChange={setContaId}>
               <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>{contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome} {c.agencia}/{c.conta}</SelectItem>)}</SelectContent>
+              <SelectContent>{contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} - {c.banco_nome} {c.agencia}/{c.conta}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div><Label>Juros</Label><Input type="number" step="0.01" value={juros} onChange={(e) => setJuros(e.target.value)} /></div>

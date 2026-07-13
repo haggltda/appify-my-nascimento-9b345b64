@@ -1,4 +1,4 @@
-// Os 9 "documentos oficiais" da aba "Documentos e Assinaturas" — mapeamento
+// Os 9 "documentos oficiais" da aba "Documentos e Assinaturas" - mapeamento
 // definido pela planilha do CEO (NOVAS RERAS KANBAN.xlsx).
 import type { Anexo, Comentario, Convidado, Solicitacao } from "./types";
 
@@ -23,7 +23,7 @@ export const DOCUMENTOS_OFICIAIS: DocumentoOficial[] = [
   { numero: "IX", nome: "Relatório de Encerramento da Demanda", sigla: "RED", tipo: "encerramento_completo", etapaOrigem: "encerramento" },
 ];
 
-// Só aparece na lista quando já tem dado disponível — cresce conforme o card
+// Só aparece na lista quando já tem dado disponível - cresce conforme o card
 // avança (não mostra os 9 sempre com "pendente").
 export function documentoDisponivel(
   doc: DocumentoOficial,

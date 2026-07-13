@@ -20,7 +20,7 @@ export default function Historico() {
       <PageHeader
         title="Histórico & Auditoria"
         breadcrumb={["Histórico & Auditoria"]}
-        subtitle="Linha do tempo completa de cada ação. Quem, o que, quando, origem e contexto — preservados."
+        subtitle="Linha do tempo completa de cada ação. Quem, o que, quando, origem e contexto - preservados."
         actions={
           <>
             <button className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-secondary">

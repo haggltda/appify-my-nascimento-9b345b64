@@ -17,7 +17,7 @@ export default function EsqueciSenha() {
       await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/redefinir-senha`,
       });
-      // Sempre exibe a mesma mensagem — não revela se o e-mail existe
+      // Sempre exibe a mesma mensagem - não revela se o e-mail existe
       setSubmitted(true);
     } catch {
       setError("Não foi possível processar a solicitação. Tente novamente.");

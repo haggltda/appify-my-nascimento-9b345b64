@@ -402,7 +402,7 @@ export function FornecedorDialog({ open, onOpenChange, fornecedor, onSaved, read
                         <div className="col-span-12 md:col-span-3">
                           <Label className="mb-1.5 block text-xs font-medium">Tipo da chave</Label>
                           <Select value={form.pix_tipo ?? ""} onValueChange={(v) => set("pix_tipo", v)} disabled={isLocked}>
-                            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="cpf_cnpj">CPF/CNPJ</SelectItem>
                               <SelectItem value="email">E-mail</SelectItem>

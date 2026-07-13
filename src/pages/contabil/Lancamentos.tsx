@@ -16,7 +16,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 const fmtBRL = (n: number | null | undefined) =>
   (n ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtDate = (d: string | null | undefined) =>
-  d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+  d ? new Date(d).toLocaleDateString("pt-BR") : "-";
 
 interface Partida {
   id: string;
@@ -286,7 +286,7 @@ function LancamentoRow({
         <td className="px-3 py-2 text-xs">
           {evento && <Badge variant="outline" className="font-mono">{evento}</Badge>}
           {lanc.origem === "estorno" && <Badge variant="outline" className="border-rose-500/40 text-rose-600 dark:text-rose-400">estorno</Badge>}
-          {!isAuto && lanc.origem !== "estorno" && <span className="text-muted-foreground">{lanc.origem ?? "—"}</span>}
+          {!isAuto && lanc.origem !== "estorno" && <span className="text-muted-foreground">{lanc.origem ?? "-"}</span>}
         </td>
         <td className="px-3 py-2 text-right font-medium">{fmtBRL(lanc.valor_total)}</td>
         <td className="px-3 py-2 text-center">
@@ -337,10 +337,10 @@ function LancamentoRow({
                         <td className="px-2 py-1">
                           {p.conta_contabil ? (
                             <><span className="font-mono">{p.conta_contabil.classificacao}</span> {p.conta_contabil.descricao}</>
-                          ) : <span className="text-muted-foreground italic">—</span>}
+                          ) : <span className="text-muted-foreground italic">-</span>}
                         </td>
                         <td className="px-2 py-1">
-                          {p.centro_custo ? `${p.centro_custo.codigo} ${p.centro_custo.nome}` : <span className="text-muted-foreground">—</span>}
+                          {p.centro_custo ? `${p.centro_custo.codigo} ${p.centro_custo.nome}` : <span className="text-muted-foreground">-</span>}
                         </td>
                         <td className="px-2 py-1 text-right font-medium">{fmtBRL(p.valor)}</td>
                       </tr>

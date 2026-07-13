@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Formulario, Pergunta, fmtDt, urlPublica, situacao, normalizaPerguntas, novoUuid } from "./Formularios";
 
 // =====================================================================
-// NASCIMENTO FORMULÁRIOS — Builder (editor de formulário)
+// NASCIMENTO FORMULÁRIOS - Builder (editor de formulário)
 // Monta o formulário: título/descrição/capa, configurações (vigência,
-// limite de respostas, identificação do respondente) e as perguntas —
+// limite de respostas, identificação do respondente) e as perguntas -
 // vários tipos, com imagem por pergunta, opções e obrigatoriedade.
 // Salvar = 1 update: perguntas vivem em CS_FORMULARIOS.perguntas (jsonb),
 // com ids estáveis p/ não órfãr respostas.
@@ -61,7 +61,7 @@ export default function FormularioEditor() {
   }, [id, nav]);
   useEffect(() => { load(); }, [load]);
 
-  // Setores do cadastro (EMPREGADOS.Setor_ERP) — para "Acesso" e visibilidade por setor.
+  // Setores do cadastro (EMPREGADOS.Setor_ERP) - para "Acesso" e visibilidade por setor.
   useEffect(() => {
     (async () => {
       const { data } = await (supabase as any).from("EMPREGADOS").select('"Setor_ERP"').limit(20000);
@@ -93,7 +93,7 @@ export default function FormularioEditor() {
     if (novoStatus === "publicado" && pergs.filter(p => p.titulo.trim()).length === 0) { toast("Adicione ao menos 1 pergunta antes de publicar.", "err"); return; }
     setSalvando(true);
     // Colunas garantidas (base) x colunas novas de setor/acesso (extra). Se o
-    // banco ainda não tem as novas, reenvia só a base — o save não trava.
+    // banco ainda não tem as novas, reenvia só a base - o save não trava.
     const base: any = {
       titulo: form.titulo.trim(), descricao: form.descricao || null,
       inicia_em: form.inicia_em || null, encerra_em: form.encerra_em || null,
@@ -111,7 +111,7 @@ export default function FormularioEditor() {
     if (e1 && /column|schema cache/i.test(e1.message)) ({ error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update(base).eq("id", form.id));
     if (e1) { setSalvando(false); toast("Erro ao salvar: " + e1.message, "err"); return; }
     setSalvando(false);
-    toast(novoStatus === "publicado" ? "Publicado! URL ativa — copie na lista." : "Salvo.", "ok");
+    toast(novoStatus === "publicado" ? "Publicado! URL ativa - copie na lista." : "Salvo.", "ok");
     load();
   };
 
@@ -160,7 +160,7 @@ export default function FormularioEditor() {
                 )}
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={lbl}>Acesso — quais setores podem ver/responder (vazio = todos)</label>
+                <label style={lbl}>Acesso - quais setores podem ver/responder (vazio = todos)</label>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {setoresErp.length === 0 && <span style={{ fontSize: 12, color: "#94a3b8" }}>Carregando setores…</span>}
                   {setoresErp.map(s => {
@@ -186,7 +186,7 @@ export default function FormularioEditor() {
                     </>}
               </div>
 
-              {/* Mais opções — abre em, limite, identificação, pergunta de setor */}
+              {/* Mais opções - abre em, limite, identificação, pergunta de setor */}
               <div style={{ gridColumn: "1 / -1", borderTop: "1px solid #f1f5f9", paddingTop: 10 }}>
                 <button onClick={() => setMaisOpcoes(v => !v)} style={{ background: "none", border: "none", color: "#0f3171", fontSize: 12, fontWeight: 800, cursor: "pointer", padding: 0 }}>Mais opções {maisOpcoes ? "▴" : "▾"}</button>
               </div>
@@ -208,7 +208,7 @@ export default function FormularioEditor() {
                 <div style={{ gridColumn: "1 / -1" }}>
                   <label style={lbl}>Pergunta que define o setor (fallback do cadastro, p/ Admin × Operacional)</label>
                   <select value={form.pergunta_setor_id ?? ""} onChange={e => mudaForm({ pergunta_setor_id: e.target.value || null })} style={{ ...inp, width: "100%", maxWidth: 420, textOverflow: "ellipsis" }}>
-                    <option value="">— Nenhuma (usa o setor do cadastro do respondente) —</option>
+                    <option value="">- Nenhuma (usa o setor do cadastro do respondente) -</option>
                     {pergs.filter(p => p.titulo.trim()).map(p => <option key={p.id} value={p.id}>{p.titulo.length > 60 ? p.titulo.slice(0, 60) + "…" : p.titulo}</option>)}
                   </select>
                 </div>
@@ -261,7 +261,7 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
         </select>
       </div>
 
-      <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição / ajuda — aparece abaixo do título (opcional)"
+      <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição / ajuda - aparece abaixo do título (opcional)"
         style={{ border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 9px", fontSize: 12, color: "#64748b", outline: "none", width: "100%", marginBottom: 10, background: "#fafbfc" }} />
 
       {p.imagem_url && (
@@ -285,7 +285,7 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
             style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#0369a1", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "2px 0" }}>+ Adicionar opção</button>
           <label style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600, color: "#0f172a", marginTop: 4 }}>
             <input type="checkbox" checked={!!p.config.outro} onChange={e => muda(i, { config: { ...p.config, outro: e.target.checked } })} style={{ width: 14, height: 14 }} />
-            Permitir opção “Outro” — o respondente descreve
+            Permitir opção “Outro” - o respondente descreve
           </label>
         </div>
       )}

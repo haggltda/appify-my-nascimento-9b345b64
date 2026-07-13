@@ -9,7 +9,7 @@ function iniciais(nome: string): string {
   return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 }
 
-// Comentário lateral — só visual na solicitação, nunca entra no PDF gerado.
+// Comentário lateral - só visual na solicitação, nunca entra no PDF gerado.
 export function ComentariosPainel({
   comentarios, usuarios, userId, podeGerenciar, onComentar, onRemoverComentario,
 }: {

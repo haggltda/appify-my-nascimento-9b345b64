@@ -158,7 +158,7 @@ export function EntityCrudPage({
                 {filtered.map((r) => (
                   <TableRow key={r.id}>
                     {columns.map((c) => (
-                      <TableCell key={c.key} className={c.className}>{c.render ? c.render(r) : (r[c.key] ?? "—")}</TableCell>
+                      <TableCell key={c.key} className={c.className}>{c.render ? c.render(r) : (r[c.key] ?? "-")}</TableCell>
                     ))}
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
@@ -178,4 +178,4 @@ export function EntityCrudPage({
 }
 
 export const fmtBRL = (v: any) => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-export const fmtDate = (v: any) => v ? new Date(v).toLocaleDateString("pt-BR") : "—";
+export const fmtDate = (v: any) => v ? new Date(v).toLocaleDateString("pt-BR") : "-";

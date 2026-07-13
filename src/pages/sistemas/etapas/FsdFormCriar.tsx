@@ -201,7 +201,7 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
             />
           </div>
 
-          {/* Seção 1 — Identificação */}
+          {/* Seção 1 - Identificação */}
           <div className="space-y-3">
             <SecaoTitulo numero={1} titulo="Identificação da Demanda" />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -213,45 +213,45 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
             </div>
           </div>
 
-          {/* Seção 2 — Classificação */}
+          {/* Seção 2 - Classificação */}
           <div className="space-y-3">
             <SecaoTitulo numero={2} titulo="Classificação da Demanda" />
             <p className="text-[11px] text-muted-foreground">Selecione uma ou mais categorias que melhor descrevem esta solicitação: <span className="text-destructive">*</span></p>
             <Checkboxes opcoes={CLASSIFICACAO_DEMANDA_OPCOES} selecionados={form.classificacao_demanda} onChange={(v) => set("classificacao_demanda", v)} />
           </div>
 
-          {/* Seção 3 — Descrição da Necessidade */}
+          {/* Seção 3 - Descrição da Necessidade */}
           <div className="space-y-3">
             <SecaoTitulo numero={3} titulo="Descrição da Necessidade" />
             <CampoTextarea label="Descreva de forma clara e objetiva a necessidade que motivou esta solicitação" value={form.descricao_necessidade} onChange={(v) => set("descricao_necessidade", v)} placeholder="Exemplo: Necessitamos de um módulo no ERP para controle de férias dos colaboradores, permitindo que o colaborador solicite férias, o gestor aprove ou rejeite, e o sistema registre o período e atualize o saldo automaticamente. Deve gerar relatórios de férias por colaborador e por período." obrigatorio linhas={4} />
           </div>
 
-          {/* Seção 4 — Situação Atual */}
+          {/* Seção 4 - Situação Atual */}
           <div className="space-y-3">
             <SecaoTitulo numero={4} titulo="Situação Atual" />
             <CampoTextarea label="Como esse processo é realizado hoje?" value={form.problema_atual} onChange={(v) => set("problema_atual", v)} placeholder="Exemplo: Atualmente as solicitações de férias são feitas por e-mail ou planilha Excel. O gestor responde por e-mail e o RH lança manualmente no sistema." linhas={3} />
           </div>
 
-          {/* Seção 5 — Situação Desejada */}
+          {/* Seção 5 - Situação Desejada */}
           <div className="space-y-3">
             <SecaoTitulo numero={5} titulo="Situação Desejada" />
             <CampoTextarea label="Como você espera que esse processo funcione após a melhoria?" value={form.situacao_desejada} onChange={(v) => set("situacao_desejada", v)} placeholder="Exemplo: O colaborador solicita férias via sistema, o gestor aprova ou rejeita no ERP e o sistema registra automaticamente, atualiza o saldo e gera relatórios." linhas={3} />
           </div>
 
-          {/* Seção 6 — Justificativa */}
+          {/* Seção 6 - Justificativa */}
           <div className="space-y-3">
             <SecaoTitulo numero={6} titulo="Justificativa" />
             <CampoTextarea label="Por que essa demanda é necessária?" value={form.justificativa} onChange={(v) => set("justificativa", v)} placeholder="Exemplo: Para padronizar e automatizar o processo de férias, reduzir retrabalho do RH, garantir controle e rastreabilidade das informações." linhas={3} />
           </div>
 
-          {/* Seção 7 — Benefícios Esperados */}
+          {/* Seção 7 - Benefícios Esperados */}
           <div className="space-y-3">
             <SecaoTitulo numero={7} titulo="Benefícios Esperados" />
             <p className="text-[11px] text-muted-foreground">Selecione os benefícios que esta solicitação deve gerar:</p>
             <Checkboxes opcoes={BENEFICIOS_ESPERADOS_OPCOES} selecionados={form.beneficios_esperados_lista} onChange={(v) => set("beneficios_esperados_lista", v)} />
           </div>
 
-          {/* Seção 8 — Impacto */}
+          {/* Seção 8 - Impacto */}
           <div className="space-y-3">
             <SecaoTitulo numero={8} titulo="Impacto da Demanda" />
             <div>
@@ -270,7 +270,7 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
             )}
           </div>
 
-          {/* Seção 9 — Urgência */}
+          {/* Seção 9 - Urgência */}
           <div className="space-y-3">
             <SecaoTitulo numero={9} titulo="Grau de Urgência" />
             <div>
@@ -287,7 +287,7 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
             <CampoTextarea label="Justificativa da urgência" value={form.justificativa_urgencia} onChange={(v) => set("justificativa_urgencia", v)} placeholder="Exemplo: Necessário para atender nova legislação que entra em vigor em 30/09/2025." linhas={2} />
           </div>
 
-          {/* Seção 10 — Processo Documentado */}
+          {/* Seção 10 - Processo Documentado */}
           <div className="space-y-3">
             <SecaoTitulo numero={10} titulo="Processo Documentado" />
             <div>
@@ -308,7 +308,7 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
             )}
           </div>
 
-          {/* Seção 11 — Documentos de Apoio */}
+          {/* Seção 11 - Documentos de Apoio */}
           <div className="space-y-3">
             <SecaoTitulo numero={11} titulo="Documentos de Apoio" />
             <p className="text-[11px] text-muted-foreground">Tipos de documentos que serão anexados:</p>
@@ -327,7 +327,7 @@ export function FsdFormCriar({ open, onClose, nomeUsuarioAtual = "", salvando, o
             </div>
           </div>
 
-          {/* Seção 12 — Observações */}
+          {/* Seção 12 - Observações */}
           <div className="space-y-3">
             <SecaoTitulo numero={12} titulo="Observações Adicionais" />
             <CampoTextarea label="Informações complementares que possam auxiliar na análise" value={form.observacoes_abertura} onChange={(v) => set("observacoes_abertura", v)} placeholder="Exemplo: Informações adicionais que possam ajudar na análise da demanda." linhas={3} />

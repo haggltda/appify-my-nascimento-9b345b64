@@ -83,7 +83,7 @@ function computeVigenciaStatus(rows: PlanilhaCustoRow[]): Map<string, string> {
   for (const r of rows) {
     // Contrato encerrado manualmente → sempre HISTÓRICO
     if (r.encerrado) { result.set(r.id, "HISTÓRICO"); continue; }
-    if (!r.data_vigencia) { result.set(r.id, "—"); continue; }
+    if (!r.data_vigencia) { result.set(r.id, "-"); continue; }
     const key = `${r.contrato}||${r.posto}`;
     const rowDate = new Date(r.data_vigencia + "T00:00:00");
     const v = vigente.get(key) ?? null;
@@ -327,14 +327,14 @@ export default function PlanilhaCusto() {
                   <td className="px-4 py-3 text-center font-medium">{r.cliente}</td>
                   <td className="px-4 py-3 text-center text-muted-foreground">{r.contrato}</td>
                   <td className="px-4 py-3 text-center">{r.posto}</td>
-                  <td className="px-4 py-3 text-center text-muted-foreground">{r.servico ?? "—"}</td>
+                  <td className="px-4 py-3 text-center text-muted-foreground">{r.servico ?? "-"}</td>
                   <td className="px-4 py-3 text-center text-muted-foreground">
                     {r.data_vigencia
                       ? new Date(r.data_vigencia + "T00:00:00").toLocaleDateString("pt-BR")
-                      : "—"}
+                      : "-"}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <VigenciaStatusBadge status={statusMap.get(r.id) ?? "—"} />
+                    <VigenciaStatusBadge status={statusMap.get(r.id) ?? "-"} />
                   </td>
                   <td className="px-4 py-3 text-center">{r.qt_postos}</td>
                   <td className="px-4 py-3 text-center font-mono font-semibold">
@@ -351,7 +351,7 @@ export default function PlanilhaCusto() {
                           : "bg-info-soft text-info"
                       }`}
                     >
-                      {r.orexec ?? "—"}
+                      {r.orexec ?? "-"}
                     </span>
                   </td>
                   <td className="px-3 py-3">
@@ -405,7 +405,7 @@ export default function PlanilhaCusto() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm">
             <span className="text-muted-foreground">
-              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} de {filtered.length} registros
+              {(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, filtered.length)} de {filtered.length} registros
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -734,7 +734,7 @@ function PostosViewModal({
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-2">
                                       <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
-                                      <span className="text-sm font-medium">{loc.nome || "—"}</span>
+                                      <span className="text-sm font-medium">{loc.nome || "-"}</span>
                                       {loc.periculosidade && (
                                         <span className="inline-flex rounded-full bg-destructive/10 px-1.5 py-0.5 text-[9px] font-bold text-destructive">PERIC.</span>
                                       )}
@@ -946,7 +946,7 @@ function PostosModal({
             ) : (
               <div className="flex items-start justify-between px-4 py-3">
                 <div className="space-y-0.5">
-                  <p className="text-sm font-medium">{loc.nome || "—"}</p>
+                  <p className="text-sm font-medium">{loc.nome || "-"}</p>
                   {(loc.logradouro || loc.municipio) && (
                     <p className="text-xs text-muted-foreground">
                       {[loc.logradouro, loc.numero, loc.bairro, loc.municipio, loc.uf].filter(Boolean).join(", ")}
@@ -1136,7 +1136,7 @@ function LocForm({
             onChange={(e) => setF("uf", e.target.value)}
             className="h-8 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
           >
-            <option value="">—</option>
+            <option value="">-</option>
             {UFS_LIST.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
           </select>
         </div>
@@ -1312,11 +1312,11 @@ function ContratosModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusM
                   <tr className={`border-t border-border hover:bg-muted/20 ${aberto ? "bg-muted/10" : ""}`}>
                     <td className="px-3 py-2 text-xs text-muted-foreground">{c.cliente}</td>
                     <td className="px-3 py-2 text-sm font-medium">{c.contrato}</td>
-                    <td className="px-3 py-2 text-right text-xs">{c.postos_exec || "—"}</td>
-                    <td className="px-3 py-2 text-right font-mono text-xs text-info">{c.orcado ? formatBRL(c.orcado) : "—"}</td>
-                    <td className="px-3 py-2 text-right font-mono text-xs text-success">{c.executado ? formatBRL(c.executado) : "—"}</td>
+                    <td className="px-3 py-2 text-right text-xs">{c.postos_exec || "-"}</td>
+                    <td className="px-3 py-2 text-right font-mono text-xs text-info">{c.orcado ? formatBRL(c.orcado) : "-"}</td>
+                    <td className="px-3 py-2 text-right font-mono text-xs text-success">{c.executado ? formatBRL(c.executado) : "-"}</td>
                     <td className={`px-3 py-2 text-right font-mono text-xs font-semibold whitespace-nowrap ${diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                      {c.orcado && c.executado ? (diff > 0 ? "+" : "") + formatBRL(diff) : "—"}
+                      {c.orcado && c.executado ? (diff > 0 ? "+" : "") + formatBRL(diff) : "-"}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -1360,7 +1360,7 @@ function ContratosModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusM
                                 <span className="font-semibold text-foreground">{j.usuario}</span>
                                 <span className="mx-1 opacity-50">·</span>
                                 <span className="opacity-60">{j.ts}</span>
-                                <span className="mx-1 opacity-50">—</span>
+                                <span className="mx-1 opacity-50">-</span>
                                 {j.texto}
                               </div>
                             ))}
@@ -1385,12 +1385,12 @@ function ContratosModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusM
                               return (
                                 <tr key={p.posto} className={diverge ? "font-medium" : "text-muted-foreground"}>
                                   <td className="py-0.5">{p.posto}</td>
-                                  <td className={`py-0.5 text-right ${postoDiverge ? "text-warning font-semibold" : ""}`}>{p.postos_orc || "—"}</td>
-                                  <td className={`py-0.5 text-right ${postoDiverge ? "text-warning font-semibold" : ""}`}>{p.postos_exec || "—"}</td>
-                                  <td className="py-0.5 text-right font-mono text-info">{p.orcado ? formatBRL(p.orcado) : "—"}</td>
-                                  <td className="py-0.5 text-right font-mono text-success">{p.executado ? formatBRL(p.executado) : "—"}</td>
+                                  <td className={`py-0.5 text-right ${postoDiverge ? "text-warning font-semibold" : ""}`}>{p.postos_orc || "-"}</td>
+                                  <td className={`py-0.5 text-right ${postoDiverge ? "text-warning font-semibold" : ""}`}>{p.postos_exec || "-"}</td>
+                                  <td className="py-0.5 text-right font-mono text-info">{p.orcado ? formatBRL(p.orcado) : "-"}</td>
+                                  <td className="py-0.5 text-right font-mono text-success">{p.executado ? formatBRL(p.executado) : "-"}</td>
                                   <td className={`py-0.5 text-right font-mono whitespace-nowrap ${d > 0 ? "text-success" : d < 0 ? "text-destructive" : ""}`}>
-                                    {diverge ? (d > 0 ? "+" : "") + formatBRL(d) : "—"}
+                                    {diverge ? (d > 0 ? "+" : "") + formatBRL(d) : "-"}
                                   </td>
                                 </tr>
                               );
@@ -1572,10 +1572,10 @@ function ClientesModal({ rows, statusMap }: { rows: PlanilhaCustoRow[]; statusMa
                   <td className="px-3 py-2 font-medium">{c.cliente}</td>
                   <td className="px-3 py-2 text-right text-xs text-muted-foreground">{c.contratos.size}</td>
                   <td className="px-3 py-2 text-right text-xs">{c.postos}</td>
-                  <td className="px-3 py-2 text-right font-mono text-xs text-info">{c.orcado ? formatBRL(c.orcado) : "—"}</td>
-                  <td className="px-3 py-2 text-right font-mono text-xs text-success">{c.executado ? formatBRL(c.executado) : "—"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-xs text-info">{c.orcado ? formatBRL(c.orcado) : "-"}</td>
+                  <td className="px-3 py-2 text-right font-mono text-xs text-success">{c.executado ? formatBRL(c.executado) : "-"}</td>
                   <td className={`px-3 py-2 text-right font-mono text-xs font-semibold whitespace-nowrap ${diff > 0 ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                    {c.orcado && c.executado ? (diff > 0 ? "+" : "") + formatBRL(diff) : "—"}
+                    {c.orcado && c.executado ? (diff > 0 ? "+" : "") + formatBRL(diff) : "-"}
                   </td>
                 </tr>
               );
@@ -1918,7 +1918,7 @@ function FormDrawer({
             </h2>
             <p className="text-xs text-muted-foreground">
               {updateFromRow
-                ? `Clonando: ${updateFromRow.posto} · ${updateFromRow.contrato} — informe a nova data de vigência`
+                ? `Clonando: ${updateFromRow.posto} · ${updateFromRow.contrato} - informe a nova data de vigência`
                 : "Inclusão e/ou Atualização do Banco de Dados"}
             </p>
           </div>
@@ -1977,7 +1977,7 @@ function FormDrawer({
           <div className="px-6 py-4 space-y-5">
 
             {/* Seção 1 - Cadastro */}
-            <Section title="1 — Cadastro do Contrato">
+            <Section title="1 - Cadastro do Contrato">
               <div className="grid grid-cols-4 gap-3">
                 <div>
                   <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -2025,7 +2025,7 @@ function FormDrawer({
             </Section>
 
             {/* Seção 2 - Remuneração */}
-            <Section title="2 — Composição da Remuneração" soma={somaRemuneracao}>
+            <Section title="2 - Composição da Remuneração" soma={somaRemuneracao}>
               <div className="grid grid-cols-4 gap-4">
                 {numField("salario", "Salário Base")}
                 {numField("insalubridade", "Insalubridade")}
@@ -2039,7 +2039,7 @@ function FormDrawer({
             </Section>
 
             {/* Seção 3 - Encargos */}
-            <Section title="3 — Encargos Previdenciários, FGTS e Outras" soma={somaEncargos}>
+            <Section title="3 - Encargos Previdenciários, FGTS e Outras" soma={somaEncargos}>
               <div className="grid grid-cols-4 gap-4">
                 {numField("decimo_terceiro", "13º Salário")}
                 {numField("adicional_ferias", "Add. Férias")}
@@ -2057,7 +2057,7 @@ function FormDrawer({
             </Section>
 
             {/* Seção 4 - Benefícios */}
-            <Section title="4 — Benefícios Mensais e Diários" soma={somaBeneficios}>
+            <Section title="4 - Benefícios Mensais e Diários" soma={somaBeneficios}>
               <div className="grid grid-cols-4 gap-4">
                 {numField("transporte", "Transporte")}
                 {numField("aux_alimentacao", "Aux. Alimentação")}
@@ -2103,7 +2103,7 @@ function FormDrawer({
             </Section>
 
             {/* Seção 5 - Reposição */}
-            <Section title="5 — Custo de Reposição do Profissional Ausente" soma={somaReposicao}>
+            <Section title="5 - Custo de Reposição do Profissional Ausente" soma={somaReposicao}>
               <div className="grid grid-cols-4 gap-4">
                 {numField("sub_ferias", "Sub. Férias")}
                 {numField("sub_ausencias_legais", "Sub. Ausências Legais")}
@@ -2121,7 +2121,7 @@ function FormDrawer({
             </Section>
 
             {/* Seção 6 - Rescisão */}
-            <Section title="6 — Provisão para Rescisão" soma={somaRescisao}>
+            <Section title="6 - Provisão para Rescisão" soma={somaRescisao}>
               <div className="grid grid-cols-4 gap-4">
                 {numField("aviso_indenizado", "Aviso Prev. Inden.")}
                 {numField("incidencia_fgts", "Inc. FGTS s/ Aviso")}
@@ -2134,7 +2134,7 @@ function FormDrawer({
             </Section>
 
             {/* Seção 7 - Insumos */}
-            <Section title="7 — Insumos Diversos" soma={somaInsumos}>
+            <Section title="7 - Insumos Diversos" soma={somaInsumos}>
               <div className="grid grid-cols-4 gap-4">
                 {numField("uniforme", "Uniformes")}
                 {numField("epi", "EPI")}
@@ -2148,7 +2148,7 @@ function FormDrawer({
             </Section>
 
             {/* Seção 8 - Custos Indiretos */}
-            <Section title="8 — Custos Indiretos, Lucro e Tributos" soma={somaCustos}>
+            <Section title="8 - Custos Indiretos, Lucro e Tributos" soma={somaCustos}>
               <div className="grid grid-cols-3 gap-3">
                 {numField("custos_indiretos", "Custos Indiretos")}
                 {numField("lucro", "Lucro")}
@@ -2166,12 +2166,12 @@ function FormDrawer({
               </h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="space-y-1.5">
-                  <CompRow label="Grupo 2 — Remuneração" soma={somaRemuneracao} />
-                  <CompRow label="Grupos 3 e 4 — Encargos + Benefícios" soma={somaEncargos + somaBeneficios} />
-                  <CompRow label="Grupo 5 — Reposição" soma={somaReposicao} />
-                  <CompRow label="Grupo 6 — Rescisão" soma={somaRescisao} />
-                  <CompRow label="Grupo 7 — Insumos" soma={somaInsumos} />
-                  <CompRow label="Grupo 8 — Indireto/Lucro/Tributo" soma={somaCustos} />
+                  <CompRow label="Grupo 2 - Remuneração" soma={somaRemuneracao} />
+                  <CompRow label="Grupos 3 e 4 - Encargos + Benefícios" soma={somaEncargos + somaBeneficios} />
+                  <CompRow label="Grupo 5 - Reposição" soma={somaReposicao} />
+                  <CompRow label="Grupo 6 - Rescisão" soma={somaRescisao} />
+                  <CompRow label="Grupo 7 - Insumos" soma={somaInsumos} />
+                  <CompRow label="Grupo 8 - Indireto/Lucro/Tributo" soma={somaCustos} />
                   <div className="border-t border-border pt-1.5">
                     <CompRow label="SOMA TOTAL CALCULADA" soma={somaTotal} highlight />
                   </div>
@@ -2899,7 +2899,7 @@ function ViewModal({
           {/* Conteúdo */}
           <div className="px-6 py-4 space-y-3">
 
-            <VSec title="2 — Composição da Remuneração" soma={somaRemuneracao}>
+            <VSec title="2 - Composição da Remuneração" soma={somaRemuneracao}>
               <VRow label="Salário Base" value={row.salario} />
               <VRow label="Insalubridade" value={row.insalubridade} />
               <VRow label="Periculosidade" value={row.periculosidade} />
@@ -2910,7 +2910,7 @@ function ViewModal({
               <VRow label="DSR" value={row.dsr} />
             </VSec>
 
-            <VSec title="3 — Encargos Previdenciários, FGTS e Outras" soma={somaEncargos}>
+            <VSec title="3 - Encargos Previdenciários, FGTS e Outras" soma={somaEncargos}>
               <VRow label="13º Salário" value={row.decimo_terceiro} />
               <VRow label="Add. Férias" value={row.adicional_ferias} />
               <VRow label="Inc. Encargos" value={row.incidencia_enc_41} />
@@ -2925,7 +2925,7 @@ function ViewModal({
               <VRow label="Seg. Acid. Trab." value={row.seguro_acidente_trabalho} />
             </VSec>
 
-            <VSec title="4 — Benefícios Mensais e Diários" soma={somaBeneficios}>
+            <VSec title="4 - Benefícios Mensais e Diários" soma={somaBeneficios}>
               <VRow label="Transporte" value={row.transporte} />
               <VRow label="Aux. Alimentação" value={row.aux_alimentacao} />
               <VRow label="Desc. Alimentação" value={row.aux_alimentacao_desconto} />
@@ -2957,7 +2957,7 @@ function ViewModal({
               {row.outros_3 > 0 && <VRow label={row.outros_3_descricao || "Outros 3"} value={row.outros_3} />}
             </VSec>
 
-            <VSec title="5 — Reposição do Profissional Ausente" soma={somaReposicao}>
+            <VSec title="5 - Reposição do Profissional Ausente" soma={somaReposicao}>
               <VRow label="Sub. Férias" value={row.sub_ferias} />
               <VRow label="Sub. Ausências Legais" value={row.sub_ausencias_legais} />
               <VRow label="Sub. Paternidade" value={row.sub_paternidade} />
@@ -2972,7 +2972,7 @@ function ViewModal({
               <VRow label="Inc. Enc. Repos. 4" value={row.incidencia_enc_reposicao_4} />
             </VSec>
 
-            <VSec title="6 — Provisão para Rescisão" soma={somaRescisao}>
+            <VSec title="6 - Provisão para Rescisão" soma={somaRescisao}>
               <VRow label="Aviso Prev. Indenizado" value={row.aviso_indenizado} />
               <VRow label="Inc. FGTS s/ Aviso" value={row.incidencia_fgts} />
               <VRow label="Aviso Prev. Trabalhado" value={row.aviso_trabalhado} />
@@ -2982,7 +2982,7 @@ function ViewModal({
               <VRow label="Contratualidade" value={row.contratualidade} />
             </VSec>
 
-            <VSec title="7 — Insumos Diversos" soma={somaInsumos}>
+            <VSec title="7 - Insumos Diversos" soma={somaInsumos}>
               <VRow label="Uniformes" value={row.uniforme} />
               <VRow label="EPI" value={row.epi} />
               <VRow label="EPC" value={row.epc} />
@@ -2993,7 +2993,7 @@ function ViewModal({
               <VRow label="Outros Insumos" value={row.outros_insumos} />
             </VSec>
 
-            <VSec title="8 — Custos Indiretos, Lucro e Tributos" soma={somaCustos}>
+            <VSec title="8 - Custos Indiretos, Lucro e Tributos" soma={somaCustos}>
               <VRow label="Custos Indiretos" value={row.custos_indiretos} />
               <VRow label="Lucro" value={row.lucro} />
               <VRow label="COFINS" value={row.cofins} />

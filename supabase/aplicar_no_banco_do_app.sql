@@ -3474,19 +3474,23 @@ CREATE TABLE IF NOT EXISTS public."CS_FORM_SETOR_GRUPO" (
 );
 
 -- ── 4) Capacidades em CS_FORM_ACESSOS.papel ──────────────────────────────
--- migra 'gestor' → 'editar_criar'; remove 'visualiza' (por-formulário, superado)
-UPDATE public."CS_FORM_ACESSOS" SET papel = 'editar_criar' WHERE papel = 'gestor';
-DELETE FROM public."CS_FORM_ACESSOS" WHERE papel = 'visualiza';
-
+-- IMPORTANTE: tira os checks ANTES de migrar os dados. Se o UPDATE p/
+-- 'editar_criar' rodasse com o check antigo (gestor/visualiza/dashboard)
+-- ainda ativo, violaria a constraint (erro 23514).
 ALTER TABLE public."CS_FORM_ACESSOS" DROP CONSTRAINT IF EXISTS "CS_FORM_ACESSOS_papel_check";
 ALTER TABLE public."CS_FORM_ACESSOS" DROP CONSTRAINT IF EXISTS cs_form_acessos_papel_check;
 ALTER TABLE public."CS_FORM_ACESSOS" DROP CONSTRAINT IF EXISTS cs_form_acessos_form_por_papel;
+ALTER TABLE public."CS_FORM_ACESSOS" DROP CONSTRAINT IF EXISTS cs_form_acessos_sem_form;
+
+-- migra 'gestor' -> 'editar_criar'; remove 'visualiza' (por-formulario, superado)
+UPDATE public."CS_FORM_ACESSOS" SET papel = 'editar_criar' WHERE papel = 'gestor';
+DELETE FROM public."CS_FORM_ACESSOS" WHERE papel = 'visualiza';
+
+-- checks novos: capacidades validas + tudo global (formulario_id NULL)
 ALTER TABLE public."CS_FORM_ACESSOS"
   ADD CONSTRAINT cs_form_acessos_papel_check CHECK (papel IN (
     'editar_criar', 'responder', 'encerrar_excluir',
     'ver_tudo', 'ver_admin', 'ver_op', 'ver_proprias', 'dashboard'));
--- todas as capacidades são globais agora (não apontam formulário)
-ALTER TABLE public."CS_FORM_ACESSOS" DROP CONSTRAINT IF EXISTS cs_form_acessos_sem_form;
 ALTER TABLE public."CS_FORM_ACESSOS"
   ADD CONSTRAINT cs_form_acessos_sem_form CHECK (formulario_id IS NULL);
 

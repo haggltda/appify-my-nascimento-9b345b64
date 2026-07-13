@@ -14,7 +14,7 @@ import { Plus, Send, FileDown, Trash2, ListPlus } from "lucide-react";
 import { toast } from "sonner";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("pt-BR") : "—";
+const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("pt-BR") : "-";
 
 const statusBadge = (s: string) => {
   const map: Record<string, any> = {
@@ -88,10 +88,10 @@ export default function MalotesTab() {
               {malotes.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum malote</TableCell></TableRow>}
               {malotes.map((m) => (
                 <TableRow key={m.id}>
-                  <TableCell className="text-xs">{m.empresas?.razao_social ?? "—"}</TableCell>
-                  <TableCell className="text-xs">{m.conta_bancaria?.banco_codigo} — {m.conta_bancaria?.banco_nome}</TableCell>
+                  <TableCell className="text-xs">{m.empresas?.razao_social ?? "-"}</TableCell>
+                  <TableCell className="text-xs">{m.conta_bancaria?.banco_codigo} - {m.conta_bancaria?.banco_nome}</TableCell>
                   <TableCell>{fmtDate(m.data_pagamento)}</TableCell>
-                  <TableCell className="text-xs">{m.descricao ?? "—"}</TableCell>
+                  <TableCell className="text-xs">{m.descricao ?? "-"}</TableCell>
                   <TableCell className="text-right">{m.qtd_titulos} / {fmtMoney(m.valor_total)}</TableCell>
                   <TableCell>{statusBadge(m.status)}</TableCell>
                   <TableCell className="text-right space-x-1">
@@ -186,7 +186,7 @@ function NovoMaloteDialog({ onClose }: { onClose: (id?: string) => void }) {
               disabled={!empresaId}
               options={contasFiltradas.map((c: any) => ({
                 value: c.id,
-                label: `${c.banco_codigo} — ${c.banco_nome}`,
+                label: `${c.banco_codigo} - ${c.banco_nome}`,
                 hint: `Ag ${c.agencia} / Cc ${c.conta}`,
               }))}
               placeholder="Selecione..."
@@ -291,7 +291,7 @@ function EditarMaloteDialog({ id, onClose }: { id: string; onClose: () => void }
                   {dentro.map((d: any) => (
                     <TableRow key={d.titulo_pagar_id}>
                       <TableCell className="font-mono text-xs">{d.titulo_pagar?.numero_documento}</TableCell>
-                      <TableCell className="text-xs truncate max-w-32">{d.titulo_pagar?.fornecedor?.razao_social ?? "—"}</TableCell>
+                      <TableCell className="text-xs truncate max-w-32">{d.titulo_pagar?.fornecedor?.razao_social ?? "-"}</TableCell>
                       <TableCell className="text-xs">{fmtDate(d.titulo_pagar?.data_vencimento)}</TableCell>
                       <TableCell className="text-right text-xs">{fmtMoney(d.titulo_pagar?.valor)}</TableCell>
                       <TableCell><Button size="sm" variant="ghost" onClick={() => remover.mutate(d.titulo_pagar_id)}><Trash2 className="h-3 w-3" /></Button></TableCell>
@@ -313,7 +313,7 @@ function EditarMaloteDialog({ id, onClose }: { id: string; onClose: () => void }
                   {disponiveis.map((t: any) => (
                     <TableRow key={t.id}>
                       <TableCell className="font-mono text-xs">{t.numero_documento}</TableCell>
-                      <TableCell className="text-xs truncate max-w-32">{t.fornecedor?.razao_social ?? "—"}</TableCell>
+                      <TableCell className="text-xs truncate max-w-32">{t.fornecedor?.razao_social ?? "-"}</TableCell>
                       <TableCell className="text-xs">{fmtDate(t.data_vencimento)}</TableCell>
                       <TableCell className="text-right text-xs">{fmtMoney(t.valor)}</TableCell>
                       <TableCell><Button size="sm" variant="ghost" onClick={() => adicionar.mutate(t.id)}><Plus className="h-3 w-3" /></Button></TableCell>

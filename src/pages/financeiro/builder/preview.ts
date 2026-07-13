@@ -14,7 +14,7 @@ export function gerarPreviewCNAB(estrutura: CnabEstrutura, contexto: any): strin
         if (idx < arr.length) arr[idx] = valor[i];
       }
     }
-    linhas.push(`# ${seg.codigo}${seg.descricao ? " — " + seg.descricao : ""}`);
+    linhas.push(`# ${seg.codigo}${seg.descricao ? " - " + seg.descricao : ""}`);
     linhas.push(arr.join(""));
   }
   return linhas.join("\n");

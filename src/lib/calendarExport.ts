@@ -1,4 +1,4 @@
-// Exportação de reunião pro calendário pessoal do usuário — sem OAuth, sem
+// Exportação de reunião pro calendário pessoal do usuário - sem OAuth, sem
 // projeto no Google Cloud: só um link pré-preenchido (Google Calendar) e um
 // arquivo .ics (funciona em Google/Outlook/Apple Calendar).
 

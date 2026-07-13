@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useEmpresaId } from "@/hooks/useEmpresaId";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDateTime = (d: any) => (d ? new Date(d).toLocaleString("pt-BR") : "—");
+const fmtDateTime = (d: any) => (d ? new Date(d).toLocaleString("pt-BR") : "-");
 
 export default function RemessaConciliacaoTab() {
   const qc = useQueryClient();
@@ -77,7 +77,7 @@ export default function RemessaConciliacaoTab() {
         <Card><CardHeader className="pb-2"><CardDescription>Remessas geradas</CardDescription><CardTitle className="text-3xl">{remessas.length}</CardTitle></CardHeader></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Conciliações sugeridas</CardDescription><CardTitle className="text-3xl">{matches.length}</CardTitle></CardHeader></Card>
         <Card><CardHeader className="pb-2"><CardDescription>Ambiente CNAB</CardDescription><CardTitle className="text-base">
-          <Badge variant="outline">Pronto — pendente integração com banco</Badge>
+          <Badge variant="outline">Pronto - pendente integração com banco</Badge>
         </CardTitle></CardHeader></Card>
       </div>
 
@@ -145,8 +145,8 @@ export default function RemessaConciliacaoTab() {
                   <TableCell className="text-xs">{m.extrato_bancario?.data_movimento}</TableCell>
                   <TableCell className="text-xs truncate max-w-[280px]">{m.extrato_bancario?.descricao}</TableCell>
                   <TableCell className="text-right">{fmtMoney(m.extrato_bancario?.valor)}</TableCell>
-                  <TableCell className="font-mono text-xs">{m.titulo_receber?.numero ?? "—"}</TableCell>
-                  <TableCell className="text-xs">{m.titulo_receber?.sacado_nome ?? "—"}</TableCell>
+                  <TableCell className="font-mono text-xs">{m.titulo_receber?.numero ?? "-"}</TableCell>
+                  <TableCell className="text-xs">{m.titulo_receber?.sacado_nome ?? "-"}</TableCell>
                   <TableCell>
                     <ConfirmarMatch matchId={m.id} />
                   </TableCell>

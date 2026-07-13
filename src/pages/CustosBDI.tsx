@@ -152,7 +152,7 @@ function calcLinha(v: Record<string, number | string>) {
 }
 
 export default function CustosBDI() {
-  // B2.1.g — Fase 3: gating fino (incluir/alterar/aprovar) no menu "custos-bdi".
+  // B2.1.g - Fase 3: gating fino (incluir/alterar/aprovar) no menu "custos-bdi".
   const { can } = usePermissoes();
   const canIncluir = can("incluir", "licitacoes", "custos-bdi");
   const canAlterar = can("alterar", "licitacoes", "custos-bdi");
@@ -268,7 +268,7 @@ export default function CustosBDI() {
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <span className="text-[10px] font-semibold uppercase text-muted-foreground">
-                        {c.tipo === "moeda" ? "R$" : c.tipo === "percent" ? "%" : c.tipo === "numero" ? "#" : "—"}
+                        {c.tipo === "moeda" ? "R$" : c.tipo === "percent" ? "%" : c.tipo === "numero" ? "#" : "-"}
                       </span>
                     </td>
                   </tr>

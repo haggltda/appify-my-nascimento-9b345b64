@@ -161,7 +161,7 @@ export default function DREGerencial() {
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               {(empresasQ.data ?? []).map((e) => (
-                <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+                <SelectItem key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -178,7 +178,7 @@ export default function DREGerencial() {
               <SelectItem value="auto">Última aprovada (automático)</SelectItem>
               {(versoesQ.data ?? []).map((v) => (
                 <SelectItem key={v.id} value={v.id}>
-                  v{v.versao}.{v.revisao} — {v.nome} [{v.status}]
+                  v{v.versao}.{v.revisao} - {v.nome} [{v.status}]
                 </SelectItem>
               ))}
             </SelectContent>
@@ -254,7 +254,7 @@ export default function DREGerencial() {
                         v < 0 ? "text-destructive" : visao === "variacao" && v > 0 ? "text-success" : ""
                       }`}
                     >
-                      {v === 0 ? "—" : fmt(v)}
+                      {v === 0 ? "-" : fmt(v)}
                     </td>
                   ))}
                   <td className={`px-3 py-2 text-right font-semibold tabular-nums ${

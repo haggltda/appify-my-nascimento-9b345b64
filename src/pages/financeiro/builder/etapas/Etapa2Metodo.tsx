@@ -55,10 +55,10 @@ export function Etapa2Metodo() {
             value={tipo}
             onChange={(e) => setMeta({ tipo: e.target.value })}
           >
-            <option value="cnab240_remessa_pagamento">CNAB 240 — Remessa Pagamento</option>
-            <option value="cnab240_retorno">CNAB 240 — Retorno</option>
-            <option value="cnab400_remessa">CNAB 400 — Remessa</option>
-            <option value="cnab400_retorno">CNAB 400 — Retorno</option>
+            <option value="cnab240_remessa_pagamento">CNAB 240 - Remessa Pagamento</option>
+            <option value="cnab240_retorno">CNAB 240 - Retorno</option>
+            <option value="cnab400_remessa">CNAB 400 - Remessa</option>
+            <option value="cnab400_retorno">CNAB 400 - Retorno</option>
           </select>
         </Card>
       )}

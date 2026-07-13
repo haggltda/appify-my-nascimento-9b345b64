@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Formulario, Pergunta, fmtDt, situacao, normalizaPerguntas } from "./Formularios";
 
 // =====================================================================
-// NASCIMENTO FORMULÁRIOS — Respostas
+// NASCIMENTO FORMULÁRIOS - Respostas
 // Resumo agregado por pergunta (contagem/percentual em barras para
 // escolhas/escala; média para número; lista para texto), tabela de
 // respostas individuais e exportação CSV.
@@ -18,7 +18,7 @@ interface Resposta {
   itens: Record<string, any>;
 }
 
-const fmtDur = (s?: number | null) => { if (s == null) return "—"; const m = Math.floor(s / 60), ss = s % 60; return m ? `${m}m ${ss}s` : `${ss}s`; };
+const fmtDur = (s?: number | null) => { if (s == null) return "-"; const m = Math.floor(s / 60), ss = s % 60; return m ? `${m}m ${ss}s` : `${ss}s`; };
 
 // Rótulos amigáveis do snapshot de cadastro (respondente_cadastro).
 const CADASTRO_CAMPOS: { k: string; rotulo: string }[] = [
@@ -31,7 +31,7 @@ const CADASTRO_CAMPOS: { k: string; rotulo: string }[] = [
 const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
   ({ padding: "6px 12px", borderRadius: 9, border, background: bg, color: c, fontSize: 12, fontWeight: 700, cursor: "pointer" });
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "15px 17px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" };
-const valorTexto = (v: any) => v == null || v === "" ? "—" : Array.isArray(v) ? v.join("; ") : String(v);
+const valorTexto = (v: any) => v == null || v === "" ? "-" : Array.isArray(v) ? v.join("; ") : String(v);
 
 export default function FormularioRespostas() {
   const { id } = useParams();
@@ -133,13 +133,18 @@ export default function FormularioRespostas() {
         </div>
       </div>
 
-      {/* Modal Detalhes — cadastro do respondente (snapshot no momento da resposta) */}
+      {/* Modal Detalhes - cadastro do respondente (snapshot no momento da resposta) */}
       {detalhe && detalhe.respondente_cadastro && (
         <div onClick={() => setDetalhe(null)} style={{ position: "fixed", inset: 0, zIndex: 900, background: "rgba(15,23,42,.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 22, width: 520, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }}>
             <button onClick={() => setDetalhe(null)} style={{ position: "absolute", top: 14, right: 16, border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#94a3b8" }}>×</button>
             <div style={{ fontSize: 16, fontWeight: 800, color: "#0f3171", marginBottom: 2 }}>👤 {detalhe.respondente_cadastro.nome || detalhe.respondente_nome || "Respondente"}</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>Dados do cadastro no momento da resposta · {fmtDt(detalhe.enviado_em)}</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>Dados completos do cadastro no momento da resposta</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+              <div style={{ background: "#eef6ff", border: "1px solid #dbeafe", borderRadius: 10, padding: "6px 11px", fontSize: 12 }}><span style={{ color: "#94a3b8", fontWeight: 700 }}>🕒 Respondido em: </span><span style={{ color: "#0f172a", fontWeight: 700 }}>{fmtDt(detalhe.enviado_em)}</span></div>
+              <div style={{ background: "#eef6ff", border: "1px solid #dbeafe", borderRadius: 10, padding: "6px 11px", fontSize: 12 }}><span style={{ color: "#94a3b8", fontWeight: 700 }}>⏱ Tempo de resposta: </span><span style={{ color: "#0f172a", fontWeight: 700 }}>{fmtDur(detalhe.duracao_seg)}</span></div>
+              {detalhe.setor && <div style={{ background: "#eef2ff", border: "1px solid #e0e7ff", borderRadius: 10, padding: "6px 11px", fontSize: 12 }}><span style={{ color: "#94a3b8", fontWeight: 700 }}>Setor: </span><span style={{ color: "#4338ca", fontWeight: 700 }}>{detalhe.setor}</span></div>}
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {CADASTRO_CAMPOS.map(({ k, rotulo }) => {
                 const v = detalhe.respondente_cadastro?.[k];

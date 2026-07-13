@@ -22,7 +22,7 @@ const servicos: Servico[] = [
     to: "/app/central-servicos/denuncias",
     icon: ShieldAlert,
     title: "Denúncias (Canal de Ética)",
-    desc: "Denúncias anônimas recebidas pela plataforma Contato Seguro. O conteúdo é confidencial — a RLS do banco só devolve os dados para administradores.",
+    desc: "Denúncias anônimas recebidas pela plataforma Contato Seguro. O conteúdo é confidencial - a RLS do banco só devolve os dados para administradores.",
   },
   {
     to: "/app/central-servicos/formularios",

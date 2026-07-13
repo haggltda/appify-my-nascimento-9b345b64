@@ -9,7 +9,7 @@ interface Props {
 }
 
 /**
- * Chip de SLA da aprovação — verde (no prazo), âmbar (perto de estourar),
+ * Chip de SLA da aprovação - verde (no prazo), âmbar (perto de estourar),
  * vermelho (atrasado). Se não houver prazo, mostra apenas as horas paradas.
  */
 export function SlaChip({ horasParadas, prazoHoras, className }: Props) {

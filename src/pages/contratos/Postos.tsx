@@ -2,11 +2,11 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Users2, MapPin, Briefcase, Plus } from "lucide-react";
 
 const postos = [
-  { cargo: "Agente de limpeza I", qtd: 84, local: "Zona Sul — Setores 1 a 5", contrato: "CT 2025/0118", jornada: "44h" },
-  { cargo: "Encarregado operacional", qtd: 12, local: "Zona Sul — Base SLU", contrato: "CT 2025/0118", jornada: "44h" },
-  { cargo: "Motorista de coleta", qtd: 24, local: "Zona Sul — Garagem central", contrato: "CT 2025/0118", jornada: "44h" },
+  { cargo: "Agente de limpeza I", qtd: 84, local: "Zona Sul - Setores 1 a 5", contrato: "CT 2025/0118", jornada: "44h" },
+  { cargo: "Encarregado operacional", qtd: 12, local: "Zona Sul - Base SLU", contrato: "CT 2025/0118", jornada: "44h" },
+  { cargo: "Motorista de coleta", qtd: 24, local: "Zona Sul - Garagem central", contrato: "CT 2025/0118", jornada: "44h" },
   { cargo: "Auxiliar rodoviário", qtd: 56, local: "BR-XXX km 120-280", contrato: "CT 2025/0094", jornada: "44h" },
-  { cargo: "Vigilante 12x36 diurno", qtd: 18, local: "TCE — Sede Administrativa", contrato: "CT 2024/0076", jornada: "12x36" },
+  { cargo: "Vigilante 12x36 diurno", qtd: 18, local: "TCE - Sede Administrativa", contrato: "CT 2024/0076", jornada: "12x36" },
 ];
 
 export default function Postos() {

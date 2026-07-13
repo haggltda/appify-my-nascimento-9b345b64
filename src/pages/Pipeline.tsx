@@ -195,7 +195,7 @@ export default function Pipeline() {
       <PageHeader
         title="Grade de Licitações"
         breadcrumb={["Licitações", "Grade de Licitações"]}
-        subtitle="Pré-análise de editais — acompanhe cada oportunidade antes da Capa de Edital."
+        subtitle="Pré-análise de editais - acompanhe cada oportunidade antes da Capa de Edital."
         actions={
           canIncluir ? (
             <div className="flex gap-2">
@@ -571,7 +571,7 @@ function ImportModal({ empresaId, onClose }: { empresaId: string; onClose: () =>
     <Dialog open onOpenChange={(o) => !o && !importing && onClose()}>
       <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Importar Grade — Excel</DialogTitle>
+          <DialogTitle>Importar Grade - Excel</DialogTitle>
         </DialogHeader>
 
         {rows.length === 0 ? (
@@ -595,7 +595,7 @@ function ImportModal({ empresaId, onClose }: { empresaId: string; onClose: () =>
                 <strong>{rows.length}</strong> registros encontrados
                 {done && (
                   <span className="ml-2 text-emerald-600 font-medium">
-                    — {rows.filter((r) => r.ok && !r.erro).length} importados com sucesso
+                    - {rows.filter((r) => r.ok && !r.erro).length} importados com sucesso
                   </span>
                 )}
               </span>
@@ -631,9 +631,9 @@ function ImportModal({ empresaId, onClose }: { empresaId: string; onClose: () =>
                         </td>
                       )}
                       <td className="px-3 py-1.5 font-mono">{r.edital}</td>
-                      <td className="px-3 py-1.5 max-w-[200px] truncate">{r.objeto || "—"}</td>
-                      <td className="px-3 py-1.5">{r.cidade || "—"}</td>
-                      <td className="px-3 py-1.5">{r.abertura ?? "—"}</td>
+                      <td className="px-3 py-1.5 max-w-[200px] truncate">{r.objeto || "-"}</td>
+                      <td className="px-3 py-1.5">{r.cidade || "-"}</td>
+                      <td className="px-3 py-1.5">{r.abertura ?? "-"}</td>
                       <td className="px-3 py-1.5">
                         <span className={cn("rounded-full border px-1.5 py-0.5 text-[10px] font-semibold", FASE_COLOR[r.fase])}>
                           {r.fase}
@@ -642,7 +642,7 @@ function ImportModal({ empresaId, onClose }: { empresaId: string; onClose: () =>
                       <td className="px-3 py-1.5 text-right tabular-nums">
                         {r.valor_global != null
                           ? r.valor_global.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                          : "—"}
+                          : "-"}
                       </td>
                     </tr>
                   ))}
@@ -698,7 +698,7 @@ function GradeCard({
   promovendo: boolean;
 }) {
   const fmtDate = (d: string | null) => {
-    if (!d) return "—";
+    if (!d) return "-";
     const [y, m, dd] = d.split("-");
     return `${dd}/${m}/${y}`;
   };
@@ -711,7 +711,7 @@ function GradeCard({
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="truncate text-xs font-mono text-muted-foreground">{item.edital || "Sem número"}</p>
-          <p className="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug">{item.objeto || "—"}</p>
+          <p className="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug">{item.objeto || "-"}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {isGanho && (
@@ -732,7 +732,7 @@ function GradeCard({
 
       {/* Meta */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-        <span><span className="font-medium text-foreground">Cidade:</span> {item.cidade || "—"} {item.uf ? `/ ${item.uf}` : ""}</span>
+        <span><span className="font-medium text-foreground">Cidade:</span> {item.cidade || "-"} {item.uf ? `/ ${item.uf}` : ""}</span>
         <span className="flex items-center gap-1.5">
           <span className="font-medium text-foreground">Abertura:</span>
           <span className={(() => {
@@ -748,8 +748,8 @@ function GradeCard({
             {fmtDate(item.data)}
           </span>
         </span>
-        <span><span className="font-medium text-foreground">Responsável:</span> {item.responsavel || "—"}</span>
-        <span><span className="font-medium text-foreground">Posição:</span> {item.posicao != null ? `${item.posicao}º` : "—"}</span>
+        <span><span className="font-medium text-foreground">Responsável:</span> {item.responsavel || "-"}</span>
+        <span><span className="font-medium text-foreground">Posição:</span> {item.posicao != null ? `${item.posicao}º` : "-"}</span>
         {item.valor_global ? (
           <span className="col-span-2"><span className="font-medium text-foreground">Valor:</span> {
             Number(item.valor_global)
@@ -931,7 +931,7 @@ function GradeSheet({
               >
                 <SelectTrigger className="h-9"><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_">— Sem responsável —</SelectItem>
+                  <SelectItem value="_">- Sem responsável -</SelectItem>
                   {/* Se o responsável atual não está na lista (nome antigo, usuário removido),
                       mantém como opção para não perder o valor ao salvar */}
                   {f.responsavel && !usuarios.some(
@@ -963,7 +963,7 @@ function GradeSheet({
                 value={f.uf ?? ""}
                 onValueChange={(v) => setF((p) => ({ ...p, uf: v, cidade: "" }))}
               >
-                <SelectTrigger className="h-9"><SelectValue placeholder="— UF —" /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue placeholder="- UF -" /></SelectTrigger>
                 <SelectContent>
                   {UFS.map((uf) => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
                 </SelectContent>
@@ -1022,7 +1022,7 @@ function GradeSheet({
 
 function ViewModal({ item, onClose }: { item: GradeItem; onClose: () => void }) {
   const fmtDate = (d: string | null) => {
-    if (!d) return "—";
+    if (!d) return "-";
     const [y, m, dd] = d.split("-");
     return `${dd}/${m}/${y}`;
   };
@@ -1041,7 +1041,7 @@ function ViewModal({ item, onClose }: { item: GradeItem; onClose: () => void }) 
 
         <div className="mt-2 space-y-3 text-sm">
           <Row label="Objeto" value={item.objeto} />
-          <Row label="Cidade / UF" value={[item.cidade, item.uf].filter(Boolean).join(" / ") || "—"} />
+          <Row label="Cidade / UF" value={[item.cidade, item.uf].filter(Boolean).join(" / ") || "-"} />
           <Row label="Captação" value={fmtDate(item.data_captacao)} />
           <Row label="Abertura" value={`${fmtDate(item.data)}${item.horario ? " às " + item.horario : ""}`} />
           <Row label="Responsável" value={item.responsavel} />
@@ -1082,7 +1082,7 @@ function Row({ label, value }: { label: string; value: string | null | undefined
   return (
     <div className="flex gap-2">
       <span className="w-28 shrink-0 text-xs font-medium text-muted-foreground">{label}</span>
-      <span className="text-sm">{value || "—"}</span>
+      <span className="text-sm">{value || "-"}</span>
     </div>
   );
 }

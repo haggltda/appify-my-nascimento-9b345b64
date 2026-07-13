@@ -196,15 +196,15 @@ export default function PlanejadorOBZ() {
               >
                 <td className="px-3 py-2 font-semibold">{l.empresaId}</td>
                 <td className="px-3 py-2 font-mono text-[10px] text-primary">{l.centroCustoId}</td>
-                <td className="px-3 py-2 font-mono text-[10px]">{l.contratoId ?? "—"}</td>
+                <td className="px-3 py-2 font-mono text-[10px]">{l.contratoId ?? "-"}</td>
                 <td className="px-3 py-2 font-mono text-[10px] font-semibold">{l.contaReduzida}</td>
                 <td className="px-3 py-2 max-w-[220px] truncate">{l.descricaoConta}</td>
                 <td className="px-3 py-2 font-mono">{l.linhaDRE}</td>
                 <td className="px-3 py-2 max-w-[180px] truncate">{labelGrupoGerencial[l.grupoGerencial]}</td>
                 <td className="px-3 py-2">{labelDriver[l.driverTipo]}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{l.driverQtd ? l.driverQtd.toLocaleString("pt-BR") : "—"}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{l.driverValorUnitario ? formatBRL(l.driverValorUnitario) : "—"}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{l.driverPercentual ? `${l.driverPercentual}%` : "—"}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{l.driverQtd ? l.driverQtd.toLocaleString("pt-BR") : "-"}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{l.driverValorUnitario ? formatBRL(l.driverValorUnitario) : "-"}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{l.driverPercentual ? `${l.driverPercentual}%` : "-"}</td>
                 <td className="px-3 py-2 text-right font-semibold tabular-nums">{formatBRL(l.valorOrcado)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatBRL(l.valorCaixa)}</td>
                 <td className="px-3 py-2 font-mono text-[10px]">{l.competenciaYYYYMM}</td>
@@ -386,7 +386,7 @@ function incrementarVersao(v: string) {
 function dimensoesParaExibir(l: LinhaOrcamento): [string, string][] {
   return [
     ["empresa_id", l.empresaId],
-    ["contrato_id", l.contratoId ?? "—"],
+    ["contrato_id", l.contratoId ?? "-"],
     ["centro_custo_id", l.centroCustoId],
     ["area_id", l.areaId],
     ["departamento_id", l.departamentoId],
@@ -418,8 +418,8 @@ function dimensoesParaExibir(l: LinhaOrcamento): [string, string][] {
     ["bloqueado_origem", String(l.bloqueadoOrigem)],
     ["status_aprovacao", l.statusAprovacao],
     ["aprovador_atual", l.aprovadorAtual],
-    ["justificativa", l.justificativa || "—"],
-    ["evidencias", l.evidencias.join("; ") || "—"],
+    ["justificativa", l.justificativa || "-"],
+    ["evidencias", l.evidencias.join("; ") || "-"],
     ["revisao_sob_senha", String(l.revisaoSobSenha)],
     ["usuario_ultima_revisao", l.usuarioUltimaRevisao],
     ["timestamp_ultima_revisao", l.timestampUltimaRevisao],

@@ -10,7 +10,7 @@ export const FEATURE_FLAGS = {
 
   unifiedPermissions: "gn:feature:unified_permissions",
 
-  // Bloco V3 — flag soberana de Triagem IA (Fase 1: desativada por padrão).
+  // Bloco V3 - flag soberana de Triagem IA (Fase 1: desativada por padrão).
   // Quando false, /app/triagem* é bloqueado pelo RouteGuard mesmo para admin,
   // mesmo com menu/permissão liberados. Reativação exige flip explícito da flag.
   triagemIA: "gn:feature:triagem_ia",

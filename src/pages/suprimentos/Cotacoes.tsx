@@ -151,8 +151,8 @@ export default function Cotacoes() {
                         <TableCell className="font-mono">{c.numero}</TableCell>
                         <TableCell>{c.titulo}</TableCell>
                         <TableCell>{statusBadge(c.status)}</TableCell>
-                        <TableCell>{c.prazo_resposta ? new Date(c.prazo_resposta).toLocaleDateString("pt-BR") : "—"}</TableCell>
-                        <TableCell>{c.fornecedor?.razao_social ?? "—"}</TableCell>
+                        <TableCell>{c.prazo_resposta ? new Date(c.prazo_resposta).toLocaleDateString("pt-BR") : "-"}</TableCell>
+                        <TableCell>{c.fornecedor?.razao_social ?? "-"}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="outline" size="sm" onClick={() => setOpenMapa(c.id)}>
                             <FileSpreadsheet className="h-4 w-4 mr-1" />Mapa
@@ -337,7 +337,7 @@ function MapaCotacaoDialog({ cotacaoId, onClose }: { cotacaoId: string; onClose:
       <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {cot?.numero} — {cot?.titulo} {cot && statusBadge(cot.status)}
+            {cot?.numero} - {cot?.titulo} {cot && statusBadge(cot.status)}
           </DialogTitle>
           <DialogDescription>{cot?.descricao}</DialogDescription>
         </DialogHeader>
@@ -360,7 +360,7 @@ function MapaCotacaoDialog({ cotacaoId, onClose }: { cotacaoId: string; onClose:
                   <TableRow key={it.id}>
                     <TableCell>{i + 1}</TableCell>
                     <TableCell>{it.descricao}</TableCell>
-                    <TableCell>{it.unidade ?? "—"}</TableCell>
+                    <TableCell>{it.unidade ?? "-"}</TableCell>
                     <TableCell className="text-right">{Number(it.quantidade).toLocaleString("pt-BR")}</TableCell>
                     <TableCell className="text-right">
                       {!fechado && <Button size="icon" variant="ghost" onClick={async () => {
@@ -411,10 +411,10 @@ function MapaCotacaoDialog({ cotacaoId, onClose }: { cotacaoId: string; onClose:
                   return (
                     <TableRow key={f.id}>
                       <TableCell><div className="flex items-center gap-2"><Building2 className="h-4 w-4" />{f.fornecedor?.razao_social}</div></TableCell>
-                      <TableCell className="text-right">{p ? fmtMoney(p.valor_frete) : "—"}</TableCell>
-                      <TableCell className="text-right font-semibold">{p ? fmtMoney(p.valor_total) : "—"}</TableCell>
-                      <TableCell>{p?.prazo_entrega_dias ? `${p.prazo_entrega_dias} dias` : "—"}</TableCell>
-                      <TableCell>{p?.prazo_pagamento_dias ? `${p.prazo_pagamento_dias} dias` : "—"}</TableCell>
+                      <TableCell className="text-right">{p ? fmtMoney(p.valor_frete) : "-"}</TableCell>
+                      <TableCell className="text-right font-semibold">{p ? fmtMoney(p.valor_total) : "-"}</TableCell>
+                      <TableCell>{p?.prazo_entrega_dias ? `${p.prazo_entrega_dias} dias` : "-"}</TableCell>
+                      <TableCell>{p?.prazo_pagamento_dias ? `${p.prazo_pagamento_dias} dias` : "-"}</TableCell>
                       <TableCell className="text-right">
                         {!fechado && <Button size="sm" variant="outline" onClick={() => setEditProposta(f.fornecedor_id)}>{p ? "Editar" : "Lançar"}</Button>}
                       </TableCell>
@@ -448,12 +448,12 @@ function MapaCotacaoDialog({ cotacaoId, onClose }: { cotacaoId: string; onClose:
                 {propostas.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Sem propostas</TableCell></TableRow>}
                 {propostas.map((p) => (
                   <TableRow key={p.id} className={p.ranking === 1 ? "bg-primary/5" : ""}>
-                    <TableCell>{p.ranking ?? "—"}{p.ranking === 1 && <Trophy className="inline h-4 w-4 ml-1 text-yellow-500" />}</TableCell>
+                    <TableCell>{p.ranking ?? "-"}{p.ranking === 1 && <Trophy className="inline h-4 w-4 ml-1 text-yellow-500" />}</TableCell>
                     <TableCell>{p.fornecedor?.razao_social}</TableCell>
                     <TableCell className="text-right font-semibold">{fmtMoney(p.valor_total)}</TableCell>
-                    <TableCell>{p.prazo_entrega_dias ? `${p.prazo_entrega_dias}d` : "—"}</TableCell>
-                    <TableCell>{p.prazo_pagamento_dias ? `${p.prazo_pagamento_dias}d` : "—"}</TableCell>
-                    <TableCell className="text-right"><Badge variant={p.ranking === 1 ? "default" : "outline"}>{p.score ?? "—"}</Badge></TableCell>
+                    <TableCell>{p.prazo_entrega_dias ? `${p.prazo_entrega_dias}d` : "-"}</TableCell>
+                    <TableCell>{p.prazo_pagamento_dias ? `${p.prazo_pagamento_dias}d` : "-"}</TableCell>
+                    <TableCell className="text-right"><Badge variant={p.ranking === 1 ? "default" : "outline"}>{p.score ?? "-"}</Badge></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -469,9 +469,9 @@ function MapaCotacaoDialog({ cotacaoId, onClose }: { cotacaoId: string; onClose:
 
             {cot?.status === "fechada" && cot.pedido_compra_ids?.length > 0 && (
               <div className="rounded-md border p-4 bg-primary/5">
-                <p className="text-sm font-medium">✅ Cotação fechada — Pedido(s) gerado(s):</p>
+                <p className="text-sm font-medium">✅ Cotação fechada - Pedido(s) gerado(s):</p>
                 <p className="font-mono text-xs mt-1">{cot.pedido_compra_ids.join(", ")}</p>
-                {cot.justificativa_dispensa && <p className="text-xs text-muted-foreground mt-2">Dispensa: <strong>{cot.motivo_dispensa}</strong> — {cot.justificativa_dispensa}</p>}
+                {cot.justificativa_dispensa && <p className="text-xs text-muted-foreground mt-2">Dispensa: <strong>{cot.motivo_dispensa}</strong> - {cot.justificativa_dispensa}</p>}
               </div>
             )}
           </TabsContent>
@@ -620,7 +620,7 @@ function PropostaDialog({ cotacaoId, fornecedorId, itens, fornecedores, proposta
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Proposta — {cf?.fornecedor?.razao_social}</DialogTitle>
+          <DialogTitle>Proposta - {cf?.fornecedor?.razao_social}</DialogTitle>
           <DialogDescription>Preencha preço unitário por item, frete e prazos.</DialogDescription>
         </DialogHeader>
         <Table>
@@ -686,7 +686,7 @@ function FecharDialog({ cotacaoId, propostas, numValidas, onClose, onDone }: any
               <SelectContent>
                 {propostas.filter((p: any) => Number(p.valor_total) > 0).map((p: any) => (
                   <SelectItem key={p.id} value={p.fornecedor_id}>
-                    {p.ranking === 1 ? "🏆 " : ""}{p.fornecedor?.razao_social} — {fmtMoney(p.valor_total)} (score {p.score ?? "—"})
+                    {p.ranking === 1 ? "🏆 " : ""}{p.fornecedor?.razao_social} - {fmtMoney(p.valor_total)} (score {p.score ?? "-"})
                   </SelectItem>
                 ))}
               </SelectContent>

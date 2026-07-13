@@ -5,7 +5,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { CandidatoInfo, baixarCurriculoCand, Toasts, btnStyle, PendToggle, HistoricoCandidato } from "@/components/recrutamento/CandidatoInfo";
 
 // =====================================================================
-// RH — Novas Admissões
+// RH - Novas Admissões
 // Candidatos na etapa "Admissão" (após Compras), ainda não admitidos. O RH
 // preenche os dados e CADASTRA o novo colaborador na tabela EMPREGADOS.
 // Fonte: VW_RECRUTAMENTO_CANDIDATOS (etapa='Admissão' e admitido_por nulo).
@@ -176,7 +176,7 @@ export default function NovasAdmissoes() {
         <div style={{ position: "fixed", inset: 0, zIndex: 700, background: "rgba(15,23,42,.42)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 18, padding: 24, width: "100%", maxWidth: 720, maxHeight: "90vh", overflowY: "auto", position: "relative", boxShadow: "0 16px 40px rgba(15,23,42,.1)" }}>
             <button onClick={() => { setForm(null); setCand(null); }} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
-            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>Admissão — novo colaborador</div>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>Admissão - novo colaborador</div>
             <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Vaga #{cand.vaga_id} · {cand.cargo} · {cand.contrato}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px" }}>
               {CAMPOS.map(f => (

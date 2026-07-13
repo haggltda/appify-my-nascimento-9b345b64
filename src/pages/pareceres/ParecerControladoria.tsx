@@ -35,10 +35,10 @@ const config: Omit<ParecerDetalhadoConfig, "subtitulo"> = {
     },
   ],
   recomendacoes: [
-    "Aprovar — viável",
+    "Aprovar - viável",
     "Aprovar com ressalvas",
     "Rever precificação",
-    "Reprovar — inviável",
+    "Reprovar - inviável",
   ],
   labelEnviar: "Enviar parecer da controladoria",
   proximaEtapa: { titulo: "Diretor Operacional", desc: "Avaliação da capacidade operacional" },
@@ -65,7 +65,7 @@ export default function ParecerControladoria() {
             voltar={voltar}
             config={{
               ...config,
-              subtitulo: `${l.numero} · ${l.objeto} — avalie viabilidade econômico-financeira, BDI, exposição tributária e premissas de margem.`,
+              subtitulo: `${l.numero} · ${l.objeto} - avalie viabilidade econômico-financeira, BDI, exposição tributária e premissas de margem.`,
             }}
           />
         )}

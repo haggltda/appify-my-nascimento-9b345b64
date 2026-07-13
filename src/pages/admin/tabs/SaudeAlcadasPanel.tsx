@@ -9,7 +9,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { ShieldCheck, AlertTriangle, Trash2, Plus, Users, Workflow, Clock } from "lucide-react";
 
 /**
- * Painel de Saúde do motor de Alçadas — só visível para admin/presidência/controladoria.
+ * Painel de Saúde do motor de Alçadas - só visível para admin/presidência/controladoria.
  * Mostra KPIs (CCs sem gestor, fluxos sem etapa, instâncias com SLA estourado) e
  * permite conceder/revogar a permissão especial "alterar_empresa_cc".
  */
@@ -130,7 +130,7 @@ function KpisSaude() {
           </summary>
           <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-3">
             {ccsSemGestorQ.data!.slice(0, 60).map((c: any) => (
-              <li key={c.id} className="font-mono">{c.codigo} — {c.nome}</li>
+              <li key={c.id} className="font-mono">{c.codigo} - {c.nome}</li>
             ))}
           </ul>
           {ccsSemGestorQ.data!.length > 60 && (
@@ -146,7 +146,7 @@ function KpisSaude() {
           </summary>
           <ul className="mt-2 space-y-1">
             {fluxosSemEtapaQ.data!.map((f: any) => (
-              <li key={f.id}><span className="font-mono">{f.alvo}</span> — {f.nome}</li>
+              <li key={f.id}><span className="font-mono">{f.alvo}</span> - {f.nome}</li>
             ))}
           </ul>
         </details>
@@ -270,7 +270,7 @@ function PermissoesEspeciaisPanel({ isAdmin }: { isAdmin: boolean }) {
                   {r.profile?.email && <div className="text-[10px] text-muted-foreground">{r.profile.email}</div>}
                 </td>
                 <td className="px-3 py-2">{new Date(r.concedido_em).toLocaleString("pt-BR")}</td>
-                <td className="px-3 py-2 italic text-muted-foreground">{r.motivo || "—"}</td>
+                <td className="px-3 py-2 italic text-muted-foreground">{r.motivo || "-"}</td>
                 <td className="px-3 py-2 text-right">
                   {isAdmin && (
                     <Button size="sm" variant="ghost" onClick={() => revogar(r.id)}>

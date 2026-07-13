@@ -18,8 +18,8 @@ import { TimelineAprovacao } from "@/components/aprovacoes/TimelineAprovacao";
 import { toast } from "sonner";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
-const fmtDateTime = (d: any) => (d ? new Date(d).toLocaleString("pt-BR") : "—");
+const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "-");
+const fmtDateTime = (d: any) => (d ? new Date(d).toLocaleString("pt-BR") : "-");
 
 type TituloSel = {
   id: string; numero_documento: string; data_vencimento: string;
@@ -56,7 +56,7 @@ export default function ProgramacaoPagamentos() {
   const [justificativa, setJustificativa] = useState("");
   const [observacao, setObservacao] = useState("");
   const [decisaoJustif, setDecisaoJustif] = useState("");
-  const [responsavelNome, setResponsavelNome] = useState<string>("—");
+  const [responsavelNome, setResponsavelNome] = useState<string>("-");
 
   useEffect(() => {
     (async () => {
@@ -65,7 +65,7 @@ export default function ProgramacaoPagamentos() {
         const { data: p } = await (supabase as any).from("profiles")
           .select("empresa_id, display_name, email").eq("id", u.user.id).maybeSingle();
         if (p?.empresa_id) setEmpresaId(p.empresa_id);
-        setResponsavelNome(p?.display_name || p?.email || "—");
+        setResponsavelNome(p?.display_name || p?.email || "-");
       }
     })();
   }, []);
@@ -153,13 +153,13 @@ export default function ProgramacaoPagamentos() {
   const status = prog?.status ?? "rascunho";
   const aprovStatus = prog?.aprovacao_status ?? "nao_submetida";
   const editavel = !programacaoId || (status === "rascunho" && aprovStatus !== "pendente");
-  const codigoProg = prog?.codigo ?? prog?.id?.slice(0, 8) ?? "—";
+  const codigoProg = prog?.codigo ?? prog?.id?.slice(0, 8) ?? "-";
   const dataCriacao = prog?.created_at ?? new Date().toISOString();
 
   const resumoPorBanco = useMemo(() => {
     const map = new Map<string, { banco: string; qtd: number; total: number }>();
     fonte.forEach((t: any) => {
-      const key = t.conta_bancaria?.banco_codigo ? `${t.conta_bancaria.banco_codigo} — ${t.conta_bancaria.banco_nome}` : "Sem banco";
+      const key = t.conta_bancaria?.banco_codigo ? `${t.conta_bancaria.banco_codigo} - ${t.conta_bancaria.banco_nome}` : "Sem banco";
       const cur = map.get(key) ?? { banco: key, qtd: 0, total: 0 };
       cur.qtd += 1; cur.total += Number(t.valor || 0);
       map.set(key, cur);
@@ -167,7 +167,7 @@ export default function ProgramacaoPagamentos() {
     if (contaId) {
       const c = contas.find((x) => x.id === contaId);
       if (c) {
-        const k = `${c.banco_codigo} — ${c.banco_nome} (previsto)`;
+        const k = `${c.banco_codigo} - ${c.banco_nome} (previsto)`;
         map.set(k, { banco: k, qtd: totaisItens.qtd, total: totaisItens.total });
       }
     }
@@ -177,7 +177,7 @@ export default function ProgramacaoPagamentos() {
   const resumoPorData = useMemo(() => {
     const map = new Map<string, { data: string; qtd: number; total: number }>();
     fonte.forEach((t: any) => {
-      const k = t.data_vencimento ?? "—";
+      const k = t.data_vencimento ?? "-";
       const cur = map.get(k) ?? { data: k, qtd: 0, total: 0 };
       cur.qtd += 1; cur.total += Number(t.valor || 0);
       map.set(k, cur);
@@ -404,9 +404,9 @@ export default function ProgramacaoPagamentos() {
             <div className="md:col-span-2">
               <Label className="text-xs">Conta Bancária Prevista <span className="text-destructive">*</span></Label>
               <Select value={contaId} onValueChange={setContaId} disabled={!editavel || contas.length === 0}>
-                <SelectTrigger><SelectValue placeholder={contas.length === 0 ? "Nenhuma conta cadastrada — vá em Integração Bancária" : "Selecione..."} /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={contas.length === 0 ? "Nenhuma conta cadastrada - vá em Integração Bancária" : "Selecione..."} /></SelectTrigger>
                 <SelectContent>
-                  {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome} ({c.agencia}/{c.conta})</SelectItem>)}
+                  {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} - {c.banco_nome} ({c.agencia}/{c.conta})</SelectItem>)}
                 </SelectContent>
               </Select>
               {contas.length === 0 && <p className="text-[11px] text-destructive mt-1">Cadastre uma conta em Financeiro › Integração Bancária.</p>}
@@ -514,7 +514,7 @@ export default function ProgramacaoPagamentos() {
                   return (
                     <TableRow key={t.id} className={venc ? "bg-destructive/5" : ""}>
                       <TableCell className="font-mono text-xs">{t.id?.slice(0, 8)}</TableCell>
-                      <TableCell>{t.fornecedor?.razao_social ?? "—"}</TableCell>
+                      <TableCell>{t.fornecedor?.razao_social ?? "-"}</TableCell>
                       <TableCell className="font-mono text-xs">{t.numero_documento}</TableCell>
                       <TableCell className="text-xs">{fmtDate(t.data_emissao)}</TableCell>
                       <TableCell className={venc ? "text-destructive font-semibold" : ""}>{fmtDate(t.data_vencimento)}</TableCell>
@@ -522,7 +522,7 @@ export default function ProgramacaoPagamentos() {
                       <TableCell className="text-right">{fmtMoney(t.valor)}</TableCell>
                       <TableCell className="text-right font-medium">{fmtMoney(t.valor)}</TableCell>
                       <TableCell>{fmtDate(dataPgto)}</TableCell>
-                      <TableCell className="text-xs">{t.conta_bancaria ? `${t.conta_bancaria.banco_codigo} ${t.conta_bancaria.banco_nome}` : "—"}</TableCell>
+                      <TableCell className="text-xs">{t.conta_bancaria ? `${t.conta_bancaria.banco_codigo} ${t.conta_bancaria.banco_nome}` : "-"}</TableCell>
                       <TableCell><Badge variant="outline" className="uppercase text-[10px]">{forma}</Badge></TableCell>
                       <TableCell><PrioridadeBadge p={t.prioridade} /></TableCell>
                       <TableCell><StatusItemBadge status={t.status} venc={venc} /></TableCell>
@@ -574,7 +574,7 @@ export default function ProgramacaoPagamentos() {
               <TableHeader><TableRow><TableHead>Empresa</TableHead><TableHead className="text-right">Qtd</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell>{empresas.find((e: any) => e.id === empresaId)?.razao_social ?? "—"}</TableCell>
+                  <TableCell>{empresas.find((e: any) => e.id === empresaId)?.razao_social ?? "-"}</TableCell>
                   <TableCell className="text-right">{totaisItens.qtd}</TableCell>
                   <TableCell className="text-right">{fmtMoney(totaisItens.total)}</TableCell>
                 </TableRow>
@@ -585,7 +585,7 @@ export default function ProgramacaoPagamentos() {
 
         <TabsContent value="pendencias">
           <Card><CardContent className="pt-6 space-y-2">
-            {totaisItens.vencidosNaProg > 0 && <div className="flex items-center gap-2 text-destructive p-3 bg-destructive/5 rounded border border-destructive/20"><AlertTriangle className="h-4 w-4" />{totaisItens.vencidosNaProg} título(s) vencido(s) na data programada — {fmtMoney(totaisItens.valorVencidos)}</div>}
+            {totaisItens.vencidosNaProg > 0 && <div className="flex items-center gap-2 text-destructive p-3 bg-destructive/5 rounded border border-destructive/20"><AlertTriangle className="h-4 w-4" />{totaisItens.vencidosNaProg} título(s) vencido(s) na data programada - {fmtMoney(totaisItens.valorVencidos)}</div>}
             {!contaId && <div className="flex items-center gap-2 text-amber-600 p-3 bg-amber-50 rounded border border-amber-200"><AlertTriangle className="h-4 w-4" />Conta bancária prevista não definida</div>}
             {(urgencia || excecao) && justificativa.length < 5 && <div className="flex items-center gap-2 text-amber-600 p-3 bg-amber-50 rounded border border-amber-200"><AlertTriangle className="h-4 w-4" />Justificativa obrigatória para urgência/exceção</div>}
             {totaisItens.vencidosNaProg === 0 && contaId && <div className="text-muted-foreground text-sm">Sem pendências.</div>}
@@ -602,8 +602,8 @@ export default function ProgramacaoPagamentos() {
                   <TableRow key={l.id}>
                     <TableCell className="text-xs">{fmtDateTime(l.created_at)}</TableCell>
                     <TableCell><Badge variant="outline">{l.acao}</Badge></TableCell>
-                    <TableCell className="font-mono text-xs">{l.usuario_id?.slice(0, 8) ?? "—"}</TableCell>
-                    <TableCell className="text-xs"><pre className="whitespace-pre-wrap">{l.detalhes ? JSON.stringify(l.detalhes, null, 2) : "—"}</pre></TableCell>
+                    <TableCell className="font-mono text-xs">{l.usuario_id?.slice(0, 8) ?? "-"}</TableCell>
+                    <TableCell className="text-xs"><pre className="whitespace-pre-wrap">{l.detalhes ? JSON.stringify(l.detalhes, null, 2) : "-"}</pre></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -621,9 +621,9 @@ export default function ProgramacaoPagamentos() {
                   <TableRow key={a.id}>
                     <TableCell>#{a.etapa}</TableCell>
                     <TableCell><Badge variant={a.decisao === "aprovado" ? "default" : a.decisao === "rejeitado" ? "destructive" : "outline"}>{a.decisao}</Badge></TableCell>
-                    <TableCell className="font-mono text-xs">{a.aprovador_id?.slice(0, 8) ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{a.aprovador_id?.slice(0, 8) ?? "-"}</TableCell>
                     <TableCell>{fmtDateTime(a.decidido_em)}</TableCell>
-                    <TableCell className="text-xs">{a.justificativa ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{a.justificativa ?? "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -717,7 +717,7 @@ function StatusItemBadge({ status, venc }: { status?: string; venc?: boolean }) 
   if (venc) return <Badge variant="destructive">Vencido</Badge>;
   if (status === "pago") return <Badge className="bg-emerald-100 text-emerald-700 border-0 hover:bg-emerald-100">Pago</Badge>;
   if (status === "agendado") return <Badge className="bg-blue-100 text-blue-700 border-0 hover:bg-blue-100">Programado</Badge>;
-  return <Badge variant="outline">{status ?? "—"}</Badge>;
+  return <Badge variant="outline">{status ?? "-"}</Badge>;
 }
 
 function StatusPill({ label, value, color }: { label: string; value: number; color: string }) {

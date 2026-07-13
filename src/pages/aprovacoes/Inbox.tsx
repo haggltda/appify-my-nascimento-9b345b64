@@ -23,8 +23,8 @@ import { TipoParecerBadge } from "@/components/aprovacoes/TipoParecerBadge";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
-const fmtDateTime = (d: any) => (d ? new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—");
+const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "-");
+const fmtDateTime = (d: any) => (d ? new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "-");
 const diasAte = (d: any) => {
   if (!d) return null;
   const ms = new Date(d).getTime() - Date.now();
@@ -127,7 +127,7 @@ function useAnexosDoMalote(programacaoId: string | null | undefined) {
 }
 
 function formatBytes(n: number | null | undefined): string {
-  if (!n || n <= 0) return "—";
+  if (!n || n <= 0) return "-";
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
@@ -196,7 +196,7 @@ function AnexosPreTitulo({ programacaoId }: { programacaoId: string | null | und
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{a.file_name ?? "(sem nome)"}</p>
               <p className="text-xs text-muted-foreground">
-                {(a.tipo ?? "—")} · {formatBytes(a.size_bytes)}
+                {(a.tipo ?? "-")} · {formatBytes(a.size_bytes)}
               </p>
               {!a.storage_path && (
                 <p className="mt-1 text-xs text-amber-600">
@@ -231,7 +231,7 @@ export default function InboxAprovacoes() {
   const [decisao, setDecisao] = useState<{ item: ItemAprov; tipo: "aprovado" | "rejeitado" | "devolvido" } | null>(null);
   const [justif, setJustif] = useState("");
 
-  // Query principal — financeiro
+  // Query principal - financeiro
   const financeiroQ = useQuery({
     queryKey: ["inbox-financeiro-v2"],
     queryFn: async () => {
@@ -257,7 +257,7 @@ export default function InboxAprovacoes() {
         origem: "financeiro",
         tipo: "Programação de pagamento",
         ref_id: r.programacao_id,
-        titulo: r.malote?.descricao || `Programação — etapa ${r.etapa}`,
+        titulo: r.malote?.descricao || `Programação - etapa ${r.etapa}`,
         numero_doc: `PP · ${String(r.programacao_id).slice(0, 8)}`,
         fornecedor_nome: r.malote?.qtd_titulos ? `${r.malote.qtd_titulos} título(s)` : null,
         fornecedor_doc: null,
@@ -309,7 +309,7 @@ export default function InboxAprovacoes() {
         return {
           id: `sup-${r.instancia_id}-${r.etapa_id}`,
           origem: r.alvo === "programacao_pagamento" ? "financeiro" : "compras",
-          tipo: `${alvoLabel[r.alvo] ?? r.alvo} — ${r.etapa_nome}`,
+          tipo: `${alvoLabel[r.alvo] ?? r.alvo} - ${r.etapa_nome}`,
           ref_id: r.instancia_id,
           titulo: r.referencia_codigo ?? r.etapa_nome,
           numero_doc: r.referencia_codigo ?? null,
@@ -381,7 +381,7 @@ export default function InboxAprovacoes() {
       if (decisao.item.sup_aprov) {
         // Novo motor
         if (decisao.tipo === "devolvido") {
-          throw new Error("Devolução ainda não suportada no novo motor — use Reprovar com justificativa.");
+          throw new Error("Devolução ainda não suportada no novo motor - use Reprovar com justificativa.");
         }
         const parecer = decisao.tipo === "aprovado" ? "aprovado" : "reprovado";
         const { error } = await (supabase as any).rpc("sup_aprov_registrar_voto", {
@@ -518,10 +518,10 @@ export default function InboxAprovacoes() {
                         </TableCell>
                         <TableCell className="font-medium max-w-[220px] truncate">{it.titulo}</TableCell>
                         <TableCell className="text-sm">
-                          <div>{it.fornecedor_nome ?? "—"}</div>
+                          <div>{it.fornecedor_nome ?? "-"}</div>
                           {it.fornecedor_doc && <div className="text-xs text-muted-foreground">{it.fornecedor_doc}</div>}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{it.numero_doc ?? "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{it.numero_doc ?? "-"}</TableCell>
                         <TableCell className="text-right font-mono font-semibold">{fmtMoney(it.valor)}</TableCell>
                         <TableCell className="text-sm">{fmtDate(it.emissao)}</TableCell>
                         <TableCell className="text-sm">
@@ -692,13 +692,13 @@ function DetailDrawer({ item, onClose, onDecidir, onVerDetalhes }: {
 
           {/* Título principal */}
           <div>
-            <h2 className="text-xl font-bold leading-tight">{item.tipo} — etapa {item.etapa}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{item.numero_doc ?? "—"}</p>
+            <h2 className="text-xl font-bold leading-tight">{item.tipo} - etapa {item.etapa}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{item.numero_doc ?? "-"}</p>
           </div>
 
           {/* Grid principal */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-            <Field label="Fornecedor / Itens" value={item.fornecedor_nome ?? "—"} sub={item.fornecedor_doc ?? undefined} />
+            <Field label="Fornecedor / Itens" value={item.fornecedor_nome ?? "-"} sub={item.fornecedor_doc ?? undefined} />
             <Field label="Valor" value={fmtMoney(item.valor)} valueClass="font-mono font-semibold" />
             <Field label="Emissão" value={fmtDate(item.emissao)} />
             <Field
@@ -708,7 +708,7 @@ function DetailDrawer({ item, onClose, onDecidir, onVerDetalhes }: {
               subClass={dias !== null && dias < 0 ? "text-destructive" : dias !== null && dias <= 7 ? "text-amber-600" : ""}
             />
             <Field label="Competência" value={fmtDate(item.competencia)} />
-            <Field label="Empresa" value={item.empresa_nome ?? "—"} sub={item.empresa_cnpj ?? undefined} />
+            <Field label="Empresa" value={item.empresa_nome ?? "-"} sub={item.empresa_cnpj ?? undefined} />
             <Field label="Centro de custo" value={item.centro_custo ?? "Não disponível"} />
             <Field label="Contrato" value={item.contrato_numero ?? "Não disponível"} />
           </div>
@@ -735,7 +735,7 @@ function DetailDrawer({ item, onClose, onDecidir, onVerDetalhes }: {
                   <TimelineStep
                     key={h.id}
                     state="done"
-                    title={`Etapa ${h.etapa} — ${h.decisao}`}
+                    title={`Etapa ${h.etapa} - ${h.decisao}`}
                     meta={fmtDateTime(h.decidido_em)}
                     sub={h.justificativa}
                   />
@@ -744,7 +744,7 @@ function DetailDrawer({ item, onClose, onDecidir, onVerDetalhes }: {
                 {proxima && (
                   <TimelineStep
                     state="pending"
-                    title={`Próxima etapa: ${proxima.responsavel_nome ?? "—"}`}
+                    title={`Próxima etapa: ${proxima.responsavel_nome ?? "-"}`}
                     meta="Aguardando aprovação"
                   />
                 )}

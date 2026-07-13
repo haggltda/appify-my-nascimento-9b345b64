@@ -15,7 +15,7 @@ import {
   type BdiItemGrupo,
   type BdiItemTipo,
 } from "@/hooks/useBdi";
-// Slider local removido — alias obrigatório.
+// Slider local removido - alias obrigatório.
 import { Slider as UiSlider } from "@/components/ui/slider";
 import {
   PieChart,
@@ -296,7 +296,7 @@ export default function Composicao() {
     };
   }, [bdi.postos, bdi.verbas, bdi.itens, margem, tributos, custoIndireto]);
 
-  // === Projeção 12m derivada (mock derivado — DRE/Caixa/Gráfico = FONTE_REAL_NAO_LOCALIZADA) ===
+  // === Projeção 12m derivada (mock derivado - DRE/Caixa/Gráfico = FONTE_REAL_NAO_LOCALIZADA) ===
   const projecao = useMemo(() => {
     const seed = bdi.postos.length + Math.round(margem * 10);
     const rand = (i: number) => {
@@ -735,7 +735,7 @@ export default function Composicao() {
   }
 
   const empresaIdLegivel = licitacao.data.empresa_id; // EMPRESA_NOME_NAO_RESOLVIDO
-  const tituloLicitacao = `${licitacao.data.numero ?? "—"} · ${licitacao.data.objeto ?? ""}`;
+  const tituloLicitacao = `${licitacao.data.numero ?? "-"} · ${licitacao.data.objeto ?? ""}`;
   const semResponsavel = !licitacao.data.responsavel_user_id;
   const outroResponsavel =
     !semResponsavel && !isResponsavel && !!licitacao.data.responsavel_user_id;
@@ -748,7 +748,7 @@ export default function Composicao() {
       <PageHeader
         title="Composição de Custos & BDI"
         breadcrumb={["Operação", "Composição & BDI"]}
-        subtitle="Detalhamento por posto, verbas da folha, insumos, tributos e margem — fonte: public.bdi_*."
+        subtitle="Detalhamento por posto, verbas da folha, insumos, tributos e margem - fonte: public.bdi_*."
         actions={
           <>
             {canIncluir && (
@@ -858,8 +858,8 @@ export default function Composicao() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Empresa (id)" value={empresaIdLegivel} />
               <Field label="Licitação vinculada" value={tituloLicitacao} />
-              <Field label="Órgão" value={licitacao.data.orgao ?? "—"} />
-              <Field label="Status" value={String(licitacaoStatus ?? "—")} />
+              <Field label="Órgão" value={licitacao.data.orgao ?? "-"} />
+              <Field label="Status" value={String(licitacaoStatus ?? "-")} />
             </div>
           </section>
 
@@ -1095,7 +1095,7 @@ export default function Composicao() {
             </section>
           )}
 
-          {/* Aba Insumos e Operação — fonte real bdi.itens */}
+          {/* Aba Insumos e Operação - fonte real bdi.itens */}
           {abaAtiva === "insumos" && (
             <section className="card-elevated p-5">
               <header className="mb-4 flex items-center justify-between">
@@ -1214,12 +1214,12 @@ export default function Composicao() {
               <div className="mt-4 rounded-md border border-info/30 bg-info-soft px-3 py-2.5 text-[12px] text-info">
                 Fonte: <strong>public.bdi_item</strong>. Edição via RPC{" "}
                 <code>bdi_salvar_item</code> / <code>bdi_excluir_item</code>.
-                Total gerado no banco — frontend não envia campo de total.
+                Total gerado no banco - frontend não envia campo de total.
               </div>
             </section>
           )}
 
-          {/* Aba Impostos — sliders Radix com onValueCommit */}
+          {/* Aba Impostos - sliders Radix com onValueCommit */}
           {abaAtiva === "impostos" && (
             <section className="card-elevated p-5">
               <h2 className="mb-4 flex items-center gap-2 font-display text-sm font-bold">
@@ -1291,12 +1291,12 @@ export default function Composicao() {
                 </div>
               </div>
               <div className="mt-4 rounded-md border border-warning/30 bg-warning-soft px-3 py-2.5 text-[12px] text-warning">
-                A margem definida aqui é decisão da licitação — será revisada pela Controladoria antes da aprovação final.
+                A margem definida aqui é decisão da licitação - será revisada pela Controladoria antes da aprovação final.
               </div>
             </section>
           )}
 
-          {/* DRE / Caixa / Gráfico — FONTE_REAL_NAO_LOCALIZADA (M4) */}
+          {/* DRE / Caixa / Gráfico - FONTE_REAL_NAO_LOCALIZADA (M4) */}
           {abaAtiva === "dre" && (
             <section className="card-elevated overflow-hidden">
               <header className="flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/10 via-card to-card px-5 py-3">
@@ -1380,7 +1380,7 @@ export default function Composicao() {
             <section className="card-elevated overflow-hidden">
               <header className="flex items-center justify-between border-b border-border bg-gradient-to-r from-accent/10 via-card to-card px-5 py-3">
                 <h2 className="flex items-center gap-2 font-display text-sm font-bold">
-                  <LineChartIcon className="h-4 w-4 text-accent" /> Caixa da licitação — Orçado x Realizado
+                  <LineChartIcon className="h-4 w-4 text-accent" /> Caixa da licitação - Orçado x Realizado
                 </h2>
                 <span className="chip border bg-warning-soft text-warning border-warning/30">
                   FONTE_REAL_NAO_LOCALIZADA · projeção derivada

@@ -3,11 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import type { FormCap } from "@/hooks/useFormPerms";
 
 // =====================================================================
-// NASCIMENTO FORMULÁRIOS — painel de permissões (setinha ▾, só admin)
+// NASCIMENTO FORMULÁRIOS - painel de permissões (setinha ▾, só admin)
 // Substitui a antiga tela "Configurações". Duas partes:
-//   1) Quem pode o quê — concede/retira capacidades por usuário
+//   1) Quem pode o quê - concede/retira capacidades por usuário
 //      (linhas em CS_FORM_ACESSOS.papel).
-//   2) Setores — classifica cada Setor_ERP (de EMPREGADOS) como
+//   2) Setores - classifica cada Setor_ERP (de EMPREGADOS) como
 //      Administrativo ou Operacional (CS_FORM_SETOR_GRUPO). É o que faz o
 //      "Visualizar Administrativo/Operacional" filtrar as respostas.
 // =====================================================================
@@ -125,7 +125,7 @@ export default function FormulariosPermissoes({ onToast }: { onToast: (m: string
                 <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 20, overflow: "hidden" }}>
                   {resultados.map(p => (
                     <div key={p.id} onClick={() => addUser(p)} style={{ padding: "9px 12px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{p.display_name || "—"}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{p.display_name || "-"}</div>
                       <div style={{ fontSize: 11.5, color: "#94a3b8" }}>{p.email}</div>
                     </div>
                   ))}
@@ -155,7 +155,7 @@ export default function FormulariosPermissoes({ onToast }: { onToast: (m: string
 
           {/* 2) Setores → grupo */}
           <div>
-            <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0f172a", marginBottom: 2 }}>Setores — Administrativo × Operacional</div>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0f172a", marginBottom: 2 }}>Setores - Administrativo × Operacional</div>
             <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 8 }}>
               Setores vêm de EMPREGADOS (Setor_ERP). Quem tem “Visualizar Administrativo” vê as respostas dos setores marcados como Administrativo; idem Operacional. A resposta é classificada pela pergunta de setor do formulário (definida no editor).
             </div>
@@ -170,7 +170,7 @@ export default function FormulariosPermissoes({ onToast }: { onToast: (m: string
                       style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "5px 6px", fontSize: 11.5, fontWeight: 700, outline: "none",
                         background: grupos[s] === "administrativo" ? "#eef2ff" : grupos[s] === "operacional" ? "#ecfdf5" : "#fff",
                         color: grupos[s] === "administrativo" ? "#4338ca" : grupos[s] === "operacional" ? "#15803d" : "#94a3b8" }}>
-                      <option value="">—</option>
+                      <option value="">-</option>
                       <option value="administrativo">Administrativo</option>
                       <option value="operacional">Operacional</option>
                     </select>

@@ -224,7 +224,7 @@ export function useSalvarJustificativaDivergencia() {
       const { data: profile } = authData?.user
         ? await (supabase as any).from("profiles").select("display_name, email").eq("id", authData.user.id).maybeSingle()
         : { data: null };
-      const usuario = profile?.display_name || profile?.email || authData?.user?.email || "—";
+      const usuario = profile?.display_name || profile?.email || authData?.user?.email || "-";
 
       const existing: JustificativaEntry[] = rowsDoContrato[0]?.justificativa_divergencia ?? [];
       const nova: JustificativaEntry = {

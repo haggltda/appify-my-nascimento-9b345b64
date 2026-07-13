@@ -68,7 +68,7 @@ export default function FluxoCaixa() {
     <div className="space-y-6 p-6">
       <PageHeader
         title="Fluxo de Caixa"
-        subtitle="Consolidado mensal — realizado (recebido/pago) e projetado (vencimentos abertos)"
+        subtitle="Consolidado mensal - realizado (recebido/pago) e projetado (vencimentos abertos)"
         module="Financeiro"
         breadcrumb={["Fluxo de Caixa"]}
       />

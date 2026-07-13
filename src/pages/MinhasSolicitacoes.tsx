@@ -5,9 +5,9 @@ import { ESTADOS_BR, municipiosDe } from "@/data/municipios-brasil";
 
 // ── Helpers ────────────────────────────────────────────────────────
 function fmtDt(s?: string) {
-  if (!s) return "—";
+  if (!s) return "-";
   const d = new Date(s.length <= 10 ? s + "T12:00:00" : s);
-  return isNaN(+d) ? (s ?? "—") : d.toLocaleDateString("pt-BR");
+  return isNaN(+d) ? (s ?? "-") : d.toLocaleDateString("pt-BR");
 }
 /** Dias inteiros decorridos desde a data informada (0 = hoje). */
 function diasDesde(s?: string): number | null {
@@ -18,7 +18,7 @@ function diasDesde(s?: string): number | null {
 }
 function mesLabel(s?: string) {
   const m = String(s ?? "").match(/^(\d{4})-(\d{2})$/);
-  if (!m) return s || "—";
+  if (!m) return s || "-";
   const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   return `${meses[+m[2] - 1] ?? m[2]}/${m[1]}`;
 }
@@ -149,14 +149,14 @@ export default function MinhasSolicitacoes() {
     const itens: SolItem[] = [
       ...(vg.data ?? []).map((r: any) => ({
         tipo: "Vaga", icon: "🎯", id: r.id,
-        titulo: `${r.cargo || "Vaga"}${r.contrato ? ` — ${r.contrato}` : ""}`,
+        titulo: `${r.cargo || "Vaga"}${r.contrato ? ` - ${r.contrato}` : ""}`,
         status: r.status, data: r.created_at,
         substituido: r.nome_substituido || "", motivo: r.motivo_vaga || "",
         qtdVagas: Number(r.quantidade_vagas) || 1,
         statusDesde: r.status_changed_at || r.created_at,
       })),
-      ...(fr.data ?? []).map((r: any) => ({ tipo: "Férias", icon: "📅", id: r.id, titulo: `Férias — ${r.colaborador_nome || ""}`, status: r.status, data: r.criado_em, statusDesde: r.criado_em })),
-      ...(ad.data ?? []).map((r: any) => ({ tipo: "Advertência", icon: "⚠️", id: r.id, titulo: `Advertência ${r.tipo_advertencia || ""} — ${r.colaborador_nome || ""}`, status: r.status, data: r.created_at, statusDesde: r.status_changed_at || r.created_at, excecao: r.excecao })),
+      ...(fr.data ?? []).map((r: any) => ({ tipo: "Férias", icon: "📅", id: r.id, titulo: `Férias - ${r.colaborador_nome || ""}`, status: r.status, data: r.criado_em, statusDesde: r.criado_em })),
+      ...(ad.data ?? []).map((r: any) => ({ tipo: "Advertência", icon: "⚠️", id: r.id, titulo: `Advertência ${r.tipo_advertencia || ""} - ${r.colaborador_nome || ""}`, status: r.status, data: r.created_at, statusDesde: r.status_changed_at || r.created_at, excecao: r.excecao })),
     ].sort((a, b) => String(b.data || "").localeCompare(String(a.data || "")));
     setLoadingSols(false);
     setMinhasSols(itens);
@@ -478,7 +478,7 @@ export default function MinhasSolicitacoes() {
             <button onClick={() => setModalVaga(false)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Solicitar Nova Vaga</div>
             <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>
-              {vagaStep === 1 ? "Etapa 1 de 3 — Identificação da Vaga" : vagaStep === 2 ? "Etapa 2 de 3 — Detalhes do Posto" : "Etapa 3 de 3 — Requisitos e Urgência"}
+              {vagaStep === 1 ? "Etapa 1 de 3 - Identificação da Vaga" : vagaStep === 2 ? "Etapa 2 de 3 - Detalhes do Posto" : "Etapa 3 de 3 - Requisitos e Urgência"}
             </div>
             <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
               {[1, 2, 3].map(i => (
@@ -490,7 +490,7 @@ export default function MinhasSolicitacoes() {
               <div className="ini-fg">
                 <label>Motivo da Vaga *</label>
                 <select className="ini-fi" value={vaga.motivo_vaga} onChange={e => setVaga(v => ({ ...v, motivo_vaga: e.target.value }))}>
-                  <option value="">— Selecione —</option>
+                  <option value="">- Selecione -</option>
                   {["Admissão", "Substituição", "Expansão", "Transferência", "Retorno"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
@@ -517,7 +517,7 @@ export default function MinhasSolicitacoes() {
               <div className="ini-fg">
                 <label>Contrato *</label>
                 <select className="ini-fi" value={vaga.contrato} onChange={e => setVaga(v => ({ ...v, contrato: e.target.value }))}>
-                  <option value="">— Selecione —</option>
+                  <option value="">- Selecione -</option>
                   {contratos.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
@@ -526,14 +526,14 @@ export default function MinhasSolicitacoes() {
                 <div className="ini-fg">
                   <label>Estado (UF)</label>
                   <select className="ini-fi" value={vaga.estado} onChange={e => setVaga(v => ({ ...v, estado: e.target.value, cidade: "" }))}>
-                    <option value="">— Selecione —</option>
-                    {ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} — {e.nome}</option>)}
+                    <option value="">- Selecione -</option>
+                    {ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} - {e.nome}</option>)}
                   </select>
                 </div>
                 <div className="ini-fg">
                   <label>Cidade</label>
                   <select className="ini-fi" value={vaga.cidade} disabled={!vaga.estado} onChange={e => setVaga(v => ({ ...v, cidade: e.target.value }))}>
-                    <option value="">{vaga.estado ? "— Selecione —" : "Selecione o estado primeiro"}</option>
+                    <option value="">{vaga.estado ? "- Selecione -" : "Selecione o estado primeiro"}</option>
                     {municipiosDe(vaga.estado).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -562,7 +562,7 @@ export default function MinhasSolicitacoes() {
 
             {vagaStep === 3 && (<>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div className="ini-fg"><label>Grau de Urgência</label><select className="ini-fi" value={vaga.grau_urgencia} onChange={e => setVaga(v => ({ ...v, grau_urgencia: e.target.value }))}><option value="">— Selecione —</option>{["Baixa", "Média", "Alta — Urgente"].map(o => <option key={o}>{o}</option>)}</select></div>
+                <div className="ini-fg"><label>Grau de Urgência</label><select className="ini-fi" value={vaga.grau_urgencia} onChange={e => setVaga(v => ({ ...v, grau_urgencia: e.target.value }))}><option value="">- Selecione -</option>{["Baixa", "Média", "Alta - Urgente"].map(o => <option key={o}>{o}</option>)}</select></div>
                 <div className="ini-fg"><label>Alta Rotatividade?</label><select className="ini-fi" value={vaga.alta_rotatividade} onChange={e => setVaga(v => ({ ...v, alta_rotatividade: e.target.value }))}><option>Não</option><option>Sim</option></select></div>
               </div>
               <div className="ini-fg"><label>Requisitos Obrigatórios *</label><textarea className="ini-fi" rows={3} placeholder="Experiência comprovada, CNH B..." value={vaga.req_obrigatorios} onChange={e => setVaga(v => ({ ...v, req_obrigatorios: e.target.value }))} /></div>
@@ -620,7 +620,7 @@ export default function MinhasSolicitacoes() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div className="ini-fg"><label>Abono (vender dias)</label><select className="ini-fi" value={ferias.dias_vendidos} onChange={e => setFerias(f => ({ ...f, dias_vendidos: e.target.value }))}>{["0", "5", "10"].map(o => <option key={o} value={o}>{o} dias</option>)}</select></div>
-              <div className="ini-fg"><label>Retorno (previsto)</label><input className="ini-fi" readOnly value={ferias.data_saida ? fmtDt(addDaysISO(ferias.data_saida, parseInt(ferias.dias_ferias) || 30)) : "—"} style={{ background: "#f8fafc", color: "#475569" }} /></div>
+              <div className="ini-fg"><label>Retorno (previsto)</label><input className="ini-fi" readOnly value={ferias.data_saida ? fmtDt(addDaysISO(ferias.data_saida, parseInt(ferias.dias_ferias) || 30)) : "-"} style={{ background: "#f8fafc", color: "#475569" }} /></div>
             </div>
             <div className="ini-fg"><label>Observações</label><textarea className="ini-fi" rows={2} value={ferias.observacoes} onChange={e => setFerias(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional..." /></div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8, paddingTop: 14, borderTop: "1px solid #e2e8f0" }}>
@@ -668,7 +668,7 @@ export default function MinhasSolicitacoes() {
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ {advHistorico.length} advertência(s) anterior(es) deste colaborador:</div>
                 {advHistorico.slice(0, 5).map((h: any) => (
                   <div key={h.id} style={{ display: "flex", justifyContent: "space-between", gap: 8, borderTop: "1px solid #fed7aa", padding: "3px 0" }}>
-                    <span>{h.tipo_advertencia || "—"} · grau {h.grau || "—"}</span>
+                    <span>{h.tipo_advertencia || "-"} · grau {h.grau || "-"}</span>
                     <span style={{ color: "#b45309" }}>{fmtDt(h.data_ocorrido || h.created_at)} · {h.status}</span>
                   </div>
                 ))}
@@ -677,15 +677,15 @@ export default function MinhasSolicitacoes() {
 
             <div className="ini-fg">
               <label>Contrato (puxado automaticamente do colaborador)</label>
-              <input className="ini-fi" readOnly value={adv.contrato || "—"} style={{ background: "#f8fafc", color: "#475569", cursor: "not-allowed" }} />
+              <input className="ini-fi" readOnly value={adv.contrato || "-"} style={{ background: "#f8fafc", color: "#475569", cursor: "not-allowed" }} />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div className="ini-fg"><label>Tipo de advertência *</label><select className="ini-fi" value={adv.tipo_advertencia} onChange={e => setAdv(a => ({ ...a, tipo_advertencia: e.target.value }))}><option value="">— Selecione —</option>{["Verbal", "Escrita", "Suspensão"].map(o => <option key={o}>{o}</option>)}</select></div>
-              <div className="ini-fg"><label>Grau *</label><select className="ini-fi" value={adv.grau} onChange={e => setAdv(a => ({ ...a, grau: e.target.value }))}><option value="">— Selecione —</option>{["Baixo", "Médio", "Alto"].map(o => <option key={o}>{o}</option>)}</select></div>
+              <div className="ini-fg"><label>Tipo de advertência *</label><select className="ini-fi" value={adv.tipo_advertencia} onChange={e => setAdv(a => ({ ...a, tipo_advertencia: e.target.value }))}><option value="">- Selecione -</option>{["Verbal", "Escrita", "Suspensão"].map(o => <option key={o}>{o}</option>)}</select></div>
+              <div className="ini-fg"><label>Grau *</label><select className="ini-fi" value={adv.grau} onChange={e => setAdv(a => ({ ...a, grau: e.target.value }))}><option value="">- Selecione -</option>{["Baixo", "Médio", "Alto"].map(o => <option key={o}>{o}</option>)}</select></div>
             </div>
 
-            <div className="ini-fg"><label>Data do ocorrido *</label><input className="ini-fi" type="date" max={hojeMaisDias(0)} value={adv.data_ocorrido} onChange={e => setAdv(a => ({ ...a, data_ocorrido: e.target.value }))} /><div style={{ fontSize: 11, color: advForaDoPrazo() ? "#dc2626" : "#94a3b8", marginTop: 3, fontWeight: 600 }}>{advForaDoPrazo() ? "⚠️ Mais de 3 dias atrás — será registrada como Exceção (com justificativa)." : "Prazo ideal: até 3 dias atrás."}</div></div>
+            <div className="ini-fg"><label>Data do ocorrido *</label><input className="ini-fi" type="date" max={hojeMaisDias(0)} value={adv.data_ocorrido} onChange={e => setAdv(a => ({ ...a, data_ocorrido: e.target.value }))} /><div style={{ fontSize: 11, color: advForaDoPrazo() ? "#dc2626" : "#94a3b8", marginTop: 3, fontWeight: 600 }}>{advForaDoPrazo() ? "⚠️ Mais de 3 dias atrás - será registrada como Exceção (com justificativa)." : "Prazo ideal: até 3 dias atrás."}</div></div>
             <div className="ini-fg">
               <label>Descrição do ocorrido * (mín. 50 caracteres)</label>
               <textarea className="ini-fi" rows={4} placeholder="Descreva o que aconteceu, com detalhes..." value={adv.descricao_ocorrido} onChange={e => setAdv(a => ({ ...a, descricao_ocorrido: e.target.value }))} />

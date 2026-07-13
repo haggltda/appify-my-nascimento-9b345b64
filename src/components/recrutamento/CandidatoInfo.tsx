@@ -33,7 +33,7 @@ export function CandidatoInfo({ cand, hideCurriculo }: { cand: any; hideCurricul
     (async () => {
       if (!cand?.candidato_id) return;
       const COLS = "data_nascimento,rg,sexo,nome_mae,nome_pai,escolaridade,cidade_residencia,estado_desejado,cidade_desejada,cargos_interesse,disponibilidade_horarios,disp_fim_semana,possui_cnh,experiencia_previa,estrangeiro,experiencia_1,experiencia_2,experiencia_3,sst_data_exame,sst_hora_exame,sst_local_exame";
-      // sst_maps_url é recente — se o banco ainda não tiver a coluna, refaz sem ela.
+      // sst_maps_url é recente - se o banco ainda não tiver a coluna, refaz sem ela.
       let pr = await (supabase as any).from("WA_CURRICULOS").select(COLS + ",sst_maps_url").eq("id", cand.candidato_id).maybeSingle();
       if (pr.error) pr = await (supabase as any).from("WA_CURRICULOS").select(COLS).eq("id", cand.candidato_id).maybeSingle();
       const { data: a } = await (supabase as any).from("RECRUTAMENTO_CANDIDATO_ARQUIVOS").select("*").eq("candidato_id", cand.candidato_id).order("id");
@@ -63,7 +63,7 @@ export function CandidatoInfo({ cand, hideCurriculo }: { cand: any; hideCurricul
       {/* Resumo da vaga (sempre visível) */}
       <div style={{ fontSize: 12, color: "#475569" }}>
         <span style={{ color: "#94a3b8", fontWeight: 700 }}>Vaga #{cand.vaga_id}: </span>
-        {[cand.cargo, cand.cidade].filter(Boolean).join(" · ") || "—"}
+        {[cand.cargo, cand.cidade].filter(Boolean).join(" · ") || "-"}
         {cand.grau_urgencia?.startsWith("Alta") && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 800, padding: "1px 6px", borderRadius: 20, background: "#fee2e2", color: "#b91c1c" }}>URGENTE</span>}
       </div>
 
@@ -105,7 +105,7 @@ export function CandidatoInfo({ cand, hideCurriculo }: { cand: any; hideCurricul
           <Field label="Escala" val={cand.escala} />
           <Field label="Horário" val={cand.horario} />
           <Field label="Salário" val={cand.salario} />
-          <Field label="Insalubridade" val={cand.insalubridade_recebe + (cand.insalubridade_quanto ? " — " + cand.insalubridade_quanto : "")} />
+          <Field label="Insalubridade" val={cand.insalubridade_recebe + (cand.insalubridade_quanto ? " - " + cand.insalubridade_quanto : "")} />
           <Field label="Local" val={cand.local_exato} />
           <Field label="Início previsto" val={cand.data_inicio_prevista} />
           <Field label="Urgência" val={cand.grau_urgencia} />
@@ -152,7 +152,7 @@ export function CandidatoInfo({ cand, hideCurriculo }: { cand: any; hideCurricul
         </div>
       )}
 
-      {/* Anexos (Currículo / CTPS) — currículo pode ser ocultado por setor */}
+      {/* Anexos (Currículo / CTPS) - currículo pode ser ocultado por setor */}
       {arqs.filter(a => !(hideCurriculo && a.tipo === "curriculo")).length > 0 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {arqs.filter(a => !(hideCurriculo && a.tipo === "curriculo")).map(a => (
@@ -246,7 +246,7 @@ export function HistoricoCandidato({ candidatoId, nome }: { candidatoId: number;
     const { data } = await (supabase as any).from("RECRUTAMENTO_HISTORICO").select("*").eq("candidato_id", candidatoId).order("created_at", { ascending: true });
     const historico = data ?? [];
     // Nome gravado no histórico às vezes é só o e-mail (quando o usuário não
-    // tinha nome no metadata) — busca o nome completo real em EMPREGADOS.
+    // tinha nome no metadata) - busca o nome completo real em EMPREGADOS.
     const emails = Array.from(new Set(historico.map((r: any) => r.usuario_email).filter(Boolean)));
     let mapa: Record<string, string> = {};
     if (emails.length) {
@@ -271,7 +271,7 @@ export function HistoricoCandidato({ candidatoId, nome }: { candidatoId: number;
                   {rows.map((e, i) => {
                     const c = papelHistCor(e.papel);
                     const dt = String(e.created_at ?? "").replace("T", " ").slice(0, 16);
-                    const nomeExibido = nomesPorEmail[e.usuario_email] || e.usuario_nome || "—";
+                    const nomeExibido = nomesPorEmail[e.usuario_email] || e.usuario_nome || "-";
                     return (
                       <div key={i} style={{ display: "flex", gap: 12, paddingBottom: i === rows.length - 1 ? 0 : 18 }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
@@ -303,6 +303,6 @@ export function EtapaChip({ etapa }: { etapa?: string }) {
   const cor = etapa === "Reprovado" ? { bg: "#fee2e2", c: "#b91c1c" }
     : etapa === "Contratado" || etapa === "DOCUMENTAÇÃO" ? { bg: "#dcfce7", c: "#15803d" }
     : { bg: "#e0f2fe", c: "#0369a1" };
-  return <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: cor.bg, color: cor.c }}>{etapa || "—"}</span>;
+  return <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: cor.bg, color: cor.c }}>{etapa || "-"}</span>;
 }
 

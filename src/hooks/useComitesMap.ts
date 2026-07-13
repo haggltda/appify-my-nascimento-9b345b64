@@ -51,7 +51,7 @@ export function useComitesMap() {
         return m ? m[1].trim() : null;
       };
 
-      // Igual a liderFrom, mas também expõe o profile_id real — só existe
+      // Igual a liderFrom, mas também expõe o profile_id real - só existe
       // quando o gestor está de fato vinculado a uma conta (gestor_profile_id),
       // nunca quando o nome vem só do texto livre em "descricao".
       const liderInfo = (gid: string | null, descricao: string | null): { nome: string | null; profileId: string | null } => {
@@ -89,7 +89,7 @@ export function useComitesMap() {
       if (Object.keys(out).length > 0) return out;
 
       // Fallback legado: usa RPC SECURITY DEFINER para contornar a RLS de
-      // visibilidade do plano_acao — retorna apenas nomes de comitê/área.
+      // visibilidade do plano_acao - retorna apenas nomes de comitê/área.
       const { data, error } = await (supabase as any).rpc(
         "plano_acao_comites_lista",
         { _empresa_id: empresaId! },

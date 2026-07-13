@@ -7,7 +7,7 @@ export default function TriagemIA() {
       <PageHeader
         title="Triagem & Análise por IA"
         breadcrumb={["Triagem & IA"]}
-        subtitle="Análise assistida de viabilidade e risco. A IA apoia a decisão — a aprovação humana é obrigatória."
+        subtitle="Análise assistida de viabilidade e risco. A IA apoia a decisão - a aprovação humana é obrigatória."
         actions={
           <button className="btn-relief inline-flex h-9 items-center gap-2 rounded-md bg-gradient-accent px-3.5 text-xs font-semibold text-accent-foreground">
             <Play className="h-3.5 w-3.5" /> Executar análise
@@ -18,7 +18,7 @@ export default function TriagemIA() {
       <div className="rounded-xl border border-info/30 bg-info-soft px-4 py-3 text-sm text-info">
         <div className="flex items-start gap-2">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <p><strong>Ação assistida por IA.</strong> Toda execução é registrada com responsável, data, hora e parâmetros. A IA fornece sugestões — a decisão final cabe ao analista responsável.</p>
+          <p><strong>Ação assistida por IA.</strong> Toda execução é registrada com responsável, data, hora e parâmetros. A IA fornece sugestões - a decisão final cabe ao analista responsável.</p>
         </div>
       </div>
 
@@ -28,7 +28,7 @@ export default function TriagemIA() {
             <header className="flex items-center justify-between border-b border-border px-5 py-3.5">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-accent" />
-                <h2 className="font-display text-sm font-bold">Resultado da análise — PE 142/2025</h2>
+                <h2 className="font-display text-sm font-bold">Resultado da análise - PE 142/2025</h2>
               </div>
               <span className="chip border border-success/30 bg-success-soft text-success">
                 <CheckCircle2 className="h-3 w-3" /> Análise concluída
@@ -67,8 +67,8 @@ export default function TriagemIA() {
             <ul className="divide-y divide-border">
               {[
                 { tone: "warning", t: "Margem operacional projetada abaixo do alvo", d: "A planilha base sugere margem de 7,2%, abaixo do mínimo institucional. Reavaliar com controladoria." },
-                { tone: "warning", t: "Cláusula de reajuste anual atípica", d: "Indexador combinado IPCA+INCC com revisão bienal — impacto em contratos longos." },
-                { tone: "destructive", t: "Garantia exigida acima do habitual", d: "10% do valor do contrato em apólice — verificar disponibilidade junto à seguradora." },
+                { tone: "warning", t: "Cláusula de reajuste anual atípica", d: "Indexador combinado IPCA+INCC com revisão bienal - impacto em contratos longos." },
+                { tone: "destructive", t: "Garantia exigida acima do habitual", d: "10% do valor do contrato em apólice - verificar disponibilidade junto à seguradora." },
               ].map((r, i) => (
                 <li key={i} className="flex items-start gap-3 px-5 py-3.5">
                   <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 text-${r.tone}`} />

@@ -201,11 +201,11 @@ export default function IntegracaoBatches() {
                     <TableCell className="font-mono text-xs">
                       <Link to={`/app/integracao/${r.id}`} className="hover:underline">{r.codigo}</Link>
                     </TableCell>
-                    <TableCell className="max-w-md truncate">{r.descricao ?? "—"}</TableCell>
+                    <TableCell className="max-w-md truncate">{r.descricao ?? "-"}</TableCell>
                     <TableCell><Badge className={sv.className}>{sv.label}</Badge></TableCell>
-                    <TableCell className="text-right tabular-nums">{r.total_linhas ?? "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums text-emerald-700 dark:text-emerald-400">{r.linhas_validas ?? "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums text-amber-700 dark:text-amber-400">{r.linhas_invalidas ?? "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{r.total_linhas ?? "-"}</TableCell>
+                    <TableCell className="text-right tabular-nums text-emerald-700 dark:text-emerald-400">{r.linhas_validas ?? "-"}</TableCell>
+                    <TableCell className="text-right tabular-nums text-amber-700 dark:text-amber-400">{r.linhas_invalidas ?? "-"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString("pt-BR")}</TableCell>
                   </TableRow>
                 );

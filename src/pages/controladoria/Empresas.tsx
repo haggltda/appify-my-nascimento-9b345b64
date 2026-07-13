@@ -117,7 +117,7 @@ export default function Empresas() {
                 </div>
                 <div>
                   <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Nome fantasia</dt>
-                  <dd className="mt-0.5 font-medium text-foreground">{e.nome_fantasia ?? "—"}</dd>
+                  <dd className="mt-0.5 font-medium text-foreground">{e.nome_fantasia ?? "-"}</dd>
                 </div>
                 <div className="col-span-2">
                   <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">ID interno (empresa_id)</dt>

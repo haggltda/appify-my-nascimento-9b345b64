@@ -5,11 +5,11 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { CandidatoInfo, baixarCurriculoCand, Modal, Campo, Acoes, Toasts, btnStyle, PendToggle, EtapaChip, HistoricoCandidato } from "@/components/recrutamento/CandidatoInfo";
 
 // =====================================================================
-// JURÍDICO — Verificação de Candidatos (fila do Recrutamento)
+// JURÍDICO - Verificação de Candidatos (fila do Recrutamento)
 // Candidatos na etapa "Pendente Jurídico". O Jurídico analisa documentos e
 // requisitos legais, e:
 //   - libera para a Entrevista Comportamental (volta ao Recrutamento), ou reprova;
-//   - define/remove a RESTRIÇÃO do CPF (só o Jurídico pode) — vale para qualquer vaga.
+//   - define/remove a RESTRIÇÃO do CPF (só o Jurídico pode) - vale para qualquer vaga.
 // Fonte: VW_RECRUTAMENTO_CANDIDATOS.
 // =====================================================================
 
@@ -108,7 +108,7 @@ export default function VerificacaoCandidatos() {
         papel: "Jurídico", usuario_nome: nome, usuario_email: user?.email ?? "", detalhe: restrInput.trim(),
       });
     } catch { /* noop */ }
-    toast("CPF restrito — candidato reprovado.", "ok");
+    toast("CPF restrito - candidato reprovado.", "ok");
     setRestr(null); setRestrInput("");
     load();
   };
@@ -194,7 +194,7 @@ export default function VerificacaoCandidatos() {
 
       {/* Modal restrição */}
       {restr && (
-        <Modal onClose={() => { setRestr(null); setRestrInput(""); }} title="⚠️ Registrar restrição no CPF" sub={`${restr.nome} · CPF ${restr.cpf || "—"}`}>
+        <Modal onClose={() => { setRestr(null); setRestrInput(""); }} title="⚠️ Registrar restrição no CPF" sub={`${restr.nome} · CPF ${restr.cpf || "-"}`}>
           <div style={{ fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 10px", marginBottom: 12 }}>
 A restrição fica vinculada ao CPF (aparece em qualquer vaga) e o candidato é <b>reprovado</b> nesta vaga.
           </div>

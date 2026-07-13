@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 
 // =====================================================================
-// NASCIMENTO FORMULÁRIOS — importador de exports do SurveyMonkey
+// NASCIMENTO FORMULÁRIOS - importador de exports do SurveyMonkey
 //
 // Suporta os dois formatos de exportação (.xlsx) do SurveyMonkey:
 //
@@ -47,7 +47,7 @@ const CONTATO = /^(first name|last name|name|company|address|address 2|city\/tow
 /** Sub-rótulos de identificação (grupo First name/Last name/… → um texto só). */
 const CONTATO_SUB = /^(first name|last name|name|company|address|address 2|city\/town|state\/province|zip\/postal code|country|email address|phone number)$/i;
 // Aceita o export "humano" (Respondent ID, End Date) e o export via API
-// (respondent_id, date_created, email_address) — normalizamos "_"→" " antes.
+// (respondent_id, date_created, email_address) - normalizamos "_"→" " antes.
 const META_COLS = /^(respondent id|collector id|start date|end date|date created|date modified|ip address|email address|first name|last name|custom( data)?( \d+)?)$/i;
 
 /** norm + underscores viram espaço (cabeçalhos estilo API: respondent_id). */
@@ -77,7 +77,7 @@ function parseResumo(wb: XLSX.WorkBook, qSheets: string[]): ImportResultado {
     const tituloPerg = s(rows[1]?.[0]) || s(rows[0]?.[0]) || nome;
 
     // Coleta as opções entre "Answer Choices" e "Answered/Skipped".
-    // Perguntas de quiz têm coluna extra "Score" — o percentual fica na
+    // Perguntas de quiz têm coluna extra "Score" - o percentual fica na
     // coluna do cabeçalho "Responses" (posição varia).
     const opcoes: string[] = [];
     const percentuais: number[] = [];
@@ -177,7 +177,7 @@ function parseRespostas(wb: XLSX.WorkBook): ImportResultado {
       continue;
     }
     // Classifica as colunas do grupo: coluna de VALOR (sub "Response"/
-    // "Open-Ended Response" ou coluna única — a resposta está na célula),
+    // "Open-Ended Response" ou coluna única - a resposta está na célula),
     // coluna "Other (please specify)" (texto livre do "outro") e colunas de
     // OPÇÃO (sub = nome da opção; célula preenchida = marcada).
     const cls = g.cols.map((c, i) => {
@@ -213,7 +213,7 @@ function parseRespostas(wb: XLSX.WorkBook): ImportResultado {
       extratores.push((linha) => {
         const v = s(linha[col]);
         const o = textoOutro(linha);
-        if (v && o) return `${v} — ${o}`;
+        if (v && o) return `${v} - ${o}`;
         if (v) return v;
         return o ? `Outro: ${o}` : undefined;
       });

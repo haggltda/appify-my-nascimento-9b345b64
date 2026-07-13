@@ -20,8 +20,8 @@ export default function CategoriasProduto() {
       columns={[
         { key: "codigo", label: "Código" },
         { key: "nome", label: "Nome" },
-        { key: "controla_lote_padrao", label: "Lote", render: (r) => r.controla_lote_padrao ? <Badge variant="outline">Sim</Badge> : "—" },
-        { key: "controla_validade_padrao", label: "Validade", render: (r) => r.controla_validade_padrao ? <Badge variant="outline">Sim</Badge> : "—" },
+        { key: "controla_lote_padrao", label: "Lote", render: (r) => r.controla_lote_padrao ? <Badge variant="outline">Sim</Badge> : "-" },
+        { key: "controla_validade_padrao", label: "Validade", render: (r) => r.controla_validade_padrao ? <Badge variant="outline">Sim</Badge> : "-" },
         { key: "ativo", label: "Status", render: (r) => r.ativo ? <Badge variant="outline">Ativo</Badge> : <Badge variant="secondary">Inativo</Badge> },
       ]}
     />

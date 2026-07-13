@@ -114,7 +114,7 @@ function CampoAbertura({ label, valor }: { label: string; valor: React.ReactNode
   return (
     <div>
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="whitespace-pre-wrap break-words text-sm">{valor || "—"}</p>
+      <p className="whitespace-pre-wrap break-words text-sm">{valor || "-"}</p>
     </div>
   );
 }
@@ -437,7 +437,7 @@ export default function SolicitacoesErp() {
   };
 
   const uploadAnexo = async (solicitacaoId: string, file: File, campo?: string): Promise<string | null> => {
-    // A key do storage não aceita acentos/espaços/parênteses etc ("Invalid key") —
+    // A key do storage não aceita acentos/espaços/parênteses etc ("Invalid key") -
     // sanitiza só o nome usado no path; o nome original fica intacto em nome_arquivo.
     const nomeSanitizado = file.name
       .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -591,7 +591,7 @@ export default function SolicitacoesErp() {
     <div>
       <PageHeader
         title="Solicitações ERP"
-        subtitle="Fluxo de demandas de sistemas — 14 etapas, papéis configuráveis em Administração."
+        subtitle="Fluxo de demandas de sistemas - 14 etapas, papéis configuráveis em Administração."
         module="Sistemas"
         breadcrumb={["Solicitações ERP"]}
         actions={
@@ -743,7 +743,7 @@ export default function SolicitacoesErp() {
                       <span className="text-[10px] text-muted-foreground">{card.progresso_pct}%</span>
                     </div>
                     <div className="mt-1.5 text-[10px] text-muted-foreground">
-                      Início: {fmtData(card.data_inicio) ?? "—"}
+                      Início: {fmtData(card.data_inicio) ?? "-"}
                       {card.data_fim && <> · Fim: {fmtData(card.data_fim)}</>}
                     </div>
                     {card.recusado && (

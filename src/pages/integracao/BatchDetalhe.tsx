@@ -497,12 +497,12 @@ export default function BatchDetalhe() {
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className="text-xs">{f.sheet_name ?? "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums text-xs">{totalRows ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{f.sheet_name ?? "-"}</TableCell>
+                        <TableCell className="text-right tabular-nums text-xs">{totalRows ?? "-"}</TableCell>
                         <TableCell className="text-right tabular-nums text-xs">
                           {isMaterialized ? (
                             <span className="text-emerald-600">{f.linhas_inseridas ?? 0} linhas</span>
-                          ) : "—"}
+                          ) : "-"}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
@@ -596,7 +596,7 @@ export default function BatchDetalhe() {
                             {v.severidade}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs tabular-nums">{v.linha_origem ?? "—"}</TableCell>
+                        <TableCell className="text-xs tabular-nums">{v.linha_origem ?? "-"}</TableCell>
                         <TableCell className="text-xs">
                           <p className="font-medium">{v.rule_codigo}</p>
                           {v.campo && <p className="text-muted-foreground">{v.campo}</p>}

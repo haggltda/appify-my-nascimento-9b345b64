@@ -12,14 +12,14 @@ const candidatas = [
     checks: { docs: true, aprov: true, controll: false, ata: true }, ready: false,
   },
   {
-    n: "RDC 012/2025", o: "Reforma de estação elevatória — fase 2", emp: "NEN", v: "R$ 11,75M",
+    n: "RDC 012/2025", o: "Reforma de estação elevatória - fase 2", emp: "NEN", v: "R$ 11,75M",
     checks: { docs: false, aprov: true, controll: true, ata: false }, ready: false,
   },
 ];
 
 export default function ProntasContrato() {
   const { can } = usePermissoes();
-  // B2.1.d — Fase 7 (ProntasContrato): permissões finas
+  // B2.1.d - Fase 7 (ProntasContrato): permissões finas
   const canAprovar = can("aprovar", "licitacoes", "prontas-contrato");
   const canAlterar = can("alterar", "licitacoes", "prontas-contrato");
   return (

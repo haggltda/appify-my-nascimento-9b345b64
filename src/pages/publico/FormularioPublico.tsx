@@ -4,10 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 
 // =====================================================================
-// NASCIMENTO FORMULÁRIOS — página PÚBLICA de resposta (/formularios/:slug)
+// NASCIMENTO FORMULÁRIOS - página PÚBLICA de resposta (/formularios/:slug)
 // Sem login. A RLS só entrega formulário PUBLICADO; janela de vigência e
 // limite de respostas são validados aqui (UX) e reforçados na policy do
-// INSERT (autoridade final — fora da regra o insert é rejeitado).
+// INSERT (autoridade final - fora da regra o insert é rejeitado).
 // =====================================================================
 
 interface Form {
@@ -40,27 +40,31 @@ function Aviso({ emoji, titulo, texto }: { emoji: string; titulo: string; texto:
   );
 }
 
-// Pergunta "colaborador": busca um empregado no cadastro (EMPREGADOS) e o valor
-// da resposta é o nome escolhido.
+// Pergunta "colaborador": lista todos os EMPREGADOS com Situacao "Trabalhando"
+// e o valor da resposta e o nome escolhido.
 function ColaboradorSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [todos, setTodos] = useState<{ id: number; nome: string; setor?: string; cargo?: string }[]>([]);
   const [busca, setBusca] = useState("");
-  const [resultados, setResultados] = useState<{ id: number; nome: string; setor?: string; cargo?: string }[]>([]);
   const [aberto, setAberto] = useState(false);
-  const buscar = async (q: string) => {
-    setBusca(q); setAberto(true);
-    if (q.trim().length < 2) { setResultados([]); return; }
-    const { data } = await (supabase as any).from("EMPREGADOS")
-      .select('"ID","Nome","Setor_ERP","Título do Cargo"').ilike("Nome", `%${q.trim()}%`).limit(12);
-    setResultados((data ?? []).map((r: any) => ({ id: r["ID"], nome: r["Nome"] ?? "", setor: r["Setor_ERP"], cargo: r["Título do Cargo"] })));
-  };
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any).from("EMPREGADOS")
+        .select('"ID","Nome","Setor_ERP","Título do Cargo"')
+        .eq("Situação", "Trabalhando").order('"Nome"').limit(5000);
+      setTodos((data ?? []).map((r: any) => ({ id: r["ID"], nome: r["Nome"] ?? "", setor: r["Setor_ERP"], cargo: r["Título do Cargo"] })).filter((x: any) => x.nome));
+    })();
+  }, []);
+  const q = busca.trim().toLowerCase();
+  const filtrados = (q ? todos.filter(t => t.nome.toLowerCase().includes(q) || String(t.setor ?? "").toLowerCase().includes(q)) : todos).slice(0, 80);
   return (
     <div style={{ position: "relative", maxWidth: 420 }}>
-      <input value={aberto ? busca : (value || "")} onChange={e => buscar(e.target.value)} onFocus={() => { setAberto(true); setBusca(value || ""); }}
-        placeholder="Buscar colaborador pelo nome…" style={inp} />
-      {aberto && resultados.length > 0 && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 20, overflow: "hidden", maxHeight: 260, overflowY: "auto" }}>
-          {resultados.map(r => (
-            <div key={r.id} onClick={() => { onChange(r.nome); setAberto(false); setResultados([]); }} style={{ padding: "8px 11px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
+      <input value={aberto ? busca : (value || "")} onFocus={() => { setAberto(true); setBusca(""); }} onBlur={() => setTimeout(() => setAberto(false), 150)} onChange={e => setBusca(e.target.value)}
+        placeholder={todos.length ? "Buscar colaborador..." : "Carregando colaboradores..."} style={inp} />
+      {aberto && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 20, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
+          {filtrados.length === 0 && <div style={{ padding: "8px 11px", fontSize: 12, color: "#94a3b8" }}>Nenhum colaborador encontrado.</div>}
+          {filtrados.map(r => (
+            <div key={r.id} onMouseDown={() => { onChange(r.nome); setAberto(false); }} style={{ padding: "8px 11px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{r.nome}</div>
               <div style={{ fontSize: 11, color: "#94a3b8" }}>{[r.setor, r.cargo].filter(Boolean).join(" · ")}</div>
             </div>
@@ -111,7 +115,7 @@ export default function FormularioPublico() {
   const acesso = form.setores_acesso ?? [];
   if (acesso.length > 0) {
     if (!empregado) return <Aviso emoji="🔒" titulo="Formulário restrito" texto="Este formulário é restrito a setores específicos. Entre com seu usuário do ERP para responder." />;
-    if (!acesso.includes(empregado.setor)) return <Aviso emoji="🔒" titulo="Sem acesso" texto={`Este formulário é só para os setores: ${acesso.join(", ")}. O seu (${empregado.setor || "—"}) não está liberado.`} />;
+    if (!acesso.includes(empregado.setor)) return <Aviso emoji="🔒" titulo="Sem acesso" texto={`Este formulário é só para os setores: ${acesso.join(", ")}. O seu (${empregado.setor || "-"}) não está liberado.`} />;
   }
   if (enviado)
     return <Aviso emoji="✅" titulo="Resposta enviada!" texto="Obrigado por responder. Você já pode fechar esta página." />;
@@ -136,7 +140,7 @@ export default function FormularioPublico() {
     if (form.coleta_identificacao && !empregado && !nome.trim()) { setErro("Informe seu nome."); return; }
     setEnviando(true);
     // Cadastro do respondente (logado): puxa nome/setor/cargo/... do EMPREGADOS
-    // e anexa como snapshot — o botão "Detalhes" na tela de respostas mostra tudo.
+    // e anexa como snapshot - o botão "Detalhes" na tela de respostas mostra tudo.
     const cadastro = empregado ? {
       id: empregado.id, nome: empregado.nome, cpf: empregado.cpf, cargo: empregado.cargo,
       setor: empregado.setor, perfil: empregado.perfil, lider: empregado.lider,
@@ -180,7 +184,7 @@ export default function FormularioPublico() {
           </div>
         </div>
 
-        {/* Identificação — cadastro puxado automaticamente quando logado */}
+        {/* Identificação - cadastro puxado automaticamente quando logado */}
         {empregado ? (
           <div style={{ ...card, borderLeft: "4px solid #0f3171" }}>
             <div style={{ fontSize: 13.5, fontWeight: 800, color: "#0f3171" }}>👤 Respondendo como {empregado.nome}</div>
@@ -191,7 +195,7 @@ export default function FormularioPublico() {
                 </span>
               ) : null)}
             </div>
-            <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 8 }}>Seus dados de cadastro são anexados automaticamente à resposta — não precisa preencher de novo.</div>
+            <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 8 }}>Seus dados de cadastro são anexados automaticamente à resposta - não precisa preencher de novo.</div>
           </div>
         ) : form.coleta_identificacao ? (
           <div style={card}>

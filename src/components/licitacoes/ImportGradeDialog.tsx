@@ -36,9 +36,9 @@ type Etapa = "idle" | "preview" | "confirmando" | "sucesso";
 
 function fmtErro(e: ImportacaoErro): string {
   const linha = e.linha != null ? `linha ${e.linha}` : "linha ?";
-  if (e.campo || e.mensagem) return `${linha} — ${e.campo ?? "?"}: ${e.mensagem ?? "erro"}`;
-  if (e.erro) return `${linha} — ${e.erro}`;
-  return `${linha} — erro`;
+  if (e.campo || e.mensagem) return `${linha} - ${e.campo ?? "?"}: ${e.mensagem ?? "erro"}`;
+  if (e.erro) return `${linha} - ${e.erro}`;
+  return `${linha} - erro`;
 }
 
 export function ImportGradeDialog({
@@ -48,7 +48,7 @@ export function ImportGradeDialog({
   onImported,
 }: ImportGradeDialogProps) {
   const empresaCtx = useContext(EmpresaAtivaContext);
-  const empresaSigla = empresaCtx?.empresa?.sigla ?? "—";
+  const empresaSigla = empresaCtx?.empresa?.sigla ?? "-";
 
   const {
     criarLote,
@@ -165,7 +165,7 @@ export function ImportGradeDialog({
           toast({
             title: "Falha ao cancelar lote",
             description:
-              (e2 as Error).message + " — você pode tentar cancelar novamente.",
+              (e2 as Error).message + " - você pode tentar cancelar novamente.",
             variant: "destructive",
           });
           setEtapa("idle");
@@ -281,7 +281,7 @@ export function ImportGradeDialog({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Status do lote: <code>{preview.status_lote ?? "—"}</code>
+              Status do lote: <code>{preview.status_lote ?? "-"}</code>
             </p>
 
             {erros.length > 0 && (
@@ -309,7 +309,7 @@ export function ImportGradeDialog({
                 <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs">
                   {pendenciasPrevistas.slice(0, 200).map((p) => (
                     <li key={p.linha}>
-                      linha {p.linha} — "{p.texto}"
+                      linha {p.linha} - "{p.texto}"
                     </li>
                   ))}
                 </ul>
@@ -325,7 +325,7 @@ export function ImportGradeDialog({
                 <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs">
                   {pendenciasRegistradas.slice(0, 200).map((p, i) => (
                     <li key={i}>
-                      linha {p.linha ?? "?"} — "{p.texto ?? p.responsavel_texto ?? ""}"
+                      linha {p.linha ?? "?"} - "{p.texto ?? p.responsavel_texto ?? ""}"
                     </li>
                   ))}
                 </ul>

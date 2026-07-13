@@ -143,7 +143,7 @@ export default function Folha() {
               <div>
                 <Label>Conta bancária</Label>
                 <select className="w-full border rounded h-10 px-2 bg-background" value={periodo.conta_banco_id ?? ""} onChange={e => atualizarPer.mutate({ conta_banco_id: e.target.value || null })}>
-                  <option value="">—</option>
+                  <option value="">-</option>
                   {(contasBQ.data ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.banco_nome} {c.agencia}/{c.conta}</option>)}
                 </select>
               </div>

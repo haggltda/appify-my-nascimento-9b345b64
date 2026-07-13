@@ -216,7 +216,7 @@ function PostosTab({ contratoId }: { contratoId: string }) {
                   <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                   <SelectContent>
                     {bases.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.codigo} — {b.nome}</SelectItem>
+                      <SelectItem key={b.id} value={b.id}>{b.codigo} - {b.nome}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -257,7 +257,7 @@ function PostosTab({ contratoId }: { contratoId: string }) {
                 <td className="px-4 py-2.5 text-right">{p.quantidade}</td>
                 <td className="px-4 py-2.5">{p.jornada}</td>
                 <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                  {p.base_dissidio_categoria ? `${p.base_dissidio_categoria.codigo} — ${p.base_dissidio_categoria.nome}` : "—"}
+                  {p.base_dissidio_categoria ? `${p.base_dissidio_categoria.codigo} - ${p.base_dissidio_categoria.nome}` : "-"}
                 </td>
                 <td className="px-4 py-2.5 text-right font-mono">{formatBRL(Number(p.salario_base))}</td>
                 <td className="px-4 py-2.5 text-right text-xs text-muted-foreground">
@@ -371,9 +371,9 @@ function DissidioTab({ contratoId }: { contratoId: string }) {
               </Field>
               <Field label="Categoria base (opcional)">
                 <Select value={form.base_dissidio_id} onValueChange={(v) => setForm({ ...form, base_dissidio_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
                   <SelectContent>
-                    {bases.map((b) => <SelectItem key={b.id} value={b.id}>{b.codigo} — {b.nome}</SelectItem>)}
+                    {bases.map((b) => <SelectItem key={b.id} value={b.id}>{b.codigo} - {b.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </Field>
@@ -411,11 +411,11 @@ function DissidioTab({ contratoId }: { contratoId: string }) {
                 <td className="px-4 py-2.5">{new Date(d.competencia).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" })}</td>
                 <td className="px-4 py-2.5">{d.criterio}</td>
                 <td className="px-4 py-2.5 text-xs text-muted-foreground">{d.contrato_posto?.cargo ?? "Todos"}</td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground">{d.base_dissidio_categoria?.codigo ?? "—"}</td>
+                <td className="px-4 py-2.5 text-xs text-muted-foreground">{d.base_dissidio_categoria?.codigo ?? "-"}</td>
                 <td className="px-4 py-2.5 text-right font-mono">
                   {Number(d.percentual) > 0 ? `${Number(d.percentual)}%` : formatBRL(Number(d.valor_fixo))}
                 </td>
-                <td className="px-4 py-2.5 text-xs text-muted-foreground">{d.documento_referencia ?? d.indice_referencia ?? "—"}</td>
+                <td className="px-4 py-2.5 text-xs text-muted-foreground">{d.documento_referencia ?? d.indice_referencia ?? "-"}</td>
               </tr>
             ))}
           </tbody>
@@ -537,7 +537,7 @@ function ComprovantesTab({ contratoId }: { contratoId: string }) {
                   <td className="px-4 py-2.5 font-mono">{i.numero}</td>
                   <td className="px-4 py-2.5">{new Date(i.data_documento).toLocaleDateString("pt-BR")}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{formatBRL(Number(i.valor))}</td>
-                  <td className="px-4 py-2.5 text-xs text-muted-foreground">{i.descricao ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-xs text-muted-foreground">{i.descricao ?? "-"}</td>
                 </tr>
               ))}
             </tbody>
@@ -633,7 +633,7 @@ function OrcamentoTab({ contratoId }: { contratoId: string }) {
             </tr>
           </thead>
           <tbody>
-            {matriz.rows.length === 0 && <tr><td colSpan={matriz.comps.length + 1} className="px-4 py-8 text-center text-muted-foreground">Nenhuma linha — clique em Gerar.</td></tr>}
+            {matriz.rows.length === 0 && <tr><td colSpan={matriz.comps.length + 1} className="px-4 py-8 text-center text-muted-foreground">Nenhuma linha - clique em Gerar.</td></tr>}
             {matriz.rows.map((r, i) => (
               <tr key={i} className="border-t border-border">
                 <td className="sticky left-0 bg-card px-4 py-2 text-xs font-medium">
@@ -648,7 +648,7 @@ function OrcamentoTab({ contratoId }: { contratoId: string }) {
                           {cell.locked && <Lock className="h-3 w-3 text-muted-foreground" />}
                           {formatBRL(cell.v)}
                         </span>
-                      ) : "—"}
+                      ) : "-"}
                     </td>
                   );
                 })}

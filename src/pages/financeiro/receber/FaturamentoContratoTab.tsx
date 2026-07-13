@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useEmitirTituloDeCronograma, useEmitirTitulosLote } from "@/hooks/useTituloReceber";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
+const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "-");
 
 export default function FaturamentoContratoTab({ onFaturado }: { onFaturado?: () => void }) {
   const [contratoId, setContratoId] = useState<string>("");
@@ -236,7 +236,7 @@ export default function FaturamentoContratoTab({ onFaturado }: { onFaturado?: ()
                       <TableCell className="text-right text-xs font-mono">{fmtMoney(p.valor_previsto)}</TableCell>
                       <TableCell className="text-xs">{fmtDate(p.data_recebimento_previsto)}</TableCell>
                       <TableCell>{statusBadge(p.status)}</TableCell>
-                      <TableCell className="text-xs font-mono text-muted-foreground">{p.numero_nf ?? "—"}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">{p.numero_nf ?? "-"}</TableCell>
                       <TableCell>
                         {isElegivel && (
                           <Button
@@ -280,7 +280,7 @@ export default function FaturamentoContratoTab({ onFaturado }: { onFaturado?: ()
                 <SelectContent>
                   {contratos.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.numero} — {c.orgao} ({fmtMoney(c.faturamento_mensal)}/mês)
+                      {c.numero} - {c.orgao} ({fmtMoney(c.faturamento_mensal)}/mês)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -319,15 +319,15 @@ export default function FaturamentoContratoTab({ onFaturado }: { onFaturado?: ()
             <div className="md:col-span-2">
               <Label>Conta bancária (recebimento)</Label>
               <Select value={contaId} onValueChange={setContaId}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
                 <SelectContent>
-                  {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome} {c.agencia}/{c.conta}</SelectItem>)}
+                  {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} - {c.banco_nome} {c.agencia}/{c.conta}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="md:col-span-2 border-t pt-3">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Dados do sacado (opcional — sobrescreve o do contrato)</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Dados do sacado (opcional - sobrescreve o do contrato)</p>
             </div>
             <div><Label>Sacado / Tomador</Label><Input value={sacadoNome} onChange={(e) => setSacadoNome(e.target.value)} placeholder="Razão social" /></div>
             <div><Label>CNPJ/CPF</Label><Input value={sacadoDoc} onChange={(e) => setSacadoDoc(e.target.value)} /></div>

@@ -25,7 +25,7 @@ const fmtBRL = (n: number) =>
 const fmtNum = (n: number) =>
   Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtDate = (d?: string) =>
-  d ? new Date(d + (d.length === 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR") : "—";
+  d ? new Date(d + (d.length === 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR") : "-";
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 type Mov = {
@@ -174,7 +174,7 @@ export default function ConciliacaoFluxoCaixa() {
       <PageHeader
         module="Financeiro"
         breadcrumb={["Financeiro", "Fluxo de Caixa", "Conciliação Bancária"]}
-        title="Conciliação Bancária — Fluxo de Caixa"
+        title="Conciliação Bancária - Fluxo de Caixa"
         subtitle="Controle diário de entradas, saídas, transferências, recebimentos e amortizações"
         actions={
           <div className="flex flex-wrap gap-2">
@@ -216,7 +216,7 @@ export default function ConciliacaoFluxoCaixa() {
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
               {(empresasQ.data ?? []).map((e) => (
-                <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+                <SelectItem key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -334,14 +334,14 @@ export default function ConciliacaoFluxoCaixa() {
                     <tr key={m.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3 whitespace-nowrap">{fmtDate(m.data_movimento)}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                        {m.data_movimento ? new Date(m.data_movimento + "T00:00:00").toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }) : "—"}
+                        {m.data_movimento ? new Date(m.data_movimento + "T00:00:00").toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }) : "-"}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 text-xs">
                           <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-[9px] font-bold text-primary">
                             {(conta?.banco_codigo ?? "?").slice(0, 3)}
                           </span>
-                          {conta?.banco_nome ?? "—"}
+                          {conta?.banco_nome ?? "-"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -349,9 +349,9 @@ export default function ConciliacaoFluxoCaixa() {
                           <Icon className="h-3 w-3" /> {cat.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 max-w-xs truncate" title={m.descricao}>{m.descricao ?? "—"}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{m.origem ?? "—"}</td>
-                      <td className="px-4 py-3 font-mono text-xs">{m.documento ?? "—"}</td>
+                      <td className="px-4 py-3 max-w-xs truncate" title={m.descricao}>{m.descricao ?? "-"}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{m.origem ?? "-"}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{m.documento ?? "-"}</td>
                       <td className={`px-4 py-3 text-right tabular-nums font-semibold ${
                         m._signed >= 0 ? "text-emerald-600" : "text-red-600"
                       }`}>

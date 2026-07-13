@@ -79,13 +79,13 @@ function LvItem({ label, valor }: { label: string; valor: ReactNode }) {
   return (
     <div>
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <div className="text-xs whitespace-pre-wrap">{valor || <span className="text-muted-foreground">—</span>}</div>
+      <div className="text-xs whitespace-pre-wrap">{valor || <span className="text-muted-foreground">-</span>}</div>
     </div>
   );
 }
 
 function listLabels(valores: string[] | null | undefined, opcoes: { value: string; label: string }[]): string {
-  if (!valores || valores.length === 0) return "—";
+  if (!valores || valores.length === 0) return "-";
   return valores.map((v) => opcoes.find((o) => o.value === v)?.label ?? v).join(", ");
 }
 
@@ -93,7 +93,7 @@ function Bloco({ etapaKey, children }: { etapaKey: string; children: ReactNode }
   return (
     <div className="space-y-2 rounded-md border border-dashed border-border p-3 opacity-90">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {ETAPA_LABEL[etapaKey]} <span className="font-normal">— concluído</span>
+        {ETAPA_LABEL[etapaKey]} <span className="font-normal">- concluído</span>
       </p>
       {children}
     </div>
@@ -124,7 +124,7 @@ export function ComentariosTipados({ comentarios, tipos, usuarios }: { comentari
         <div key={c.id} className={cn("rounded border-l-2 bg-muted/30 px-2 py-1.5 text-[11px]", TIPO_COMENTARIO_BORDA[c.tipo!])}>
           <p className="font-medium">{TIPO_COMENTARIO_LABEL[c.tipo!] ?? c.tipo}</p>
           <p className="text-muted-foreground">
-            {nomeUsuario(usuarios, c.autor_id) ?? "Usuário"} — {new Date(c.created_at).toLocaleString("pt-BR")}
+            {nomeUsuario(usuarios, c.autor_id) ?? "Usuário"} - {new Date(c.created_at).toLocaleString("pt-BR")}
           </p>
           <p className="mt-0.5">{c.texto}</p>
         </div>
@@ -199,7 +199,7 @@ function ResumoTriagemInicial({ card }: ResumoProps) {
     <Bloco etapaKey="triagem_inicial">
       <p className="text-xs">
         <span className="font-medium">Critério:</span>{" "}
-        {card.criterio_triagem ? CRITERIO_TRIAGEM_LABEL[card.criterio_triagem] ?? card.criterio_triagem : "—"}
+        {card.criterio_triagem ? CRITERIO_TRIAGEM_LABEL[card.criterio_triagem] ?? card.criterio_triagem : "-"}
       </p>
     </Bloco>
   );
@@ -247,11 +247,11 @@ function ResumoAprovacaoPriorizacao({ card, usuarios, anexos, onDownloadAnexo }:
       {card.prioridade != null && <p className="text-xs"><span className="font-medium">Prioridade:</span> {card.prioridade}</p>}
       <p className="text-xs">
         <span className="font-medium">Responsável:</span>{" "}
-        {nomeUsuario(usuarios, card.responsavel_user_id) ?? "—"}
+        {nomeUsuario(usuarios, card.responsavel_user_id) ?? "-"}
       </p>
       <p className="text-xs">
         <span className="font-medium">Complexidade:</span>{" "}
-        {card.complexidade ? COMPLEXIDADE_LABEL[card.complexidade] ?? card.complexidade : "—"}
+        {card.complexidade ? COMPLEXIDADE_LABEL[card.complexidade] ?? card.complexidade : "-"}
       </p>
       <ListaAnexos anexos={anexos} campo="aprovacao_priorizacao" onDownloadAnexo={onDownloadAnexo} />
     </Bloco>
@@ -323,7 +323,7 @@ function ResumoImplantacao({ card, comentarios, usuarios, anexos, onDownloadAnex
     <Bloco etapaKey="implantacao">
       <p className="text-xs">
         <span className="font-medium">Implantado corretamente:</span>{" "}
-        {card.implantacao_status ? IMPLANTACAO_LABEL[card.implantacao_status] ?? card.implantacao_status : "—"}
+        {card.implantacao_status ? IMPLANTACAO_LABEL[card.implantacao_status] ?? card.implantacao_status : "-"}
       </p>
       <ComentariosTipados comentarios={comentarios} tipos={["implantacao_comentario"]} usuarios={usuarios} />
       <ListaAnexos anexos={anexos} campo="implantacao" onDownloadAnexo={onDownloadAnexo} />

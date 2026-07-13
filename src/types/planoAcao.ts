@@ -4,7 +4,7 @@ export const STATUS_LABELS: Record<string, string> = {
   em_andamento: "Em andamento",
   aguardando_validacao: "Aguardando validação",
   atrasada: "Atrasada",
-  concluida_pendente_evidencia: "Concluída — pend. evidência",
+  concluida_pendente_evidencia: "Concluída - pend. evidência",
   concluida_validada: "Concluída validada",
   cancelada: "Cancelada",
 };
@@ -22,7 +22,7 @@ export const STATUS_ORDEM = [
 
 export type StatusNorm = (typeof STATUS_ORDEM)[number];
 
-/** Cores tonais para badges/colunas — tudo via tokens semânticos */
+/** Cores tonais para badges/colunas - tudo via tokens semânticos */
 export const STATUS_COR: Record<string, string> = {
   a_definir: "bg-muted text-muted-foreground border-border",
   nao_iniciada: "bg-muted/60 text-muted-foreground border-border",

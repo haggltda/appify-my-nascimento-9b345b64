@@ -5,7 +5,7 @@ export default function Controladoria() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Revisão de Margem e Tributos — Controladoria"
+        title="Revisão de Margem e Tributos - Controladoria"
         breadcrumb={["Controladoria"]}
         subtitle="Análise gerencial do orçamento da proposta. Estrutura preparada para o motor financeiro definitivo."
         actions={
@@ -65,7 +65,7 @@ export default function Controladoria() {
               {[
                 { c: "Custo direto operacional", v: "R$ 11.840.000", p: "64,3%", o: "Mão de obra + insumos" },
                 { c: "Custo indireto / BDI", v: "R$ 1.620.000", p: "8,8%", o: "Administração local" },
-                { c: "Tributos sobre receita", v: "R$ 1.547.280", p: "8,4%", o: "PIS/COFINS/ISS — slot preparado" },
+                { c: "Tributos sobre receita", v: "R$ 1.547.280", p: "8,4%", o: "PIS/COFINS/ISS - slot preparado" },
                 { c: "Encargos & garantias", v: "R$ 940.000", p: "5,1%", o: "Apólice 10% + ART" },
                 { c: "Reserva de contingência", v: "R$ 750.000", p: "4,1%", o: "Risco operacional" },
                 { c: "Margem", v: "R$ 1.722.720", p: "9,3%", o: "Abaixo do alvo institucional" },

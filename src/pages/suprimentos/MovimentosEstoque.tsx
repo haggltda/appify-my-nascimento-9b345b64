@@ -63,7 +63,7 @@ export default function MovimentosEstoque() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
-          <CardTitle className="text-base">{filtrados.length} movimento(s) — últimos 500</CardTitle>
+          <CardTitle className="text-base">{filtrados.length} movimento(s) - últimos 500</CardTitle>
           <div className="flex gap-2 flex-wrap">
             <Input placeholder="Buscar..." value={busca} onChange={(e) => setBusca(e.target.value)} className="w-48" />
             <Select value={filtroTipo} onValueChange={setFiltroTipo}>
@@ -77,7 +77,7 @@ export default function MovimentosEstoque() {
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os almoxarifados</SelectItem>
-                {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} — {a.nome}</SelectItem>)}
+                {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} - {a.nome}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -112,15 +112,15 @@ export default function MovimentosEstoque() {
                       <TableCell className="text-xs">{new Date(m.data_movimento).toLocaleString("pt-BR")}</TableCell>
                       <TableCell><Badge variant={t.variant} className="text-[10px]">{t.label}</Badge></TableCell>
                       <TableCell className="text-xs capitalize text-muted-foreground">{m.origem.replace(/_/g, " ")}</TableCell>
-                      <TableCell className="text-xs">{a?.codigo ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{a?.codigo ?? "-"}</TableCell>
                       <TableCell>
-                        <div className="font-medium text-sm">{p?.codigo ?? "—"}</div>
+                        <div className="font-medium text-sm">{p?.codigo ?? "-"}</div>
                         <div className="text-xs text-muted-foreground">{p?.descricao}</div>
                       </TableCell>
                       <TableCell className="text-right">{fmtQtd(m.quantidade)}</TableCell>
                       <TableCell className="text-right">{fmtBRL(m.custo_unitario)}</TableCell>
                       <TableCell className="text-right font-medium">{fmtBRL(m.valor_total)}</TableCell>
-                      <TableCell className="text-xs">{m.documento ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{m.documento ?? "-"}</TableCell>
                     </TableRow>
                   );
                 })}

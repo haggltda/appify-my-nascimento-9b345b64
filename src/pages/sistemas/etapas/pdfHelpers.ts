@@ -1,5 +1,5 @@
 // Helpers compartilhados pra gerar PDFs no padrão visual já usado nas
-// Assinaturas (azul-marinho/verde, igual a paleta do app) — reaproveitado
+// Assinaturas (azul-marinho/verde, igual a paleta do app) - reaproveitado
 // pelos documentos oficiais (Anexo VIII/IX) além do PDF de assinaturas.
 import jsPDF from "jspdf";
 import { nomeUsuario, type Assinatura, type Usuario } from "./types";
@@ -90,7 +90,7 @@ export class PdfDocumento {
     this.y += opts?.espacoDepois ?? 3;
   }
 
-  // "Assinaturas - Coluna: X" numa caixa com borda — mesmo padrão visual já
+  // "Assinaturas - Coluna: X" numa caixa com borda - mesmo padrão visual já
   // usado no PDF de assinaturas.
   blocoAssinaturasColuna(etapaLabel: string, lista: Assinatura[], usuarios: Usuario[]) {
     const doc = this.doc;

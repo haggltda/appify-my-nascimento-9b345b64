@@ -131,7 +131,7 @@ export function useCapaUpdate(empresaId: string) {
         const prev = String(current[field as keyof CapaEdital] ?? "");
         const next = String((changes as Record<string, unknown>)[field] ?? "");
         if (field in changes && prev !== next) {
-          historico.push({ ts: now, campo: label, de: prev || "—", para: next || "—" });
+          historico.push({ ts: now, campo: label, de: prev || "-", para: next || "-" });
         }
       }
 
@@ -139,7 +139,7 @@ export function useCapaUpdate(empresaId: string) {
       if (changes.status === "Ganhamos" && !current.data_homologacao) {
         const today = new Date().toISOString().slice(0, 10);
         changes.data_homologacao = today;
-        historico.push({ ts: now, campo: "Homologação", de: "—", para: today });
+        historico.push({ ts: now, campo: "Homologação", de: "-", para: today });
       }
 
       // Sincroniza grade: Ganhamos → posicao=1 + Finalizada; Perdemos → posicao=2 + Finalizada
@@ -209,7 +209,7 @@ export function useCapaPromover(empresaId: string) {
       if (capa.status !== "Ganhamos") throw new Error("Apenas licitações ganhas podem ser promovidas.");
       if (capa.contrato_id) throw new Error("Já possui contrato vinculado.");
 
-      const nome = [capa.cidade, capa.objeto].filter(Boolean).join(" — ").trim() || "Contrato sem nome";
+      const nome = [capa.cidade, capa.objeto].filter(Boolean).join(" - ").trim() || "Contrato sem nome";
 
       const { data: contrato, error: cErr } = await supabase
         .from("implantacao_contrato")
@@ -229,7 +229,7 @@ export function useCapaPromover(empresaId: string) {
 
       const now = new Date().toLocaleString("pt-BR");
       const historico = [...(capa.historico ?? [])];
-      historico.push({ ts: now, campo: "Reunião de alinhamento", de: "—", para: reuniaoAlinhamento });
+      historico.push({ ts: now, campo: "Reunião de alinhamento", de: "-", para: reuniaoAlinhamento });
 
       const { error: capaErr } = await supabase
         .from("capa_edital")

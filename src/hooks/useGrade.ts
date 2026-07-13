@@ -95,7 +95,7 @@ export function useGradeUpdate(empresaId: string) {
       const { data: profile } = authData?.user
         ? await supabase.from("profiles").select("display_name, email").eq("id", authData.user.id).maybeSingle()
         : { data: null };
-      const usuario = (profile as any)?.display_name || (profile as any)?.email || authData?.user?.email || "—";
+      const usuario = (profile as any)?.display_name || (profile as any)?.email || authData?.user?.email || "-";
 
       for (const [field, label] of [
         ["fase", "Fase"],
@@ -108,10 +108,10 @@ export function useGradeUpdate(empresaId: string) {
         if (field in changes && prev !== next) {
           const paraLabel = field === "posicao" && next && next !== "null"
             ? `${next}º`
-            : next || "—";
+            : next || "-";
           const deLabel = field === "posicao" && prev && prev !== "null"
             ? `${prev}º`
-            : prev || "—";
+            : prev || "-";
           historico.push({ ts: now, usuario, campo: label, de: deLabel, para: paraLabel });
         }
       }

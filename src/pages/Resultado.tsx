@@ -5,7 +5,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 
 export default function Resultado() {
   const { can } = usePermissoes();
-  // B2.1.d — Fase 7 (Resultado): permissão fina
+  // B2.1.d - Fase 7 (Resultado): permissão fina
   const canAprovar = can("aprovar", "licitacoes", "resultado");
   return (
     <div className="space-y-6">
@@ -22,7 +22,7 @@ export default function Resultado() {
         <ResultCard label="Canceladas" value="1" icon={Ban} tone="muted" desc="Encerradas pelo órgão" />
       </div>
 
-      {/* Vencida — destaque com handoff */}
+      {/* Vencida - destaque com handoff */}
       <section className="card-elevated overflow-hidden">
         <div className="border-b border-border bg-success/5 px-5 py-4">
           <div className="flex items-start justify-between gap-4">
@@ -32,7 +32,7 @@ export default function Resultado() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-success">Licitação vencida</p>
-                <h2 className="font-display text-lg font-bold">PE 044/2025 — Limpeza urbana e coleta seletiva · Salvador</h2>
+                <h2 className="font-display text-lg font-bold">PE 044/2025 - Limpeza urbana e coleta seletiva · Salvador</h2>
                 <p className="text-sm text-muted-foreground">Empresa NSV · Valor: R$ 28.300.000 · Resultado: 22/04/2025</p>
               </div>
             </div>
@@ -51,7 +51,7 @@ export default function Resultado() {
           <Info label="Ata de pregão" value="Validada" tone="success" />
         </div>
         <div className="border-t border-border bg-info-soft/30 px-5 py-3 text-xs text-info">
-          <strong>Continuidade preservada:</strong> ao migrar, o cadastro existente é mantido. Não há recriação de registros — todos os dados, anexos e trilha seguem para o módulo de Contratos.
+          <strong>Continuidade preservada:</strong> ao migrar, o cadastro existente é mantido. Não há recriação de registros - todos os dados, anexos e trilha seguem para o módulo de Contratos.
         </div>
       </section>
 

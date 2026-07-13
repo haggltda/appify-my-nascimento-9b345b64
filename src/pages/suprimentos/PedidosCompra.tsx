@@ -31,7 +31,7 @@ export default function PedidosCompra() {
       ]}
       columns={[
         { key: "numero", label: "Número" },
-        { key: "fornecedor_id", label: "Fornecedor", render: (r) => fornecedores.find((f: any) => f.id === r.fornecedor_id)?.razao_social ?? "—" },
+        { key: "fornecedor_id", label: "Fornecedor", render: (r) => fornecedores.find((f: any) => f.id === r.fornecedor_id)?.razao_social ?? "-" },
         { key: "data_emissao", label: "Emissão", render: (r) => fmtDate(r.data_emissao) },
         { key: "valor_total", label: "Valor", render: (r) => fmtBRL(r.valor_total) },
         { key: "status", label: "Status", render: (r) => <Badge variant="outline">{r.status}</Badge> },

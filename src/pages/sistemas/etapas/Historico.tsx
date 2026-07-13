@@ -57,7 +57,7 @@ export function Historico({ solicitacaoId, usuarios }: { solicitacaoId: string; 
           <div key={l.id} className="text-[11px]">
             <span className="font-medium">{nome}</span>{" "}
             <span className="text-muted-foreground">{descrever ? descrever(l) : l.acao}</span>{" "}
-            <span className="text-muted-foreground">— {new Date(l.created_at).toLocaleString("pt-BR")}</span>
+            <span className="text-muted-foreground">- {new Date(l.created_at).toLocaleString("pt-BR")}</span>
           </div>
         );
       })}

@@ -1,5 +1,5 @@
 // =============================================================================
-// CATÁLOGOS MESTRES CONGELADOS — Grupo Nascimento
+// CATÁLOGOS MESTRES CONGELADOS - Grupo Nascimento
 // FASE: front-end mock. Sem backend. Tipagem preparada para mapeamento 1:1
 // futuro com empresa_id, contrato_id, centro_custo_id e conta_id.
 // REGRA: não inventar contas fora deste catálogo. Não alterar linhas oficiais
@@ -160,7 +160,7 @@ export const centrosCustoADM: CentroCustoADM[] = [
   { codigo: "ADM.021", nome: "DIRETORIA OPERACIONAL", natureza: "ADM" },
 ];
 
-// Centros de custo CONTRATUAIS — gerados ao validar contrato.
+// Centros de custo CONTRATUAIS - gerados ao validar contrato.
 // Formato: CC.CONTR.<EMPRESA>.<ANO>.<SEQUENCIAL>
 export interface CentroCustoContratual {
   codigo: string;
@@ -175,7 +175,7 @@ export interface CentroCustoContratual {
 export const centrosCustoContratuais: CentroCustoContratual[] = [
   {
     codigo: "CC.CONTR.HAGG.2026.001",
-    nome: "HAGG — Limpeza Urbana Zona Sul",
+    nome: "HAGG - Limpeza Urbana Zona Sul",
     empresaId: "HAGG",
     contratoNumero: "CT 2026/0118",
     ano: 2026,
@@ -184,7 +184,7 @@ export const centrosCustoContratuais: CentroCustoContratual[] = [
   },
   {
     codigo: "CC.CONTR.HAGG.2026.002",
-    nome: "HAGG — Conservação Predial DPE",
+    nome: "HAGG - Conservação Predial DPE",
     empresaId: "HAGG",
     contratoNumero: "CT 2026/0119",
     ano: 2026,
@@ -193,7 +193,7 @@ export const centrosCustoContratuais: CentroCustoContratual[] = [
   },
   {
     codigo: "CC.CONTR.SN.2026.001",
-    nome: "SN — Zeladoria Predial Sede TJ",
+    nome: "SN - Zeladoria Predial Sede TJ",
     empresaId: "SN",
     contratoNumero: "CT 2026/0044",
     ano: 2026,
@@ -202,7 +202,7 @@ export const centrosCustoContratuais: CentroCustoContratual[] = [
   },
   {
     codigo: "CC.CONTR.NH.2026.001",
-    nome: "NH — Apoio Operacional Frota",
+    nome: "NH - Apoio Operacional Frota",
     empresaId: "NH",
     contratoNumero: "CT 2026/0011",
     ano: 2026,
@@ -395,16 +395,16 @@ export interface ContaContabil {
 export const contasContabeis: ContaContabil[] = [
   { reduzida: "03.01.001", descricao: "Receita de Serviços de Limpeza Urbana", tipo: "analitica", natureza: "receita" },
   { reduzida: "03.01.002", descricao: "Receita de Zeladoria Predial", tipo: "analitica", natureza: "receita" },
-  { reduzida: "04.1.3.02.001", descricao: "Salários — Postos Operacionais", tipo: "analitica", natureza: "custo" },
-  { reduzida: "04.1.3.02.002", descricao: "Encargos Sociais (INSS/FGTS) — Operação", tipo: "analitica", natureza: "custo" },
-  { reduzida: "04.1.3.02.003", descricao: "Vale Transporte / Vale Refeição — Operação", tipo: "analitica", natureza: "custo" },
+  { reduzida: "04.1.3.02.001", descricao: "Salários - Postos Operacionais", tipo: "analitica", natureza: "custo" },
+  { reduzida: "04.1.3.02.002", descricao: "Encargos Sociais (INSS/FGTS) - Operação", tipo: "analitica", natureza: "custo" },
+  { reduzida: "04.1.3.02.003", descricao: "Vale Transporte / Vale Refeição - Operação", tipo: "analitica", natureza: "custo" },
   { reduzida: "04.1.3.03.001", descricao: "Uniformes e EPIs", tipo: "analitica", natureza: "custo" },
   { reduzida: "04.1.3.03.002", descricao: "Materiais de Limpeza", tipo: "analitica", natureza: "custo" },
   { reduzida: "04.1.3.03.003", descricao: "Combustível e Manutenção de Frota", tipo: "analitica", natureza: "custo" },
-  { reduzida: "04.2.1.01.001", descricao: "Salários — Administrativo", tipo: "analitica", natureza: "despesa" },
-  { reduzida: "04.2.1.01.002", descricao: "Encargos — Administrativo", tipo: "analitica", natureza: "despesa" },
+  { reduzida: "04.2.1.01.001", descricao: "Salários - Administrativo", tipo: "analitica", natureza: "despesa" },
+  { reduzida: "04.2.1.01.002", descricao: "Encargos - Administrativo", tipo: "analitica", natureza: "despesa" },
   { reduzida: "04.2.1.03.001", descricao: "Aluguel da Sede", tipo: "analitica", natureza: "despesa" },
-  { reduzida: "04.2.1.03.002", descricao: "Energia / Água / Internet — Sede", tipo: "analitica", natureza: "despesa" },
+  { reduzida: "04.2.1.03.002", descricao: "Energia / Água / Internet - Sede", tipo: "analitica", natureza: "despesa" },
   { reduzida: "04.2.1.03.003", descricao: "Honorários Contábeis e Jurídicos", tipo: "analitica", natureza: "despesa" },
   { reduzida: "04.2.2.03.001", descricao: "Custos de Participação em Licitações", tipo: "analitica", natureza: "despesa" },
   { reduzida: "04.2.3.02.001", descricao: "Juros e Tarifas Bancárias", tipo: "analitica", natureza: "despesa" },
@@ -423,10 +423,10 @@ export const formatBRLExato = (v: number) =>
 
 export const labelGrupoGerencial: Record<GrupoGerencial, string> = {
   RECEITA: "Receita",
-  CUSTO_DIRETO_PESSOAL: "Custo Direto — Pessoal",
-  CUSTO_DIRETO_OPERACIONAL: "Custo Direto — Operação",
-  DESPESA_ADMIN_PESSOAL: "Despesa Admin. — Pessoal",
-  DESPESA_ADMIN_GERAL: "Despesa Admin. — Geral",
+  CUSTO_DIRETO_PESSOAL: "Custo Direto - Pessoal",
+  CUSTO_DIRETO_OPERACIONAL: "Custo Direto - Operação",
+  DESPESA_ADMIN_PESSOAL: "Despesa Admin. - Pessoal",
+  DESPESA_ADMIN_GERAL: "Despesa Admin. - Geral",
   DESPESA_COMERCIAL_LICITACOES: "Despesa Comercial / Licitações",
   DESPESA_FINANCEIRA: "Despesa Financeira",
   RECEITA_FINANCEIRA: "Receita Financeira",

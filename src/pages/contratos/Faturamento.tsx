@@ -56,7 +56,7 @@ export default function Faturamento() {
       <div className="card-elevated overflow-hidden">
         <header className="border-b border-border px-5 py-3 flex items-center justify-between">
           <div>
-            <h3 className="font-display text-sm font-bold">Calendário de parcelas — {ano}</h3>
+            <h3 className="font-display text-sm font-bold">Calendário de parcelas - {ano}</h3>
             <p className="text-xs text-muted-foreground">Para popular: gere o orçamento do contrato em <Link to="/app/orcamento" className="text-primary underline">Orçamento</Link>.</p>
           </div>
         </header>

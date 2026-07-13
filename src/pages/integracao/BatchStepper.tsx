@@ -26,7 +26,7 @@ export function BatchStepper({
     } else if (materializedCount < filesCount) {
       nextAction = `Clique em "Materializar" na linha do arquivo (${filesCount - materializedCount} pendente(s)) para aplicar o de-para e gerar as validações.`;
     } else {
-      nextAction = "Arquivo materializado — aguardando consolidação do status do lote. Recarregue a página se persistir.";
+      nextAction = "Arquivo materializado - aguardando consolidação do status do lote. Recarregue a página se persistir.";
     }
   } else if (current === 2) {
     nextAction = blockingErrors > 0
@@ -51,7 +51,7 @@ export function BatchStepper({
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Fluxo do lote (3 etapas)</h3>
         <span className="text-xs text-muted-foreground">
-          {current === 4 ? "✅ Concluído — dados disponíveis nas telas finais." : current === 0 ? "❌ Lote rejeitado." : `Etapa atual: ${current} de 3`}
+          {current === 4 ? "✅ Concluído - dados disponíveis nas telas finais." : current === 0 ? "❌ Lote rejeitado." : `Etapa atual: ${current} de 3`}
         </span>
       </div>
       <ol className="flex flex-col gap-3 md:flex-row md:items-stretch">

@@ -83,7 +83,7 @@ function esc(s: any): string {
 }
 
 function fmtDt(s?: string) {
-  if (!s) return "—";
+  if (!s) return "-";
   return s.replace("T", " ").slice(0, 10);
 }
 
@@ -92,7 +92,7 @@ function badgeStatusCls(st: string) {
   if (st === "Pendente Recrutamento") return "bg-purple-100 text-purple-700 border border-purple-200";
   if (st === "Reprovada")             return "bg-red-100 text-red-700 border border-red-200";
   if (st === "Contratado" || st?.startsWith("Concluído")) return "bg-green-100 text-green-700 border border-green-200";
-  return "bg-blue-100 text-blue-700 border border-blue-200"; // demais (processo 3–10)
+  return "bg-blue-100 text-blue-700 border border-blue-200"; // demais (processo 3-10)
 }
 
 // Etapas do candidato dentro da solicitação (kanban interno).
@@ -114,7 +114,7 @@ function badgeUrgCls(u?: string) {
   return "bg-green-100 text-green-700 border border-green-200";
 }
 
-// Board externo (por solicitação) — fluxo curto.
+// Board externo (por solicitação) - fluxo curto.
 const KB_STATUS_ORDER = [
   "Pendente Operacional",
   "Pendente Recrutamento",
@@ -131,7 +131,7 @@ const KB_COL_COLORS: Record<string, { dot: string; label: string; accent: string
   Reprovada:               { dot: "#dc2626", label: "#b91c1c", accent: "#dc2626" },
 };
 
-// Kanban interno (Status do Candidato) — 9 colunas + Reprovado.
+// Kanban interno (Status do Candidato) - 9 colunas + Reprovado.
 const CAND_ETAPAS = [
   "ENTRADA", "TRIAGEM", "JURÍDICO", "ENTREVISTA", "ENTREVISTA GESTOR",
   "APROVADOS", "EXAME SST", "COMPRAS", "DOCUMENTAÇÃO", "Reprovado",
@@ -154,7 +154,7 @@ const PAPEL_ETAPA: Record<string, string> = {
   ENTREVISTA: "Recrutamento", "ENTREVISTA GESTOR": "Recrutamento", APROVADOS: "Recrutamento",
   "EXAME SST": "SST", COMPRAS: "Suprimentos", "DOCUMENTAÇÃO": "Recrutamento",
 };
-// Status da Solicitação dirigidos pelo candidato (etapas 3–10).
+// Status da Solicitação dirigidos pelo candidato (etapas 3-10).
 const STATUS_PROCESSO = [
   "Vaga aberta - Seleção de Currículos", "Em análise jurídica", "Entrevista e Avaliação",
   "Entrevista com Gestor", "Aprovado - Aguardando SST", "Encaminhado para SST (ASO)",
@@ -313,7 +313,7 @@ export default function Recrutamento() {
   }, []);
 
   // ── Filtros compartilhados ────────────────────────────────────
-  // Tabela e Kanban são a MESMA consulta, só muda a apresentação — então os
+  // Tabela e Kanban são a MESMA consulta, só muda a apresentação - então os
   // dois aplicam exatamente os mesmos filtros (aba/status/busca).
   const aplicarFiltros = useCallback((q: any) => {
     if (statusFilter === "em_processo") {
@@ -459,7 +459,7 @@ export default function Recrutamento() {
       .order("created_at", { ascending: true });
     const eventos = data ?? [];
     // usuario_nome pode ter ficado só com o e-mail (usuário sem nome no metadata)
-    // — busca o nome completo real em EMPREGADOS pra exibir no lugar.
+    // - busca o nome completo real em EMPREGADOS pra exibir no lugar.
     const emails = Array.from(new Set(eventos.map((r: any) => r.usuario_email).filter(Boolean)));
     let mapa: Record<string, string> = {};
     if (emails.length) {
@@ -544,7 +544,7 @@ export default function Recrutamento() {
     await logHistorico(drawerId, ehAbertura ? "Abertura de vaga confirmada" : "Aprovada pelo Operacional", {
       de: drawerSol.status, para: novoStatus, papel: ehAbertura ? "Recrutamento" : "Operacional",
     });
-    toast(ehAbertura ? "Vaga aberta — já aparece no portal de candidaturas!" : "Aprovado e encaminhado ao Recrutamento!", "ok");
+    toast(ehAbertura ? "Vaga aberta - já aparece no portal de candidaturas!" : "Aprovado e encaminhado ao Recrutamento!", "ok");
     fecharDrawer();
     loadStats();
     loadLista();
@@ -754,10 +754,10 @@ export default function Recrutamento() {
     const { error } = await (supabase as any).from("WA_CURRICULOS")
       .update({ enviado_admissao_por: nome, enviado_admissao_em: nowIso }).eq("id", cv.id);
     if (error) { toast("Erro: " + error.message, "err"); return; }
-    if (drawerId) await logHistorico(drawerId, "Contratado — enviado à Admissão (RH)", {
+    if (drawerId) await logHistorico(drawerId, "Contratado - enviado à Admissão (RH)", {
       papel: "Recrutamento", para: "Contratado", candidatoId: cv.id, candidatoNome: cv.nome,
     });
-    toast("Candidato contratado — enviado à Admissão.", "ok");
+    toast("Candidato contratado - enviado à Admissão.", "ok");
     if (drawerId) loadCandidatos(drawerId);
   };
 
@@ -936,7 +936,7 @@ export default function Recrutamento() {
       .order('"NOME CONTRATO"');
     if (data) {
       setContratosFull(data);
-      // dedup de nomes — há contratos com mesmo NOME CONTRATO em filiais diferentes
+      // dedup de nomes - há contratos com mesmo NOME CONTRATO em filiais diferentes
       const nomes = Array.from(new Set(data.map((c: any) => c["NOME CONTRATO"] ?? "").filter(Boolean)));
       setContratos(nomes as string[]);
     }
@@ -952,7 +952,7 @@ export default function Recrutamento() {
       .ilike("Nome", `%${term}%`)
       .order('"Nome"')
       .limit(50);
-    if (empTermo.current !== term) return; // resposta de uma busca antiga — descarta
+    if (empTermo.current !== term) return; // resposta de uma busca antiga - descarta
     setLoadingEmps(false);
     if (error) { toast("EMPREGADOS: " + error.message + " (" + (error.code ?? "?") + ")", "err"); return; }
     setEmpregados(data ?? []);
@@ -1087,7 +1087,7 @@ export default function Recrutamento() {
     const di = (label: string, val: any, full = false) => (
       <div className={`rec-di${full ? " full" : ""}`} key={label}>
         <label>{label}</label>
-        <span>{val || "—"}</span>
+        <span>{val || "-"}</span>
       </div>
     );
     const dd = (label: string, val?: string) => val ? (
@@ -1108,7 +1108,7 @@ export default function Recrutamento() {
           {di("Horário", s.horario)}
           {di("Salário", s.salario)}
           {di("Benefícios", s.beneficios, true)}
-          {di("Insalubridade", s.insalubridade_recebe + (s.insalubridade_quanto ? " — " + s.insalubridade_quanto : ""))}
+          {di("Insalubridade", s.insalubridade_recebe + (s.insalubridade_quanto ? " - " + s.insalubridade_quanto : ""))}
           {di("Local Exato", s.local_exato)}
           {di("Data Início Prevista", s.data_inicio_prevista)}
           {di("Solicitado por", s.solicitante_nome)}
@@ -1119,7 +1119,7 @@ export default function Recrutamento() {
         {dd("Requisitos Obrigatórios", s.req_obrigatorios)}
         {dd("Requisitos Desejáveis", s.req_desejaveis)}
         <div className="rec-dg">
-          {di("Experiência Mínima", s.exp_minima + (s.exp_minima_qual ? " — " + s.exp_minima_qual : ""))}
+          {di("Experiência Mínima", s.exp_minima + (s.exp_minima_qual ? " - " + s.exp_minima_qual : ""))}
           {di("Alta Rotatividade", s.alta_rotatividade)}
         </div>
         {dd("Motivos de Saída", s.motivos_saida)}
@@ -1149,14 +1149,14 @@ export default function Recrutamento() {
       btns.push(reprovar("rep2"));
       btns.push(<button key="ab" onClick={aprovar} style={{ padding: "5px 12px", borderRadius: 8, border: "none", background: "#16a34a", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>✓ Confirmar Abertura de Vaga</button>);
     }
-    // Etapas 3–10 (dirigidas pelo candidato): currículos, kanban, reprovar.
+    // Etapas 3-10 (dirigidas pelo candidato): currículos, kanban, reprovar.
     if (STATUS_PROCESSO.includes(s.status) && podeRecrutar) {
       btns.push(<button key="cv" onClick={abrirCurriculos} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(34,197,94,.25)", background: "rgba(34,197,94,.1)", color: "#22c55e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Currículos</button>);
       btns.push(<button key="kb" onClick={abrirKanbanCand} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(59,130,246,.35)", background: "rgba(59,130,246,.12)", color: "#2563eb", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>👥 Candidatos ({candidatos.length})</button>);
       if (s.link_publico) btns.push(<button key="lnk" onClick={() => { setLinkCopiado(false); setModalLink(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(99,102,241,.35)", background: "rgba(99,102,241,.15)", color: "#818cf8", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Gerar Link</button>);
       btns.push(reprovar("rep3"));
     }
-    // Histórico — sempre disponível.
+    // Histórico - sempre disponível.
     btns.push(<button key="hist" onClick={() => { if (drawerId) loadHistorico(drawerId); setShowHistorico(true); }} style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>📜 Histórico</button>);
     return btns;
   };
@@ -1178,7 +1178,7 @@ export default function Recrutamento() {
       para_status: "Pendente Operacional",
       detalhe: drawerSol.motivo_vaga === "Substituição"
         ? (drawerSol.nome_substituido ? `Substituindo: ${drawerSol.nome_substituido}` : "Substituição")
-        : (drawerSol.motivo_vaga ? `Aumento de quadro — ${drawerSol.motivo_vaga}` : null),
+        : (drawerSol.motivo_vaga ? `Aumento de quadro - ${drawerSol.motivo_vaga}` : null),
     }] : [];
     const eventos = [...criada, ...historico].sort((a: any, b: any) => String(a.created_at).localeCompare(String(b.created_at)));
     if (eventos.length === 0) return <div style={{ textAlign: "center", color: "#94a3b8", padding: "40px 16px", fontSize: 13 }}>Sem movimentações registradas.</div>;
@@ -1187,7 +1187,7 @@ export default function Recrutamento() {
         {eventos.map((e: any, i: number) => {
           const cor = papelCor(e.papel);
           const dthora = String(e.created_at ?? "").replace("T", " ").slice(0, 16);
-          const nomeExibido = nomesPorEmailHist[e.usuario_email] || e.usuario_nome || "—";
+          const nomeExibido = nomesPorEmailHist[e.usuario_email] || e.usuario_nome || "-";
           return (
             <div key={i} style={{ display: "flex", gap: 12, paddingBottom: i === eventos.length - 1 ? 0 : 18 }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
@@ -1202,7 +1202,7 @@ export default function Recrutamento() {
                 {(e.de_status || e.para_status) && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{e.de_status ? `${e.de_status} → ` : ""}{e.para_status || ""}</div>}
                 {e.candidato_nome && <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>Candidato: <b>{e.candidato_nome}</b></div>}
                 {e.detalhe && <div style={{ fontSize: 12, color: "#475569", marginTop: 4, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 9px", whiteSpace: "pre-wrap" }}>{e.detalhe}</div>}
-                <div style={{ fontSize: 12.5, color: "#0f172a", marginTop: 4 }}><span style={{ fontWeight: 800 }}>{nomeExibido}</span><span style={{ color: "#94a3b8", fontWeight: 400 }}> · {dthora || "—"}</span></div>
+                <div style={{ fontSize: 12.5, color: "#0f172a", marginTop: 4 }}><span style={{ fontWeight: 800 }}>{nomeExibido}</span><span style={{ color: "#94a3b8", fontWeight: 400 }}> · {dthora || "-"}</span></div>
               </div>
             </div>
           );
@@ -1277,7 +1277,7 @@ export default function Recrutamento() {
                   </div>
                   <div className="kb-col-body" onMouseDown={dragScrollCol}>
                     {cards.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: "16px 8px", color: "#94a3b8", fontSize: 10, opacity: .6 }}>—</div>
+                      <div style={{ textAlign: "center", padding: "16px 8px", color: "#94a3b8", fontSize: 10, opacity: .6 }}>-</div>
                     ) : cards.map(c => {
                       const podeAqui = podeMoverCand(etapa);
                       // Botões em largura total, empilhados (layout limpo).
@@ -1312,11 +1312,11 @@ export default function Recrutamento() {
                             {c.juridico_ok === true && <div style={{ fontSize: 9.5, color: "#15803d", marginTop: 3, fontWeight: 700 }}>✓ Jurídico aprovado</div>}
                             {c.juridico_ok === false && <div style={{ fontSize: 9.5, color: "#b91c1c", marginTop: 3, fontWeight: 700 }}>⛔ Restrito (Jurídico)</div>}
                             {etapa === "Reprovado" && c.motivo_reprovacao && <div style={{ fontSize: 10.5, color: "#b91c1c", marginTop: 4 }}>Motivo: {c.motivo_reprovacao}</div>}
-                            {etapa === "DOCUMENTAÇÃO" && (c as any).enviado_admissao_em && <div style={{ fontSize: 9.5, color: "#15803d", marginTop: 4, fontWeight: 700 }}>✓ Contratado — na Admissão (RH)</div>}
+                            {etapa === "DOCUMENTAÇÃO" && (c as any).enviado_admissao_em && <div style={{ fontSize: 9.5, color: "#15803d", marginTop: 4, fontWeight: 700 }}>✓ Contratado - na Admissão (RH)</div>}
                             <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 10 }}>
                               {/* ENTREVISTA/GESTOR: roteiro de entrevista */}
                               {(etapa === "ENTREVISTA" || etapa === "ENTREVISTA GESTOR") && podeRecrutar && <button onClick={() => abrirRoteiro(c, etapa)} style={{ ...bFull, background: "rgba(59,130,246,.1)", color: "#2563eb", border: "1px solid rgba(59,130,246,.3)" }}>📋 Roteiro de entrevista</button>}
-                              {/* Avançar — com ramificação em TRIAGEM e ENTREVISTA */}
+                              {/* Avançar - com ramificação em TRIAGEM e ENTREVISTA */}
                               {etapa === "TRIAGEM" && podeAqui ? (<>
                                 <button onClick={() => pedirMoverCand(c, "JURÍDICO")} style={{ ...avancaBtn, background: "#8b5cf6" }}>Enviar ao Jurídico</button>
                                 <button onClick={() => pedirMoverCand(c, "ENTREVISTA")} style={bSkip}>Pular Jurídico →</button>
@@ -1507,12 +1507,12 @@ export default function Recrutamento() {
                     {items.map(item => (
                       <tr key={item.id} onClick={() => verDetalhe(item.id)}>
                         <td style={{ color: "#94a3b8", fontSize: 11 }}>#{item.id}</td>
-                        <td style={{ fontWeight: 600, color: "#0f172a" }}>{item.contrato || "—"}</td>
-                        <td>{item.cargo || "—"}</td>
-                        <td>{item.cidade || "—"}</td>
-                        <td><span className={`rec-badge ${badgeStatusCls(item.status)}`}>{item.status || "—"}</span></td>
-                        <td>{item.grau_urgencia ? <span className={`rec-badge ${badgeUrgCls(item.grau_urgencia)}`}>{item.grau_urgencia.startsWith("Alta") ? "⚡ Alta" : item.grau_urgencia}</span> : "—"}</td>
-                        <td>{item.solicitante_nome || "—"}</td>
+                        <td style={{ fontWeight: 600, color: "#0f172a" }}>{item.contrato || "-"}</td>
+                        <td>{item.cargo || "-"}</td>
+                        <td>{item.cidade || "-"}</td>
+                        <td><span className={`rec-badge ${badgeStatusCls(item.status)}`}>{item.status || "-"}</span></td>
+                        <td>{item.grau_urgencia ? <span className={`rec-badge ${badgeUrgCls(item.grau_urgencia)}`}>{item.grau_urgencia.startsWith("Alta") ? "⚡ Alta" : item.grau_urgencia}</span> : "-"}</td>
+                        <td>{item.solicitante_nome || "-"}</td>
                         <td style={{ color: "#94a3b8", fontSize: 11 }}>{fmtDt(item.created_at)}</td>
                       </tr>
                     ))}
@@ -1566,7 +1566,7 @@ export default function Recrutamento() {
                           </div>
                           <button onClick={abrirKanbanCand} style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "#0f3171", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Abrir kanban →</button>
                         </div>
-                        {/* Status do Candidato (resumo) — segundo trilho */}
+                        {/* Status do Candidato (resumo) - segundo trilho */}
                         {candidatos.length > 0 && (
                           <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
                             {candidatos.map(c => {
@@ -1574,7 +1574,7 @@ export default function Recrutamento() {
                               return (
                                 <span key={c.id} title={c.nome} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: "#fff", border: `1px solid ${m.dot}33`, color: m.label }}>
                                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.dot }} />
-                                  {(c.nome || "—").split(" ")[0]} · {c.etapa_processo}
+                                  {(c.nome || "-").split(" ")[0]} · {c.etapa_processo}
                                 </span>
                               );
                             })}
@@ -1648,12 +1648,12 @@ export default function Recrutamento() {
         <div className="rec-modal-ov">
           <div className="rec-modal">
             <button onClick={() => setModalStatus(false)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
-            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Atualizar Status — #{drawerId}</div>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Atualizar Status - #{drawerId}</div>
             <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 18 }}>Selecione o novo status da solicitação.</div>
             <div className="rec-fg">
               <label>Status</label>
               <select className="rec-fi" value={statusSel} onChange={e => { setStatusSel(e.target.value); setStatusExtra({}); }}>
-                <option value="">— Selecione —</option>
+                <option value="">- Selecione -</option>
                 {["Vaga Aberta","Seleção de Currículos","Entrevistas","Entrevista com Gestor","Entrevista com Psicóloga","Aguardando Documentação","Aguardando ASO","Funcionário Selecionado","Contratado"].map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
@@ -1760,7 +1760,7 @@ export default function Recrutamento() {
           <div style={{ width: "94vw", height: "92vh", background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 70px rgba(15,23,42,.3)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", borderBottom: "1px solid #e2e8f0", flexShrink: 0, background: "#f8fafc", gap: 12, flexWrap: "wrap" }}>
               <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", display: "flex", alignItems: "center", gap: 10 }}>
-                👥 Processo Seletivo — Candidatos
+                👥 Processo Seletivo - Candidatos
                 <span style={{ fontSize: 12, color: "#94a3b8" }}>{drawerSol?.cargo} · #{drawerId}</span>
               </div>
               <button onClick={() => setShowKanbanCand(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
@@ -1800,7 +1800,7 @@ export default function Recrutamento() {
                 <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "rgba(249,115,22,.12)", color: "#f97316", border: "1px solid rgba(249,115,22,.18)" }}>{curriculos.length}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, color: "#94a3b8" }}>{drawerSol?.cargo} — #{drawerId}</span>
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>{drawerSol?.cargo} - #{drawerId}</span>
                 <button onClick={() => setShowCurriculos(false)} style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
               </div>
             </div>
@@ -1875,7 +1875,7 @@ export default function Recrutamento() {
           <div className="rec-modal" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setBlockModal(null)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4, color: "#dc2626" }}>🚫 Adicionar CPF à lista negra</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>CPF {blockModal.fmt} — informe o motivo do bloqueio.</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>CPF {blockModal.fmt} - informe o motivo do bloqueio.</div>
             <div className="rec-fg"><label>Motivo *</label>
               <textarea className="rec-fi" rows={3} value={blockMotivo} onChange={e => setBlockMotivo(e.target.value)} placeholder="Ex.: histórico de faltas, desligamento por justa causa, etc." /></div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
@@ -1892,17 +1892,17 @@ export default function Recrutamento() {
           <div className="rec-modal" style={{ maxWidth: 580 }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setDetalheEmp(null)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 2 }}>🪪 Detalhes do candidato</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>{detalheEmp.nome} · CPF {detalheEmp.cpf || "—"}</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>{detalheEmp.nome} · CPF {detalheEmp.cpf || "-"}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 18, maxHeight: "64vh", overflowY: "auto" }}>
 
               {/* Dados enviados na candidatura */}
               <div>
                 <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".5px", color: "#0f3171", marginBottom: 8 }}>📩 Candidatura ({detalheEmp.itens.length} envio{detalheEmp.itens.length > 1 ? "s" : ""})</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 16px", fontSize: 12, color: "#334155", marginBottom: 12 }}>
-                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Nome: </span>{detalheEmp.nome || "—"}</div>
-                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>CPF: </span>{detalheEmp.cpf || "—"}</div>
-                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Telefone: </span>{detalheEmp.telefone || "—"}</div>
-                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>E-mail: </span>{detalheEmp.email || "—"}</div>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Nome: </span>{detalheEmp.nome || "-"}</div>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>CPF: </span>{detalheEmp.cpf || "-"}</div>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Telefone: </span>{detalheEmp.telefone || "-"}</div>
+                  <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>E-mail: </span>{detalheEmp.email || "-"}</div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {detalheEmp.itens.map(item => (
@@ -1962,12 +1962,12 @@ export default function Recrutamento() {
                             {e.situacao && <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: off ? "#fee2e2" : "#dcfce7", color: off ? "#b91c1c" : "#15803d" }}>{e.situacao}</span>}
                           </div>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", marginTop: 10, fontSize: 12, color: "#334155" }}>
-                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Admissão: </span>{e.admissao || "—"}</div>
-                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Setor: </span>{e.setor || "—"}</div>
-                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Empresa: </span>{e.empresa || "—"}</div>
-                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Filial: </span>{e.filial || "—"}</div>
-                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Perfil: </span>{e.perfil || "—"}</div>
-                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Líder: </span>{e.lider || "—"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Admissão: </span>{e.admissao || "-"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Setor: </span>{e.setor || "-"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Empresa: </span>{e.empresa || "-"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Filial: </span>{e.filial || "-"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Perfil: </span>{e.perfil || "-"}</div>
+                            <div><span style={{ color: "#94a3b8", fontWeight: 700 }}>Líder: </span>{e.lider || "-"}</div>
                           </div>
                         </div>
                       );
@@ -1987,7 +1987,7 @@ export default function Recrutamento() {
             <button onClick={() => setModalVaga(false)} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}>✕</button>
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Solicitar Nova Vaga</div>
             <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>
-              {vagaStep === 1 ? "Etapa 1 de 3 — Identificação da Vaga" : vagaStep === 2 ? "Etapa 2 de 3 — Detalhes do Posto" : "Etapa 3 de 3 — Requisitos e Urgência"}
+              {vagaStep === 1 ? "Etapa 1 de 3 - Identificação da Vaga" : vagaStep === 2 ? "Etapa 2 de 3 - Detalhes do Posto" : "Etapa 3 de 3 - Requisitos e Urgência"}
             </div>
 
             {/* Progress */}
@@ -2002,7 +2002,7 @@ export default function Recrutamento() {
               <div className="rec-fg">
                 <label>Motivo da Vaga *</label>
                 <select className="rec-fi" value={vaga.motivo_vaga} onChange={e => setVaga(v => ({ ...v, motivo_vaga: e.target.value }))}>
-                  <option value="">— Selecione —</option>
+                  <option value="">- Selecione -</option>
                   {["Admissão","Substituição","Expansão","Transferência","Retorno"].map(o => <option key={o}>{o}</option>)}
                 </select>
               </div>
@@ -2052,7 +2052,7 @@ export default function Recrutamento() {
               <div className="rec-fg">
                 <label>Contrato *</label>
                 <select className="rec-fi" value={vaga.contrato} onChange={e => setVaga(v => ({ ...v, contrato: e.target.value }))}>
-                  <option value="">— Selecione —</option>
+                  <option value="">- Selecione -</option>
                   {contratos.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
@@ -2061,14 +2061,14 @@ export default function Recrutamento() {
                 <div className="rec-fg">
                   <label>Estado (UF)</label>
                   <select className="rec-fi" value={vaga.estado} onChange={e => setVaga(v => ({ ...v, estado: e.target.value, cidade: "" }))}>
-                    <option value="">— Selecione —</option>
-                    {ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} — {e.nome}</option>)}
+                    <option value="">- Selecione -</option>
+                    {ESTADOS_BR.map(e => <option key={e.uf} value={e.uf}>{e.uf} - {e.nome}</option>)}
                   </select>
                 </div>
                 <div className="rec-fg">
                   <label>Cidade</label>
                   <select className="rec-fi" value={vaga.cidade} disabled={!vaga.estado} onChange={e => setVaga(v => ({ ...v, cidade: e.target.value }))}>
-                    <option value="">{vaga.estado ? "— Selecione —" : "Selecione o estado primeiro"}</option>
+                    <option value="">{vaga.estado ? "- Selecione -" : "Selecione o estado primeiro"}</option>
                     {municipiosDe(vaga.estado).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -2107,8 +2107,8 @@ export default function Recrutamento() {
                 <div className="rec-fg">
                   <label>Grau de Urgência</label>
                   <select className="rec-fi" value={vaga.grau_urgencia} onChange={e => setVaga(v => ({ ...v, grau_urgencia: e.target.value }))}>
-                    <option value="">— Selecione —</option>
-                    {["Baixa","Média","Alta — Urgente"].map(o => <option key={o}>{o}</option>)}
+                    <option value="">- Selecione -</option>
+                    {["Baixa","Média","Alta - Urgente"].map(o => <option key={o}>{o}</option>)}
                   </select>
                 </div>
                 <div className="rec-fg">

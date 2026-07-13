@@ -119,7 +119,7 @@ export default function Estoque() {
                   <Select value={mov.almoxarifado_id ?? ""} onValueChange={(v) => setMov({ ...mov, almoxarifado_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} — {a.nome}</SelectItem>)}
+                      {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} - {a.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -130,7 +130,7 @@ export default function Estoque() {
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
                         {almoxarifados.filter((a: any) => a.id !== mov.almoxarifado_id).map((a: any) => (
-                          <SelectItem key={a.id} value={a.id}>{a.codigo} — {a.nome}</SelectItem>
+                          <SelectItem key={a.id} value={a.id}>{a.codigo} - {a.nome}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -141,7 +141,7 @@ export default function Estoque() {
                   <Select value={mov.produto_id ?? ""} onValueChange={(v) => setMov({ ...mov, produto_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
-                      {produtos.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.codigo} — {p.descricao}</SelectItem>)}
+                      {produtos.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.codigo} - {p.descricao}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -158,7 +158,7 @@ export default function Estoque() {
                     <div>
                       <Label>Contrato</Label>
                       <Select value={mov.contrato_id ?? ""} onValueChange={(v) => setMov({ ...mov, contrato_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
                         <SelectContent>
                           {contratos.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.numero}</SelectItem>)}
                         </SelectContent>
@@ -167,9 +167,9 @@ export default function Estoque() {
                     <div>
                       <Label>Centro de custo</Label>
                       <Select value={mov.centro_custo_id ?? ""} onValueChange={(v) => setMov({ ...mov, centro_custo_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
                         <SelectContent>
-                          {ccs.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>)}
+                          {ccs.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.codigo} - {c.nome}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -224,7 +224,7 @@ export default function Estoque() {
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os almoxarifados</SelectItem>
-                {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} — {a.nome}</SelectItem>)}
+                {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} - {a.nome}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

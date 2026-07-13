@@ -101,7 +101,7 @@ export function GestoresCCPanel({ empresaId, isAdmin, empresa }: { empresaId: st
       return n;
     });
     qc.invalidateQueries({ queryKey: ["centros-custo-gestor", empresaId] });
-    toast({ title: "Gestor atualizado", description: `${cc.codigo} — ${cc.nome}` });
+    toast({ title: "Gestor atualizado", description: `${cc.codigo} - ${cc.nome}` });
   };
 
   const baixarModelo = async () => {
@@ -294,7 +294,7 @@ export function GestoresCCPanel({ empresaId, isAdmin, empresa }: { empresaId: st
                   <TableCell className="font-mono text-xs">{cc.codigo}</TableCell>
                   <TableCell className="text-xs">
                     <div className="font-medium">{cc.nome}</div>
-                    {!cc.gestor_user_id && <Badge variant="outline" className="mt-1 border-amber-400 text-amber-700 bg-amber-50">Sem gestor — usa fallback diretor</Badge>}
+                    {!cc.gestor_user_id && <Badge variant="outline" className="mt-1 border-amber-400 text-amber-700 bg-amber-50">Sem gestor - usa fallback diretor</Badge>}
                   </TableCell>
                   <TableCell>
                     <Select
@@ -304,7 +304,7 @@ export function GestoresCCPanel({ empresaId, isAdmin, empresa }: { empresaId: st
                     >
                       <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecionar gestor" /></SelectTrigger>
                       <SelectContent className="max-h-80">
-                        <SelectItem value="__none__">— Sem gestor (usar fallback) —</SelectItem>
+                        <SelectItem value="__none__">- Sem gestor (usar fallback) -</SelectItem>
                         {(profilesQ.data ?? []).map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.display_name || p.email || p.id} {p.email ? `· ${p.email}` : ""}

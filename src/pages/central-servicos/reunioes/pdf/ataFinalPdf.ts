@@ -1,4 +1,4 @@
-// PDF final da ata — gerado depois que o responsável preenche as respostas:
+// PDF final da ata - gerado depois que o responsável preenche as respostas:
 // pauta + respostas de cada tópico, com as assinaturas (livres/opcionais) no
 // rodapé do documento.
 import { PdfDocumento, fmtDataHoraPdf } from "@/lib/pdf/PdfDocumento";
@@ -31,7 +31,7 @@ function montarAtaFinalPdf(
       pdf.garantirEspaco(24);
       pdf.paragrafo(`${i + 1}. ${p.titulo_topico}`, { negrito: true, tamanho: 10.5, espacoDepois: 1 });
       if (p.descricao) pdf.paragrafo(p.descricao, { tamanho: 9, cor: [120, 120, 120], espacoDepois: 1.5 });
-      pdf.paragrafo(`Resposta: ${resposta?.texto_resposta || "—"}`, { tamanho: 9.5, espacoDepois: 1 });
+      pdf.paragrafo(`Resposta: ${resposta?.texto_resposta || "-"}`, { tamanho: 9.5, espacoDepois: 1 });
       if (resposta?.encaminhamento) {
         pdf.paragrafo(`Encaminhamento: ${resposta.encaminhamento}`, { tamanho: 9.5, espacoDepois: 1 });
       }
@@ -59,7 +59,7 @@ export function exportarAtaFinalPdf(
   pdf.salvar(`Ata-${reuniao.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`);
 }
 
-// Mesma geração, mas devolve um Blob em vez de disparar o download — usado
+// Mesma geração, mas devolve um Blob em vez de disparar o download - usado
 // ao encerrar a reunião pra subir automaticamente pro Storage e permitir o
 // envio por e-mail feito pelo worker externo.
 export function gerarAtaFinalPdfBlob(

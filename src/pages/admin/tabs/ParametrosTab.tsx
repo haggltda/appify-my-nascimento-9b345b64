@@ -54,7 +54,7 @@ export function ParametrosTab() {
         </div>
         <div className="flex items-center gap-2">
           <select value={eid} onChange={(e) => setEmpresaSel(e.target.value)} className="h-9 rounded-md border border-border bg-card px-3 text-xs">
-            {(empresasQ.data ?? []).map((e: any) => <option key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</option>)}
+            {(empresasQ.data ?? []).map((e: any) => <option key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</option>)}
           </select>
           {isAdmin && eid && <ParamDialog empresaId={eid} onSaved={() => qc.invalidateQueries({ queryKey: ["parametro_geral", eid] })} />}
         </div>
@@ -76,10 +76,10 @@ export function ParametrosTab() {
           )}
           {(paramsQ.data ?? []).map((p) => (
             <tr key={p.id} className="hover:bg-muted/40">
-              <td className="px-5 py-3 text-xs text-muted-foreground">{p.categoria ?? "—"}</td>
+              <td className="px-5 py-3 text-xs text-muted-foreground">{p.categoria ?? "-"}</td>
               <td className="px-3 py-3 font-mono text-xs">{p.chave}</td>
-              <td className="px-3 py-3 text-sm font-medium">{p.valor ?? "—"}</td>
-              <td className="px-3 py-3 text-xs text-muted-foreground">{p.descricao ?? "—"}</td>
+              <td className="px-3 py-3 text-sm font-medium">{p.valor ?? "-"}</td>
+              <td className="px-3 py-3 text-xs text-muted-foreground">{p.descricao ?? "-"}</td>
               <td className="px-5 py-3 text-right">
                 {isAdmin && (
                   <div className="flex justify-end gap-1">

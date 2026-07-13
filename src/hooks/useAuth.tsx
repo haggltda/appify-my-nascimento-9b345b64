@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 1) Listener primeiro (evita perder eventos)
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-      // Preserva a referência se o usuário é o mesmo — evita re-renders em contextos
+      // Preserva a referência se o usuário é o mesmo - evita re-renders em contextos
       // que dependem de `user` (PermissoesContext, EmpresaAtivaContext) a cada token refresh.
       setUser(prev => {
         const next = newSession?.user ?? null;

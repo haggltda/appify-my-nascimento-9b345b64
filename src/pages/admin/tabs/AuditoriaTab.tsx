@@ -46,7 +46,7 @@ export function AuditoriaTab() {
         <div>
           <h2 className="font-display text-sm font-bold">Auditoria de ações sensíveis</h2>
           <p className="text-xs text-muted-foreground">
-            Trilha imutável (tabela <code className="rounded bg-muted px-1">audit_log</code>) — últimos {auditQ.data?.length ?? 0} eventos.
+            Trilha imutável (tabela <code className="rounded bg-muted px-1">audit_log</code>) - últimos {auditQ.data?.length ?? 0} eventos.
           </p>
         </div>
         <div className="flex items-center gap-2">

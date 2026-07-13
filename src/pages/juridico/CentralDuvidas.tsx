@@ -5,7 +5,7 @@ import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 import { usePermissoes } from "@/context/PermissoesContext";
 
 // =====================================================================
-// JURÍDICO — Parecer Jurídico (gestão das dúvidas)
+// JURÍDICO - Parecer Jurídico (gestão das dúvidas)
 // Fluxo: pergunta (Central de Serviços) → 'Aberta' → Diretor Administrativo /
 // aprovador aprova ('Aprovada') ou reprova ('Reprovada' + motivo) → o Jurídico
 // responde as 'Aprovada' → 'Respondida' (entra na biblioteca pública).
@@ -21,8 +21,8 @@ interface Duvida {
 interface Aprovador { empregado_id: number; nome?: string }
 
 const CATEGORIAS = ["Trabalhista", "Contratos", "Processos", "Tributário", "Cível", "Administrativo", "Compliance", "LGPD", "Outros"];
-const fmtDt = (s?: string) => { if (!s) return "—"; const d = new Date(s); return isNaN(+d) ? s : d.toLocaleDateString("pt-BR"); };
-const fmtDtHora = (s?: string) => { if (!s) return "—"; const d = new Date(s); return isNaN(+d) ? s : d.toLocaleDateString("pt-BR") + " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); };
+const fmtDt = (s?: string) => { if (!s) return "-"; const d = new Date(s); return isNaN(+d) ? s : d.toLocaleDateString("pt-BR"); };
+const fmtDtHora = (s?: string) => { if (!s) return "-"; const d = new Date(s); return isNaN(+d) ? s : d.toLocaleDateString("pt-BR") + " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); };
 const statusInfo = (s: string): { bg: string; c: string; label: string } => ({
   "Aberta": { bg: "#fff7ed", c: "#ea580c", label: "Aguardando aprovação" },
   "Aprovada": { bg: "#ede9fe", c: "#7c3aed", label: "Aguardando resposta" },
@@ -89,7 +89,7 @@ export default function CentralDuvidas() {
   const aprovar = async (d: Duvida) => {
     const { error } = await (supabase as any).from("JUR_DUVIDAS").update({ status: "Aprovada", aprovado_por: autor, aprovado_em: new Date().toISOString(), motivo_reprovacao: null, updated_at: new Date().toISOString() }).eq("id", d.id);
     if (error) { toast("Erro: " + error.message, "err"); return; }
-    toast("Dúvida aprovada — segue para o Jurídico responder.", "ok"); load();
+    toast("Dúvida aprovada - segue para o Jurídico responder.", "ok"); load();
   };
   const confirmarReprovar = async () => {
     if (!reprAlvo) return;
@@ -235,7 +235,7 @@ export default function CentralDuvidas() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 14.5 }}>{d.titulo}</div>
-                        <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{d.categoria ? <span style={{ fontWeight: 700, color: "#0f3171" }}>{d.categoria}</span> : null}{d.categoria ? " · " : ""}por {d.autor_nome || "—"} · {fmtDtHora(d.created_at)}</div>
+                        <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{d.categoria ? <span style={{ fontWeight: 700, color: "#0f3171" }}>{d.categoria}</span> : null}{d.categoria ? " · " : ""}por {d.autor_nome || "-"} · {fmtDtHora(d.created_at)}</div>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 11px", borderRadius: 20, whiteSpace: "nowrap", background: si.bg, color: si.c }}>{si.label}</span>
                     </div>
@@ -249,7 +249,7 @@ export default function CentralDuvidas() {
                       </div>
                     )}
                     {d.status === "Reprovada" && d.motivo_reprovacao && (
-                      <div style={{ marginTop: 12, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 11, padding: "9px 12px", fontSize: 12.5, color: "#b91c1c" }}>Reprovada por {d.aprovado_por || "—"}: {d.motivo_reprovacao}</div>
+                      <div style={{ marginTop: 12, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 11, padding: "9px 12px", fontSize: 12.5, color: "#b91c1c" }}>Reprovada por {d.aprovado_por || "-"}: {d.motivo_reprovacao}</div>
                     )}
 
                     <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
@@ -276,7 +276,7 @@ export default function CentralDuvidas() {
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Nova dúvida ao Jurídico</div>
             <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Passa por aprovação e depois o Jurídico responde.</div>
             <div className="jd-fg"><label>Assunto / título *</label><input className="jd-fi" value={ask.titulo} onChange={e => setAsk(v => ({ ...v, titulo: e.target.value }))} placeholder="Ex.: Prazo para resposta de notificação" /></div>
-            <div className="jd-fg"><label>Categoria</label><select className="jd-fi" value={ask.categoria} onChange={e => setAsk(v => ({ ...v, categoria: e.target.value }))}><option value="">— Selecione —</option>{CATEGORIAS.map(c => <option key={c}>{c}</option>)}</select></div>
+            <div className="jd-fg"><label>Categoria</label><select className="jd-fi" value={ask.categoria} onChange={e => setAsk(v => ({ ...v, categoria: e.target.value }))}><option value="">- Selecione -</option>{CATEGORIAS.map(c => <option key={c}>{c}</option>)}</select></div>
             <div className="jd-fg"><label>Sua dúvida *</label><textarea className="jd-fi" rows={5} value={ask.pergunta} onChange={e => setAsk(v => ({ ...v, pergunta: e.target.value }))} /></div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 6 }}>
               <button className="jd-btn" onClick={() => setAskModal(false)} style={{ background: "#fff", border: "1px solid #e2e8f0", color: "#475569" }}>Cancelar</button>
@@ -317,7 +317,7 @@ export default function CentralDuvidas() {
             <div className="jd-fg">
               <label>Encaminhar resposta de outra pergunta (se repetida)</label>
               <select className="jd-fi" value="" onChange={e => { const alvo = respondidasLib.find(x => String(x.id) === e.target.value); if (alvo?.resposta) setResp(alvo.resposta); }}>
-                <option value="">— Selecione uma resposta já dada —</option>
+                <option value="">- Selecione uma resposta já dada -</option>
                 {respondidasLib.filter(x => x.id !== respAlvo.id).map(x => <option key={x.id} value={x.id}>{x.titulo}</option>)}
               </select>
             </div>
@@ -346,7 +346,7 @@ export default function CentralDuvidas() {
               <div style={{ border: "1px solid #e2e8f0", borderRadius: 9, maxHeight: 200, overflowY: "auto", marginBottom: 14 }}>
                 {empResults.map((e, i) => (
                   <div key={e["ID"]} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "8px 11px", borderTop: i ? "1px solid #f1f5f9" : "none" }}>
-                    <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{e["Nome"]}</div><div style={{ fontSize: 11, color: "#94a3b8" }}>{e["Setor_ERP"] || "—"}{e["Nome Filial"] ? ` · ${e["Nome Filial"]}` : ""}</div></div>
+                    <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{e["Nome"]}</div><div style={{ fontSize: 11, color: "#94a3b8" }}>{e["Setor_ERP"] || "-"}{e["Nome Filial"] ? ` · ${e["Nome Filial"]}` : ""}</div></div>
                     <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
                       {aprovadoresIds.includes(e["ID"]) ? <span style={{ fontSize: 10.5, color: "#15803d", fontWeight: 700, alignSelf: "center" }}>aprova</span> : <button className="jd-btn" onClick={() => addAprovador(e)} style={{ background: "#eef4ff", color: "#0f3171", padding: "5px 9px" }}>+ Aprova</button>}
                       {responsaveisIds.includes(e["ID"]) ? <span style={{ fontSize: 10.5, color: "#7c3aed", fontWeight: 700, alignSelf: "center" }}>responde</span> : <button className="jd-btn" onClick={() => addResponsavel(e)} style={{ background: "#f3e8ff", color: "#7c3aed", padding: "5px 9px" }}>+ Responde</button>}

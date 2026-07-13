@@ -16,7 +16,7 @@ import { Filter, RefreshCw, Send, FileDown, Eraser, CheckSquare, AlertTriangle, 
 import { toast } from "sonner";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
+const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "-");
 const today = () => new Date().toISOString().slice(0, 10);
 const addDays = (d: string, n: number) => { const dt = new Date(d); dt.setDate(dt.getDate() + n); return dt.toISOString().slice(0, 10); };
 
@@ -315,7 +315,7 @@ export default function AnalisePeriodoTab() {
                   { value: "todos", label: "Todas" },
                   ...contas.map((c: any) => ({
                     value: c.id,
-                    label: `${c.banco_codigo} — ${c.banco_nome}`,
+                    label: `${c.banco_codigo} - ${c.banco_nome}`,
                     hint: `Ag ${c.agencia} / Cc ${c.conta}`,
                   })),
                 ]}
@@ -414,7 +414,7 @@ export default function AnalisePeriodoTab() {
                     <TableRow key={t.id} className={vencido ? "bg-destructive/5" : ""}>
                       <TableCell>{ok && <Checkbox checked={sel.includes(t.id)} onCheckedChange={() => toggle(t.id)} />}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{t.fornecedor?.razao_social ?? "—"}</div>
+                        <div className="font-medium">{t.fornecedor?.razao_social ?? "-"}</div>
                         <div className="text-[11px] text-muted-foreground">{t.fornecedor?.cnpj_cpf}</div>
                       </TableCell>
                       <TableCell className="font-mono text-xs">{t.numero_documento}</TableCell>
@@ -424,10 +424,10 @@ export default function AnalisePeriodoTab() {
                       <TableCell className={`text-right text-xs ${vencido ? "text-destructive" : "text-muted-foreground"}`}>{dias}</TableCell>
                       <TableCell className="text-right">{fmtMoney(t.valor)}</TableCell>
                       <TableCell className="text-right font-medium">{fmtMoney(t.valor_aberto ?? t.valor)}</TableCell>
-                      <TableCell className="text-xs">{t.centro_custo?.nome ?? "—"}</TableCell>
-                      <TableCell className="text-xs">{t.contrato?.numero ?? "—"}</TableCell>
-                      <TableCell><Badge variant="outline" className="uppercase text-[10px]">{t.forma_pagamento ?? "—"}</Badge></TableCell>
-                      <TableCell className="text-xs">{t.conta_bancaria?.banco_nome ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{t.centro_custo?.nome ?? "-"}</TableCell>
+                      <TableCell className="text-xs">{t.contrato?.numero ?? "-"}</TableCell>
+                      <TableCell><Badge variant="outline" className="uppercase text-[10px]">{t.forma_pagamento ?? "-"}</Badge></TableCell>
+                      <TableCell className="text-xs">{t.conta_bancaria?.banco_nome ?? "-"}</TableCell>
                       <TableCell><StatusFinBadge s={t.status} vencido={vencido} /></TableCell>
                       <TableCell><StatusProgBadge progStatus={progStatus} vencido={vencido} /></TableCell>
                     </TableRow>
@@ -454,5 +454,5 @@ function StatusProgBadge({ progStatus, vencido }: { progStatus?: string; vencido
   if (progStatus === "pendente_aprov") return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200">Pendente Aprovação</Badge>;
   if (progStatus === "programado") return <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-violet-200">Programado</Badge>;
   if (vencido) return <Badge variant="destructive">Atrasado</Badge>;
-  return <span className="text-xs text-muted-foreground">—</span>;
+  return <span className="text-xs text-muted-foreground">-</span>;
 }

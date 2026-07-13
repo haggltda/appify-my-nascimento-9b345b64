@@ -39,7 +39,7 @@ const NIVEL_CLASSES: Record<AcaoSimilar["nivel"], string> = {
 };
 
 function fmtDate(d: string | null) {
-  if (!d) return "—";
+  if (!d) return "-";
   try { return new Date(d).toLocaleDateString("pt-BR"); } catch { return d; }
 }
 
@@ -103,7 +103,7 @@ export function AcoesSimilaresDialog({
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{s.acao.titulo || "(sem título)"}</p>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{s.acao.acao || "—"}</p>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{s.acao.acao || "-"}</p>
                   </div>
                   <Badge className={NIVEL_CLASSES[s.nivel]}>
                     {NIVEL_LABEL[s.nivel]} · {Math.round(s.score * 100)}%
@@ -115,12 +115,12 @@ export function AcoesSimilaresDialog({
                 )}
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-[11px]">
-                  <div><span className="text-muted-foreground">Comitê:</span> {s.acao.comite || "—"}</div>
-                  <div><span className="text-muted-foreground">Área:</span> {s.acao.area || "—"}</div>
-                  <div><span className="text-muted-foreground">Setor:</span> {s.acao.setor || "—"}</div>
+                  <div><span className="text-muted-foreground">Comitê:</span> {s.acao.comite || "-"}</div>
+                  <div><span className="text-muted-foreground">Área:</span> {s.acao.area || "-"}</div>
+                  <div><span className="text-muted-foreground">Setor:</span> {s.acao.setor || "-"}</div>
                   <div><span className="text-muted-foreground">Status:</span> {s.acao.status_normalizado}</div>
-                  <div><span className="text-muted-foreground">Resp.:</span> {s.acao.responsavel_nome_origem || "—"}</div>
-                  <div><span className="text-muted-foreground">Prioridade:</span> {s.acao.prioridade_normalizada || "—"}</div>
+                  <div><span className="text-muted-foreground">Resp.:</span> {s.acao.responsavel_nome_origem || "-"}</div>
+                  <div><span className="text-muted-foreground">Prioridade:</span> {s.acao.prioridade_normalizada || "-"}</div>
                   <div><span className="text-muted-foreground">Início:</span> {fmtDate(s.acao.data_inicio_planejado_original)}</div>
                   <div><span className="text-muted-foreground">Fim:</span> {fmtDate(s.acao.data_fim_planejado_original)}</div>
                 </div>

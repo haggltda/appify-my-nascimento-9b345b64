@@ -80,7 +80,7 @@ export function usePainelLicitacao(filters?: PainelFilters) {
     const valorPipeline = participados.reduce((s, i) => s + parseValor(i.valor_global), 0);
     const taxaVitoria = totalCapa > 0 ? (ganhas / totalCapa) * 100 : 0;
 
-    // Por responsável — helper
+    // Por responsável - helper
     function buildRespMap(source: typeof items) {
       const m = new Map<string, { responsavel: string; qtd: number; valor: number; vitorias: number; perdidas: number }>();
       source.forEach((i) => {
@@ -156,8 +156,8 @@ export function usePainelLicitacao(filters?: PainelFilters) {
     // Valor por faixa
     const faixas = [
       { label: "Até R$ 1 mi", min: 0, max: 1_000_000 },
-      { label: "R$ 1 mi – R$ 10 mi", min: 1_000_000, max: 10_000_000 },
-      { label: "R$ 10 mi – R$ 50 mi", min: 10_000_000, max: 50_000_000 },
+      { label: "R$ 1 mi - R$ 10 mi", min: 1_000_000, max: 10_000_000 },
+      { label: "R$ 10 mi - R$ 50 mi", min: 10_000_000, max: 50_000_000 },
       { label: "Acima de R$ 50 mi", min: 50_000_000, max: Infinity },
     ];
     const porFaixaValor = faixas.map((f) => {

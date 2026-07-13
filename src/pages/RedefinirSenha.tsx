@@ -32,7 +32,7 @@ export default function RedefinirSenha() {
     // 2) Sessão já existente: Supabase pode ter processado o hash antes deste componente montar
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) resolve("form");
-      // Se null: NÃO declarar inválido aqui — o evento PASSWORD_RECOVERY ainda pode chegar
+      // Se null: NÃO declarar inválido aqui - o evento PASSWORD_RECOVERY ainda pode chegar
     });
 
     // 3) Timeout de segurança: se nenhum dos dois acima resolver em 6s, o link é realmente inválido
@@ -61,7 +61,7 @@ export default function RedefinirSenha() {
       const { error: updErr } = await supabase.auth.updateUser({ password: pwd });
       if (updErr) throw updErr;
       setPageState("success");
-      // Encerra a sessão de recuperação — usuário fará login normalmente com a nova senha
+      // Encerra a sessão de recuperação - usuário fará login normalmente com a nova senha
       await supabase.auth.signOut();
       setTimeout(() => navigate("/login", { replace: true, state: { successMsg: "Senha redefinida com sucesso. Faça login com a nova senha." } }), 2500);
     } catch (err) {

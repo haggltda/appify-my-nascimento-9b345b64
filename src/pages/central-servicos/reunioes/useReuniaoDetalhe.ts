@@ -181,7 +181,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
     mudarEtapa("em_andamento", undefined, { acao: "reuniao_iniciada", detalhe: "Reunião iniciada" });
 
   // Ao encerrar, gera o PDF final da ata (mesmo gerador usado no botão
-  // manual) e sobe pro Storage — o worker externo (whatsapp-web.js +
+  // manual) e sobe pro Storage - o worker externo (whatsapp-web.js +
   // Nodemailer) usa esse arquivo pra mandar por e-mail automaticamente,
   // sem precisar portar a geração de PDF pra fora do navegador.
   const encerrarReuniao = async (usuarios: Usuario[]): Promise<boolean> => {
@@ -208,7 +208,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
     }
   };
 
-  // Edição de campos gerais (data/hora, local, organizador) — não é uma
+  // Edição de campos gerais (data/hora, local, organizador) - não é uma
   // transição de etapa, então não deve disparar a notificação de "mudou de
   // status"; o trigger reuniao_etapa_notificar já ignora updates onde a
   // etapa não muda, mas o push do cliente precisa da mesma checagem.

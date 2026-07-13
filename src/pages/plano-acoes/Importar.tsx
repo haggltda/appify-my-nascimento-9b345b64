@@ -127,7 +127,7 @@ export default function PlanoAcoesImportar() {
 
   const executarSeed = async () => {
     if (!empresaId) return;
-    if (!confirm(`Executar carga inicial das ${PLANO_ACOES_SEED_TOTAL} ações? A operação é idempotente — reexecutar não duplica dados.`)) return;
+    if (!confirm(`Executar carga inicial das ${PLANO_ACOES_SEED_TOTAL} ações? A operação é idempotente - reexecutar não duplica dados.`)) return;
     setRunning(true); setResult(null);
     try {
       const { data, error } = await supabase.rpc("plano_acao_seed_inicial", {
@@ -189,7 +189,7 @@ export default function PlanoAcoesImportar() {
         // Preview: primeiras 5 linhas com os campos mapeados
         const mappedFields = [...new Set(Object.values(colMap))].filter(f => !f.startsWith("_"));
         const previewRows = parsed.slice(0, 5).map(r =>
-          mappedFields.map(f => String(r[f] ?? r.status_normalizado ?? r.prioridade_normalizada ?? "—").slice(0, 60))
+          mappedFields.map(f => String(r[f] ?? r.status_normalizado ?? r.prioridade_normalizada ?? "-").slice(0, 60))
         );
 
         setPreview({ headers: mappedFields, rows: previewRows });
@@ -218,7 +218,7 @@ export default function PlanoAcoesImportar() {
 
     for (let i = 0; i < records.length; i += BATCH) {
       const chunk = records.slice(i, i + BATCH).map(r => {
-        // Registros importados nunca têm anexo de evidência ainda — o trigger do banco
+        // Registros importados nunca têm anexo de evidência ainda - o trigger do banco
         // bloqueia INSERT com concluida_validada sem evidência, então rebaixamos.
         const status = r.status_normalizado ?? "a_definir";
         return {
@@ -264,7 +264,7 @@ export default function PlanoAcoesImportar() {
   return (
     <div>
       <PageHeader
-        title="Importação — Plano de Ações"
+        title="Importação - Plano de Ações"
         subtitle="Carga via Excel ou importação do seed inicial"
         module="Plano de Ações"
         breadcrumb={["Importar"]}
@@ -357,7 +357,7 @@ export default function PlanoAcoesImportar() {
         <div className="flex items-start gap-4">
           <div className="rounded-md bg-primary/10 p-3"><Database className="h-6 w-6 text-primary" /></div>
           <div className="flex-1">
-            <h3 className="font-display text-lg font-bold">Carga atualizada — {PLANO_ACOES_SEED_TOTAL} ações Nascimento</h3>
+            <h3 className="font-display text-lg font-bold">Carga atualizada - {PLANO_ACOES_SEED_TOTAL} ações Nascimento</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Origem: <span className="font-mono">Gerenciamento de Tarefas - Nascimento - Tático 4.xlsx</span>.
               Reexecuções fazem upsert por <span className="font-mono">id_importacao</span>, atualizando status,

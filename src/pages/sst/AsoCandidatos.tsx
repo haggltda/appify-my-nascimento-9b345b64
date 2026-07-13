@@ -6,7 +6,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { CandidatoInfo, baixarCurriculoCand, Modal, Campo, Acoes, Toasts, btnStyle, PendToggle, EtapaChip, HistoricoCandidato } from "@/components/recrutamento/CandidatoInfo";
 
 // =====================================================================
-// SST — Exame Médico (fila do Recrutamento)
+// SST - Exame Médico (fila do Recrutamento)
 // Candidatos na etapa "Exame Médico" (liberados pelo Jurídico e pelas
 // entrevistas). O SST confirma o exame admissional e envia para o Compras,
 // ou reprova. Fonte: VW_RECRUTAMENTO_CANDIDATOS.
@@ -37,7 +37,7 @@ export default function AsoCandidatos() {
     return local ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local)}` : null;
   };
 
-  const fmtD = (s?: string) => (!s ? "—" : String(s).slice(0, 10).split("-").reverse().join("/"));
+  const fmtD = (s?: string) => (!s ? "-" : String(s).slice(0, 10).split("-").reverse().join("/"));
   const logHist = async (c: any, evento: string, de: string, para: string, detalhe: string | null) => {
     try { await (supabase as any).from("RECRUTAMENTO_HISTORICO").insert({ solicitacao_id: c.vaga_id, candidato_id: c.candidato_id, candidato_nome: c.nome, evento, de_status: de, para_status: para, papel: "SST", usuario_nome: nome, usuario_email: user?.email ?? "", detalhe }); } catch { /* noop */ }
   };
@@ -78,7 +78,7 @@ export default function AsoCandidatos() {
         // Banco ainda sem a coluna (migration não aplicada): salva sem o link.
         delete patch.sst_maps_url;
         ({ error } = await (supabase as any).from("WA_CURRICULOS").update(patch).eq("id", c.candidato_id));
-        if (!error) toast("Agendado sem o link do Maps — aplique a migration sst_maps_url no banco.", "info");
+        if (!error) toast("Agendado sem o link do Maps - aplique a migration sst_maps_url no banco.", "info");
       }
       if (error) { toast("Erro: " + error.message, "err"); return; }
       await logHist(c, "Exame agendado", "EXAME SST", "EXAME SST", `${fmtD(ag.data)} ${ag.hora} · ${ag.local}`.trim());
@@ -89,7 +89,7 @@ export default function AsoCandidatos() {
       }).eq("id", c.candidato_id);
       if (error) { toast("Erro: " + error.message, "err"); return; }
       await logHist(c, "Exame (ASO) realizado → Compras", "EXAME SST", "COMPRAS", obs.trim() || null);
-      toast("Exame realizado — enviado ao Compras.", "ok");
+      toast("Exame realizado - enviado ao Compras.", "ok");
     } else {
       if (!obs.trim()) { toast("Informe o motivo.", "err"); return; }
       const { error } = await (supabase as any).from("WA_CURRICULOS").update({
@@ -159,7 +159,7 @@ export default function AsoCandidatos() {
 
       {acao && (
         <Modal onClose={() => { setAcao(null); setObs(""); setAg({ data: "", hora: "", local: "", maps: "" }); setMapPrev(""); }}
-          title={acao.tipo === "agendar" ? "Agendar exame (ASO)" : acao.tipo === "realizar" ? "Realizar exame — apto" : "Reprovar candidato"}
+          title={acao.tipo === "agendar" ? "Agendar exame (ASO)" : acao.tipo === "realizar" ? "Realizar exame - apto" : "Reprovar candidato"}
           sub={`${acao.cand.nome} · ${acao.cand.cargo || ""}${acao.cand.cidade ? " · " + acao.cand.cidade : ""}`}>
           {acao.tipo === "agendar" ? (<>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
@@ -180,10 +180,10 @@ export default function AsoCandidatos() {
               <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 5 }}>Local exato no Google Maps (opcional)</label>
               <div style={{ display: "flex", gap: 6 }}>
                 <input value={ag.maps} onChange={e => setAg(s => ({ ...s, maps: e.target.value }))} placeholder="Cole aqui o link do Maps (Compartilhar → Copiar link)" style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 10px", fontSize: 12.5, outline: "none" }} />
-                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ag.local.trim() || "clínica ocupacional")}`} target="_blank" rel="noopener noreferrer" title="Abre o Google Maps buscando o local digitado — ache o lugar exato e copie o link em Compartilhar"
+                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ag.local.trim() || "clínica ocupacional")}`} target="_blank" rel="noopener noreferrer" title="Abre o Google Maps buscando o local digitado - ache o lugar exato e copie o link em Compartilhar"
                   style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 10, background: "rgba(15,49,113,.08)", border: "1px solid rgba(15,49,113,.2)", color: "#0f3171", fontSize: 12, fontWeight: 700, textDecoration: "none" }}>🔎 Buscar no Maps</a>
               </div>
-              <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 4 }}>Ache o lugar no Maps, toque em <b>Compartilhar → Copiar link</b> e cole acima — quem for ver o agendamento abre direto no ponto exato.</div>
+              <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 4 }}>Ache o lugar no Maps, toque em <b>Compartilhar → Copiar link</b> e cole acima - quem for ver o agendamento abre direto no ponto exato.</div>
             </div>
             <div style={{ marginBottom: 14 }}>
               <MapaPicker busca={mapPrev} onPick={({ nome, url }) => setAg(s => ({ ...s, maps: url, local: nome || s.local }))} />
@@ -204,7 +204,7 @@ export default function AsoCandidatos() {
 // ── Seletor de local no mapa (Leaflet + OpenStreetMap, sem chave de API) ──
 // Arraste o mapa e CLIQUE no ponto exato: o 📍 cai ali, o endereço completo
 // vem do geocoding reverso (Nominatim/OSM) e o link exato (lat,lng) é gerado.
-// O campo "busca" (texto do local) só centraliza o mapa — a escolha é o clique.
+// O campo "busca" (texto do local) só centraliza o mapa - a escolha é o clique.
 function MapaPicker({ busca, onPick }: { busca: string; onPick: (r: { nome: string; url: string }) => void }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null); // { L, map }
@@ -236,7 +236,7 @@ function MapaPicker({ busca, onPick }: { busca: string; onPick: (r: { nome: stri
       const j = await r.json();
       nome = j?.display_name || "";
     } catch { /* sem rede/limite do serviço: segue só com as coordenadas */ }
-    setStatus(nome ? `📍 ${nome}` : "📍 Ponto selecionado (endereço não encontrado — link exato mesmo assim)");
+    setStatus(nome ? `📍 ${nome}` : "📍 Ponto selecionado (endereço não encontrado - link exato mesmo assim)");
     onPick({ nome, url: `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}` });
   };
 
@@ -250,8 +250,8 @@ function MapaPicker({ busca, onPick }: { busca: string; onPick: (r: { nome: stri
       const j = await r.json();
       const lista = Array.isArray(j) ? j : [];
       setResultados(lista);
-      if (!lista.length) setStatus("Nenhum lugar encontrado — tente incluir a cidade (ex.: \"clínica são lucas triunfo\").");
-    } catch { setStatus("Falha na busca de lugares — tente de novo."); }
+      if (!lista.length) setStatus("Nenhum lugar encontrado - tente incluir a cidade (ex.: \"clínica são lucas triunfo\").");
+    } catch { setStatus("Falha na busca de lugares - tente de novo."); }
     setBuscando(false);
   };
 
@@ -327,7 +327,7 @@ function MapaPicker({ busca, onPick }: { busca: string; onPick: (r: { nome: stri
         .aso-map .leaflet-control-zoom a{text-decoration:none}
       `}</style>
       <div style={{ fontSize: 10.5, color: status.startsWith("📍") ? "#15803d" : "#94a3b8", marginTop: 4 }}>
-        {status || "Arraste o mapa e clique no ponto exato — o endereço completo e o link são preenchidos sozinhos. Depois dá pra arrastar o 📍 pra ajustar."}
+        {status || "Arraste o mapa e clique no ponto exato - o endereço completo e o link são preenchidos sozinhos. Depois dá pra arrastar o 📍 pra ajustar."}
       </div>
     </div>
   );

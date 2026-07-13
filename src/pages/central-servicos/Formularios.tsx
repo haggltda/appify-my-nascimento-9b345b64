@@ -6,7 +6,7 @@ import { parseSurveyMonkey, ImportResultado } from "@/utils/surveyMonkeyImporter
 import { useFormPerms } from "@/hooks/useFormPerms";
 
 // =====================================================================
-// CENTRAL DE SERVIÇOS — Nascimento Formulários (gestão)
+// CENTRAL DE SERVIÇOS - Nascimento Formulários (gestão)
 // Lista os formulários, mostra as URLs públicas ATIVAS no momento,
 // vigência e nº de respostas. Ações: criar, editar (builder), publicar/
 // encerrar/reabrir, copiar URL, duplicar, ver respostas e excluir.
@@ -27,7 +27,7 @@ export interface Formulario {
   max_respostas?: number | null; coleta_identificacao: boolean;
   imagem_capa_url?: string | null; criado_por_nome?: string | null;
   criado_por?: string | null; visibilidade?: "todos" | "restrita";
-  perguntas?: Pergunta[];  // jsonb — ordem = posição no array
+  perguntas?: Pergunta[];  // jsonb - ordem = posição no array
   pergunta_setor_id?: string | null;  // qual pergunta classifica a resposta (Admin/Operac.)
   setores_acesso?: string[] | null;   // setores (Setor_ERP) que podem ver/responder; null/vazio = todos
 }
@@ -40,7 +40,7 @@ export const novoUuid = (): string =>
   (crypto as any).randomUUID?.() ??
   "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = (Math.random() * 16) | 0; return (c === "x" ? r : (r & 0x3) | 0x8).toString(16); });
 
-export const fmtDt = (s?: string | null) => { if (!s) return "—"; const d = new Date(s); return isNaN(+d) ? String(s) : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
+export const fmtDt = (s?: string | null) => { if (!s) return "-"; const d = new Date(s); return isNaN(+d) ? String(s) : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
 export const urlPublica = (slug: string) => `${window.location.origin}/formularios/${slug}`;
 export const slugify = (t: string) =>
   t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) +
@@ -55,7 +55,7 @@ export function situacao(f: Formulario, respostas?: number) {
   if (f.encerra_em && now > +new Date(f.encerra_em)) return { chave: "expirado", rotulo: "Prazo encerrado", bg: "#fef9c3", c: "#a16207" };
   if (f.max_respostas != null && respostas != null && respostas >= f.max_respostas)
     return { chave: "lotado", rotulo: "Limite de respostas atingido", bg: "#fef9c3", c: "#a16207" };
-  return { chave: "ativo", rotulo: "Ativo — recebendo respostas", bg: "#dcfce7", c: "#15803d" };
+  return { chave: "ativo", rotulo: "Ativo - recebendo respostas", bg: "#dcfce7", c: "#15803d" };
 }
 
 const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
@@ -106,7 +106,7 @@ export default function Formularios() {
   const mudarStatus = async (f: Formulario, status: Formulario["status"]) => {
     const { error } = await (supabase as any).from("CS_FORMULARIOS").update({ status }).eq("id", f.id);
     if (error) { toast("Erro: " + error.message, "err"); return; }
-    toast(status === "publicado" ? "Formulário publicado — URL ativa." : status === "encerrado" ? "Formulário encerrado." : "Voltou para rascunho.", "ok");
+    toast(status === "publicado" ? "Formulário publicado - URL ativa." : status === "encerrado" ? "Formulário encerrado." : "Voltou para rascunho.", "ok");
     load();
   };
 
@@ -142,7 +142,7 @@ export default function Formularios() {
     const setorPergId = setorIdx >= 0 ? pergsNovas[setorIdx].id : null;
     const coerceSetor = (v: any) => { const x = Array.isArray(v) ? v[0] : v; const t = x == null ? "" : String(x).trim(); return t || null; };
     // Cria o formulário INTEIRO (perguntas embutidas). pergunta_setor_id é
-    // enriquecimento — vai num update best-effort depois, pra não derrubar a
+    // enriquecimento - vai num update best-effort depois, pra não derrubar a
     // importação em bancos que ainda não têm a coluna (migration de setores).
     const { data: form, error: e1 } = await (supabase as any).from("CS_FORMULARIOS").insert({
       titulo, slug: slugify(titulo), criado_por_nome: nome, coleta_identificacao: temIdent,
@@ -251,7 +251,7 @@ export default function Formularios() {
                     <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 8, display: "flex", flexDirection: "column", gap: 2 }}>
                       <span>📬 <b style={{ color: "#0f172a" }}>{n}</b> resposta(s){f.max_respostas != null ? ` · limite ${f.max_respostas}` : ""}</span>
                       <span>🗓 {f.inicia_em || f.encerra_em ? `${f.inicia_em ? "de " + fmtDt(f.inicia_em) : ""} ${f.encerra_em ? "até " + fmtDt(f.encerra_em) : ""}` : "sem prazo definido"}</span>
-                      <span>por {f.criado_por_nome || "—"} · criado em {fmtDt(f.created_at)}</span>
+                      <span>por {f.criado_por_nome || "-"} · criado em {fmtDt(f.created_at)}</span>
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 11 }}>
                       {can("responder") && <a href={urlPublica(f.slug)} target="_blank" rel="noopener noreferrer" style={{ ...btn("#16a34a"), textDecoration: "none", display: "inline-block" }}>↗ Abrir</a>}
@@ -279,7 +279,7 @@ export default function Formularios() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900 }} onClick={() => setCriando(false)}>
           <div style={{ background: "#fff", borderRadius: 16, padding: 22, width: 440, maxWidth: "92vw", position: "relative" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Novo formulário</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>Dê um título — você monta as perguntas na próxima tela.</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>Dê um título - você monta as perguntas na próxima tela.</div>
             <input autoFocus placeholder="Ex.: Pesquisa de Clima 2026" value={novoTitulo} onChange={e => setNovoTitulo(e.target.value)}
               onKeyDown={e => e.key === "Enter" && criar()}
               style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 13.5, outline: "none" }} />
@@ -299,7 +299,7 @@ export default function Formularios() {
             <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>
               {importPreview.formato === "respostas"
                 ? `Export de respostas individuais: ${importPreview.perguntas.length} pergunta(s) e ${importPreview.respostas.length} resposta(s).`
-                : `Export de resumo por pergunta: ${importPreview.perguntas.length} pergunta(s) — o formulário será replicado.`}
+                : `Export de resumo por pergunta: ${importPreview.perguntas.length} pergunta(s) - o formulário será replicado.`}
             </div>
             {importPreview.avisos.map((a, i) => (
               <div key={i} style={{ fontSize: 12, background: "#fffbeb", border: "1px solid #fde68a", color: "#a16207", borderRadius: 9, padding: "8px 10px", marginBottom: 10 }}>⚠️ {a}</div>

@@ -76,7 +76,7 @@ export function PerfisTab() {
                   <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground/70">
                     chave: <code className="font-mono">{p.role}</code>
                   </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{p.descricao ?? "—"}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{p.descricao ?? "-"}</p>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">

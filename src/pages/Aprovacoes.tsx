@@ -5,11 +5,11 @@ const steps = [
   { label: "Analista", who: "Marcos Pinto", state: "done", date: "14/04 17:32" },
   { label: "Gerente de Licitação", who: "Renata Lima", state: "done", date: "15/04 11:08" },
   { label: "Controladoria", who: "Eduardo Vargas", state: "done", date: "16/04 09:45" },
-  { label: "Diretoria Administrativa", who: "Sandra Müller", state: "current", date: "—" },
-  { label: "Presidência (exceção)", who: "Aguardando alçada", state: "pending", date: "—" },
+  { label: "Diretoria Administrativa", who: "Sandra Müller", state: "current", date: "-" },
+  { label: "Presidência (exceção)", who: "Aguardando alçada", state: "pending", date: "-" },
 ] as const;
 
-// B2.1.f — Fase 5 (Aprovações Licitações):
+// B2.1.f - Fase 5 (Aprovações Licitações):
 // Tela puramente display (KPIs + stepper + histórico). Não há ações mutantes a gatear.
 // Decisões reais já gateadas: Parecer Gerencial (B2.1.e), Resultado/ProntasContrato (B2.1.d).
 // Acesso à rota /app/aprovacoes continua governado pelo RouteGuard (deny-by-default).
@@ -44,9 +44,9 @@ export default function Aprovacoes() {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Processo em curso</p>
-            <h2 className="mt-1 font-display text-lg font-bold">PE 077/2025 — Construção de via marginal · Curitiba</h2>
+            <h2 className="mt-1 font-display text-lg font-bold">PE 077/2025 - Construção de via marginal · Curitiba</h2>
           </div>
-          <span className="chip border border-warning/30 bg-warning-soft text-warning"><AlertTriangle className="h-3 w-3" /> Exceção de risco — alçada presidência</span>
+          <span className="chip border border-warning/30 bg-warning-soft text-warning"><AlertTriangle className="h-3 w-3" /> Exceção de risco - alçada presidência</span>
         </div>
 
         <div className="relative mt-8 flex items-start justify-between">

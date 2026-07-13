@@ -1,4 +1,4 @@
-// PDF de convocação — gerado a partir do agendamento, antes da reunião
+// PDF de convocação - gerado a partir do agendamento, antes da reunião
 // acontecer: dados do encontro + pauta, sem respostas nem assinaturas.
 import { PdfDocumento, fmtDataHoraPdf } from "@/lib/pdf/PdfDocumento";
 import type { Reuniao, ReuniaoPauta } from "../types";

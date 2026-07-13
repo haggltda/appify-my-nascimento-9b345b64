@@ -131,7 +131,7 @@ export default function RegrasContabilizacao() {
             )}
             {(regrasQ.data ?? []).map((r: any) => (
               <tr key={r.id} className="border-t border-border/60">
-                <td className="px-3 py-2 text-xs font-mono">{r.codigo_evento ?? "—"}</td>
+                <td className="px-3 py-2 text-xs font-mono">{r.codigo_evento ?? "-"}</td>
                 <td className="px-3 py-2"><Badge variant="outline" className="capitalize">{String(r.evento).replace(/_/g, " ")}</Badge></td>
                 <td className="px-3 py-2">
                   <div>{r.descricao}</div>
@@ -143,11 +143,11 @@ export default function RegrasContabilizacao() {
                 <td className="px-3 py-2 text-xs">
                   {r.conta_credito ? <><span className="font-mono">{r.conta_credito.classificacao}</span> {r.conta_credito.descricao}</> : <span className="text-muted-foreground italic">não vinculada</span>}
                 </td>
-                <td className="px-3 py-2 text-center">{r.exige_contrato ? "✓" : "—"}</td>
-                <td className="px-3 py-2 text-center">{r.exige_centro_custo ? "✓" : "—"}</td>
-                <td className="px-3 py-2 text-center">{r.entra_dre ? "✓" : "—"}</td>
-                <td className="px-3 py-2 text-center">{r.requer_3way_match ? "✓" : "—"}</td>
-                <td className="px-3 py-2 text-center">{r.ativo ? "✓" : "—"}</td>
+                <td className="px-3 py-2 text-center">{r.exige_contrato ? "✓" : "-"}</td>
+                <td className="px-3 py-2 text-center">{r.exige_centro_custo ? "✓" : "-"}</td>
+                <td className="px-3 py-2 text-center">{r.entra_dre ? "✓" : "-"}</td>
+                <td className="px-3 py-2 text-center">{r.requer_3way_match ? "✓" : "-"}</td>
+                <td className="px-3 py-2 text-center">{r.ativo ? "✓" : "-"}</td>
                 <td className="px-3 py-2 text-right">
                   <Button size="sm" variant="ghost" onClick={() => remover.mutate(r.id)}><Trash2 className="h-4 w-4" /></Button>
                 </td>
@@ -236,14 +236,14 @@ function NovaRegraForm({ empresaId, contas, onClose }: { empresaId: string; cont
           <Label>Conta DÉBITO</Label>
           <Select value={form.conta_debito_id} onValueChange={(v) => setForm({ ...form, conta_debito_id: v })}>
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-            <SelectContent>{contas.map(c => <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>)}</SelectContent>
+            <SelectContent>{contas.map(c => <SelectItem key={c.id} value={c.id}>{c.classificacao} - {c.descricao}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="col-span-2">
           <Label>Conta CRÉDITO</Label>
           <Select value={form.conta_credito_id} onValueChange={(v) => setForm({ ...form, conta_credito_id: v })}>
             <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-            <SelectContent>{contas.map(c => <SelectItem key={c.id} value={c.id}>{c.classificacao} — {c.descricao}</SelectItem>)}</SelectContent>
+            <SelectContent>{contas.map(c => <SelectItem key={c.id} value={c.id}>{c.classificacao} - {c.descricao}</SelectItem>)}</SelectContent>
           </Select>
         </div>
 

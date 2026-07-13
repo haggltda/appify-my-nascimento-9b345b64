@@ -34,7 +34,7 @@ export default function Parecer({ papel = "tecnico" }: Props) {
 
 function ParecerDetalhe({ licitacao: l, isGerencial }: { licitacao: Licitacao; isGerencial: boolean; voltar: () => void }) {
   const { can } = usePermissoes();
-  // B2.1.e/f — Fase 4 (tecnico) e Fase 5 (gerencial)
+  // B2.1.e/f - Fase 4 (tecnico) e Fase 5 (gerencial)
   const menuCodigo = isGerencial ? "parecer-gerencial" : "parecer-tecnico";
   const canIncluir = can("incluir", "licitacoes", menuCodigo);
   const canAprovar = can("aprovar", "licitacoes", menuCodigo);
@@ -43,7 +43,7 @@ function ParecerDetalhe({ licitacao: l, isGerencial }: { licitacao: Licitacao; i
       <div className="space-y-5">
         <section className="card-elevated p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Processo</p>
-          <h2 className="mt-1 font-display text-lg font-bold">{l.numero} — {l.objeto}</h2>
+          <h2 className="mt-1 font-display text-lg font-bold">{l.numero} - {l.objeto}</h2>
           <p className="text-sm text-muted-foreground">{l.orgao} · {l.modalidade} · Empresa {l.empresa} · Responsável: {l.responsavel}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="chip border border-border bg-muted">Valor: {formatBRL(l.valorEstimado)}</span>

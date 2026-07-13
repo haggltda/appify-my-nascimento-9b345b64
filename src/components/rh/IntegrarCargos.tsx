@@ -3,14 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Briefcase, FileSpreadsheet, CheckCircle2, AlertTriangle, X, RefreshCw } from "lucide-react";
 
 // =========================================================================
-// RH — Colaboradores: "Integrar Cargos". Lê uma planilha de referência com
+// RH - Colaboradores: "Integrar Cargos". Lê uma planilha de referência com
 // colunas "Cargo" (código) e "Nome do Cargo" (nome legível) e preenche
-// EMPREGADOS."Nome do Cargo", casando por EMPREGADOS."Cargo" (bigint — o
+// EMPREGADOS."Nome do Cargo", casando por EMPREGADOS."Cargo" (bigint - o
 // código real, confirmado no schema; NÃO é "Título do Cargo", que é outro
 // campo texto).
 //
 // A planilha de referência tem código com e sem zero à esquerda (ex.: "225"
-// e "0225") que, como "Cargo" no banco é bigint, colapsam pro MESMO número —
+// e "0225") que, como "Cargo" no banco é bigint, colapsam pro MESMO número -
 // e às vezes apontam pra nomes de cargo diferentes. Esses códigos ficam
 // separados como "ambíguos" e NÃO são aplicados automaticamente.
 // =========================================================================
@@ -214,7 +214,7 @@ export default function IntegrarCargos({ rows, onImported }: { rows: any[]; onIm
                   {ambiguosList.length > 0 && (
                     <div style={{ border: "1px solid #fecaca", borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: "#dc2626", textTransform: "uppercase", letterSpacing: ".4px", padding: "9px 12px", background: "#fef2f2", borderBottom: "1px solid #fecaca" }}>
-                        Códigos ambíguos na planilha (não aplicados — mesmo código com nomes diferentes)
+                        Códigos ambíguos na planilha (não aplicados - mesmo código com nomes diferentes)
                       </div>
                       <div style={{ maxHeight: 180, overflowY: "auto" }}>
                         {ambiguosList.map(([k, v]) => (

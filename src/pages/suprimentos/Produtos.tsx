@@ -18,7 +18,7 @@ export default function Produtos() {
         { key: "descricao", label: "Descrição", required: true },
         {
           key: "categoria_id", label: "Categoria", type: "select",
-          options: [{ value: "", label: "— sem categoria —" }, ...categorias.map((c: any) => ({ value: c.id, label: c.nome }))],
+          options: [{ value: "", label: "- sem categoria -" }, ...categorias.map((c: any) => ({ value: c.id, label: c.nome }))],
         },
         { key: "unidade", label: "Unidade", default: "UN" },
         {
@@ -42,7 +42,7 @@ export default function Produtos() {
         { key: "descricao", label: "Descrição" },
         { key: "unidade", label: "Un." },
         { key: "metodo_custeio", label: "Custeio", render: (r) => <Badge variant="outline" className="capitalize">{r.metodo_custeio === "medio" ? "Médio" : "Compra"}</Badge> },
-        { key: "controla_lote", label: "Lote", render: (r) => r.controla_lote ? "✓" : "—" },
+        { key: "controla_lote", label: "Lote", render: (r) => r.controla_lote ? "✓" : "-" },
         { key: "custo_medio_atual", label: "Custo médio", render: (r) => fmtBRL(r.custo_medio_atual) },
         { key: "estoque_minimo", label: "Mín." },
         { key: "ativo", label: "Status", render: (r) => r.ativo ? <Badge variant="outline">Ativo</Badge> : <Badge variant="secondary">Inativo</Badge> },

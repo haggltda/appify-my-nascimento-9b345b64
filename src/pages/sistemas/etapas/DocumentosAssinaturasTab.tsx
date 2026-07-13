@@ -48,7 +48,7 @@ function AssinarForm({ nomePadrao, onSalvar }: { nomePadrao: string; onSalvar: (
   return (
     <div className="space-y-2 rounded-lg border border-border p-4">
       <h3 className="text-lg font-bold">Assinar</h3>
-      <p className="text-sm text-muted-foreground">digite seu nome — a assinatura é gerada em letra emendada</p>
+      <p className="text-sm text-muted-foreground">digite seu nome - a assinatura é gerada em letra emendada</p>
       <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Digite seu nome" className="text-sm" />
       <div className="flex h-32 items-center justify-center rounded border border-border bg-white px-4">
         <p style={{ fontFamily: FONTE_ASSINATURA, fontWeight: 700 }} className="max-w-full truncate text-4xl text-slate-800">
@@ -109,7 +109,7 @@ export function DocumentosAssinaturasTab({
             <div className="flex min-w-0 items-start gap-2.5">
               <FileText className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div className="min-w-0">
-                <p className="text-sm font-bold">Anexo {doc.numero} – {doc.nome} ({doc.sigla})</p>
+                <p className="text-sm font-bold">Anexo {doc.numero} - {doc.nome} ({doc.sigla})</p>
                 <p className="text-xs text-muted-foreground">Documento da etapa "{ETAPA_LABEL[doc.etapaOrigem] ?? doc.etapaOrigem}"</p>
               </div>
             </div>
@@ -117,7 +117,7 @@ export function DocumentosAssinaturasTab({
           </div>
         ))}
         {disponiveis.length === 0 && (
-          <p className="text-[11px] text-muted-foreground">Nenhum documento disponível ainda — vai aparecendo conforme o card avança no fluxo.</p>
+          <p className="text-[11px] text-muted-foreground">Nenhum documento disponível ainda - vai aparecendo conforme o card avança no fluxo.</p>
         )}
       </div>
 

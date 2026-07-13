@@ -41,9 +41,9 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
   return (
     <div className="space-y-4">
       <div className="space-y-3 rounded-md border border-border p-3">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-[#153169]">Parte B — Triagem Inicial</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-[#153169]">Parte B - Triagem Inicial</p>
 
-        {/* Seção 13 — Recebido por */}
+        {/* Seção 13 - Recebido por */}
         <CampoLabel label="13. Recebido por">
           <Input
             value={recebidoPor}
@@ -55,7 +55,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           />
         </CampoLabel>
 
-        {/* Seção 14 — Data de triagem concluída */}
+        {/* Seção 14 - Data de triagem concluída */}
         <CampoLabel label="14. Triagem concluída em">
           <Input
             type="date"
@@ -66,7 +66,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           />
         </CampoLabel>
 
-        {/* Seção 15 — Classificação */}
+        {/* Seção 15 - Classificação */}
         <CampoLabel label="15. Classificação da Demanda">
           <Select
             value={card.triagem_classificacao ?? undefined}
@@ -84,7 +84,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           </Select>
         </CampoLabel>
 
-        {/* Seção 19 — Parecer da Controladoria */}
+        {/* Seção 19 - Parecer da Controladoria */}
         <CampoLabel label="19. Parecer da Controladoria">
           <Textarea
             value={parecer}
@@ -97,7 +97,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           />
         </CampoLabel>
 
-        {/* Seção 17 — Encaminhamento */}
+        {/* Seção 17 - Encaminhamento */}
         <div className="grid gap-3 sm:grid-cols-2">
           <CampoLabel label="17. Encaminhar para">
             <Input
@@ -121,7 +121,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           </CampoLabel>
         </div>
 
-        {/* Seção 18 — Decisão */}
+        {/* Seção 18 - Decisão */}
         <CampoLabel label="18. Decisão da Triagem">
           <Select
             value={card.triagem_decisao ?? undefined}
@@ -139,7 +139,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
           </Select>
         </CampoLabel>
 
-        {/* Seção 19 — Data da decisão */}
+        {/* Seção 19 - Data da decisão */}
         <CampoLabel label="19. Data da Decisão">
           <Input
             type="date"
@@ -185,7 +185,7 @@ export function TriagemInicialPanel({ card, papeis, anexos, comentarios, usuario
         <p className="text-[11px] text-muted-foreground">Selecione "Necessidade de Sistemas" na Classificação e preencha a Decisão para avançar.</p>
       )}
       {card.triagem_decisao === "devolvido_ajustes" && (
-        <p className="text-[11px] text-muted-foreground">Decisão: Devolvido para ajustes — use "Voltar ao painel" para retornar à coluna 1.</p>
+        <p className="text-[11px] text-muted-foreground">Decisão: Devolvido para ajustes - use "Voltar ao painel" para retornar à coluna 1.</p>
       )}
     </div>
   );

@@ -61,7 +61,7 @@ export function AlcadasTab() {
             </SelectTrigger>
             <SelectContent>
               {(empresasQ.data ?? []).map((e: any) => (
-                <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+                <SelectItem key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -254,9 +254,9 @@ function FluxoCard({ fluxo, isAdmin, onChanged }: { fluxo: any; isAdmin: boolean
                 <td className="px-3 py-2 font-mono">{e.ordem}</td>
                 <td className="px-3 py-2 font-medium">{e.nome}</td>
                 <td className="px-3 py-2"><Badge variant="outline" className={tp.tone}>{tp.label}</Badge></td>
-                <td className="px-3 py-2 text-right font-mono">{fmt(Number(e.valor_min ?? 0))} – {fmt(e.valor_max === null ? null : Number(e.valor_max))}</td>
-                <td className="px-3 py-2">{e.prazo_horas ?? "—"}</td>
-                <td className="px-3 py-2"><code className="text-[10px]">{e.regra_auto?.tipo ?? "—"}</code></td>
+                <td className="px-3 py-2 text-right font-mono">{fmt(Number(e.valor_min ?? 0))} - {fmt(e.valor_max === null ? null : Number(e.valor_max))}</td>
+                <td className="px-3 py-2">{e.prazo_horas ?? "-"}</td>
+                <td className="px-3 py-2"><code className="text-[10px]">{e.regra_auto?.tipo ?? "-"}</code></td>
                 <td className="px-3 py-2 text-right">
                   {isAdmin && (
                     <Button size="sm" variant="ghost" className="text-destructive h-7 w-7 p-0" onClick={async () => {
@@ -393,7 +393,7 @@ function NovaEtapa({ fluxoId, proximaOrdem, onSaved }: { fluxoId: string; proxim
           <div>
             <Label>Responsável (usuário cadastrado)</Label>
             <Select value={responsavelId} onValueChange={setResponsavelId}>
-              <SelectTrigger><SelectValue placeholder="— Selecione —" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="- Selecione -" /></SelectTrigger>
               <SelectContent>
                 {(usuariosQ.data ?? []).map((u: any) => (
                   <SelectItem key={u.id} value={u.id}>{u.display_name || u.email}</SelectItem>
@@ -438,7 +438,7 @@ function ReguasPanel({ isAdmin }: { isAdmin: boolean }) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Réguas controlam quem é notificado e quando, conforme o prazo da etapa avança. CRUD completo virá numa próxima iteração — por enquanto, apenas leitura.
+        Réguas controlam quem é notificado e quando, conforme o prazo da etapa avança. CRUD completo virá numa próxima iteração - por enquanto, apenas leitura.
       </p>
       {reguasQ.isLoading && <p className="text-xs text-muted-foreground">Carregando…</p>}
       {(reguasQ.data ?? []).length === 0 && !reguasQ.isLoading && (
@@ -466,8 +466,8 @@ function ReguasPanel({ isAdmin }: { isAdmin: boolean }) {
               {(r.sup_aprov_regua_degrau ?? []).sort((a: any, b: any) => a.ordem - b.ordem).map((d: any) => (
                 <tr key={d.id}>
                   <td className="px-3 py-2 font-mono">{d.ordem}</td>
-                  <td className="px-3 py-2">{d.pct_prazo ?? "—"}</td>
-                  <td className="px-3 py-2">{d.horas_extra ?? "—"}</td>
+                  <td className="px-3 py-2">{d.pct_prazo ?? "-"}</td>
+                  <td className="px-3 py-2">{d.horas_extra ?? "-"}</td>
                   <td className="px-3 py-2 text-[11px]">{JSON.stringify(d.destinatarios)}</td>
                   <td className="px-3 py-2 text-[11px]">{JSON.stringify(d.canais)}</td>
                 </tr>
@@ -535,10 +535,10 @@ function LegadoPanel({ empresaId }: { empresaId: string }) {
           {(alcadasQ.data ?? []).map((a) => (
             <tr key={a.id} className="hover:bg-muted/40">
               <td className="px-5 py-3 font-medium">{a.etapa}</td>
-              <td className="px-3 py-3 text-xs">{a.responsavel_nome ?? "—"}</td>
+              <td className="px-3 py-3 text-xs">{a.responsavel_nome ?? "-"}</td>
               <td className="px-3 py-3 text-right font-mono text-xs">{fmt(Number(a.valor_min))}</td>
               <td className="px-3 py-3 text-right font-mono text-xs">{fmt(a.valor_max === null ? null : Number(a.valor_max))}</td>
-              <td className="px-3 py-3 text-xs text-muted-foreground">{a.excecao ?? "—"}</td>
+              <td className="px-3 py-3 text-xs text-muted-foreground">{a.excecao ?? "-"}</td>
             </tr>
           ))}
         </tbody>

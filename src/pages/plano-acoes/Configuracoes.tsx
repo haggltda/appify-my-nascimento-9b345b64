@@ -40,7 +40,7 @@ const PERM_DESC: Record<string, string> = {
  * plano_acao_usuario_permissao é escopada por empresa_id. Como um mesmo usuário
  * pode atuar em várias empresas do grupo (via user_empresa ou acessa_todas_empresas),
  * a permissão configurada aqui precisa ser propagada para TODAS as empresas em que
- * o usuário-alvo atua — não apenas a empresa ativa de quem está configurando.
+ * o usuário-alvo atua - não apenas a empresa ativa de quem está configurando.
  * Sem isso, a permissão "funciona" só na empresa que estava ativa no momento do save.
  */
 async function getEmpresaIdsDoUsuario(profileId: string): Promise<string[]> {
@@ -182,7 +182,7 @@ export default function PlanoAcoesConfiguracoes({ bypassGuard }: { bypassGuard?:
     <section className="card-elevated">
       <header className="flex items-center gap-3 border-b border-border px-5 py-3.5">
         <div className="flex-1">
-          <h2 className="font-display text-sm font-bold">Plano de Ações — ACL</h2>
+          <h2 className="font-display text-sm font-bold">Plano de Ações - ACL</h2>
           <p className="text-xs text-muted-foreground">Permissões específicas do módulo por usuário (9 flags).</p>
         </div>
       </header>

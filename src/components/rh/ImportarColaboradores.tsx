@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Upload, FileSpreadsheet, UserPlus, RefreshCw, CheckCircle2, AlertTriangle, X } from "lucide-react";
 
 // =========================================================================
-// RH — Colaboradores: importar EMPREGADOS por planilha (export do sistema de
+// RH - Colaboradores: importar EMPREGADOS por planilha (export do sistema de
 // folha). Regras pedidas:
 //   • CPF que já existe → atualiza SOMENTE a coluna "Situação"
 //     (Demitido / Afastado / Férias etc.).
@@ -34,7 +34,7 @@ const COL = {
 } as const;
 
 // Colunas onde o "tipo de contrato" pode aparecer (varia entre exports).
-// Regra: quem é MEI não é tocado — nem insert, nem update.
+// Regra: quem é MEI não é tocado - nem insert, nem update.
 const COLS_TIPO_CONTRATO = ["Descrição (T. Contrato)", "Descrição (Tipo)", "Descrição (Categoria Contribuinte)", "Descrição (Cat. eSocial)", "Descrição (Categoria Sefip)"];
 const ehMEI = (r: any): boolean =>
   COLS_TIPO_CONTRATO.some(c => { const v = r[c]; return typeof v === "string" && (/\bMEI\b/i.test(v) || /MICROEMPREEND/i.test(v)); });

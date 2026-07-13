@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 // =====================================================================
-// CENTRAL DE SERVIÇOS — Denúncias (Canal de Ética / Contato Seguro)
+// CENTRAL DE SERVIÇOS - Denúncias (Canal de Ética / Contato Seguro)
 // Espelho local das denúncias ANÔNIMAS da plataforma Contato Seguro.
 // A confidencialidade é garantida pela RLS no banco (autoridade final):
 // sem papel admin, o select de CS_DENUNCIAS volta vazio. Quem acessa este
@@ -17,7 +17,7 @@ interface Denuncia {
   atualizado_na_origem?: string; sincronizado_em?: string; raw?: Record<string, unknown>;
 }
 
-const fmtDt = (s?: string) => { if (!s) return "—"; const d = new Date(s); return isNaN(+d) ? s : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
+const fmtDt = (s?: string) => { if (!s) return "-"; const d = new Date(s); return isNaN(+d) ? s : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
 const statusCor = (s?: string): { bg: string; c: string } => {
   const t = (s || "").toLowerCase();
   if (/(conclu|encerr|fechad|resolvid)/.test(t)) return { bg: "#dcfce7", c: "#15803d" };
@@ -82,7 +82,7 @@ export default function Denuncias() {
   );
 
   // Sem regra de permissão no front: a confidencialidade é garantida pela RLS
-  // do banco — para quem não é admin, o select de CS_DENUNCIAS volta vazio.
+  // do banco - para quem não é admin, o select de CS_DENUNCIAS volta vazio.
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
       <style>{`
@@ -97,9 +97,9 @@ export default function Denuncias() {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 16, background: "linear-gradient(135deg,#fff,#fff8f8)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#0f3171" }}>🛡️ Denúncias — Canal de Ética</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "#0f3171" }}>🛡️ Denúncias - Canal de Ética</div>
           <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 2 }}>
-            Denúncias anônimas da plataforma Contato Seguro. Conteúdo confidencial — acesso definido no painel Módulos & Menus.
+            Denúncias anônimas da plataforma Contato Seguro. Conteúdo confidencial - acesso definido no painel Módulos & Menus.
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -130,7 +130,7 @@ export default function Denuncias() {
           : filtradas.length === 0 ? (
             <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 46, textAlign: "center", color: "#94a3b8", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
               {denuncias.length === 0
-                ? <>Nenhuma denúncia sincronizada ainda. Use “Sincronizar agora” — se a integração ainda não estiver liberada pela Contato Seguro, a mensagem de pendência aparece aqui.</>
+                ? <>Nenhuma denúncia sincronizada ainda. Use “Sincronizar agora” - se a integração ainda não estiver liberada pela Contato Seguro, a mensagem de pendência aparece aqui.</>
                 : "Nenhuma denúncia encontrada com os filtros atuais."}
             </div>
           ) : (
@@ -151,10 +151,10 @@ export default function Denuncias() {
                         <tr key={d.id} className="dn-row" style={{ borderBottom: "1px solid #f1f5f9", cursor: "pointer" }} onClick={() => setDetalhe(d)}>
                           <td style={{ padding: "10px 14px", fontWeight: 700, color: "#0f3171", whiteSpace: "nowrap" }}>{d.protocolo || d.cs_id}</td>
                           <td style={{ padding: "10px 14px", whiteSpace: "nowrap", color: "#475569" }}>{fmtDt(d.criado_na_origem)}</td>
-                          <td style={{ padding: "10px 14px", color: "#475569" }}>{d.categoria || "—"}</td>
-                          <td style={{ padding: "10px 14px", color: "#0f172a", maxWidth: 340, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.assunto || (d.relato || "").slice(0, 80) || "—"}</td>
+                          <td style={{ padding: "10px 14px", color: "#475569" }}>{d.categoria || "-"}</td>
+                          <td style={{ padding: "10px 14px", color: "#0f172a", maxWidth: 340, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.assunto || (d.relato || "").slice(0, 80) || "-"}</td>
                           <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
-                            <span style={{ background: sc.bg, color: sc.c, borderRadius: 20, padding: "3px 10px", fontSize: 11.5, fontWeight: 700 }}>{d.status || "—"}</span>
+                            <span style={{ background: sc.bg, color: sc.c, borderRadius: 20, padding: "3px 10px", fontSize: 11.5, fontWeight: 700 }}>{d.status || "-"}</span>
                           </td>
                         </tr>
                       );
@@ -182,7 +182,7 @@ export default function Denuncias() {
 
             {detalhe.assunto && <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>{detalhe.assunto}</div>}
             <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, fontSize: 13.5, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-              {detalhe.relato || "Sem texto de relato no payload — veja os dados completos abaixo."}
+              {detalhe.relato || "Sem texto de relato no payload - veja os dados completos abaixo."}
             </div>
             <details style={{ marginTop: 14 }}>
               <summary style={{ fontSize: 12, fontWeight: 700, color: "#64748b", cursor: "pointer" }}>Dados completos recebidos da Contato Seguro (JSON)</summary>

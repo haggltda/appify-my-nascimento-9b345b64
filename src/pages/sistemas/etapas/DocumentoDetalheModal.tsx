@@ -43,16 +43,16 @@ function CamposAberturaFixo({ card }: { card: Solicitacao }) {
       {CAMPOS_ABERTURA.map((c) => (
         <div key={c.key}>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{c.label}</p>
-          <p className="whitespace-pre-wrap break-words text-sm">{(card[c.key] as string | null) || "—"}</p>
+          <p className="whitespace-pre-wrap break-words text-sm">{(card[c.key] as string | null) || "-"}</p>
         </div>
       ))}
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Grau de urgência</p>
-        <p className="text-sm">{card.grau_urgencia ? GRAU_URGENCIA_LABEL[card.grau_urgencia] ?? card.grau_urgencia : "—"}</p>
+        <p className="text-sm">{card.grau_urgencia ? GRAU_URGENCIA_LABEL[card.grau_urgencia] ?? card.grau_urgencia : "-"}</p>
       </div>
       <div>
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo da solicitação</p>
-        <p className="text-sm">{card.tipo_solicitacao ? TIPO_SOLICITACAO_LABEL[card.tipo_solicitacao] ?? card.tipo_solicitacao : "—"}</p>
+        <p className="text-sm">{card.tipo_solicitacao ? TIPO_SOLICITACAO_LABEL[card.tipo_solicitacao] ?? card.tipo_solicitacao : "-"}</p>
       </div>
     </div>
   );
@@ -73,7 +73,7 @@ function PesquisaVisual({ card }: { card: Solicitacao }) {
                   <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${marcado ? "border-primary" : "border-muted-foreground/40"}`}>
                     {marcado && <span className="h-2 w-2 rounded-full bg-primary" />}
                   </span>
-                  <span className={marcado ? "font-medium" : "text-muted-foreground"}>{valor} – {opcao}</span>
+                  <span className={marcado ? "font-medium" : "text-muted-foreground"}>{valor} - {opcao}</span>
                 </div>
               );
             })}
@@ -107,7 +107,7 @@ function exportarPesquisaPdf(card: Solicitacao, titulo: string, solicitacaoId: s
     const valor = card[p.key];
     p.opcoes.forEach((opcao, idx) => {
       const marcado = valor === idx + 1;
-      pdf.paragrafo(`${marcado ? "[X]" : "[ ]"} ${idx + 1} – ${opcao}`, { tamanho: 9, cor: marcado ? [21, 49, 105] : [120, 120, 120], espacoDepois: 1 });
+      pdf.paragrafo(`${marcado ? "[X]" : "[ ]"} ${idx + 1} - ${opcao}`, { tamanho: 9, cor: marcado ? [21, 49, 105] : [120, 120, 120], espacoDepois: 1 });
     });
     pdf.y += 3;
   });
@@ -141,7 +141,7 @@ function exportarEncerramentoPdf(
   } else {
     logs.forEach((l) => {
       const nome = nomeUsuario(usuarios, l.user_id) ?? "Usuário";
-      pdf.paragrafo(`${nome} — ${l.acao} — ${fmtDataHoraPdf(l.created_at)}`, { tamanho: 8.5, espacoDepois: 1.5 });
+      pdf.paragrafo(`${nome} - ${l.acao} - ${fmtDataHoraPdf(l.created_at)}`, { tamanho: 8.5, espacoDepois: 1.5 });
     });
   }
 
@@ -211,7 +211,7 @@ export function DocumentoDetalheModal({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Anexo {documento.numero} – {documento.nome} ({documento.sigla})</DialogTitle>
+          <DialogTitle>Anexo {documento.numero} - {documento.nome} ({documento.sigla})</DialogTitle>
         </DialogHeader>
 
         {/* Botões de exportar ficam FORA da área de captura para não aparecer no PDF */}
@@ -290,7 +290,7 @@ export function DocumentoDetalheModal({
               {(card.pesquisa_atendeu_necessidade != null || card.pesquisa_pode_encerrar != null) && (
                 <div className="rounded-md border border-dashed border-border p-3 opacity-90">
                   <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Pesquisa de Avaliação da Demanda <span className="font-normal">— concluído</span>
+                    Pesquisa de Avaliação da Demanda <span className="font-normal">- concluído</span>
                   </p>
                   <PesquisaVisual card={card} />
                 </div>

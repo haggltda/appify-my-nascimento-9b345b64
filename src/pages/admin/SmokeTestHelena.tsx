@@ -112,7 +112,7 @@ export default function SmokeTestHelena() {
   return (
     <div className="space-y-4 p-6">
       <PageHeader
-        title="Smoke Test — Helena"
+        title="Smoke Test - Helena"
         subtitle={`Roteiro guiado das 6 empresas × ${PASSOS.length} passos = ${totalEsperado} validações. ${totalGeral}/${totalEsperado} concluídos.`}
         module="Administração"
       />
@@ -170,7 +170,7 @@ export default function SmokeTestHelena() {
         <section className="card-elevated">
           <header className="flex items-center justify-between gap-2 border-b border-border px-5 py-3.5">
             <div>
-              <h2 className="font-display text-sm font-bold">Auditoria — últimos eventos</h2>
+              <h2 className="font-display text-sm font-bold">Auditoria - últimos eventos</h2>
               <p className="text-xs text-muted-foreground">Atualiza a cada 15 s.</p>
             </div>
             <Button

@@ -59,7 +59,7 @@ const fmtBRLcompact = (n: number) => {
   return fmtBRL(v);
 };
 const fmtDate = (d?: string) =>
-  d ? new Date(d + (d.length === 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR") : "—";
+  d ? new Date(d + (d.length === 10 ? "T00:00:00" : "")).toLocaleDateString("pt-BR") : "-";
 const isoAdd = (days: number) => {
   const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10);
 };
@@ -206,7 +206,7 @@ export default function Presidencia() {
     [malotesQ.data]
   );
   const empresaNome = (id: string) =>
-    empresasQ.data?.find((e) => e.id === id)?.codigo ?? "—";
+    empresasQ.data?.find((e) => e.id === id)?.codigo ?? "-";
 
   const hoje = new Date();
   const vencidasPagar = (titulosPagarQ.data ?? []).filter(
@@ -477,7 +477,7 @@ export default function Presidencia() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-display text-lg font-bold">
-            <Activity className="h-4 w-4 text-primary" /> Resumo executivo — Plano de Ações & Fluxo de Caixa
+            <Activity className="h-4 w-4 text-primary" /> Resumo executivo - Plano de Ações & Fluxo de Caixa
           </h2>
           <Badge variant="outline" className="font-mono text-[10px]">{planoStats.total} ações</Badge>
         </div>
@@ -559,7 +559,7 @@ export default function Presidencia() {
           <div className="relative">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                <TrendingUp className="h-3.5 w-3.5 text-primary" /> Fluxo de Caixa — Realizado x Projetado (6 meses)
+                <TrendingUp className="h-3.5 w-3.5 text-primary" /> Fluxo de Caixa - Realizado x Projetado (6 meses)
               </div>
               <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                 <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-success" /> Entradas</span>
@@ -590,7 +590,7 @@ export default function Presidencia() {
           <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-destructive/10 via-warning/5 to-transparent px-4 py-3">
             <div className="flex items-center gap-2">
               <Flame className="h-4 w-4 text-destructive" />
-              <h3 className="font-display font-bold">Ações mais críticas — atenção da Presidência</h3>
+              <h3 className="font-display font-bold">Ações mais críticas - atenção da Presidência</h3>
             </div>
             <Button size="sm" variant="ghost" onClick={() => navigate("/app/plano-acoes/dashboard")}>
               Ver plano completo <ArrowUpRight className="ml-1 h-3 w-3" />
@@ -613,12 +613,12 @@ export default function Presidencia() {
                   <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Nenhuma ação crítica no momento</td></tr>
                 )}
                 {acoesCriticas.map((a: any) => {
-                  const prio = a.prioridade_normalizada ?? "—";
+                  const prio = a.prioridade_normalizada ?? "-";
                   const prioColor =
                     prio === "emergencial" ? "bg-destructive-soft text-destructive border-destructive/30" :
                     prio === "alta"        ? "bg-warning-soft text-warning border-warning/30" :
                     "bg-muted text-muted-foreground";
-                  const status = a.status_normalizado ?? "—";
+                  const status = a.status_normalizado ?? "-";
                   const stColor =
                     status === "atrasada"  ? "bg-destructive-soft text-destructive border-destructive/30" :
                     status === "concluida" ? "bg-success-soft text-success border-success/30" :
@@ -626,8 +626,8 @@ export default function Presidencia() {
                   return (
                     <tr key={a.id} className="hover:bg-muted/30">
                       <td className="max-w-[320px] truncate px-4 py-2 font-medium">{a.titulo}</td>
-                      <td className="px-4 py-2 text-muted-foreground">{a.area ?? "—"}</td>
-                      <td className="px-4 py-2 text-muted-foreground">{a.responsavel_nome_origem ?? "—"}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{a.area ?? "-"}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{a.responsavel_nome_origem ?? "-"}</td>
                       <td className="px-4 py-2 text-center">
                         <span className={`inline-flex rounded border px-2 py-0.5 text-[10px] font-bold capitalize ${prioColor}`}>{prio}</span>
                       </td>

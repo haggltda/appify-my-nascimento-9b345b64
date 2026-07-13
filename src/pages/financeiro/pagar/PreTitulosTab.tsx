@@ -22,7 +22,7 @@ import { toast } from "sonner";
 
 const fmtMoney = (n: any) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
+const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "-");
 
 const BUCKET = "pre-titulos-fiscal";
 
@@ -166,7 +166,7 @@ export default function PreTitulosTab() {
                 {rows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhum pré-título — clique em "Novo lançamento" para começar
+                      Nenhum pré-título - clique em "Novo lançamento" para começar
                     </TableCell>
                   </TableRow>
                 )}
@@ -176,9 +176,9 @@ export default function PreTitulosTab() {
                     className="cursor-pointer hover:bg-muted/40"
                     onClick={() => setOpenDetalhe(r.id)}
                   >
-                    <TableCell className="font-mono text-xs">{r.numero_documento ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{r.numero_documento ?? "-"}</TableCell>
                     <TableCell className="max-w-xs truncate">{r.descricao}</TableCell>
-                    <TableCell>{r.fornecedor?.razao_social ?? "—"}</TableCell>
+                    <TableCell>{r.fornecedor?.razao_social ?? "-"}</TableCell>
                     <TableCell>{fmtDate(r.data_vencimento)}</TableCell>
                     <TableCell className="text-right font-semibold">{fmtMoney(r.valor)}</TableCell>
                     <TableCell>{statusBadge(r.status)}</TableCell>
@@ -607,7 +607,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div className="md:col-span-4 lg:col-span-6">
               <Label className="text-xs">Descrição *</Label>
-              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Rescisão João da Silva — Obra Centro" />
+              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Rescisão João da Silva - Obra Centro" />
             </div>
             <div className="md:col-span-2 lg:col-span-2">
               <Label className="text-xs">Emissão *</Label>
@@ -629,10 +629,10 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                 disabled={!empresaId}
                 options={contas.map((c: any) => ({
                   value: c.id,
-                  label: `${c.classificacao} — ${c.descricao}`,
+                  label: `${c.classificacao} - ${c.descricao}`,
                   hint: c.classificacao,
                 }))}
-                placeholder={empresaId ? (contas.length ? "Opcional — usada quando a linha de rateio não tiver conta" : "Nenhuma conta de resultado para esta empresa") : "Selecione a empresa primeiro"}
+                placeholder={empresaId ? (contas.length ? "Opcional - usada quando a linha de rateio não tiver conta" : "Nenhuma conta de resultado para esta empresa") : "Selecione a empresa primeiro"}
                 searchPlaceholder="Buscar conta contábil..."
                 allowClear
               />
@@ -652,7 +652,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
               Parcelamento da despesa
             </label>
             <span className="text-xs text-muted-foreground">
-              {parcelado ? "Despesa parcelada — defina datas e valores abaixo." : "Despesa em parcela única no vencimento informado acima."}
+              {parcelado ? "Despesa parcelada - defina datas e valores abaixo." : "Despesa em parcela única no vencimento informado acima."}
             </span>
           </div>
 
@@ -750,7 +750,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
         <section className="rounded-xl border bg-card p-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold">
-              <FileSpreadsheet className="h-4 w-4 text-primary" /> Rateio por centro de custo <span className="text-xs text-muted-foreground font-normal">(obrigatório — mesmo que seja 1 só)</span>
+              <FileSpreadsheet className="h-4 w-4 text-primary" /> Rateio por centro de custo <span className="text-xs text-muted-foreground font-normal">(obrigatório - mesmo que seja 1 só)</span>
             </div>
             <div className="flex gap-2">
               <Button type="button" size="sm" variant="outline" onClick={distribuirIgual} disabled={rateios.length === 0}>
@@ -795,7 +795,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                             disabled={!empresaId}
                             options={ccs.map((c: any) => ({
                               value: c.id,
-                              label: `${c.codigo} — ${c.nome}`,
+                              label: `${c.codigo} - ${c.nome}`,
                               hint: c.codigo,
                             }))}
                             placeholder={empresaId ? "CC..." : "Selecione a empresa"}
@@ -809,7 +809,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
                             disabled={!empresaId}
                             options={contas.map((c: any) => ({
                               value: c.id,
-                              label: `${c.classificacao} — ${c.descricao}`,
+                              label: `${c.classificacao} - ${c.descricao}`,
                               hint: c.classificacao,
                             }))}
                             placeholder={empresaId ? "Auto pelo CC..." : "Selecione a empresa"}
@@ -899,7 +899,7 @@ function NovoPreTituloDialog({ onClose }: { onClose: () => void }) {
           </div>
           {anexos.length === 0 ? (
             <div className="rounded-lg border border-dashed py-6 text-center text-sm text-muted-foreground">
-              Arraste arquivos ou clique em "Adicionar arquivo" — PDF, XML, imagens.
+              Arraste arquivos ou clique em "Adicionar arquivo" - PDF, XML, imagens.
             </div>
           ) : (
             <ul className="space-y-2">
@@ -999,8 +999,8 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
             <Info label="Vencimento" value={fmtDate(pretit.data_vencimento)} />
             <Info label="Emissão" value={fmtDate(pretit.data_emissao)} />
             <Info label="Status" value={pretit.status} />
-            <Info label="Fornecedor" value={pretit.fornecedor?.razao_social ?? "—"} />
-            <Info label="Conta" value={pretit.conta_contabil ? `${pretit.conta_contabil.classificacao} — ${pretit.conta_contabil.descricao}` : "—"} />
+            <Info label="Fornecedor" value={pretit.fornecedor?.razao_social ?? "-"} />
+            <Info label="Conta" value={pretit.conta_contabil ? `${pretit.conta_contabil.classificacao} - ${pretit.conta_contabil.descricao}` : "-"} />
           </div>
         )}
 
@@ -1027,9 +1027,9 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
                 {rateios.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>{r.centros_custo?.codigo}</TableCell>
-                    <TableCell>{r.conta_contabil ? `${r.conta_contabil.classificacao} — ${r.conta_contabil.descricao}` : "—"}</TableCell>
-                    <TableCell>{r.descricao ?? "—"}</TableCell>
-                    <TableCell className="text-right">{r.percentual ? `${r.percentual}%` : "—"}</TableCell>
+                    <TableCell>{r.conta_contabil ? `${r.conta_contabil.classificacao} - ${r.conta_contabil.descricao}` : "-"}</TableCell>
+                    <TableCell>{r.descricao ?? "-"}</TableCell>
+                    <TableCell className="text-right">{r.percentual ? `${r.percentual}%` : "-"}</TableCell>
                     <TableCell className="text-right font-medium">{fmtMoney(r.valor)}</TableCell>
                   </TableRow>
                 ))}
@@ -1054,7 +1054,7 @@ function DetalheDialog({ id, onClose }: { id: string; onClose: () => void }) {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm truncate">{a.file_name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {a.tipo ?? "—"} · {((a.size_bytes ?? 0) / 1024).toFixed(1)} KB
+                      {a.tipo ?? "-"} · {((a.size_bytes ?? 0) / 1024).toFixed(1)} KB
                     </div>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => baixar(a)}>

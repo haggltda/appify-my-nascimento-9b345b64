@@ -86,7 +86,7 @@ export default function EstruturaOrganizacional() {
     fetchAll();
   };
 
-  const ccLabel = (id: string | null) => id ? (ccs.find(c => c.id === id)?.codigo ?? "—") : "—";
+  const ccLabel = (id: string | null) => id ? (ccs.find(c => c.id === id)?.codigo ?? "-") : "-";
 
   return (
     <div>
@@ -110,7 +110,7 @@ export default function EstruturaOrganizacional() {
               onChange={(e) => { setEmpresaId(e.target.value); setComiteSel(""); setAreaSel(""); }}
               className="h-9 rounded-md border border-border bg-card px-2 text-sm"
             >
-              {empresas.map(e => <option key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</option>)}
+              {empresas.map(e => <option key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</option>)}
             </select>
           </div>
 
@@ -146,7 +146,7 @@ export default function EstruturaOrganizacional() {
                       <select value={areaCC} onChange={(e) => setAreaCC(e.target.value)}
                         className="h-8 flex-1 rounded-md border border-border bg-card px-2 text-xs">
                         <option value="">Sem CC</option>
-                        {ccsEmp.map(c => <option key={c.id} value={c.id}>{c.codigo} — {c.nome}</option>)}
+                        {ccsEmp.map(c => <option key={c.id} value={c.id}>{c.codigo} - {c.nome}</option>)}
                       </select>
                       <button data-write onClick={addArea}
                         className="btn-relief inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground">
@@ -175,7 +175,7 @@ export default function EstruturaOrganizacional() {
                       <select value={setorCC} onChange={(e) => setSetorCC(e.target.value)}
                         className="h-8 flex-1 rounded-md border border-border bg-card px-2 text-xs">
                         <option value="">Sem CC</option>
-                        {ccsEmp.map(c => <option key={c.id} value={c.id}>{c.codigo} — {c.nome}</option>)}
+                        {ccsEmp.map(c => <option key={c.id} value={c.id}>{c.codigo} - {c.nome}</option>)}
                       </select>
                       <button data-write onClick={addSetor}
                         className="btn-relief inline-flex h-8 items-center gap-1 rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground">
@@ -195,7 +195,7 @@ export default function EstruturaOrganizacional() {
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            <Users className="inline h-3 w-3" /> Vínculos com Plano de Ações, Colaboradores e demais módulos serão habilitados em fase posterior — nada foi alterado nas telas existentes.
+            <Users className="inline h-3 w-3" /> Vínculos com Plano de Ações, Colaboradores e demais módulos serão habilitados em fase posterior - nada foi alterado nas telas existentes.
           </p>
         </>
       )}
@@ -209,7 +209,7 @@ function Coluna({ icon, titulo, subtitulo, children }: { icon: React.ReactNode; 
       <header className="mb-3 flex items-center gap-2">
         {icon}
         <h2 className="text-sm font-semibold">{titulo}</h2>
-        {subtitulo && <span className="text-[11px] text-muted-foreground">— {subtitulo}</span>}
+        {subtitulo && <span className="text-[11px] text-muted-foreground">- {subtitulo}</span>}
       </header>
       {children}
     </section>

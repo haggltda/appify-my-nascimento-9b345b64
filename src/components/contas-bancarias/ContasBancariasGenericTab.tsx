@@ -102,12 +102,12 @@ export function ContasBancariasGenericTab({ tableName, parentField, parentId, em
               <TableRow key={c.id}>
                 <TableCell>
                   {c.principal && <Star className="mr-1 inline h-3 w-3 fill-primary text-primary" />}
-                  {c.banco_codigo} — {c.banco_nome}
+                  {c.banco_codigo} - {c.banco_nome}
                 </TableCell>
                 <TableCell>{c.agencia}{c.agencia_digito ? `-${c.agencia_digito}` : ""}</TableCell>
                 <TableCell>{c.conta}{c.conta_digito ? `-${c.conta_digito}` : ""}</TableCell>
                 <TableCell className="capitalize">{c.tipo}</TableCell>
-                <TableCell className="text-xs">{c.pix_tipo ? `${c.pix_tipo}: ${c.pix_chave}` : "—"}</TableCell>
+                <TableCell className="text-xs">{c.pix_tipo ? `${c.pix_tipo}: ${c.pix_chave}` : "-"}</TableCell>
                 <TableCell>
                   {c.ativa ? <Badge variant="secondary">Ativa</Badge> : <Badge variant="outline">Inativa</Badge>}
                 </TableCell>

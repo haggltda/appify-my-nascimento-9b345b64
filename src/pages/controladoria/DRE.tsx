@@ -9,7 +9,7 @@ export default function LinhasDRE() {
         module="Controladoria & Orçamento"
         breadcrumb={["Cadastros Mestres", "DRE Gerencial"]}
         title="Linhas oficiais da DRE"
-        subtitle="Catálogo congelado L01–L14. Não promover subgrupos auxiliares a linha oficial sem aprovação humana."
+        subtitle="Catálogo congelado L01-L14. Não promover subgrupos auxiliares a linha oficial sem aprovação humana."
       />
 
       <div className="card-elevated overflow-hidden">
@@ -53,7 +53,7 @@ export default function LinhasDRE() {
       <section className="mt-6 card-elevated border-l-4 border-l-warning p-5">
         <header className="mb-2 flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-warning" />
-          <h2 className="text-sm font-semibold">Subgrupo gerencial auxiliar — {subgrupoAuxiliar04A.codigo}</h2>
+          <h2 className="text-sm font-semibold">Subgrupo gerencial auxiliar - {subgrupoAuxiliar04A.codigo}</h2>
           <span className="ml-auto rounded bg-warning-soft px-2 py-0.5 text-[10px] font-semibold text-warning">
             {subgrupoAuxiliar04A.status}
           </span>

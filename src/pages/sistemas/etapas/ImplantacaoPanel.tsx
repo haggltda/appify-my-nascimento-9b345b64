@@ -51,7 +51,7 @@ export function ImplantacaoPanel({
               {comentariosImplantacao.map((c) => (
                 <div key={c.id} className="rounded border-l-2 border-l-muted-foreground bg-muted/30 px-2 py-1.5 text-[11px]">
                   <p className="text-muted-foreground">
-                    {nomeUsuario(usuarios, c.autor_id) ?? "Usuário"} — {new Date(c.created_at).toLocaleString("pt-BR")}
+                    {nomeUsuario(usuarios, c.autor_id) ?? "Usuário"} - {new Date(c.created_at).toLocaleString("pt-BR")}
                   </p>
                   <p className="mt-0.5">{c.texto}</p>
                 </div>

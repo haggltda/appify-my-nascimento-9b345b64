@@ -51,11 +51,11 @@ const REAJUSTE_OPCOES = ["IPCA", "IGPM", "INPC", "Convenção coletiva"];
 const ESCALAS = ["5x2", "6x1", "4x3", "12x36"];
 const HORAS_OPCOES = ["20h", "30h", "36h", "40h", "44h"];
 
-// Armazena como "5x2 — 40h" ou texto livre
+// Armazena como "5x2 - 40h" ou texto livre
 function CargaHorariaInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  // Parse: "5x2 — 40h" → { escala: "5x2", horas: "40h" } | texto livre
+  // Parse: "5x2 - 40h" → { escala: "5x2", horas: "40h" } | texto livre
   function parse(v: string) {
-    const m = v.match(/^(.+?)\s*—\s*(.+)$/);
+    const m = v.match(/^(.+?)\s*-\s*(.+)$/);
     if (m) return { escala: m[1].trim(), horas: m[2].trim() };
     const soEscala = ESCALAS.includes(v.trim());
     if (soEscala) return { escala: v.trim(), horas: "" };
@@ -73,7 +73,7 @@ function CargaHorariaInput({ value, onChange }: { value: string; onChange: (v: s
   }, [value]);
 
   function emit(e: string, h: string) {
-    if (e && h) onChange(`${e} — ${h}`);
+    if (e && h) onChange(`${e} - ${h}`);
     else if (e) onChange(e);
     else onChange(h);
   }
@@ -83,14 +83,14 @@ function CargaHorariaInput({ value, onChange }: { value: string; onChange: (v: s
       <Select value={escala || "_"} onValueChange={(v) => { const e = v === "_" ? "" : v; setEscala(e); emit(e, horas); }}>
         <SelectTrigger className="h-9 w-28 shrink-0"><SelectValue placeholder="Escala" /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="_">— Escala —</SelectItem>
+          <SelectItem value="_">- Escala -</SelectItem>
           {ESCALAS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={horas || "_"} onValueChange={(v) => { const h = v === "_" ? "" : v; setHoras(h); emit(escala, h); }}>
         <SelectTrigger className="h-9 flex-1"><SelectValue placeholder="Horas" /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="_">— Horas —</SelectItem>
+          <SelectItem value="_">- Horas -</SelectItem>
           {HORAS_OPCOES.map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}
           <SelectItem value="outro">Outro</SelectItem>
         </SelectContent>
@@ -181,7 +181,7 @@ export default function CadastroEdital() {
       <PageHeader
         title="Capa de Edital Licitações"
         breadcrumb={["Capa de Edital Licitações"]}
-        subtitle="Detalhamento completo das licitações — do preenchimento à homologação."
+        subtitle="Detalhamento completo das licitações - do preenchimento à homologação."
         actions={
           canIncluir ? (
             <Button size="sm" onClick={() => { setEditing(null); setSheetOpen(true); }} className="gap-2">
@@ -197,7 +197,7 @@ export default function CadastroEdital() {
           <div className="flex items-start gap-2 text-amber-700">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="text-xs">
-              <span className="font-bold">Atenção — Reunião de alinhamento pendente!</span>
+              <span className="font-bold">Atenção - Reunião de alinhamento pendente!</span>
               {alertas.map((a) => (
                 <p key={a.id} className="mt-0.5">
                   <strong>{a.objeto || a.cidade || "Licitação"}</strong> ganhou há menos de 48h e ainda não tem reunião agendada.{" "}
@@ -405,7 +405,7 @@ function CapaCard({
     <article className={cn("card-floating space-y-3 p-4", alert48 && "border-amber-400/60")}>
       {alert48 && (
         <div className="flex items-center gap-1.5 rounded bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-700">
-          <AlertCircle className="h-3 w-3" /> Reunião de alinhamento pendente — 48h
+          <AlertCircle className="h-3 w-3" /> Reunião de alinhamento pendente - 48h
         </div>
       )}
 
@@ -417,11 +417,11 @@ function CapaCard({
       </div>
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-        <span><span className="font-medium text-foreground">Cidade:</span> {capa.cidade || "—"}</span>
-        <span><span className="font-medium text-foreground">Modalidade:</span> {capa.modalidade || "—"}</span>
-        <span><span className="font-medium text-foreground">Abertura:</span> {capa.abertura ? capa.abertura.replace(/^(\d{4})-(\d{2})-(\d{2})/, "$3/$2/$1").replace(/H/i, "h") : "—"}</span>
-        <span><span className="font-medium text-foreground">Postos:</span> {capa.qtd_postos ?? "—"}</span>
-        <span className="col-span-2"><span className="font-medium text-foreground">Responsável:</span> {capa.responsavel || "—"}</span>
+        <span><span className="font-medium text-foreground">Cidade:</span> {capa.cidade || "-"}</span>
+        <span><span className="font-medium text-foreground">Modalidade:</span> {capa.modalidade || "-"}</span>
+        <span><span className="font-medium text-foreground">Abertura:</span> {capa.abertura ? capa.abertura.replace(/^(\d{4})-(\d{2})-(\d{2})/, "$3/$2/$1").replace(/H/i, "h") : "-"}</span>
+        <span><span className="font-medium text-foreground">Postos:</span> {capa.qtd_postos ?? "-"}</span>
+        <span className="col-span-2"><span className="font-medium text-foreground">Responsável:</span> {capa.responsavel || "-"}</span>
         {capa.valor_estimado && (
           <span className="col-span-2"><span className="font-medium text-foreground">Valor:</span> {capa.valor_estimado}</span>
         )}
@@ -430,7 +430,7 @@ function CapaCard({
         )}
       </div>
 
-      {/* Alterar status — qualquer direção */}
+      {/* Alterar status - qualquer direção */}
       {canAlterar && (
         <div className="flex flex-wrap gap-1.5 border-t border-border pt-2.5">
           {(["Em andamento", "Ganhamos", "Perdemos"] as CapaStatus[])
@@ -548,7 +548,7 @@ function CapaSheet({
                   onValueChange={(v) => setF((p) => ({ ...p, uf: v, cidade: "" }))}
                 >
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="— Selecione —" />
+                    <SelectValue placeholder="- Selecione -" />
                   </SelectTrigger>
                   <SelectContent>
                     {UFS.map((uf) => (
@@ -574,7 +574,7 @@ function CapaSheet({
                     onValueChange={(v) => setF((p) => ({ ...p, responsavel: v }))}
                   >
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder="— Selecione —" />
+                      <SelectValue placeholder="- Selecione -" />
                     </SelectTrigger>
                     <SelectContent>
                       {usuarios.map((u) => (
@@ -716,7 +716,7 @@ function CapaSheet({
                 )}
               </F>
               <F label="Conta vinculada">{txt("conta_vinculada")}</F>
-              <F label="Conta vinculada — quem abre">{txt("conta_vinculada_quem_abre")}</F>
+              <F label="Conta vinculada - quem abre">{txt("conta_vinculada_quem_abre")}</F>
             </Grid2>
 
             {/* Reajuste (item 6) */}
@@ -800,7 +800,7 @@ function ViewModal({ capa, onClose }: { capa: CapaEdital; onClose: () => void })
             ].map(([l, v]) => (
               <div key={String(l)} className="flex gap-2">
                 <span className="w-36 shrink-0 text-xs font-medium text-muted-foreground">{l}</span>
-                <span className="text-xs">{v || "—"}</span>
+                <span className="text-xs">{v || "-"}</span>
               </div>
             ))}
           </div>
@@ -847,7 +847,7 @@ function ReuniaoModal({ capa, onClose, onConfirm }: {
         </DialogHeader>
         <div className="space-y-3 py-2">
           <p className="text-xs text-muted-foreground">
-            <strong>{capa.objeto || capa.cidade}</strong> — informe a data da reunião de alinhamento antes de criar o contrato.
+            <strong>{capa.objeto || capa.cidade}</strong> - informe a data da reunião de alinhamento antes de criar o contrato.
           </p>
           <div className="space-y-1">
             <Label className="text-xs">Data da reunião</Label>

@@ -333,15 +333,15 @@ export default function ReuniaoDetalhe() {
         <CampoEditavel
           icon={<Users className="h-4 w-4" />}
           label="Organizador"
-          valor={nomeUsuario(usuarios, reuniao.responsavel_preenchimento_user_id) ?? "—"}
+          valor={nomeUsuario(usuarios, reuniao.responsavel_preenchimento_user_id) ?? "-"}
           editavel={podeGerenciar && !reuniaoEncerrada}
           editor={(fechar) => (
             <EditorOrganizador
               atual={reuniao.responsavel_preenchimento_user_id}
               opcoes={opcoesUsuarios}
               onSalvar={async (userId) => {
-                const de = nomeUsuario(usuarios, reuniao.responsavel_preenchimento_user_id) ?? "—";
-                const para = nomeUsuario(usuarios, userId) ?? "—";
+                const de = nomeUsuario(usuarios, reuniao.responsavel_preenchimento_user_id) ?? "-";
+                const para = nomeUsuario(usuarios, userId) ?? "-";
                 await atualizarCampos(
                   { responsavel_preenchimento_user_id: userId },
                   { acao: "organizador_alterado", detalhe: `Organizador alterado de ${de} para ${para}` },

@@ -105,7 +105,7 @@ export default function PlanoAcoesAprovacoes() {
       </Card>
       <div className="grid gap-4 lg:grid-cols-2">
         {renderList(aguard, "Aguardando validação", true)}
-        {renderList(pendEv, "Concluídas — pend. evidência (legado)", false)}
+        {renderList(pendEv, "Concluídas - pend. evidência (legado)", false)}
       </div>
     </div>
   );

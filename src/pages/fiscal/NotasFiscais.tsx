@@ -126,7 +126,7 @@ export default function NotasFiscais() {
               <TableBody>
                 {notas.map((nf) => (
                   <TableRow key={nf.id}>
-                    <TableCell className="font-mono text-xs">{nf.numero ?? "—"}/{nf.serie ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">{nf.numero ?? "-"}/{nf.serie ?? "-"}</TableCell>
                     <TableCell><Badge variant="outline">{nf.tipo.toUpperCase()}</Badge></TableCell>
                     <TableCell>
                       <div className="text-sm">{nf.tomador_nome}</div>
@@ -266,7 +266,7 @@ function EmitirDialog({ empresaId, onClose, onSaved }: { empresaId: string; onCl
               <SelectTrigger><SelectValue placeholder="Selecione um título..." /></SelectTrigger>
               <SelectContent>
                 {titulos.map((t: any) => (
-                  <SelectItem key={t.id} value={t.id}>{t.numero} — {t.sacado_nome} — {fmt(Number(t.valor_total))}</SelectItem>
+                  <SelectItem key={t.id} value={t.id}>{t.numero} - {t.sacado_nome} - {fmt(Number(t.valor_total))}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -4,10 +4,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/context/PermissoesContext";
 
 // =====================================================================
-// NASCIMENTO FORMULÁRIOS — capacidades do usuário logado
+// NASCIMENTO FORMULÁRIOS - capacidades do usuário logado
 // Espelha a RLS (public.cs_form_cap): admin faz tudo; os demais dependem
 // das linhas em CS_FORM_ACESSOS (papel). Usado só para mostrar/esconder
-// botões — a autoridade continua sendo a RLS no banco.
+// botões - a autoridade continua sendo a RLS no banco.
 // =====================================================================
 
 export type FormCap =

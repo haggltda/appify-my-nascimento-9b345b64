@@ -10,7 +10,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
   // Only block on the very first auth check (loading=true once at startup).
-  // mcLoading (must-change-password) must NOT unmount children — auth events fire on
+  // mcLoading (must-change-password) must NOT unmount children - auth events fire on
   // every navigation and briefly set mcLoading=true, which would reset Lista filters.
   // The mustChange redirect below fires as soon as the check resolves (< 1 frame).
   if (loading) {

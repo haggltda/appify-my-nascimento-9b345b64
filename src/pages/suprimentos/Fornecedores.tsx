@@ -85,7 +85,7 @@ export default function Fornecedores() {
                     </TableCell>
                     <TableCell>{r.cnpj_cpf}</TableCell>
                     <TableCell>{r.tipo === "pj" ? "PJ" : "PF"}</TableCell>
-                    <TableCell>{r.contato ?? "—"}</TableCell>
+                    <TableCell>{r.contato ?? "-"}</TableCell>
                     <TableCell>{r.ativo ? "✓ Ativo" : "Inativo"}</TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost" title="Visualizar" onClick={() => { setEditing(r); setViewOnly(true); setOpen(true); }}>

@@ -5,7 +5,7 @@ import { ParecerDetalhadoForm, type ParecerDetalhadoConfig } from "@/components/
 const config: Omit<ParecerDetalhadoConfig, "subtitulo"> = {
   papel: "Diretor Administrativo",
   menuCodigo: "parecer-dir-administrativo",
-  tituloCard: "Decisão executiva — alinhamento estratégico",
+  tituloCard: "Decisão executiva - alinhamento estratégico",
   cor: "accent",
   chipsExtras: [{ label: "Decisão estratégica", tom: "warning" }],
   checklist: {
@@ -40,11 +40,11 @@ const config: Omit<ParecerDetalhadoConfig, "subtitulo"> = {
       id: "decisao_colegiada",
       label: "Requer Comitê/Conselho?",
       tipo: "select",
-      opcoes: ["Não", "Sim — Diretoria", "Sim — Conselho"],
+      opcoes: ["Não", "Sim - Diretoria", "Sim - Conselho"],
     },
   ],
   recomendacoes: [
-    "Aprovar — participar",
+    "Aprovar - participar",
     "Aprovar condicionado a Comitê",
     "Postergar decisão",
     "Não participar",
@@ -74,7 +74,7 @@ export default function ParecerDiretorAdministrativo() {
             voltar={voltar}
             config={{
               ...config,
-              subtitulo: `${l.numero} · ${l.objeto} — avalie alinhamento estratégico, capacidade administrativa e risco reputacional.`,
+              subtitulo: `${l.numero} · ${l.objeto} - avalie alinhamento estratégico, capacidade administrativa e risco reputacional.`,
             }}
           />
         )}

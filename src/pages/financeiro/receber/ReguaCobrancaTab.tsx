@@ -134,7 +134,7 @@ export default function ReguaCobrancaTab() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-base">Etapas {reguaSel && <span className="text-muted-foreground">— {reguaSel.nome}</span>}</CardTitle>
+              <CardTitle className="text-base">Etapas {reguaSel && <span className="text-muted-foreground">- {reguaSel.nome}</span>}</CardTitle>
               <CardDescription>Sequência de ações automáticas em relação ao vencimento (negativo = antes, positivo = depois)</CardDescription>
             </div>
             {reguaId && <Button size="sm" onClick={() => setOpenEtapa(true)}><Plus className="h-4 w-4 mr-1" /> Etapa</Button>}
@@ -188,11 +188,11 @@ export default function ReguaCobrancaTab() {
               {execucoes.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma execução</TableCell></TableRow>}
               {execucoes.map((e) => (
                 <TableRow key={e.id}>
-                  <TableCell className="text-xs">{e.agendado_para ? new Date(e.agendado_para).toLocaleString("pt-BR") : "—"}</TableCell>
+                  <TableCell className="text-xs">{e.agendado_para ? new Date(e.agendado_para).toLocaleString("pt-BR") : "-"}</TableCell>
                   <TableCell className="font-mono text-xs">{e.titulo_receber?.numero}</TableCell>
                   <TableCell>{e.titulo_receber?.sacado_nome}</TableCell>
                   <TableCell><Badge variant="outline" className={`text-xs gap-1 ${canalCor[e.canal] ?? ""}`}>{canalIcon(e.canal)} {e.canal}</Badge></TableCell>
-                  <TableCell className="text-xs">{e.destinatario ?? "—"}</TableCell>
+                  <TableCell className="text-xs">{e.destinatario ?? "-"}</TableCell>
                   <TableCell><Badge variant={e.status === "executada" ? "default" : e.status === "falhou" ? "destructive" : "outline"} className="text-xs">{e.status}</Badge></TableCell>
                 </TableRow>
               ))}

@@ -338,7 +338,7 @@ export default function MigracaoFcr() {
                     </td>
                     <td>{nomeEmpresa(b.empresa_id)}</td>
                     <td className="font-mono text-xs max-w-[260px] truncate" title={b.arquivo_origem ?? ""}>
-                      {b.arquivo_origem ?? "—"}
+                      {b.arquivo_origem ?? "-"}
                     </td>
                     <td>
                       <Badge
@@ -390,7 +390,7 @@ export default function MigracaoFcr() {
                           </span>
                         )
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </td>
                     <td className="space-x-2 whitespace-nowrap py-2">

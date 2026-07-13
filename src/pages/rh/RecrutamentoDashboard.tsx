@@ -6,7 +6,7 @@ import {
 } from "recharts";
 
 // =====================================================================
-// RECRUTAMENTO — Dashboard
+// RECRUTAMENTO - Dashboard
 // KPIs + gráficos: currículos por período, solicitações por status,
 // tempo médio por etapa, candidaturas por vaga.
 // =====================================================================
@@ -80,7 +80,7 @@ export default function RecrutamentoDashboard() {
   const curvSemana = curs.filter(c => new Date(c.created_at) >= t7).length;
   const curvMes = cursF.length; // currículos do mês selecionado
 
-  // Currículos por dia — do mês selecionado (ou últimos 14 dias se "Todos")
+  // Currículos por dia - do mês selecionado (ou últimos 14 dias se "Todos")
   const dias14: { dia: string; qtd: number }[] = [];
   if (mes) {
     const [y, mm] = mes.split("-").map(Number);
@@ -149,7 +149,7 @@ export default function RecrutamentoDashboard() {
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", padding: "16px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "linear-gradient(135deg,#fff 0%,#f8fbff 100%)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0 }}>
         <div>
-          <div style={{ fontSize: 19, fontWeight: 800, color: "#0f3171" }}>📊 Dashboard — Recrutamento e Seleção</div>
+          <div style={{ fontSize: 19, fontWeight: 800, color: "#0f3171" }}>📊 Dashboard - Recrutamento e Seleção</div>
           <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Indicadores de vagas, candidaturas e tempo por etapa.</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -177,7 +177,7 @@ export default function RecrutamentoDashboard() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(380px,1fr))", gap: 16 }}>
-            <Card title={mes ? `Currículos recebidos — ${mesLabel(mes)}` : "Currículos recebidos — últimos 14 dias"}>
+            <Card title={mes ? `Currículos recebidos - ${mesLabel(mes)}` : "Currículos recebidos - últimos 14 dias"}>
               <ResponsiveContainer>
                 <LineChart data={dias14} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />

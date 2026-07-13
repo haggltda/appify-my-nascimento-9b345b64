@@ -74,11 +74,11 @@ export function SessoesTab() {
           {(sessoesQ.data ?? []).map((s) => (
             <tr key={s.id} className="hover:bg-muted/40">
               <td className="px-5 py-3">
-                <p className="text-sm font-medium">{s.display_name ?? "—"}</p>
+                <p className="text-sm font-medium">{s.display_name ?? "-"}</p>
                 <p className="text-[11px] text-muted-foreground">{s.email}</p>
               </td>
-              <td className="px-3 py-3 font-mono text-xs">{s.ip ?? "—"}</td>
-              <td className="px-3 py-3 text-xs text-muted-foreground">{s.user_agent ?? "—"}</td>
+              <td className="px-3 py-3 font-mono text-xs">{s.ip ?? "-"}</td>
+              <td className="px-3 py-3 text-xs text-muted-foreground">{s.user_agent ?? "-"}</td>
               <td className="px-3 py-3 text-xs">{new Date(s.refreshed_at ?? s.created_at).toLocaleString("pt-BR")}</td>
               <td className="px-5 py-3 text-right">
                 <Button size="sm" variant="ghost" onClick={() => encerrar(s.user_id, s.display_name)} className="text-destructive hover:text-destructive">

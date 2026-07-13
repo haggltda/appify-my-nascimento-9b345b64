@@ -237,7 +237,7 @@ export default function OrcamentoCompleto() {
       <PageHeader
         module="Controladoria & Orçamento"
         breadcrumb={["Controladoria", "Orçamento Completo"]}
-        title="Orçamento Completo — Edição"
+        title="Orçamento Completo - Edição"
         subtitle="Visualize, edite, insira e exclua linhas do orçamento. Permissão de edição: Presidência, Controladoria e Admin."
         actions={
           <div className="flex flex-wrap gap-2">
@@ -275,10 +275,10 @@ export default function OrcamentoCompleto() {
         <div className="md:col-span-2">
           <Label>Empresa</Label>
           <Select value={empresaId} onValueChange={setEmpresaId}>
-            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
             <SelectContent>
               {(empresasQ.data ?? []).map((e) => (
-                <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+                <SelectItem key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -436,7 +436,7 @@ export default function OrcamentoCompleto() {
                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent className="max-h-[300px]">
                           {(linhasQ.data ?? []).map((l) => (
-                            <SelectItem key={l.id} value={l.id}>{l.codigo} — {l.descricao}</SelectItem>
+                            <SelectItem key={l.id} value={l.id}>{l.codigo} - {l.descricao}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -453,16 +453,16 @@ export default function OrcamentoCompleto() {
                         value={cc ?? "__none__"}
                         onValueChange={(v) => setPatch({ centro_custo_id: v === "__none__" ? null : v })}
                       >
-                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="-" /></SelectTrigger>
                         <SelectContent className="max-h-[300px]">
-                          <SelectItem value="__none__">— Sem CC —</SelectItem>
+                          <SelectItem value="__none__">- Sem CC -</SelectItem>
                           {(ccsQ.data ?? []).map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>
+                            <SelectItem key={c.id} value={c.id}>{c.codigo} - {c.nome}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     ) : (
-                      <span className="text-xs">{r.cc_codigo ? `${r.cc_codigo} — ${r.cc_nome}` : "—"}</span>
+                      <span className="text-xs">{r.cc_codigo ? `${r.cc_codigo} - ${r.cc_nome}` : "-"}</span>
                     )}
                   </td>
                   <td className="px-3 py-2 min-w-[220px]">
@@ -471,16 +471,16 @@ export default function OrcamentoCompleto() {
                         value={conta ?? "__none__"}
                         onValueChange={(v) => setPatch({ conta_contabil_id: v === "__none__" ? null : v })}
                       >
-                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="-" /></SelectTrigger>
                         <SelectContent className="max-h-[300px]">
-                          <SelectItem value="__none__">— Sem conta —</SelectItem>
+                          <SelectItem value="__none__">- Sem conta -</SelectItem>
                           {(contasQ.data ?? []).map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.conta_reduzida} — {c.descricao}</SelectItem>
+                            <SelectItem key={c.id} value={c.id}>{c.conta_reduzida} - {c.descricao}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     ) : (
-                      <span className="text-xs">{r.conta_codigo ? `${r.conta_codigo} — ${r.conta_desc}` : "—"}</span>
+                      <span className="text-xs">{r.conta_codigo ? `${r.conta_codigo} - ${r.conta_desc}` : "-"}</span>
                     )}
                   </td>
                   <td className="px-3 py-2 text-center">
@@ -495,7 +495,7 @@ export default function OrcamentoCompleto() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      <Badge variant="outline">{r.mes ? MESES[r.mes - 1] : "—"}</Badge>
+                      <Badge variant="outline">{r.mes ? MESES[r.mes - 1] : "-"}</Badge>
                     )}
                   </td>
                   <td className="px-3 py-2 text-right">
@@ -520,7 +520,7 @@ export default function OrcamentoCompleto() {
                         placeholder="Ex.: 12 × R$ 5.000 (folha)"
                       />
                     ) : (
-                      <span className="text-xs text-muted-foreground">{memo || "—"}</span>
+                      <span className="text-xs text-muted-foreground">{memo || "-"}</span>
                     )}
                   </td>
                   <td className="px-2 py-2 text-center">
@@ -548,7 +548,7 @@ export default function OrcamentoCompleto() {
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          Página {page + 1} de {pageCount} — exibindo {pageRows.length} de {filtered.length.toLocaleString("pt-BR")} linhas ({PAGE_SIZE}/página)
+          Página {page + 1} de {pageCount} - exibindo {pageRows.length} de {filtered.length.toLocaleString("pt-BR")} linhas ({PAGE_SIZE}/página)
         </span>
         <div className="flex gap-1">
           <Button size="sm" variant="outline" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
@@ -652,32 +652,32 @@ function NovaLinhaDialog({
             <Select value={linhaId} onValueChange={setLinhaId}>
               <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
               <SelectContent className="max-h-[300px]">
-                {linhas.map((l) => <SelectItem key={l.id} value={l.id}>{l.codigo} — {l.descricao}</SelectItem>)}
+                {linhas.map((l) => <SelectItem key={l.id} value={l.id}>{l.codigo} - {l.descricao}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label>Centro de Custo</Label>
             <Select value={ccId} onValueChange={setCcId}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
               <SelectContent className="max-h-[300px]">
-                {ccs.map((c) => <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>)}
+                {ccs.map((c) => <SelectItem key={c.id} value={c.id}>{c.codigo} - {c.nome}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label>Conta Contábil</Label>
             <Select value={contaId} onValueChange={setContaId}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
               <SelectContent className="max-h-[300px]">
-                {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.conta_reduzida} — {c.descricao}</SelectItem>)}
+                {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.conta_reduzida} - {c.descricao}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label>Ciclo</Label>
             <Select value={cicloId} onValueChange={setCicloId}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
               <SelectContent>
                 {ciclos.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
               </SelectContent>

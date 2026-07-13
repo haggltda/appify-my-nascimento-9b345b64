@@ -20,7 +20,7 @@ interface Props {
 }
 
 export function PlanoContasPrint({ contas, empresaNome, dreLinhas = [] }: Props) {
-  const dreMap = new Map(dreLinhas.map((d) => [d.id, `${d.codigo} — ${d.descricao}`]));
+  const dreMap = new Map(dreLinhas.map((d) => [d.id, `${d.codigo} - ${d.descricao}`]));
 
   const handlePrint = () => {
     const w = window.open("", "_blank", "width=900,height=700");
@@ -47,10 +47,10 @@ export function PlanoContasPrint({ contas, empresaNome, dreLinhas = [] }: Props)
           <td style="padding:3px 6px;font-size:11px;${bold}">${escapeHtml(c.descricao)}</td>
           <td style="padding:3px 6px;font-size:10px;text-transform:capitalize;color:#555;">${c.tipo}</td>
           <td style="padding:3px 6px;font-size:10px;text-align:center;">${c.natureza}</td>
-          <td style="padding:3px 6px;font-size:10px;text-align:center;">${c.entra_fluxo ? "✓" : "—"}</td>
-          <td style="padding:3px 6px;font-size:10px;text-align:center;">${c.entra_orcamento ? "✓" : "—"}</td>
-          <td style="padding:3px 6px;font-size:9px;color:#444;">${c.dre_linha_id ? escapeHtml(dreMap.get(c.dre_linha_id) ?? "") : "—"}</td>
-          <td style="padding:3px 6px;font-size:10px;text-align:center;">${c.ativo ? "✓" : "—"}</td>
+          <td style="padding:3px 6px;font-size:10px;text-align:center;">${c.entra_fluxo ? "✓" : "-"}</td>
+          <td style="padding:3px 6px;font-size:10px;text-align:center;">${c.entra_orcamento ? "✓" : "-"}</td>
+          <td style="padding:3px 6px;font-size:9px;color:#444;">${c.dre_linha_id ? escapeHtml(dreMap.get(c.dre_linha_id) ?? "") : "-"}</td>
+          <td style="padding:3px 6px;font-size:10px;text-align:center;">${c.ativo ? "✓" : "-"}</td>
         </tr>
       `;
     };
@@ -83,7 +83,7 @@ export function PlanoContasPrint({ contas, empresaNome, dreLinhas = [] }: Props)
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Plano de Contas${empresaNome ? ` — ${empresaNome}` : ""}</title>
+  <title>Plano de Contas${empresaNome ? ` - ${empresaNome}` : ""}</title>
   <style>
     @page { size: A4 portrait; margin: 14mm 10mm; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color:#0f172a; margin:0; padding:0; }
@@ -113,12 +113,12 @@ export function PlanoContasPrint({ contas, empresaNome, dreLinhas = [] }: Props)
 
   ${renderTabela("Balanço Patrimonial", grupos.balanco)}
   ${renderTabela("Balanço Gerencial", grupos.balanco_gerencial)}
-  ${renderTabela("DRE — Contas de Resultado", grupos.dre)}
+  ${renderTabela("DRE - Contas de Resultado", grupos.dre)}
 
   ${ordenadas.length === 0 ? `<p style="color:#888;font-size:12px;text-align:center;padding:40px;">Nenhuma conta cadastrada.</p>` : ""}
 
   <footer style="margin-top:24px;padding-top:8px;border-top:1px solid #ddd;font-size:9px;color:#888;text-align:center;">
-    ERP Cheetah — Plano de contas hierárquico (sintéticas em negrito; analíticas indentadas).
+    ERP Cheetah - Plano de contas hierárquico (sintéticas em negrito; analíticas indentadas).
   </footer>
 
   <script>setTimeout(() => window.print(), 300);</script>

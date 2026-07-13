@@ -38,7 +38,7 @@ export function Etapa1Banco() {
             <option value="">Selecione...</option>
             {contas.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nome} — {c.banco} • Ag {c.agencia} CC {c.conta}
+                {c.nome} - {c.banco} • Ag {c.agencia} CC {c.conta}
               </option>
             ))}
           </select>

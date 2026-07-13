@@ -73,7 +73,7 @@ export function EncerramentoPanel({ card, papeis, userId, usuarios, convidados, 
             {comentariosEncerramento.map((c) => (
               <div key={c.id} className="rounded border-l-2 border-l-success bg-muted/30 px-2 py-1.5 text-[11px]">
                 <p className="text-muted-foreground">
-                  {nomeUsuario(usuarios, c.autor_id) ?? "Usuário"} — {new Date(c.created_at).toLocaleString("pt-BR")}
+                  {nomeUsuario(usuarios, c.autor_id) ?? "Usuário"} - {new Date(c.created_at).toLocaleString("pt-BR")}
                 </p>
                 <p className="mt-0.5">{c.texto}</p>
               </div>
@@ -107,7 +107,7 @@ export function EncerramentoPanel({ card, papeis, userId, usuarios, convidados, 
               {p.opcoes.map((opcao, idx) => (
                 <label key={idx} className="flex items-center gap-2 text-xs">
                   <RadioGroupItem value={String(idx + 1)} />
-                  {idx + 1} – {opcao}
+                  {idx + 1} - {opcao}
                 </label>
               ))}
             </RadioGroup>

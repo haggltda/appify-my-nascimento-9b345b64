@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Calculator, Loader2 } from "lucide-react";
 import { IMPOSTO_LABEL, type ApuracaoImposto } from "./types";
 
-const fmt = (v: number | null) => v == null ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v));
+const fmt = (v: number | null) => v == null ? "-" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v));
 const monthOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 
 export default function ApuracaoImpostos() {
@@ -101,7 +101,7 @@ export default function ApuracaoImpostos() {
                     <TableCell className="text-right">{Number(a.aliquota).toFixed(2)}%</TableCell>
                     <TableCell className="text-right">{fmt(a.valor_devido)}</TableCell>
                     <TableCell className="text-right font-bold">{fmt(a.valor_a_pagar)}</TableCell>
-                    <TableCell className="text-sm">{a.vencimento ? new Date(a.vencimento).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                    <TableCell className="text-sm">{a.vencimento ? new Date(a.vencimento).toLocaleDateString("pt-BR") : "-"}</TableCell>
                     <TableCell><Badge>{a.status}</Badge></TableCell>
                   </TableRow>
                 ))}

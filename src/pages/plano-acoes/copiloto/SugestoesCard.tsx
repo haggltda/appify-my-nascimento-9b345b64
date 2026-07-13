@@ -12,7 +12,7 @@ export function SugestoesCard({ sugestoes, loading }: Props) {
     <EmptyCard
       icon={Lightbulb}
       title="Sugestões de Contexto"
-      badge={loading ? "Analisando…" : hasData ? `${sugestoes!.length}` : "—"}
+      badge={loading ? "Analisando…" : hasData ? `${sugestoes!.length}` : "-"}
       accent="amber"
       emptyText={
         loading

@@ -86,7 +86,7 @@ export default function CentrosCusto() {
       return;
     }
     toast({
-      title: "CC criado — atribua um gestor",
+      title: "CC criado - atribua um gestor",
       description: `${draft.codigo} foi criado sem gestor. Defina em Administração → Alçadas → Gestores de CC.`,
       duration: 8000,
     });
@@ -264,7 +264,7 @@ export default function CentrosCusto() {
 
           <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} edits={edits} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
           <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} edits={edits} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
-          <CCSection titulo={`Sócios — Não Operacional (${socios.length})`} icone={<Crown className="h-4 w-4 text-amber-500" />} lista={socios} empresas={empresas} edits={edits} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
+          <CCSection titulo={`Sócios - Não Operacional (${socios.length})`} icone={<Crown className="h-4 w-4 text-amber-500" />} lista={socios} empresas={empresas} edits={edits} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
         </>
       )}
 
@@ -311,7 +311,7 @@ function CCSection({
   onReload: () => void;
 }) {
   const [trocaCC, setTrocaCC] = useState<CentroCusto | null>(null);
-  const empresaCodigo = (id: string) => empresas.find((e) => e.id === id)?.codigo ?? "—";
+  const empresaCodigo = (id: string) => empresas.find((e) => e.id === id)?.codigo ?? "-";
   const isDirty = (id: string) => !!edits[id];
   return (
     <section className="mb-6">
@@ -376,9 +376,9 @@ function CCSection({
                     </span>
                   </td>
                   <td className="px-4 py-2 text-xs">
-                    {c.responsavel ?? "—"}
+                    {c.responsavel ?? "-"}
                     {c.ativo && !c.gestor_user_id && (
-                      <span className="ml-2 chip bg-warning-soft text-[10px] text-warning" title="Sem gestor atribuído — requisições serão bloqueadas">
+                      <span className="ml-2 chip bg-warning-soft text-[10px] text-warning" title="Sem gestor atribuído - requisições serão bloqueadas">
                         sem gestor
                       </span>
                     )}
@@ -424,7 +424,7 @@ function CCSection({
                           data-write
                           onClick={() => onToggle(c)}
                           disabled={c.origem_cadastro !== "manual" && c.entidade_origem_tabela === "contrato"}
-                          title={c.origem_cadastro !== "manual" ? "CC vinculado a contrato — gerenciado automaticamente" : ""}
+                          title={c.origem_cadastro !== "manual" ? "CC vinculado a contrato - gerenciado automaticamente" : ""}
                           className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <PowerOff className="h-3 w-3" />

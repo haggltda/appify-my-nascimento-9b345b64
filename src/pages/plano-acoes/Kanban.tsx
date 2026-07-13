@@ -76,7 +76,7 @@ export default function PlanoAcoesKanban() {
   return (
     <div>
       <PageHeader
-        title="Kanban — Plano de Ações"
+        title="Kanban - Plano de Ações"
         subtitle="Arraste cards entre colunas para alterar o status. Histórico é registrado automaticamente."
         module="Plano de Ações"
         breadcrumb={["Kanban"]}
@@ -114,7 +114,7 @@ export default function PlanoAcoesKanban() {
                 >
                   <Link to={`/app/plano-acoes/${r.id}`} className="block">
                     <div className="mb-1 flex items-center justify-between gap-2">
-                      <span className="font-mono text-[10px] text-muted-foreground">{r.id_importacao ?? "—"}</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">{r.id_importacao ?? "-"}</span>
                       {r.prioridade_normalizada && (
                         <Badge variant="outline" className={`text-[9px] ${PRIORIDADE_COR[r.prioridade_normalizada]}`}>
                           {PRIORIDADE_LABEL[r.prioridade_normalizada]}

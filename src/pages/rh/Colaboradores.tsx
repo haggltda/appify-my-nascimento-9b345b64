@@ -4,7 +4,7 @@ import ImportarColaboradores from "@/components/rh/ImportarColaboradores";
 import IntegrarCargos from "@/components/rh/IntegrarCargos";
 
 // =========================================================================
-// RH — Colaboradores (fonte: tabela EMPREGADOS, read-only + edição de campos RH)
+// RH - Colaboradores (fonte: tabela EMPREGADOS, read-only + edição de campos RH)
 // Filtros: empresa / contrato / situação (padrão "Trabalhando") + busca.
 // Dashboard ao vivo (refiltra junto): headcount, folha, admissões/desligamentos,
 // tempo de casa, ativos por cargo.
@@ -22,10 +22,10 @@ const empresaDe = (e: any): string => {
   if (nome.includes("CANA")) return "CANAÃ";
   if (/\bNH\b/.test(nome)) return "NH";
   if (/\bSN\b/.test(nome)) return "SN";
-  return String(e?.["Nome da Empresa"] ?? "").trim() || "—";
+  return String(e?.["Nome da Empresa"] ?? "").trim() || "-";
 };
 
-// "Valor Salário" vem como texto pt-BR ("2.002,6900") — normaliza para número.
+// "Valor Salário" vem como texto pt-BR ("2.002,6900") - normaliza para número.
 const parseSalario = (v: any): number => {
   if (v == null || v === "") return 0;
   if (typeof v === "number") return isNaN(v) ? 0 : v;
@@ -46,18 +46,18 @@ const parseData = (v: any): Date | null => {
   const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
 };
-const fmtData = (v: any) => { const d = parseData(v); return d ? d.toLocaleDateString("pt-BR") : "—"; };
+const fmtData = (v: any) => { const d = parseData(v); return d ? d.toLocaleDateString("pt-BR") : "-"; };
 const anoDe = (v: any) => parseData(v)?.getFullYear() ?? null;
 const anosDeCasa = (v: any): number | null => {
   const d = parseData(v); if (!d) return null;
   return Math.max(0, (Date.now() - d.getTime()) / (365.25 * 864e5));
 };
 const ehTrabalhando = (e: any) => String(e?.["Situação"] ?? "").trim().toUpperCase().startsWith("TRABALH");
-const nomeCargoDe = (e: any): string => String(e?.["Nome do Cargo"] ?? "").trim() || String(e?.["Título do Cargo"] ?? "").trim() || "—";
+const nomeCargoDe = (e: any): string => String(e?.["Nome do Cargo"] ?? "").trim() || String(e?.["Título do Cargo"] ?? "").trim() || "-";
 
 // Cascata de fallback: "Empresa"/"Contrato" já eram conhecidos por falhar em
 // alguns ambientes (por isso o SAFE original não tem os dois). "Cargo" e
-// "Nome do Cargo" precisam sobreviver a essas quedas — por isso entram
+// "Nome do Cargo" precisam sobreviver a essas quedas - por isso entram
 // ANTES de "Empresa"/"Contrato" serem descartados, não depois.
 const FULL = '"ID","Nome","CPF","Cargo","Título do Cargo","Nome do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Empresa","Nome da Empresa","Filial","Nome Filial","Contrato","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
 const SEM_NOME_CARGO_NOVO = '"ID","Nome","CPF","Cargo","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Empresa","Nome da Empresa","Filial","Nome Filial","Contrato","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"'; // sem "Nome do Cargo" (antes da migration)
@@ -83,9 +83,9 @@ const MAIN_FIELDS: [string, string][] = [
 ];
 const FAIXAS = [
   { label: "< 1 ano", min: 0, max: 1 },
-  { label: "1–3 anos", min: 1, max: 3 },
-  { label: "3–5 anos", min: 3, max: 5 },
-  { label: "5–10 anos", min: 5, max: 10 },
+  { label: "1-3 anos", min: 1, max: 3 },
+  { label: "3-5 anos", min: 3, max: 5 },
+  { label: "5-10 anos", min: 5, max: 10 },
   { label: "10+ anos", min: 10, max: Infinity },
 ];
 
@@ -175,11 +175,11 @@ export default function Colaboradores() {
   useEffect(() => { load(); }, []);
   useEffect(() => { setPagina(1); }, [busca, fEmpresa, fContrato, fSituacao, porPagina]);
 
-  const contratoDe = (e: any): string => contratoPorFilial[String(e?.["Filial"] ?? "")] || String(e?.["Contrato"] ?? "").trim() || "—";
+  const contratoDe = (e: any): string => contratoPorFilial[String(e?.["Filial"] ?? "")] || String(e?.["Contrato"] ?? "").trim() || "-";
 
   // listas de filtro (a partir dos dados reais)
-  const empresas = useMemo(() => [...new Set(rows.map(empresaDe))].filter(x => x && x !== "—").sort(), [rows]);
-  const contratos = useMemo(() => [...new Set(rows.map(contratoDe))].filter(x => x && x !== "—").sort(), [rows, contratoPorFilial]);
+  const empresas = useMemo(() => [...new Set(rows.map(empresaDe))].filter(x => x && x !== "-").sort(), [rows]);
+  const contratos = useMemo(() => [...new Set(rows.map(contratoDe))].filter(x => x && x !== "-").sort(), [rows, contratoPorFilial]);
   const situacoes = useMemo(() => [...new Set(rows.map(e => String(e["Situação"] ?? "").trim()).filter(Boolean))].sort(), [rows]);
   // opções de Setor: tabela SETORES ∪ valores reais da EMPREGADOS, sempre com PADRAO.
   const setorOptions = useMemo(() => {
@@ -221,11 +221,11 @@ export default function Colaboradores() {
 
   const agrupar = (arr: any[], keyFn: (e: any) => string, valFn?: (e: any) => number) => {
     const m = new Map<string, number>();
-    for (const e of arr) { const k = keyFn(e) || "—"; m.set(k, (m.get(k) || 0) + (valFn ? valFn(e) : 1)); }
+    for (const e of arr) { const k = keyFn(e) || "-"; m.set(k, (m.get(k) || 0) + (valFn ? valFn(e) : 1)); }
     return [...m.entries()].map(([k, v]) => ({ k, v })).sort((a, b) => b.v - a.v);
   };
   const porEmpresa = useMemo(() => agrupar(filtrados, empresaDe), [filtrados]);
-  const porSituacao = useMemo(() => agrupar(recorteSemSituacao, e => String(e["Situação"] ?? "").trim() || "—"), [recorteSemSituacao]);
+  const porSituacao = useMemo(() => agrupar(recorteSemSituacao, e => String(e["Situação"] ?? "").trim() || "-"), [recorteSemSituacao]);
   const porContrato = useMemo(() => agrupar(filtrados, contratoDe).slice(0, 10), [filtrados, contratoPorFilial]);
   // card rotativo: passa por cada situação a cada 3s (movimento leve).
   useEffect(() => {
@@ -236,7 +236,7 @@ export default function Colaboradores() {
   const sitAtual = porSituacao.length ? porSituacao[sitIdx % porSituacao.length] : null;
   const corSituacao = (s: string) => { const u = (s || "").toUpperCase(); return u.startsWith("TRABALH") ? "#15803d" : u.includes("FÉRIAS") || u.includes("FERIAS") ? "#2563eb" : u.includes("AFAST") || u.includes("LICEN") ? "#d97706" : u.includes("DEMIT") || u.includes("DESLIG") ? "#dc2626" : "#7c3aed"; };
   const folhaPorEmpresa = useMemo(() => agrupar(filtrados, empresaDe, e => parseSalario(e["Valor Salário"])), [filtrados]);
-  // "ativos" = Trabalhando, sempre — independe do filtro de situação (como as timelines).
+  // "ativos" = Trabalhando, sempre - independe do filtro de situação (como as timelines).
   const ativosPorCargo = useMemo(() => agrupar(recorteSemSituacao.filter(ehTrabalhando), nomeCargoDe), [recorteSemSituacao]);
   const porFaixa = useMemo(() => FAIXAS.map(f => ({ label: f.label, n: filtrados.filter(e => { const a = anosDeCasa(e["Admissão"]); return a != null && a >= f.min && a < f.max; }).length })), [filtrados]);
   const timeline = useMemo(() => {
@@ -294,7 +294,7 @@ export default function Colaboradores() {
     const nome = (novoCargo ?? "").trim().toUpperCase();
     if (!nome) { aviso("Digite o nome do novo cargo.", "err"); return; }
     const existente = cargosTabela.find(c => c.nome.toUpperCase() === nome);
-    if (existente) { escolherCargo(String(existente.codigo)); aviso("Esse cargo já existia — selecionado."); return; }
+    if (existente) { escolherCargo(String(existente.codigo)); aviso("Esse cargo já existia - selecionado."); return; }
     const codigo = Math.max(0, ...cargosTabela.map(c => c.codigo)) + 1;
     const { error } = await (supabase as any).from("CARGOS").insert({ "Cargo": codigo, "Nome do Cargo": nome });
     if (error) { aviso("Erro ao criar cargo: " + error.message, "err"); return; }
@@ -461,16 +461,16 @@ export default function Colaboradores() {
                   const trab = ehTrabalhando(e); const casa = anosDeCasa(e["Admissão"]);
                   return (
                     <tr key={e["ID"] ?? i} onMouseEnter={ev => (ev.currentTarget.style.background = "#f8fbff")} onMouseLeave={ev => (ev.currentTarget.style.background = "#fff")}>
-                      <td className="col-td" style={{ fontWeight: 700, color: "#0f172a" }}>{e["Nome"] || "—"}<div style={{ fontSize: 10.5, color: "#94a3b8" }}>{e["Setor_ERP"] || ""}</div></td>
-                      <td className="col-td" style={{ fontVariantNumeric: "tabular-nums" }}>{e["CPF"] || "—"}</td>
+                      <td className="col-td" style={{ fontWeight: 700, color: "#0f172a" }}>{e["Nome"] || "-"}<div style={{ fontSize: 10.5, color: "#94a3b8" }}>{e["Setor_ERP"] || ""}</div></td>
+                      <td className="col-td" style={{ fontVariantNumeric: "tabular-nums" }}>{e["CPF"] || "-"}</td>
                       <td className="col-td">{nomeCargoDe(e)}</td>
                       <td className="col-td"><span style={{ fontSize: 11, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: "#eef4ff", color: "#0f3171" }}>{empresaDe(e)}</span></td>
                       <td className="col-td" style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contratoDe(e)}</td>
-                      <td className="col-td">{e["Nome Filial"] || e["Filial"] || "—"}</td>
+                      <td className="col-td">{e["Nome Filial"] || e["Filial"] || "-"}</td>
                       <td className="col-td" style={{ whiteSpace: "nowrap" }}>{fmtData(e["Admissão"])}</td>
-                      <td className="col-td" style={{ whiteSpace: "nowrap" }}>{casa != null ? `${casa.toFixed(1)}a` : "—"}</td>
+                      <td className="col-td" style={{ whiteSpace: "nowrap" }}>{casa != null ? `${casa.toFixed(1)}a` : "-"}</td>
                       <td className="col-td" style={{ textAlign: "right", fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap" }}>{money(parseSalario(e["Valor Salário"]))}</td>
-                      <td className="col-td"><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: trab ? "#dcfce7" : "#f1f5f9", color: trab ? "#15803d" : "#64748b" }}>{e["Situação"] || "—"}</span></td>
+                      <td className="col-td"><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: trab ? "#dcfce7" : "#f1f5f9", color: trab ? "#15803d" : "#64748b" }}>{e["Situação"] || "-"}</span></td>
                       <td className="col-td" style={{ textAlign: "right" }}><button className="col-btn" onClick={() => abrirEdit(e)} style={{ height: 30, padding: "0 11px", background: "#eef4ff", color: "#0f3171", borderColor: "#dbe4f0" }}>Editar</button></td>
                     </tr>
                   );
@@ -506,7 +506,7 @@ export default function Colaboradores() {
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Cargo{form["Cargo"] && novoCargo == null ? ` · código ${form["Cargo"]}` : ""}</label>
                   <select className="col-fi" style={{ width: "100%" }} value={novoCargo != null ? "__novo__" : form["Cargo"] ?? ""} onChange={e => escolherCargo(e.target.value)}>
-                    <option value="">— Sem cargo —</option>
+                    <option value="">- Sem cargo -</option>
                     {form["Cargo"] && !cargosTabela.some(c => String(c.codigo) === form["Cargo"]) && (
                       <option value={form["Cargo"]}>{(form["Nome do Cargo"] || `Código ${form["Cargo"]}`) + " (fora da tabela CARGOS)"}</option>
                     )}

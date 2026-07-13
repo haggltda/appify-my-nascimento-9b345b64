@@ -16,7 +16,7 @@ import { CheckCircle2, AlertTriangle, FileDown, RefreshCw, Send, Eraser } from "
 import { toast } from "sonner";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
+const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "-");
 const today = () => new Date().toISOString().slice(0, 10);
 const addDays = (d: string, n: number) => { const dt = new Date(d); dt.setDate(dt.getDate() + n); return dt.toISOString().slice(0, 10); };
 
@@ -163,7 +163,7 @@ export default function ValidacaoPosPagamento() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
-                  {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome}</SelectItem>)}
+                  {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} - {c.banco_nome}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -219,11 +219,11 @@ export default function ValidacaoPosPagamento() {
                       <TableRow key={p.id} className={divValor ? "bg-destructive/5" : ""}>
                         <TableCell><Checkbox checked={sel.includes(p.id)} onCheckedChange={() => setSel((s) => s.includes(p.id) ? s.filter(x => x !== p.id) : [...s, p.id])} /></TableCell>
                         <TableCell className="font-mono text-xs">{p.numero_documento}</TableCell>
-                        <TableCell>{p.fornecedor?.razao_social ?? "—"}</TableCell>
+                        <TableCell>{p.fornecedor?.razao_social ?? "-"}</TableCell>
                         <TableCell>{fmtDate(p.data_pagamento)}</TableCell>
                         <TableCell className="text-right">{fmtMoney(p.valor)}</TableCell>
                         <TableCell className={`text-right ${divValor ? "text-destructive font-semibold" : ""}`}>{fmtMoney(p.valor_pago)}</TableCell>
-                        <TableCell className="text-xs">{p.conta_bancaria?.banco_nome ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{p.conta_bancaria?.banco_nome ?? "-"}</TableCell>
                         <TableCell><Badge variant={sv === "conferido" ? "default" : sv === "divergente" ? "destructive" : "outline"}>{sv}</Badge></TableCell>
                         <TableCell className="text-right space-x-1">
                           <Button size="sm" variant="outline" onClick={() => validar.mutate({ id: p.id, status: "conferido" })}>Conferir</Button>
@@ -254,7 +254,7 @@ export default function ValidacaoPosPagamento() {
 
       <Dialog open={!!divDialog} onOpenChange={(o) => !o && setDivDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Abrir divergência — {divDialog?.numero_documento}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Abrir divergência - {divDialog?.numero_documento}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="text-sm text-muted-foreground">
               Aprovado: <strong>{fmtMoney(divDialog?.valor)}</strong> • Pago: <strong>{fmtMoney(divDialog?.valor_pago)}</strong>

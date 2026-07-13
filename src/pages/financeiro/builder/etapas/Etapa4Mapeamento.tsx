@@ -165,7 +165,7 @@ export function Etapa4Mapeamento() {
         {/* Centro: layout do banco com slots */}
         <Card className="p-3">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Layout do banco — {(estrutura as any).tipo?.toUpperCase()}</h3>
+            <h3 className="text-sm font-semibold">Layout do banco - {(estrutura as any).tipo?.toUpperCase()}</h3>
             <Button size="sm" variant="outline" onClick={() => {
               const cod = prompt("Código do segmento (ex: header_arquivo, segmento_a, trailer_lote):");
               if (cod) adicionarSegmento(cod);
@@ -228,7 +228,7 @@ export function Etapa4Mapeamento() {
 
 function LiteralAdder() {
   const adicionarCampo = useBuilderStore((s) => s.adicionarCampoCNAB);
-  return null; // placeholder — pode ser ampliado
+  return null; // placeholder - pode ser ampliado
 }
 
 function ApiRestEditor() {

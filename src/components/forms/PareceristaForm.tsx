@@ -30,7 +30,7 @@ export function PareceristaForm({ papel, subtitulo, cor = "primary" }: Pareceris
         {/* Resumo */}
         <section className="card-elevated p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resumo do Processo</p>
-          <h2 className="mt-1 font-display text-base font-bold">PE 142/2025 — Operação e manutenção de UTEs · Lote 03</h2>
+          <h2 className="mt-1 font-display text-base font-bold">PE 142/2025 - Operação e manutenção de UTEs · Lote 03</h2>
           <p className="text-sm text-muted-foreground">SABESP · Pregão Eletrônico · Responsável: Ana Carvalho</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="chip border border-border bg-muted">Valor: R$ 18.420.000</span>
@@ -44,7 +44,7 @@ export function PareceristaForm({ papel, subtitulo, cor = "primary" }: Pareceris
         <section className="card-elevated">
           <header className="flex items-center gap-2 border-b border-border px-5 py-3">
             <FileText className={`h-4 w-4 text-${cor}`} />
-            <h3 className="font-display text-sm font-bold">Decisão do Parecer — {papel}</h3>
+            <h3 className="font-display text-sm font-bold">Decisão do Parecer - {papel}</h3>
           </header>
           <div className="space-y-5 p-5">
             {subtitulo && <p className="text-sm text-muted-foreground">{subtitulo}</p>}

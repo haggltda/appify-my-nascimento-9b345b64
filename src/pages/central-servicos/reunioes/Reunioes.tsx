@@ -132,7 +132,7 @@ export default function Reunioes() {
                     {new Date(r.data_hora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {r.titulo}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {nomeUsuario(usuarios, r.responsavel_preenchimento_user_id) ?? "—"} · {r.local_ou_link}
+                    {nomeUsuario(usuarios, r.responsavel_preenchimento_user_id) ?? "-"} · {r.local_ou_link}
                   </p>
                 </button>
               ))}

@@ -188,9 +188,9 @@ export default function PlanoContas() {
                       <td className={`px-3 py-2 ${c.tipo === "sintetica" ? "font-semibold" : ""}`}>{c.descricao}</td>
                       <td className="px-3 py-2 text-xs capitalize">{c.tipo}</td>
                       <td className="px-3 py-2 text-center text-xs">{c.natureza}</td>
-                      <td className="px-3 py-2 text-center text-xs">{c.entra_fluxo ? "✓" : "—"}</td>
-                      <td className="px-3 py-2 text-center text-xs">{c.entra_orcamento ? "✓" : "—"}</td>
-                      <td className="px-3 py-2 text-center text-xs">{c.ativo ? "✓" : "—"}</td>
+                      <td className="px-3 py-2 text-center text-xs">{c.entra_fluxo ? "✓" : "-"}</td>
+                      <td className="px-3 py-2 text-center text-xs">{c.entra_orcamento ? "✓" : "-"}</td>
+                      <td className="px-3 py-2 text-center text-xs">{c.ativo ? "✓" : "-"}</td>
                       <td className="px-3 py-2 text-right">
                         <div className="inline-flex gap-1">
                           <AlterarContaDialog conta={c} contas={contasQ.data ?? []} dreLinhas={dreQ.data ?? []} empresaId={empresaId} userId={user?.id ?? ""} onCreated={() => qc.invalidateQueries({ queryKey: ["pcs"] })} />
@@ -223,7 +223,7 @@ export default function PlanoContas() {
                   </div>
                   <p className="mt-2 font-medium">
                     {s.classificacao && <span className="font-mono text-primary mr-2">{s.classificacao}</span>}
-                    {s.descricao || (s.conta_contabil_id ? "Alteração em conta existente" : "—")}
+                    {s.descricao || (s.conta_contabil_id ? "Alteração em conta existente" : "-")}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground"><strong>Justificativa:</strong> {s.justificativa}</p>
                   {s.motivo_decisao && <p className="mt-1 text-xs"><strong>Decisão:</strong> {s.motivo_decisao}</p>}
@@ -350,21 +350,21 @@ function NovaContaDialog({ contas, dreLinhas, empresaId, userId, onCreated }: Fo
           </div>
           <div><Label>Conta pai (classificação)</Label>
             <Select value={form.parent_classificacao || "_none"} onValueChange={(v) => setForm({ ...form, parent_classificacao: v === "_none" ? "" : v })}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="_none">— Nenhuma —</SelectItem>
+                <SelectItem value="_none">- Nenhuma -</SelectItem>
                 {contas.filter((c) => c.tipo === "sintetica").map((c) => (
-                  <SelectItem key={c.id} value={c.classificacao}>{c.classificacao} — {c.descricao}</SelectItem>
+                  <SelectItem key={c.id} value={c.classificacao}>{c.classificacao} - {c.descricao}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div><Label>Linha DRE</Label>
             <Select value={form.dre_linha_id || "_none"} onValueChange={(v) => setForm({ ...form, dre_linha_id: v === "_none" ? "" : v })}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="_none">— Nenhuma —</SelectItem>
-                {dreLinhas.map((d) => <SelectItem key={d.id} value={d.id}>{d.codigo} — {d.descricao}</SelectItem>)}
+                <SelectItem value="_none">- Nenhuma -</SelectItem>
+                {dreLinhas.map((d) => <SelectItem key={d.id} value={d.id}>{d.codigo} - {d.descricao}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -447,10 +447,10 @@ function AlterarContaDialog({ conta, contas, dreLinhas, empresaId, userId, onCre
           </div>
           <div><Label>Linha DRE</Label>
             <Select value={form.dre_linha_id || "_none"} onValueChange={(v) => setForm({ ...form, dre_linha_id: v === "_none" ? "" : v })}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="_none">— Nenhuma —</SelectItem>
-                {dreLinhas.map((d) => <SelectItem key={d.id} value={d.id}>{d.codigo} — {d.descricao}</SelectItem>)}
+                <SelectItem value="_none">- Nenhuma -</SelectItem>
+                {dreLinhas.map((d) => <SelectItem key={d.id} value={d.id}>{d.codigo} - {d.descricao}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -500,7 +500,7 @@ function InativarConta({ conta, empresaId, userId, onCreated }: { conta: Conta; 
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Solicitar inativação?</AlertDialogTitle>
-          <AlertDialogDescription>{conta.classificacao} — {conta.descricao}. Justifique abaixo:</AlertDialogDescription>
+          <AlertDialogDescription>{conta.classificacao} - {conta.descricao}. Justifique abaixo:</AlertDialogDescription>
         </AlertDialogHeader>
         <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} />
         <AlertDialogFooter>

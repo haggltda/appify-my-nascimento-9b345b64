@@ -37,7 +37,7 @@ export function usePushNotifications() {
     if (!temSuporte) return;
 
     // No iPhone, a API de notificação só existe quando o site foi instalado
-    // (Adicionar à Tela de Início) e aberto pelo ícone — fora disso, nem
+    // (Adicionar à Tela de Início) e aberto pelo ícone - fora disso, nem
     // tenta, só sinaliza que precisa instalar primeiro.
     if (isIos() && !isStandalone()) {
       setPrecisaInstalar(true);
@@ -72,7 +72,7 @@ export function usePushNotifications() {
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr) throw new Error(mensagemErro(userErr));
       const userId = userData.user?.id;
-      if (!userId) throw new Error("Sessão inválida — faça login novamente.");
+      if (!userId) throw new Error("Sessão inválida - faça login novamente.");
 
       const { error } = await (supabase as any).from("push_subscriptions").upsert({
         user_id: userId,

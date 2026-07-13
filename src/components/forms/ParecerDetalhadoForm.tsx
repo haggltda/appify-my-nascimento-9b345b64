@@ -40,7 +40,7 @@ export interface ParecerDetalhadoConfig {
   /** lista de "frequentes" mostrados na lateral */
   referenciasLaterais?: { titulo: string; itens: string[] };
   cor?: "primary" | "accent";
-  /** B2.1.e — código do menu em app_menu, usado para gating fino de permissões (`incluir` para salvar rascunho, `aprovar` para enviar). */
+  /** B2.1.e - código do menu em app_menu, usado para gating fino de permissões (`incluir` para salvar rascunho, `aprovar` para enviar). */
   menuCodigo?: string;
 }
 
@@ -61,7 +61,7 @@ export function ParecerDetalhadoForm({
   config: ParecerDetalhadoConfig;
 }) {
   const { can } = usePermissoes();
-  // B2.1.e — gating fino: salvar = incluir; enviar = aprovar
+  // B2.1.e - gating fino: salvar = incluir; enviar = aprovar
   const canIncluir = config.menuCodigo ? can("incluir", "licitacoes", config.menuCodigo) : true;
   const canAprovar = config.menuCodigo ? can("aprovar", "licitacoes", config.menuCodigo) : true;
 
@@ -91,7 +91,7 @@ export function ParecerDetalhadoForm({
       <section className="card-elevated p-5">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Processo</p>
         <h2 className="mt-1 font-display text-lg font-bold">
-          {l.numero} — {l.objeto}
+          {l.numero} - {l.objeto}
         </h2>
         <p className="text-sm text-muted-foreground">
           {l.orgao} · {l.modalidade} · Empresa {l.empresa} · Responsável: {l.responsavel}
@@ -186,7 +186,7 @@ export function ParecerDetalhadoForm({
                         onChange={(e) => setCampo(c.id, e.target.value)}
                         className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
                       >
-                        <option value="">— Selecione —</option>
+                        <option value="">- Selecione -</option>
                         {c.opcoes?.map((o) => (
                           <option key={o}>{o}</option>
                         ))}

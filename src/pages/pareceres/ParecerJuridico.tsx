@@ -37,7 +37,7 @@ const config: Omit<ParecerDetalhadoConfig, "subtitulo"> = {
     },
   ],
   recomendacoes: [
-    "Prosseguir — edital regular",
+    "Prosseguir - edital regular",
     "Prosseguir com ressalvas",
     "Solicitar esclarecimento",
     "Impugnar edital",
@@ -68,7 +68,7 @@ export default function ParecerJuridico() {
             voltar={voltar}
             config={{
               ...config,
-              subtitulo: `${l.numero} · ${l.objeto} — avalie cláusulas, exigências de habilitação, prazos recursais e conformidade legal.`,
+              subtitulo: `${l.numero} · ${l.objeto} - avalie cláusulas, exigências de habilitação, prazos recursais e conformidade legal.`,
             }}
           />
         )}

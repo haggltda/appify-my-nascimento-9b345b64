@@ -30,7 +30,7 @@ export function MembrosComiteCard({ comiteSelecionado }: Props) {
       <EmptyCard
         icon={Users}
         title="Membros sugeridos do comitê"
-        badge="—"
+        badge="-"
         accent="primary"
         emptyText="Selecione um comitê para visualizar os membros sugeridos."
       />

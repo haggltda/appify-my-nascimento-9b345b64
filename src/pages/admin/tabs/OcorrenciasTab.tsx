@@ -128,8 +128,8 @@ function NovaOcorrenciaDialog({ onSaved }: { onSaved: () => void }) {
           </div>
           <div><Label>Empresa</Label>
             <select value={empresaId} onChange={(e) => setEmpresaId(e.target.value)} className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm">
-              <option value="">— sem empresa —</option>
-              {(empresasQ.data ?? []).map((e: any) => <option key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</option>)}
+              <option value="">- sem empresa -</option>
+              {(empresasQ.data ?? []).map((e: any) => <option key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</option>)}
             </select>
           </div>
           <div><Label>Descrição</Label><Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={3} /></div>

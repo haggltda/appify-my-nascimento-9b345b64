@@ -27,7 +27,7 @@ export default function Almoxarifados() {
         },
         {
           key: "contrato_id", label: "Contrato vinculado (opcional)", type: "select",
-          options: [{ value: "", label: "— nenhum —" }, ...contratos.map((c: any) => ({ value: c.id, label: `${c.numero} — ${c.objeto?.slice(0, 40)}` }))],
+          options: [{ value: "", label: "- nenhum -" }, ...contratos.map((c: any) => ({ value: c.id, label: `${c.numero} - ${c.objeto?.slice(0, 40)}` }))],
         },
         { key: "responsavel", label: "Responsável" },
         { key: "endereco", label: "Endereço" },
@@ -38,7 +38,7 @@ export default function Almoxarifados() {
         { key: "codigo", label: "Código" },
         { key: "nome", label: "Nome" },
         { key: "tipo", label: "Tipo", render: (r) => <Badge variant="outline" className="capitalize">{r.tipo}</Badge> },
-        { key: "is_matriz", label: "Matriz?", render: (r) => r.is_matriz ? <Badge>Sim</Badge> : "—" },
+        { key: "is_matriz", label: "Matriz?", render: (r) => r.is_matriz ? <Badge>Sim</Badge> : "-" },
         { key: "responsavel", label: "Responsável" },
         { key: "ativo", label: "Status", render: (r) => r.ativo ? <Badge variant="outline">Ativo</Badge> : <Badge variant="secondary">Inativo</Badge> },
       ]}

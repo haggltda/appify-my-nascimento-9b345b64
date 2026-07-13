@@ -5,12 +5,12 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pi
 import { Formulario, Pergunta, fmtDt, normalizaPerguntas } from "./Formularios";
 
 // =====================================================================
-// NASCIMENTO FORMULÁRIOS — 📊 Dashboard customizável
+// NASCIMENTO FORMULÁRIOS - 📊 Dashboard customizável
 // O usuário monta o próprio painel com widgets sobre os formulários:
-//   kpi      — indicador (total/hoje/7 dias/30 dias de respostas)
-//   grafico  — respostas de uma pergunta (barras ou pizza)
-//   tempo    — respostas por dia (série temporal)
-//   ultimas  — últimas respostas de um formulário
+//   kpi      - indicador (total/hoje/7 dias/30 dias de respostas)
+//   grafico  - respostas de uma pergunta (barras ou pizza)
+//   tempo    - respostas por dia (série temporal)
+//   ultimas  - últimas respostas de um formulário
 // Cada widget tem título, formulário, largura (1/3, 2/3, cheia) e pode ser
 // reordenado. O layout é salvo por usuário em CS_FORM_ACESSOS
 // (papel 'dashboard', config jsonb).
@@ -105,7 +105,7 @@ export default function FormulariosDashboard() {
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "#fff", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0, flexWrap: "wrap" }}>
         <button onClick={() => nav("/app/central-servicos/formularios")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>← Voltar</button>
         <div style={{ flex: 1, minWidth: 180 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#0f3171" }}>📊 Dashboard — Nascimento Formulários</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#0f3171" }}>📊 Dashboard - Nascimento Formulários</div>
           <div style={{ fontSize: 11.5, color: "#94a3b8" }}>Monte seu painel: adicione, configure, reordene e redimensione os widgets. O layout é seu.</div>
         </div>
         <button onClick={() => setEditando({ id: novoId(), tipo: "kpi", metrica: "total", formulario_id: "todos", largura: 1 })} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>+ Widget</button>
@@ -114,7 +114,7 @@ export default function FormulariosDashboard() {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "18px 24px 40px" }}>
         {widgets.length === 0 ? (
-          <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Painel vazio — clique em <b>+ Widget</b> para começar.</div>
+          <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Painel vazio - clique em <b>+ Widget</b> para começar.</div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
             {widgets.map((w, i) => (
@@ -149,7 +149,7 @@ export default function FormulariosDashboard() {
 function tituloWidget(w: Widget, formPorId: Record<string, Formulario>, pergs: Perg[]) {
   if (w.titulo?.trim()) return w.titulo;
   const nomeForm = w.formulario_id && w.formulario_id !== "todos" ? formPorId[w.formulario_id]?.titulo ?? "Formulário" : "Todos os formulários";
-  if (w.tipo === "kpi") return ({ total: "Total de respostas", hoje: "Respostas hoje", "7dias": "Respostas — 7 dias", "30dias": "Respostas — 30 dias" }[w.metrica ?? "total"]) + " · " + nomeForm;
+  if (w.tipo === "kpi") return ({ total: "Total de respostas", hoje: "Respostas hoje", "7dias": "Respostas - 7 dias", "30dias": "Respostas - 30 dias" }[w.metrica ?? "total"]) + " · " + nomeForm;
   if (w.tipo === "tempo") return "Respostas por dia · " + nomeForm;
   if (w.tipo === "ultimas") return "Últimas respostas · " + nomeForm;
   const p = pergs.find(x => x.id === w.pergunta_id);
@@ -210,7 +210,7 @@ function CorpoWidget({ w, resps, pergs, forms }: { w: Widget; resps: Resp[]; per
     );
   }
 
-  // grafico — distribuição das respostas de uma pergunta
+  // grafico - distribuição das respostas de uma pergunta
   const p = pergs.find(x => x.id === w.pergunta_id);
   if (!p) return <div style={{ fontSize: 12, color: "#94a3b8" }}>Configure a pergunta no ⚙.</div>;
   const cont: Record<string, number> = {};
@@ -269,8 +269,8 @@ function ModalWidget({ w, forms, pergs, onClose, onOk }: { w: Widget; forms: For
             </select>
           </div>
           <div>
-            <label style={lbl}>Título (opcional — vazio usa o automático)</label>
-            <input value={cfg.titulo ?? ""} onChange={e => m({ titulo: e.target.value })} style={inp} placeholder="Ex.: Clima — satisfação geral" />
+            <label style={lbl}>Título (opcional - vazio usa o automático)</label>
+            <input value={cfg.titulo ?? ""} onChange={e => m({ titulo: e.target.value })} style={inp} placeholder="Ex.: Clima - satisfação geral" />
           </div>
           <div>
             <label style={lbl}>Formulário</label>

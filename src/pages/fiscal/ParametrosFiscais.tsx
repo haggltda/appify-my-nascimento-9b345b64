@@ -151,10 +151,10 @@ export default function ParametrosFiscais() {
                 <td className="px-3 py-2 text-xs">
                   {p.vigencia_inicio} → {p.vigencia_fim ?? "vigente"}
                 </td>
-                <td className="px-3 py-2 text-xs">{p.municipio_prestacao ?? "—"}</td>
-                <td className="px-3 py-2 text-xs">{p.municipio_tomador ?? "—"}</td>
-                <td className="px-3 py-2 text-center">{p.creditavel_pis_cofins ? "✓" : "—"}</td>
-                <td className="px-3 py-2 text-center">{p.ativo ? "✓" : "—"}</td>
+                <td className="px-3 py-2 text-xs">{p.municipio_prestacao ?? "-"}</td>
+                <td className="px-3 py-2 text-xs">{p.municipio_tomador ?? "-"}</td>
+                <td className="px-3 py-2 text-center">{p.creditavel_pis_cofins ? "✓" : "-"}</td>
+                <td className="px-3 py-2 text-center">{p.ativo ? "✓" : "-"}</td>
                 <td className="px-3 py-2 text-right">
                   <Button size="sm" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}>
                     <Pencil className="h-4 w-4" />
@@ -328,7 +328,7 @@ function ParamForm({ empresaId, initial, onClose }:
 
         {/* ISS */}
         <TabsContent value="iss" className="mt-3">
-          <SectionHeader title="ISS — Imposto Sobre Serviços" description="Configuração da alíquota municipal e regra de retenção." />
+          <SectionHeader title="ISS - Imposto Sobre Serviços" description="Configuração da alíquota municipal e regra de retenção." />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Alíquota">
               <NumberInput value={form.iss.aliquota} onChange={(n) => updateGroup("iss", { aliquota: n })} suffix="%" />
@@ -479,7 +479,7 @@ function ParamForm({ empresaId, initial, onClose }:
         <TabsContent value="folha" className="mt-3">
           <SectionHeader title="Encargos sobre folha (CPP / RAT / Terceiros)" description="Contribuições patronais. RAT × FAP define o RAT ajustado." />
           <div className="grid grid-cols-2 gap-3">
-            <Field label="CPP — Contribuição Patronal Previdenciária">
+            <Field label="CPP - Contribuição Patronal Previdenciária">
               <NumberInput value={form.folha.cpp} onChange={(n) => updateGroup("folha", { cpp: n })} suffix="%" />
             </Field>
             <Field label="RAT (1, 2 ou 3%)">

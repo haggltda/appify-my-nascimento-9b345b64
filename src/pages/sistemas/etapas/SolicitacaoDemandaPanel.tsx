@@ -14,7 +14,7 @@ function LabelValor({ label, valor }: { label: string; valor: React.ReactNode })
   return (
     <div>
       <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <div className="text-sm text-foreground">{valor || <span className="text-muted-foreground">—</span>}</div>
+      <div className="text-sm text-foreground">{valor || <span className="text-muted-foreground">-</span>}</div>
     </div>
   );
 }
@@ -34,7 +34,7 @@ function SecaoParteA({ numero, titulo, children }: { numero: number; titulo: str
 }
 
 function ListaOpcoes({ valores, opcoes }: { valores: string[] | null; opcoes: { value: string; label: string }[] }) {
-  if (!valores || valores.length === 0) return <span className="text-muted-foreground">—</span>;
+  if (!valores || valores.length === 0) return <span className="text-muted-foreground">-</span>;
   const labels = valores.map((v) => opcoes.find((o) => o.value === v)?.label ?? v);
   return <span>{labels.join(", ")}</span>;
 }
@@ -72,10 +72,10 @@ export function SolicitacaoDemandaPanel({
 
   return (
     <div className="space-y-4">
-      {/* Parte A — leitura para todos */}
+      {/* Parte A - leitura para todos */}
       {temParteA ? (
         <div className="space-y-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Parte A — Solicitação da Demanda (read-only)</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Parte A - Solicitação da Demanda (read-only)</p>
 
           <SecaoParteA numero={1} titulo="Identificação">
             <div className="grid gap-2 sm:grid-cols-2">
@@ -92,19 +92,19 @@ export function SolicitacaoDemandaPanel({
           </SecaoParteA>
 
           <SecaoParteA numero={3} titulo="Descrição da Necessidade">
-            <p className="whitespace-pre-wrap text-sm">{card.descricao_necessidade || "—"}</p>
+            <p className="whitespace-pre-wrap text-sm">{card.descricao_necessidade || "-"}</p>
           </SecaoParteA>
 
           <SecaoParteA numero={4} titulo="Situação Atual">
-            <p className="whitespace-pre-wrap text-sm">{card.problema_atual || "—"}</p>
+            <p className="whitespace-pre-wrap text-sm">{card.problema_atual || "-"}</p>
           </SecaoParteA>
 
           <SecaoParteA numero={5} titulo="Situação Desejada">
-            <p className="whitespace-pre-wrap text-sm">{card.situacao_desejada || "—"}</p>
+            <p className="whitespace-pre-wrap text-sm">{card.situacao_desejada || "-"}</p>
           </SecaoParteA>
 
           <SecaoParteA numero={6} titulo="Justificativa">
-            <p className="whitespace-pre-wrap text-sm">{card.justificativa || "—"}</p>
+            <p className="whitespace-pre-wrap text-sm">{card.justificativa || "-"}</p>
           </SecaoParteA>
 
           <SecaoParteA numero={7} titulo="Benefícios Esperados">
@@ -143,7 +143,7 @@ export function SolicitacaoDemandaPanel({
           )}
         </div>
       ) : (
-        /* Cards legados — exibe campos antigos */
+        /* Cards legados - exibe campos antigos */
         <div className="space-y-2 rounded-md border border-border p-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Detalhes da Abertura</p>
           {card.objetivo_solicitacao && <LabelValor label="Objetivo" valor={card.objetivo_solicitacao} />}

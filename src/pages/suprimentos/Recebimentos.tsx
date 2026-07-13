@@ -195,9 +195,9 @@ export default function Recebimentos() {
                   {!isLoading && filtradas.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Nenhum recebimento</TableCell></TableRow>}
                   {filtradas.map((r) => (
                     <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.nf_entrada?.numero ?? "—"}/{r.nf_entrada?.serie ?? "1"}</TableCell>
-                      <TableCell className="text-sm">{r.nf_entrada?.fornecedor_razao ?? "—"}</TableCell>
-                      <TableCell><Badge variant="outline">{r.nf_entrada?.origem ?? "—"}</Badge></TableCell>
+                      <TableCell className="font-medium">{r.nf_entrada?.numero ?? "-"}/{r.nf_entrada?.serie ?? "1"}</TableCell>
+                      <TableCell className="text-sm">{r.nf_entrada?.fornecedor_razao ?? "-"}</TableCell>
+                      <TableCell><Badge variant="outline">{r.nf_entrada?.origem ?? "-"}</Badge></TableCell>
                       <TableCell>{statusBadge(r.status)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleString("pt-BR")}</TableCell>
                       <TableCell>
@@ -247,7 +247,7 @@ export default function Recebimentos() {
       <Dialog open={openDet} onOpenChange={setOpenDet}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Conferência — NF {recebSel?.nf_entrada?.numero}/{recebSel?.nf_entrada?.serie}</DialogTitle>
+            <DialogTitle>Conferência - NF {recebSel?.nf_entrada?.numero}/{recebSel?.nf_entrada?.serie}</DialogTitle>
           </DialogHeader>
           {recebSel && (
             <div className="space-y-4">
@@ -275,7 +275,7 @@ export default function Recebimentos() {
                   {itens.map((i) => (
                     <TableRow key={i.id} className={i.qtd_recebida !== i.qtd_nf || i.condicao !== "ok" ? "bg-warning/10" : ""}>
                       <TableCell className="text-sm">
-                        <div className="font-medium">{i.produto?.codigo ?? "—"}</div>
+                        <div className="font-medium">{i.produto?.codigo ?? "-"}</div>
                         <div className="text-xs text-muted-foreground">{i.produto?.descricao}</div>
                       </TableCell>
                       <TableCell className="text-right">{Number(i.qtd_nf).toLocaleString("pt-BR")}</TableCell>
@@ -312,7 +312,7 @@ export default function Recebimentos() {
               </Table>
 
               <div className="rounded-md border bg-muted/30 p-3 text-xs">
-                ℹ️ Itens com quantidade ou condição divergentes geram <strong>ocorrência automática</strong> ao confirmar (estoque entra mesmo assim — política "aceitar e abrir ocorrência").
+                ℹ️ Itens com quantidade ou condição divergentes geram <strong>ocorrência automática</strong> ao confirmar (estoque entra mesmo assim - política "aceitar e abrir ocorrência").
               </div>
             </div>
           )}

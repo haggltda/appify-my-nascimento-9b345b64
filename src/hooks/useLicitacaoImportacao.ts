@@ -43,7 +43,7 @@ export type ConfirmarResult = {
   erros?: number;
 };
 
-/** H17 — normalização de qualquer formato de erro do backend. */
+/** H17 - normalização de qualquer formato de erro do backend. */
 export function normalizeError(e: unknown, fallback: string): string {
   if (!e) return fallback;
   if (typeof e === "string") return e || fallback;

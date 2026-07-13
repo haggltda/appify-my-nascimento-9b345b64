@@ -31,7 +31,7 @@ type Hor = "15" | "30" | "45" | "90" | "180";
 export default function CapitalGiro() {
   const [horizonte, setHorizonte] = useState<Hor>("30");
   const [empresaId, setEmpresaId] = useState<string>(ALL);
-  const [empresaNome, setEmpresaNome] = useState<string>("Consolidado — Todas as empresas");
+  const [empresaNome, setEmpresaNome] = useState<string>("Consolidado - Todas as empresas");
   const [saldoMinimo, setSaldoMinimo] = useState(500000);
 
   // Janela FUTURA: hoje até hoje + (h - 1)
@@ -47,9 +47,9 @@ export default function CapitalGiro() {
   });
 
   useEffect(() => {
-    if (empresaId === ALL) { setEmpresaNome("Consolidado — Todas as empresas"); return; }
+    if (empresaId === ALL) { setEmpresaNome("Consolidado - Todas as empresas"); return; }
     const sel = empresasQ.data?.find((e) => e.id === empresaId);
-    if (sel) setEmpresaNome(`${sel.codigo} — ${sel.razao_social}`);
+    if (sel) setEmpresaNome(`${sel.codigo} - ${sel.razao_social}`);
   }, [empresaId, empresasQ.data]);
 
   const empresaParam = empresaId === ALL ? null : empresaId;
@@ -66,7 +66,7 @@ export default function CapitalGiro() {
     },
   });
 
-  // Orçado/Projetado (mz_41) — entradas previstas + saídas previstas no horizonte
+  // Orçado/Projetado (mz_41) - entradas previstas + saídas previstas no horizonte
   const orcQ = useQuery({
     queryKey: ["fcd-orc-cg", empresaParam, dataIni, dataFim],
     queryFn: async () => {
@@ -215,9 +215,9 @@ export default function CapitalGiro() {
           <Select value={empresaId} onValueChange={setEmpresaId}>
             <SelectTrigger className="w-full sm:w-[260px]"><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL}>Consolidado — Todas as empresas</SelectItem>
+              <SelectItem value={ALL}>Consolidado - Todas as empresas</SelectItem>
               {(empresasQ.data ?? []).map((e) => (
-                <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+                <SelectItem key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</SelectItem>
               ))}
             </SelectContent>
           </Select>

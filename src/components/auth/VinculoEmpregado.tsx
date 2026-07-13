@@ -12,7 +12,7 @@ interface VinculoResp {
 }
 
 /**
- * Vínculo via RPC SECURITY DEFINER (vincular_meu_empregado) — vai pelo endpoint
+ * Vínculo via RPC SECURITY DEFINER (vincular_meu_empregado) - vai pelo endpoint
  * /rest/v1/rpc já usado pelo app. Substitui a antiga Edge Function, que falhava
  * com "Failed to send a request to the Edge Function".
  */

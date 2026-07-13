@@ -106,7 +106,7 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
               <div className="mb-4 flex items-start gap-2 rounded-md bg-success-soft p-3 text-sm text-success">
                 <ShieldCheck className="h-4 w-4 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Cenário (a) — edição livre</p>
+                  <p className="font-semibold">Cenário (a) - edição livre</p>
                   <p className="text-xs">CC sem movimento. Troca segura.</p>
                 </div>
               </div>
@@ -115,7 +115,7 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
               <div className="mb-4 flex items-start gap-2 rounded-md bg-warning-soft p-3 text-sm text-warning">
                 <AlertTriangle className="h-4 w-4 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Cenário (b) — requer confirmação</p>
+                  <p className="font-semibold">Cenário (b) - requer confirmação</p>
                   <p className="text-xs">Contrato vinculado já ativo (sem movimento financeiro). A troca será registrada em auditoria.</p>
                 </div>
               </div>
@@ -124,7 +124,7 @@ export function TrocarEmpresaCCDialog({ open, onClose, ccId, ccCodigo, empresaAt
               <div className="mb-4 flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
                 <Ban className="h-4 w-4 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Cenário (c) — bloqueado</p>
+                  <p className="font-semibold">Cenário (c) - bloqueado</p>
                   <p className="text-xs">Existem movimentos vinculados. Correção exige estorno/reemissão.</p>
                 </div>
               </div>

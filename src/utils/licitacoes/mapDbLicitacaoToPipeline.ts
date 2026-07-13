@@ -25,7 +25,7 @@ export type LicitacaoPipeline = Licitacao & {
 };
 
 
-// STATUS_SEM_EQUIVALENTE_NO_BANCO — mapeamento conservador apenas para visual.
+// STATUS_SEM_EQUIVALENTE_NO_BANCO - mapeamento conservador apenas para visual.
 // Enum DB atual: rascunho | oportunidade | em_andamento | vencida | perdida | cancelada.
 // Enum UI possui 11 valores (workflow). Mapeamento documentado no plano §3 (D-PIPE-2).
 const STATUS_DB_TO_UI: Record<DbLicitacaoStatus, StatusLicitacao> = {
@@ -37,14 +37,14 @@ const STATUS_DB_TO_UI: Record<DbLicitacaoStatus, StatusLicitacao> = {
   cancelada: "suspensa",
 };
 
-// CRITICIDADE_NAO_LOCALIZADA_NO_BANCO — neutro até existir coluna real (D-PIPE-4).
+// CRITICIDADE_NAO_LOCALIZADA_NO_BANCO - neutro até existir coluna real (D-PIPE-4).
 const CRITICIDADE_DEFAULT: Criticidade = "media";
 
 function fallbackResponsavel(
   userId: string | null,
   info?: ResponsavelInfo,
 ): string {
-  if (!userId) return "—";
+  if (!userId) return "-";
   if (info?.nome && info.nome.trim()) return info.nome.trim();
   if (info?.email && info.email.trim()) return info.email.trim();
   return "Responsável vinculado";

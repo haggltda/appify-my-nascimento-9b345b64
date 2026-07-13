@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button";
 import { useFeatureFlag } from "@/lib/featureFlags";
 
 /**
- * Bloco V3 — Rotas governadas por feature flag soberana de fase.
+ * Bloco V3 - Rotas governadas por feature flag soberana de fase.
  * Quando a flag está desativada, o RouteGuard nega acesso.
  * Reativação exige flip explícito da flag.
  */
 const PHASE_FLAGGED_ROUTES: { prefix: string; flag: "triagemIA" }[] = [
-  // Triagem IA — desativada permanentemente (decisão de negócio 2026-05-28).
+  // Triagem IA - desativada permanentemente (decisão de negócio 2026-05-28).
   { prefix: "/app/triagem", flag: "triagemIA" },
-  // Copiloto IA (plano de ações) — desativado permanentemente sob a mesma flag
+  // Copiloto IA (plano de ações) - desativado permanentemente sob a mesma flag
   // soberana de IA. Decisão de negócio 2026-05-28: nenhum usuário final do ERP
   // deve acessar funcionalidades de IA da Fase 1.
   { prefix: "/app/plano-acoes/copiloto", flag: "triagemIA" },

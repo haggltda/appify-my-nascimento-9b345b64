@@ -45,7 +45,7 @@ export function AssinaturasPanel({
         <div className="space-y-2 rounded-lg border border-border p-4">
           <h3 className="text-sm font-bold">Assinar</h3>
           <p className="text-xs text-muted-foreground">
-            Assinatura opcional — digite seu nome, a assinatura é gerada em letra emendada. Não bloqueia a conclusão da ata.
+            Assinatura opcional - digite seu nome, a assinatura é gerada em letra emendada. Não bloqueia a conclusão da ata.
           </p>
           <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Digite seu nome" className="text-sm" />
           <div className="flex h-24 items-center justify-center rounded border border-border bg-white px-4">

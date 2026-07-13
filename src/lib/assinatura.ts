@@ -1,5 +1,5 @@
 // Gera uma "assinatura" a partir do nome digitado, renderizado num canvas em
-// letra cursiva/emendada (não é desenho à mão) — usado tanto em Solicitações
+// letra cursiva/emendada (não é desenho à mão) - usado tanto em Solicitações
 // ERP quanto em Atas de Reunião.
 export const FONTE_ASSINATURA = "'Dancing Script', cursive";
 

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Paperclip } from "lucide-react";
 import type { Anexo } from "./types";
 
-// Bloco de anexo "só arquivo" (sem texto/prazo) — pras colunas que só
+// Bloco de anexo "só arquivo" (sem texto/prazo) - pras colunas que só
 // precisam de upload de documento, reaproveitando o mesmo padrão de
 // min-w-0/flex-1 já corrigido no CampoComAnexo.tsx (evita overflow horizontal
 // do input de arquivo nativo).

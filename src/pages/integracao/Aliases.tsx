@@ -46,7 +46,7 @@ const TIPO_CFG: Record<AliasTipo, {
     loadOptions: async (empresaId) => {
       const { data } = await supabase.from("contrato")
         .select("id, numero, objeto").eq("empresa_id", empresaId).limit(500);
-      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.numero} — ${c.objeto ?? ""}`.slice(0, 80) }));
+      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.numero} - ${c.objeto ?? ""}`.slice(0, 80) }));
     },
   },
   centros_custo: {
@@ -56,7 +56,7 @@ const TIPO_CFG: Record<AliasTipo, {
     loadOptions: async (empresaId) => {
       const { data } = await supabase.from("centros_custo")
         .select("id, codigo, nome").eq("empresa_id", empresaId).limit(500);
-      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} — ${c.nome}` }));
+      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} - ${c.nome}` }));
     },
   },
   empresas: {
@@ -94,7 +94,7 @@ const TIPO_CFG: Record<AliasTipo, {
     loadOptions: async () => {
       const { data } = await supabase.from("conta_contabil")
         .select("id, codigo, nome").order("codigo").limit(2000);
-      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} — ${c.nome}` }));
+      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} - ${c.nome}` }));
     },
   },
   dre: {
@@ -104,7 +104,7 @@ const TIPO_CFG: Record<AliasTipo, {
     loadOptions: async () => {
       const { data } = await supabase.from("dre_linhas")
         .select("id, codigo, descricao").order("ordem").limit(500);
-      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} — ${c.descricao}` }));
+      return (data ?? []).map((c: any) => ({ id: c.id, label: `${c.codigo} - ${c.descricao}` }));
     },
   },
 };

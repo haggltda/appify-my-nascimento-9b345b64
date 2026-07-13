@@ -16,7 +16,7 @@ export default function Contabilidade() {
         module="Contábil"
         breadcrumb={["Contabilidade Avançada"]}
         title="Contabilidade Avançada"
-        subtitle="Regras de contabilização automática, balancete, DRE realizada e balanço patrimonial — integrados com NFs e títulos."
+        subtitle="Regras de contabilização automática, balancete, DRE realizada e balanço patrimonial - integrados com NFs e títulos."
       />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>

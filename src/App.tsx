@@ -162,7 +162,7 @@ const App = () => (
           {/* Portal público de candidatura (sem login) */}
           <Route path="/vagas" element={<Vagas />} />
           <Route path="/candidatura" element={<Navigate to="/vagas" replace />} />
-          {/* Nascimento Formulários — resposta pública, sem login */}
+          {/* Nascimento Formulários - resposta pública, sem login */}
           <Route path="/formularios/:slug" element={<FormularioPublico />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<Inicio />} />
@@ -271,7 +271,7 @@ const App = () => (
             <Route path="rh/recrutamento-dashboard" element={<RecrutamentoDashboard />} />
             <Route path="rh/ferias" element={<Ferias />} />
             <Route path="rh/recrutamento" element={<Recrutamento />} />
-            {/* Jurídico — Gestão Patrimonial */}
+            {/* Jurídico - Gestão Patrimonial */}
             <Route path="juridico" element={<Navigate to="/app/juridico/patrimonios" replace />} />
             <Route path="juridico/patrimonios" element={<Patrimonios />} />
             <Route path="juridico/processos/dashboard" element={<Processos view="dashboard" />} />
@@ -280,7 +280,7 @@ const App = () => (
             <Route path="juridico/advertencias" element={<Advertencias />} />
             <Route path="juridico/candidatos" element={<VerificacaoCandidatos />} />
             <Route path="juridico/duvidas" element={<CentralDuvidas />} />
-            {/* SST — ASO / Admissão (fila do Recrutamento) */}
+            {/* SST - ASO / Admissão (fila do Recrutamento) */}
             <Route path="sst/aso" element={<AsoCandidatos />} />
             <Route path="central-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
             <Route path="central-servicos/denuncias" element={<Denuncias />} />

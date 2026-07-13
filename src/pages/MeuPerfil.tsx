@@ -88,11 +88,11 @@ export default function MeuPerfil() {
           <CardContent className="space-y-2 text-sm">
             <div>
               <Label className="text-xs text-muted-foreground">Nome</Label>
-              <p className="font-medium">{perfilQ.data?.display_name ?? "—"}</p>
+              <p className="font-medium">{perfilQ.data?.display_name ?? "-"}</p>
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">E-mail</Label>
-              <p className="truncate font-medium">{perfilQ.data?.email ?? user?.email ?? "—"}</p>
+              <p className="truncate font-medium">{perfilQ.data?.email ?? user?.email ?? "-"}</p>
             </div>
           </CardContent>
         </Card>

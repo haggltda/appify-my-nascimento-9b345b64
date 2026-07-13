@@ -43,7 +43,7 @@ const BLOCO_LABEL: Record<BlocoKey, string> = {
   SAIDAS_NAO_OP: "SAÍDAS NÃO OPERACIONAIS",
 };
 
-// Cores suaves alinhadas ao layout — fundo claro + borda lateral colorida
+// Cores suaves alinhadas ao layout - fundo claro + borda lateral colorida
 const BLOCO_HEADER_CLS: Record<BlocoKey, string> = {
   ENTRADAS: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-l-4 border-emerald-500",
   SAIDAS_OP: "bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 border-l-4 border-rose-500",
@@ -96,14 +96,14 @@ export default function FluxoCaixaDiario() {
       const hagg = empresasQ.data.find((e) => e.codigo === "HAGG");
       const sel = hagg ?? empresasQ.data[0];
       setEmpresaId(sel.id);
-      setEmpresaNome(`${sel.codigo} — ${sel.razao_social}`);
+      setEmpresaNome(`${sel.codigo} - ${sel.razao_social}`);
     }
   }, [empresasQ.data, empresaId]);
 
   useEffect(() => {
     if (isConsolidado) { setEmpresaNome("Todas as empresas (consolidado)"); return; }
     const sel = empresasQ.data?.find((e) => e.id === empresaId);
-    if (sel) setEmpresaNome(`${sel.codigo} — ${sel.razao_social}`);
+    if (sel) setEmpresaNome(`${sel.codigo} - ${sel.razao_social}`);
   }, [empresaId, empresasQ.data, isConsolidado]);
 
   const dadosQ = useQuery({
@@ -248,8 +248,8 @@ export default function FluxoCaixaDiario() {
     const rows: (string | number)[][] = [];
     // Cabeçalho informando o modo da visão de mútuos/transferências.
     rows.push([`Visão de mútuos/transferências: ${MODO_MUTUO_LABEL[modoMutuo]}`]);
-    rows.push(["—", "Saldo Inicial", ...dias.map((d) => saldosIniciaisDia[d]), ""]);
-    rows.push(["—", "Movimentação do Dia", ...dias.map((d) => movimentoDia(d)), saldoTotalPeriodo]);
+    rows.push(["-", "Saldo Inicial", ...dias.map((d) => saldosIniciaisDia[d]), ""]);
+    rows.push(["-", "Movimentação do Dia", ...dias.map((d) => movimentoDia(d)), saldoTotalPeriodo]);
     (Object.keys(grid) as BlocoKey[]).forEach((b) => {
       grid[b].forEach((cat, nome) => {
         const total = Object.values(cat).reduce((a, c) => a + c, 0);
@@ -300,7 +300,7 @@ export default function FluxoCaixaDiario() {
     body.push([
       { content: "SALDO INICIAL", styles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: "bold" } },
       ...dias.map((d) => ({ content: fmt(saldosIniciaisDia[d]), styles: { fillColor: [248, 250, 252], halign: "right", fontStyle: "bold" } })),
-      { content: "—", styles: { halign: "right", fillColor: [248, 250, 252] } },
+      { content: "-", styles: { halign: "right", fillColor: [248, 250, 252] } },
     ]);
     body.push([
       { content: "MOVIMENTAÇÃO DO DIA", styles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: "bold" } },
@@ -313,14 +313,14 @@ export default function FluxoCaixaDiario() {
       const rgb = BLOCO_PDF_RGB[b];
       body.push([
         { content: BLOCO_LABEL[b], styles: { fillColor: rgb, textColor: [15, 23, 42], fontStyle: "bold" } },
-        ...dias.map((d) => ({ content: t.totDia[d] ? fmt(t.totDia[d]) : "—", styles: { fillColor: rgb, halign: "right", fontStyle: "bold" } })),
+        ...dias.map((d) => ({ content: t.totDia[d] ? fmt(t.totDia[d]) : "-", styles: { fillColor: rgb, halign: "right", fontStyle: "bold" } })),
         { content: fmt(t.total), styles: { fillColor: rgb, halign: "right", fontStyle: "bold" } },
       ]);
       [...grid[b].entries()].sort(([a], [c]) => a.localeCompare(c)).forEach(([nome, cat]) => {
         const total = Object.values(cat).reduce((a, c) => a + c, 0);
         body.push([
           { content: "    " + nome },
-          ...dias.map((d) => ({ content: cat[d] ? fmt(cat[d]) : "—", styles: { halign: "right" } })),
+          ...dias.map((d) => ({ content: cat[d] ? fmt(cat[d]) : "-", styles: { halign: "right" } })),
           { content: fmt(total), styles: { halign: "right" } },
         ]);
       });
@@ -335,14 +335,14 @@ export default function FluxoCaixaDiario() {
       const rgb: [number, number, number] = [226, 232, 240];
       body.push([
         { content: "MÚTUOS / INTERCOMPANY / TRANSFERÊNCIAS INTERNAS", styles: { fillColor: rgb, textColor: [15, 23, 42], fontStyle: "bold" } },
-        ...dias.map(() => ({ content: "—", styles: { fillColor: rgb, halign: "right" } })),
+        ...dias.map(() => ({ content: "-", styles: { fillColor: rgb, halign: "right" } })),
         { content: fmt(gridMutuo.liquido), styles: { fillColor: rgb, halign: "right", fontStyle: "bold" } },
       ]);
       [...gridMutuo.porCategoria.entries()].sort(([a], [c]) => a.localeCompare(c)).forEach(([nome, cat]) => {
         const total = Object.values(cat).reduce((a, c) => a + c, 0);
         body.push([
           { content: "    " + nome },
-          ...dias.map((d) => ({ content: cat[d] ? fmt(cat[d]) : "—", styles: { halign: "right" } })),
+          ...dias.map((d) => ({ content: cat[d] ? fmt(cat[d]) : "-", styles: { halign: "right" } })),
           { content: fmt(total), styles: { halign: "right" } },
         ]);
       });
@@ -384,7 +384,7 @@ export default function FluxoCaixaDiario() {
           </td>
           {dias.map((d) => (
             <td key={d} className="px-2 py-2 text-right tabular-nums">
-              {totais.totDia[d] ? fmt(totais.totDia[d]) : "—"}
+              {totais.totDia[d] ? fmt(totais.totDia[d]) : "-"}
             </td>
           ))}
           <td className="px-3 py-2 text-right tabular-nums">{fmt(totais.total)}</td>
@@ -401,7 +401,7 @@ export default function FluxoCaixaDiario() {
               <td className="px-3 py-2 pl-8 sticky left-0 bg-background z-10">{nome}</td>
               {dias.map((d) => (
                 <td key={d} className={`px-2 py-2 text-right tabular-nums ${cat[d] ? corCel : "text-muted-foreground"}`}>
-                  {cat[d] ? fmt(cat[d]) : "—"}
+                  {cat[d] ? fmt(cat[d]) : "-"}
                 </td>
               ))}
               <td className={`px-3 py-2 text-right tabular-nums font-medium ${corCel}`}>{fmt(total)}</td>
@@ -445,7 +445,7 @@ export default function FluxoCaixaDiario() {
                 </SelectItem>
               )}
               {(empresasQ.data ?? []).map((e) => (
-                <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+                <SelectItem key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -533,7 +533,7 @@ export default function FluxoCaixaDiario() {
             </table>
           </div>
           <p className="mt-2 text-[10px] text-muted-foreground">
-            Visão exclusiva: itens classificados como mútuo, intercompany, conta transitória ou transferência interna. Base oficial permanece intacta — nada é apagado nem reclassificado.
+            Visão exclusiva: itens classificados como mútuo, intercompany, conta transitória ou transferência interna. Base oficial permanece intacta - nada é apagado nem reclassificado.
           </p>
         </Card>
       )}
@@ -564,7 +564,7 @@ export default function FluxoCaixaDiario() {
                 {dias.map((d) => (
                   <td key={d} className="px-2 py-2 text-right tabular-nums">{fmt(saldosIniciaisDia[d])}</td>
                 ))}
-                <td className="px-3 py-2 text-right tabular-nums">—</td>
+                <td className="px-3 py-2 text-right tabular-nums">-</td>
               </tr>
               <tr className="bg-slate-50 dark:bg-slate-800/30 font-semibold border-l-4 border-slate-400">
                 <td className="px-3 py-2 sticky left-0 bg-slate-50 dark:bg-slate-800/30 z-10">MOVIMENTAÇÃO DO DIA</td>
@@ -572,7 +572,7 @@ export default function FluxoCaixaDiario() {
                   const v = movimentoDia(d);
                   return (
                     <td key={d} className="px-2 py-2 text-right tabular-nums">
-                      {v ? fmt(v) : "—"}
+                      {v ? fmt(v) : "-"}
                     </td>
                   );
                 })}
@@ -604,7 +604,7 @@ export default function FluxoCaixaDiario() {
       {visao === "comparativo" && (
         <Card className="p-4">
           <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" /> Realizado x Orçado — totais do período
+            <BarChart3 className="h-4 w-4" /> Realizado x Orçado - totais do período
           </h3>
           {orcQ.isLoading ? (
             <div className="p-6 text-center text-muted-foreground text-xs">Carregando orçado…</div>

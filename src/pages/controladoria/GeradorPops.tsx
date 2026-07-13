@@ -130,7 +130,7 @@ function renderEtapasCanvas(steps: string[]): { url: string; canvasW: number; ca
     ctx.fillStyle = PAL.laranja;
     ctx.fillRect(0, ry, 6, rh);
 
-    // badge: chevron contínuo de 6 pontos — V profundo (35%/65%)
+    // badge: chevron contínuo de 6 pontos - V profundo (35%/65%)
     const BW = 56, BH = rh * 0.52;
     const BX = 30, BY = ry + (rh - BH) / 2;
     const BCMID = BX + BW * 0.50;
@@ -460,8 +460,8 @@ async function gerarPDF(item: PopItem, content: POPContent, opts: { elaborador: 
 
   const gridData: [string, string][][] = [
     [["ATIVIDADE", item.atividade], ["ÁREA / DIRETORIA", item.area], ["SETOR EXECUTOR", item.setor]],
-    [["RESPONSÁVEL PRINCIPAL", item.responsavel], ["BACKUP / SUBSTITUTO", item.backup || "—"], ["PERIODICIDADE", item.periodicidade || "—"]],
-    [["CLASSIFICAÇÃO", item.classificacao || "—"], ["CRITICIDADE", item.criticidade || "—"], ["TEMPO DE EXECUÇÃO", item.tempoExec || "—"]],
+    [["RESPONSÁVEL PRINCIPAL", item.responsavel], ["BACKUP / SUBSTITUTO", item.backup || "-"], ["PERIODICIDADE", item.periodicidade || "-"]],
+    [["CLASSIFICAÇÃO", item.classificacao || "-"], ["CRITICIDADE", item.criticidade || "-"], ["TEMPO DE EXECUÇÃO", item.tempoExec || "-"]],
     [["TIPO", item.tipo], ["DATA DE EMISSÃO", new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })], ["CÓDIGO", item.id]],
   ];
 
@@ -477,7 +477,7 @@ async function gerarPDF(item: PopItem, content: POPContent, opts: { elaborador: 
       const cx = M + ci * colW;
       if (ci > 0) vLine(cx, ry, ry + rowH);
       txt(label, cx + 3, ry + 4.5, 6, C.cinzaTexto, "bold");
-      txt(doc.splitTextToSize(value || "—", colW - 6)[0], cx + 3, ry + 9.5, 8, C.escuro, "bold");
+      txt(doc.splitTextToSize(value || "-", colW - 6)[0], cx + 3, ry + 9.5, 8, C.escuro, "bold");
     });
   });
 
@@ -487,9 +487,9 @@ async function gerarPDF(item: PopItem, content: POPContent, opts: { elaborador: 
   if (item.recurso || item.depProcesso || item.depArea) {
     sectionBar("2. RECURSOS E DEPENDÊNCIAS");
     const res: [string, string][] = [
-      ["SISTEMAS / RECURSOS", item.recurso || "—"],
-      ["DEPENDÊNCIA DE PROCESSO", item.depProcesso || "—"],
-      ["DEPENDÊNCIA DE ÁREA", item.depArea || "—"],
+      ["SISTEMAS / RECURSOS", item.recurso || "-"],
+      ["DEPENDÊNCIA DE PROCESSO", item.depProcesso || "-"],
+      ["DEPENDÊNCIA DE ÁREA", item.depArea || "-"],
     ];
     const resRowH = 12;
     fillRect(M, y, CW, res.length * resRowH, C.branco);
@@ -564,7 +564,7 @@ async function gerarPDF(item: PopItem, content: POPContent, opts: { elaborador: 
     ];
 
     const { url: fluxPng, canvasW: fW, canvasH: fH } = renderFluxogramaCanvas(nosFluxo);
-    // altura proporcional exata — sem distorção
+    // altura proporcional exata - sem distorção
     const fluxH = CW * fH / fW;
     if (y + fluxH > 272) { doc.addPage(); y = 14; }
     doc.addImage(fluxPng, "PNG", M, y, CW, fluxH);
@@ -578,8 +578,8 @@ async function gerarPDF(item: PopItem, content: POPContent, opts: { elaborador: 
     sectionBar(`${secNum4}. CONTROLE DE QUALIDADE`);
 
     const cqRows: [string, string, RGB][] = [
-      ["CRITÉRIO DE ÊXITO", item.criterioExito || "—", C.verdeClaro],
-      ["AÇÕES EM CASO DE INCONSISTÊNCIA", item.acaoInconsistencia || "—", C.vermClaro],
+      ["CRITÉRIO DE ÊXITO", item.criterioExito || "-", C.verdeClaro],
+      ["AÇÕES EM CASO DE INCONSISTÊNCIA", item.acaoInconsistencia || "-", C.vermClaro],
     ];
     cqRows.forEach(([label, value, bg]) => {
       const vl = doc.splitTextToSize(value, CW - 58);
@@ -672,7 +672,7 @@ function ModalEtapas({ item, onSalvar, onClose }: {
       <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="text-base">
-            Definir Etapas —{" "}
+            Definir Etapas -{" "}
             <span className="font-normal text-muted-foreground">{item.atividade}</span>
           </DialogTitle>
         </DialogHeader>
@@ -909,14 +909,14 @@ export default function GeradorPops() {
                   <p className="text-xs text-muted-foreground truncate">{item.setor}</p>
                 </div>
                 <div className="col-span-2 min-w-0">
-                  <p className="text-xs text-muted-foreground truncate">{item.processo || "—"}</p>
+                  <p className="text-xs text-muted-foreground truncate">{item.processo || "-"}</p>
                 </div>
                 <div className="col-span-3 min-w-0">
                   <p className="text-sm font-medium leading-snug line-clamp-2">{item.atividade}</p>
                 </div>
                 <div className="col-span-1 flex justify-center">
                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${criticidadeBadge(item.criticidade)}`}>
-                    {item.criticidade || "—"}
+                    {item.criticidade || "-"}
                   </span>
                 </div>
                 <div className="col-span-3 flex items-center gap-1.5 justify-end flex-wrap">
@@ -973,7 +973,7 @@ export default function GeradorPops() {
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
           <DialogHeader className="px-6 py-4 border-b shrink-0">
             <div className="flex items-center justify-between pr-8">
-              <DialogTitle>Prévia — {previewState?.item.atividade}</DialogTitle>
+              <DialogTitle>Prévia - {previewState?.item.atividade}</DialogTitle>
               <Button size="sm" className="btn-relief gap-2" onClick={async () => {
                 if (!previewState) return;
                 const doc = await gerarPDF(previewState.item, previewState.content, { elaborador: ELABORADOR, aprovador: APROVADOR });

@@ -43,7 +43,7 @@ interface Aprovacao {
 const fmtBRL = (n: number | null | undefined) =>
   typeof n === "number"
     ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-    : "—";
+    : "-";
 
 function StatusBadge({ status }: { status: string | null }) {
   const s = (status ?? "").toUpperCase();
@@ -346,16 +346,16 @@ export default function AprovacaoContas() {
                         />
                       </TableCell>
                       <TableCell className="font-mono text-xs">{r.id_sugestao_conta}</TableCell>
-                      <TableCell className="font-mono">{r.codigo_conta_sugerido ?? "—"}</TableCell>
+                      <TableCell className="font-mono">{r.codigo_conta_sugerido ?? "-"}</TableCell>
                       <TableCell>
-                        <div className="font-medium">{r.nome_conta_sugerido ?? "—"}</div>
+                        <div className="font-medium">{r.nome_conta_sugerido ?? "-"}</div>
                         {r.nome_conta_pai_sugerido && (
                           <div className="text-xs text-muted-foreground">↳ {r.nome_conta_pai_sugerido}</div>
                         )}
                       </TableCell>
                       <TableCell className="text-sm">
-                        <div>{r.classe_contabil_sugerida ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground">{r.linha_dre_padrao ?? "—"}</div>
+                        <div>{r.classe_contabil_sugerida ?? "-"}</div>
+                        <div className="text-xs text-muted-foreground">{r.linha_dre_padrao ?? "-"}</div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{r.qtd_lancamentos_afetados ?? 0}</TableCell>
                       <TableCell className="text-right tabular-nums">{fmtBRL(r.valor_total_abs_afetado)}</TableCell>
@@ -378,18 +378,18 @@ export default function AprovacaoContas() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Decidir conta sugerida</DialogTitle>
-            <DialogDescription>{editing?.id_sugestao_conta} · {editing?.codigo_conta_sugerido} — {editing?.nome_conta_sugerido}</DialogDescription>
+            <DialogDescription>{editing?.id_sugestao_conta} · {editing?.codigo_conta_sugerido} - {editing?.nome_conta_sugerido}</DialogDescription>
           </DialogHeader>
 
           {editing && (
             <div className="space-y-4 text-sm">
               <div className="grid gap-3 rounded-md border bg-muted/30 p-3 sm:grid-cols-2">
-                <div><span className="text-muted-foreground">Pai:</span> {editing.codigo_conta_pai_sugerido ?? "—"} {editing.nome_conta_pai_sugerido ?? ""}</div>
-                <div><span className="text-muted-foreground">Classe:</span> {editing.classe_contabil_sugerida ?? "—"}</div>
-                <div><span className="text-muted-foreground">Tipo gerencial:</span> {editing.tipo_gerencial_padrao ?? "—"}</div>
-                <div><span className="text-muted-foreground">Linha DRE:</span> {editing.linha_dre_padrao ?? "—"}</div>
-                <div><span className="text-muted-foreground">Direto/Indireto:</span> {editing.direto_indireto_padrao ?? "—"}</div>
-                <div><span className="text-muted-foreground">Fixo/Variável:</span> {editing.fixo_variavel_padrao ?? "—"}</div>
+                <div><span className="text-muted-foreground">Pai:</span> {editing.codigo_conta_pai_sugerido ?? "-"} {editing.nome_conta_pai_sugerido ?? ""}</div>
+                <div><span className="text-muted-foreground">Classe:</span> {editing.classe_contabil_sugerida ?? "-"}</div>
+                <div><span className="text-muted-foreground">Tipo gerencial:</span> {editing.tipo_gerencial_padrao ?? "-"}</div>
+                <div><span className="text-muted-foreground">Linha DRE:</span> {editing.linha_dre_padrao ?? "-"}</div>
+                <div><span className="text-muted-foreground">Direto/Indireto:</span> {editing.direto_indireto_padrao ?? "-"}</div>
+                <div><span className="text-muted-foreground">Fixo/Variável:</span> {editing.fixo_variavel_padrao ?? "-"}</div>
                 <div><span className="text-muted-foreground">Lançamentos afetados:</span> {editing.qtd_lancamentos_afetados ?? 0}</div>
                 <div><span className="text-muted-foreground">Valor abs.:</span> {fmtBRL(editing.valor_total_abs_afetado)}</div>
                 {sugestoesById.get(editing.id_sugestao_conta)?.grau_confianca && (

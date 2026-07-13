@@ -30,7 +30,7 @@ export const STATUS_VALIDOS = [
 ] as const;
 export type StatusValido = (typeof STATUS_VALIDOS)[number];
 
-/** Campos do seed atual sem destino direto no contrato da RPC — preservados em raw_original. */
+/** Campos do seed atual sem destino direto no contrato da RPC - preservados em raw_original. */
 export const COLUNAS_SEM_DESTINO_NO_BANCO = ["empresa_id", "origem_carga"];
 
 /** "Resp: Fulano | ..." → "Fulano" */

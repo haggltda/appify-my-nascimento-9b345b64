@@ -109,7 +109,7 @@ function ConfigForm({ empresaId }: { empresaId: string }) {
 
       {form.regime === "lucro_presumido" && (
         <Card>
-          <CardHeader><CardTitle>Alíquotas — Lucro Presumido</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Alíquotas - Lucro Presumido</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-3 gap-4">
             <div><Label>ISS (%)</Label><Input type="number" step="0.01" value={form.aliq_iss || 0} onChange={(e) => upd("aliq_iss", Number(e.target.value))} /></div>
             <div><Label>PIS (%)</Label><Input type="number" step="0.01" value={form.aliq_pis || 0} onChange={(e) => upd("aliq_pis", Number(e.target.value))} /></div>

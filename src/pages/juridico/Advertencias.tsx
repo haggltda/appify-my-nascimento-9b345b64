@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 
 // =====================================================================
-// JURÍDICO — Gestão de Advertências
+// JURÍDICO - Gestão de Advertências
 // Encarregado cria (em Minhas Solicitações) → Analista do contrato aprova/
 // reprova → Jurídico conclui. Tabela SISTEMA_SOLICITACOES_ADVERTENCIA.
 // Aprovador = analista do contrato (CONTRATOS.analista = EMPREGADOS."ID").
@@ -30,7 +30,7 @@ const statusCor = (s: string): { bg: string; c: string } => ({
   "Reprovada": { bg: "#fee2e2", c: "#b91c1c" },
 }[s] || { bg: "#e0f2fe", c: "#0369a1" });
 const grauCor = (g: string): string => ({ "Baixo": "#16a34a", "Médio": "#d97706", "Alto": "#dc2626" }[g] || "#64748b");
-const fmtDt = (s?: string) => { if (!s) return "—"; const d = new Date(String(s).length <= 10 ? s + "T12:00:00" : s); return isNaN(+d) ? String(s) : d.toLocaleDateString("pt-BR"); };
+const fmtDt = (s?: string) => { if (!s) return "-"; const d = new Date(String(s).length <= 10 ? s + "T12:00:00" : s); return isNaN(+d) ? String(s) : d.toLocaleDateString("pt-BR"); };
 
 export default function Advertencias() {
   const { user } = useAuth();
@@ -62,7 +62,7 @@ export default function Advertencias() {
     setRows(data ?? []);
     // mapa contrato_id -> analista (EMPREGADOS.ID) para travar quem aprova
     let ct = await (supabase as any).from("CONTRATOS").select('id, analista');
-    if (ct.error) ct = { data: [] }; // coluna analista pode ter outro nome — gate fica só p/ Jurídico
+    if (ct.error) ct = { data: [] }; // coluna analista pode ter outro nome - gate fica só p/ Jurídico
     const map: Record<string, string> = {};
     for (const c of (ct.data ?? [])) if (c.id != null && c.analista != null) map[String(c.id)] = String(c.analista);
     setAnalistaPorContrato(map);
@@ -146,21 +146,21 @@ export default function Advertencias() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: 14 }}>
                 {filtradas.map(a => { const sc = statusCor(a.status); const podeAprovar = a.status === "Aguardando Aprovação" && souAnalista(a); const podeConcluir = a.status === "Aguardando Jurídico" && souJuridico; return (
                   <div key={a.id} style={{ ...card, borderLeft: `4px solid ${grauCor(a.grau)}`, display: "flex", flexDirection: "column", ...(a.excecao ? { border: "1.5px solid #fbbf24", borderLeft: `4px solid ${grauCor(a.grau)}`, background: "#fffdf7" } : {}) }}>
-                    {a.excecao && <div style={{ background: "#fef3c7", color: "#b45309", fontSize: 11, fontWeight: 800, padding: "5px 9px", borderRadius: 7, marginBottom: 8, overflowWrap: "break-word", wordBreak: "break-word" }}>⚠️ EXCEÇÃO — aplicada fora do prazo de 3 dias{a.justificativa_excecao ? `: ${a.justificativa_excecao}` : ""}</div>}
+                    {a.excecao && <div style={{ background: "#fef3c7", color: "#b45309", fontSize: 11, fontWeight: 800, padding: "5px 9px", borderRadius: 7, marginBottom: 8, overflowWrap: "break-word", wordBreak: "break-word" }}>⚠️ EXCEÇÃO - aplicada fora do prazo de 3 dias{a.justificativa_excecao ? `: ${a.justificativa_excecao}` : ""}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                       <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 13.5 }}>{a.colaborador_nome}</div>
                       <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: sc.bg, color: sc.c, whiteSpace: "nowrap" }}>{a.status}</span>
                     </div>
-                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{a.colaborador_cargo || "—"}{a.contrato ? ` · ${a.contrato}` : ""}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{a.colaborador_cargo || "-"}{a.contrato ? ` · ${a.contrato}` : ""}</div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "8px 0" }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "#f1f5f9", color: "#334155" }}>{a.tipo_advertencia || "—"}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "#fff", color: grauCor(a.grau), border: `1px solid ${grauCor(a.grau)}` }}>Grau {a.grau || "—"}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "#f1f5f9", color: "#334155" }}>{a.tipo_advertencia || "-"}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "#fff", color: grauCor(a.grau), border: `1px solid ${grauCor(a.grau)}` }}>Grau {a.grau || "-"}</span>
                       <span style={{ fontSize: 11, color: "#64748b" }}>Ocorrido: {fmtDt(a.data_ocorrido)}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.4, maxHeight: 60, overflow: "hidden", overflowWrap: "break-word", wordBreak: "break-word" }}>{a.descricao_ocorrido || "—"}</div>
-                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>Solicitante: {a.solicitante_nome || "—"} · #{a.id}</div>
+                    <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.4, maxHeight: 60, overflow: "hidden", overflowWrap: "break-word", wordBreak: "break-word" }}>{a.descricao_ocorrido || "-"}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>Solicitante: {a.solicitante_nome || "-"} · #{a.id}</div>
                     {a.status === "Reprovada" && a.motivo_reprovacao && <div style={{ fontSize: 11.5, color: "#b91c1c", marginTop: 6, background: "#fef2f2", borderRadius: 8, padding: "6px 9px" }}>Reprovada: {a.motivo_reprovacao}</div>}
-                    {a.status === "Concluída" && <div style={{ fontSize: 11.5, color: "#15803d", marginTop: 6, background: "#f0fdf4", borderRadius: 8, padding: "6px 9px" }}>Resultado: <b>{a.resultado || "—"}</b>{a.parecer_juridico ? ` · ${a.parecer_juridico}` : ""}</div>}
+                    {a.status === "Concluída" && <div style={{ fontSize: 11.5, color: "#15803d", marginTop: 6, background: "#f0fdf4", borderRadius: 8, padding: "6px 9px" }}>Resultado: <b>{a.resultado || "-"}</b>{a.parecer_juridico ? ` · ${a.parecer_juridico}` : ""}</div>}
                     <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
                       <button onClick={() => setDetalhe(a)} style={{ border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 12, padding: "7px 12px", background: "#eef4ff", color: "#0f3171" }}>Detalhes</button>
                       {podeAprovar && <>
@@ -182,12 +182,12 @@ export default function Advertencias() {
           <div style={{ background: "#fff", borderRadius: 16, padding: 22, width: "100%", maxWidth: 620, maxHeight: "92vh", overflowY: "auto", position: "relative" }}>
             <button onClick={() => setDetalhe(null)} style={{ position: "absolute", top: 14, right: 16, border: "none", background: "none", fontSize: 20, color: "#94a3b8", cursor: "pointer" }}>✕</button>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{detalhe.colaborador_nome}</div>
-            <div style={{ fontSize: 12.5, color: "#475569", marginBottom: 12 }}>{detalhe.colaborador_cargo || "—"} · CPF {detalhe.colaborador_cpf || "—"}{detalhe.contrato ? ` · ${detalhe.contrato}` : ""}</div>
+            <div style={{ fontSize: 12.5, color: "#475569", marginBottom: 12 }}>{detalhe.colaborador_cargo || "-"} · CPF {detalhe.colaborador_cpf || "-"}{detalhe.contrato ? ` · ${detalhe.contrato}` : ""}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {[["Tipo", detalhe.tipo_advertencia], ["Grau", detalhe.grau], ["Data do ocorrido", fmtDt(detalhe.data_ocorrido)], ["Status", detalhe.status], ["Advertência verbal já foi dada para o mesmo fato?", detalhe.advertencia_verbal_dada ? "Sim" : "Não"], ["Data da advertência verbal", detalhe.advertencia_verbal_dada ? fmtDt(detalhe.data_advertencia_verbal) : "—"], ["Solicitante", detalhe.solicitante_nome], ["Aprovado/decidido por", detalhe.aprovado_por_nome || "—"]].map(([l, v]) => (
+              {[["Tipo", detalhe.tipo_advertencia], ["Grau", detalhe.grau], ["Data do ocorrido", fmtDt(detalhe.data_ocorrido)], ["Status", detalhe.status], ["Advertência verbal já foi dada para o mesmo fato?", detalhe.advertencia_verbal_dada ? "Sim" : "Não"], ["Data da advertência verbal", detalhe.advertencia_verbal_dada ? fmtDt(detalhe.data_advertencia_verbal) : "-"], ["Solicitante", detalhe.solicitante_nome], ["Aprovado/decidido por", detalhe.aprovado_por_nome || "-"]].map(([l, v]) => (
                 <div key={String(l)} style={{ background: "#f8fafc", border: "1px solid #eef2f7", borderRadius: 9, padding: "7px 10px" }}>
                   <div style={{ fontSize: 9.5, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>{l}</div>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "#334155", marginTop: 2 }}>{String(v || "—")}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "#334155", marginTop: 2 }}>{String(v || "-")}</div>
                 </div>
               ))}
             </div>
@@ -198,7 +198,7 @@ export default function Advertencias() {
               </div>
             )}
             <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px", margin: "14px 0 4px" }}>Descrição do ocorrido</div>
-            <div style={{ fontSize: 13, color: "#0f172a", whiteSpace: "pre-wrap", overflowWrap: "break-word", wordBreak: "break-word", background: "#f8fafc", borderRadius: 9, padding: "9px 12px" }}>{detalhe.descricao_ocorrido || "—"}</div>
+            <div style={{ fontSize: 13, color: "#0f172a", whiteSpace: "pre-wrap", overflowWrap: "break-word", wordBreak: "break-word", background: "#f8fafc", borderRadius: 9, padding: "9px 12px" }}>{detalhe.descricao_ocorrido || "-"}</div>
             {detalhe.detalhe_anterior && <><div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", margin: "12px 0 4px" }}>Advertência anterior</div><div style={{ fontSize: 12.5, color: "#475569" }}>{detalhe.detalhe_anterior}</div></>}
             {detalhe.parecer_juridico && <><div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", margin: "12px 0 4px" }}>Parecer do Jurídico</div><div style={{ fontSize: 12.5, color: "#475569" }}>{detalhe.parecer_juridico}</div></>}
           </div>

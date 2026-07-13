@@ -48,7 +48,7 @@ export function LogsTab() {
         )}
         {(logsQ.data ?? []).map((l) => {
           const action = l.payload?.action ?? l.payload?.event ?? "evento";
-          const actor = l.payload?.actor_username ?? l.payload?.actor_email ?? l.payload?.actor_id ?? "—";
+          const actor = l.payload?.actor_username ?? l.payload?.actor_email ?? l.payload?.actor_id ?? "-";
           const error = l.payload?.error ?? null;
           let Icon = CheckCircle2; let tone = "text-success";
           if (action === "logout") { Icon = LogOut; tone = "text-muted-foreground"; }
@@ -60,7 +60,7 @@ export function LogsTab() {
               <span className="w-40 text-xs text-muted-foreground">{new Date(l.created_at).toLocaleString("pt-BR")}</span>
               <span className="w-56 truncate text-xs font-medium">{actor}</span>
               <span className="flex-1 text-xs text-muted-foreground capitalize">{action.replace(/_/g, " ")}</span>
-              <span className="font-mono text-[11px] text-muted-foreground">{l.ip_address ?? "—"}</span>
+              <span className="font-mono text-[11px] text-muted-foreground">{l.ip_address ?? "-"}</span>
             </li>
           );
         })}

@@ -5,19 +5,19 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { Toasts, btnStyle, EtapaChip, Modal } from "@/components/recrutamento/CandidatoInfo";
 
 // =====================================================================
-// RH / RECRUTAMENTO — Banco de Talentos
+// RH / RECRUTAMENTO - Banco de Talentos
 // Pool central de candidatos: candidaturas gerais (sem vaga) + candidaturas
 // a vagas específicas. Abas: Favoritos, Banco geral, Por vaga, Todos.
 // Fonte: WA_CURRICULOS + RECRUTAMENTO_CANDIDATO_ARQUIVOS.
 // =====================================================================
 
-const fmtDt = (s?: string) => (!s ? "—" : String(s).slice(0, 10).split("-").reverse().join("/"));
-const simNao = (b: any) => (b === true ? "Sim" : b === false ? "Não" : "—");
+const fmtDt = (s?: string) => (!s ? "-" : String(s).slice(0, 10).split("-").reverse().join("/"));
+const simNao = (b: any) => (b === true ? "Sim" : b === false ? "Não" : "-");
 const digitsOf = (s?: string) => String(s ?? "").replace(/\D/g, "");
 type Aba = "favoritos" | "banco" | "vaga" | "todos";
 
 // Junta candidaturas da MESMA PESSOA: mesmo CPF (cpf ou cpf_cand) OU mesmo
-// e-mail — candidaturas antigas nem sempre têm os dois. Um registro que
+// e-mail - candidaturas antigas nem sempre têm os dois. Um registro que
 // conecta dois grupos (CPF num, e-mail noutro) funde os grupos.
 function agruparPessoas(list: any[]): any[][] {
   const chavesDe = (c: any): string[] => {
@@ -73,7 +73,7 @@ export default function BancoTalentos() {
     setTimeout(() => setToasts(x => x.filter(i => i.id !== id)), 3600);
   };
 
-  const cargoDe = (id?: number | null) => sols.find(s => s.id === id)?.cargo || (id ? `#${id}` : "—");
+  const cargoDe = (id?: number | null) => sols.find(s => s.id === id)?.cargo || (id ? `#${id}` : "-");
   const vagasAbertas = sols.filter(s => s.status === "Vaga aberta - Seleção de Currículos");
 
   // Carrega TODAS as candidaturas de uma vez; o recorte por aba é feito por
@@ -329,7 +329,7 @@ export default function BancoTalentos() {
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 5 }}>Vaga *</label>
                 <select value={vagaSel} onChange={e => setVagaSel(e.target.value)} style={{ width: "100%", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, color: "#0f172a", fontSize: 13, padding: "9px 12px", outline: "none" }}>
-                  <option value="">— Selecione a vaga —</option>
+                  <option value="">- Selecione a vaga -</option>
                   {vagasAbertas.map(v => <option key={v.id} value={v.id}>#{v.id} · {v.cargo} · {v.cidade || ""}</option>)}
                 </select>
               </div>

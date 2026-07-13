@@ -101,7 +101,7 @@ export function ContaBancariaDialog({ open, onOpenChange, fornecedorId, empresaI
               <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
               <SelectContent>
                 {BANCOS_CATALOGO.map((b) => (
-                  <SelectItem key={b.codigo} value={b.codigo}>{b.codigo} — {b.nome}</SelectItem>
+                  <SelectItem key={b.codigo} value={b.codigo}>{b.codigo} - {b.nome}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

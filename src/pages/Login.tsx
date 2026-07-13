@@ -66,7 +66,7 @@ export default function Login() {
             Plataforma corporativa para a gestão integrada do Grupo Nascimento.
           </h1>
           <p className="mt-4 text-base leading-relaxed text-white/75">
-            Licitações, Contratos, Financeiro, Contábil, Suprimentos, RH e Controladoria —
+            Licitações, Contratos, Financeiro, Contábil, Suprimentos, RH e Controladoria -
             em uma única plataforma multi-CNPJ, segura e auditável.
           </p>
 
@@ -98,7 +98,7 @@ export default function Login() {
         </div>
 
         <p className="relative z-10 mt-10 text-[11px] text-white/50">
-          © 2025 Grupo Nascimento — Todos os direitos reservados · v3.4.0
+          © 2025 Grupo Nascimento - Todos os direitos reservados · v3.4.0
         </p>
       </aside>
 

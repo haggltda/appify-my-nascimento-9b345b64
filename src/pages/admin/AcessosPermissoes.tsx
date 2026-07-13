@@ -23,7 +23,7 @@ interface UserOpt { id: string; nome: string; }
  * Aba "Visibilidade do menu" dentro de Configurações do ERP.
  * Grava em `screen_permission_profile` (por perfil) e `screen_permission_user` (overrides por
  * usuário). Estes dados controlam o filtro do Sidebar (via RPC list_accessible_menus) e o
- * ScreenGate. Complementam — não substituem — a aba "Permissões (ações na tela)" (role_permissions).
+ * ScreenGate. Complementam - não substituem - a aba "Permissões (ações na tela)" (role_permissions).
  */
 export default function AcessosPermissoes() {
   return (
@@ -268,7 +268,7 @@ function PorPessoa() {
         </div>
         {userId && (
           <div className="text-xs text-muted-foreground mt-2">
-            Perfis do usuário: {userRoles?.length ? userRoles.map((r) => <Badge key={r} variant="secondary" className="mr-1">{r}</Badge>) : "—"}
+            Perfis do usuário: {userRoles?.length ? userRoles.map((r) => <Badge key={r} variant="secondary" className="mr-1">{r}</Badge>) : "-"}
           </div>
         )}
       </CardHeader>

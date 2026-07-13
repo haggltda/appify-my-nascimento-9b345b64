@@ -4,12 +4,12 @@ import { formatBRL } from "@/data/contratos";
 
 const encerramentos = [
   {
-    n: "CT 2024/0076", o: "Vigilância patrimonial — TCE",
+    n: "CT 2024/0076", o: "Vigilância patrimonial - TCE",
     fim: "2025-05-31", v: 8_640_000,
     checks: { docs: true, financeiro: true, fiscal: true, devolucoes: false, distrato: false },
   },
   {
-    n: "CT 2023/0211", o: "Manutenção predial — Hospital Regional",
+    n: "CT 2023/0211", o: "Manutenção predial - Hospital Regional",
     fim: "2025-04-30", v: 5_120_000,
     checks: { docs: true, financeiro: true, fiscal: true, devolucoes: true, distrato: true },
   },
@@ -21,7 +21,7 @@ export default function Encerramentos() {
       <PageHeader
         title="Encerramentos de Contrato"
         breadcrumb={["Contratos", "Encerramentos"]}
-        subtitle="Procedimentos finais — quitação, devoluções, distrato, baixas fiscais e arquivamento documental."
+        subtitle="Procedimentos finais - quitação, devoluções, distrato, baixas fiscais e arquivamento documental."
       />
 
       <div className="grid gap-4 md:grid-cols-3">

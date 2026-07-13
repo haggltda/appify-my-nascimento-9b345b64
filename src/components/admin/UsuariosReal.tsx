@@ -49,7 +49,7 @@ interface ProfileRow {
   telefone: string | null;
 }
 
-// Máscara local de telefone BR — mesmo padrão inline já usado em
+// Máscara local de telefone BR - mesmo padrão inline já usado em
 // src/pages/publico/Vagas.tsx (não existe componente de máscara compartilhado).
 function maskFone(v: string): string {
   const d = v.replace(/\D/g, "").slice(0, 11);
@@ -190,7 +190,7 @@ export function UsuariosReal() {
                     )}
                     <div>
                       <p className="text-sm font-medium">
-                        {u.display_name ?? "—"} {ehVoce && <Badge variant="outline" className="ml-1 text-[10px]">você</Badge>}
+                        {u.display_name ?? "-"} {ehVoce && <Badge variant="outline" className="ml-1 text-[10px]">você</Badge>}
                       </p>
                       <p className="text-[11px] text-muted-foreground">{u.email}</p>
                     </div>
@@ -198,7 +198,7 @@ export function UsuariosReal() {
                 </td>
                 <td className="px-3 py-3">
                   <div className="flex flex-wrap gap-1">
-                    {userRoles.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                    {userRoles.length === 0 && <span className="text-xs text-muted-foreground">-</span>}
                     {userRoles.map((r) => (
                       <Badge key={r} variant={r === "admin" ? "default" : "secondary"} className="text-[10px]">
                         {r === "admin" && <ShieldCheck className="mr-1 h-3 w-3" />}
@@ -209,8 +209,8 @@ export function UsuariosReal() {
                 </td>
                 <td className="px-3 py-3 text-xs">
                   {emp ? (
-                    <span className="inline-flex items-center gap-1.5"><Building2 className="h-3 w-3 text-muted-foreground" />{emp.codigo} — {emp.razao_social}</span>
-                  ) : <span className="text-muted-foreground">— sem vínculo —</span>}
+                    <span className="inline-flex items-center gap-1.5"><Building2 className="h-3 w-3 text-muted-foreground" />{emp.codigo} - {emp.razao_social}</span>
+                  ) : <span className="text-muted-foreground">- sem vínculo -</span>}
                 </td>
                 <td className="px-5 py-3 text-right">
                   {podeEditar ? (
@@ -310,7 +310,7 @@ function EditarUsuarioDialog({
         .eq("id", profile.id);
       if (pErr) throw pErr;
 
-      // 2) roles — diff
+      // 2) roles - diff
       if (selectedRoles.length === 0) {
         toast({ title: "Selecione ao menos um perfil", variant: "destructive" });
         setSaving(false);
@@ -332,7 +332,7 @@ function EditarUsuarioDialog({
         if (iErr) throw iErr;
       }
 
-      // 3) user_empresa — só quando acessa_todas = false (caso contrário a flag basta)
+      // 3) user_empresa - só quando acessa_todas = false (caso contrário a flag basta)
       if (!acessaTodas) {
         const { data: atuais } = await supabase
           .from("user_empresa").select("empresa_id").eq("user_id", profile.id);
@@ -416,9 +416,9 @@ function EditarUsuarioDialog({
             <Select value={empresaId} onValueChange={setEmpresaId}>
               <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="_none">— Sem vínculo —</SelectItem>
+                <SelectItem value="_none">- Sem vínculo -</SelectItem>
                 {empresas.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+                  <SelectItem key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -449,7 +449,7 @@ function EditarUsuarioDialog({
                     <label key={e.id} className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs cursor-pointer hover:bg-muted/50">
                       <Checkbox checked={empresasAtua.has(e.id)} onCheckedChange={() => toggleEmpresaAtua(e.id)} />
                       <span className="font-medium">{e.codigo}</span>
-                      <span className="text-muted-foreground truncate">— {e.razao_social}</span>
+                      <span className="text-muted-foreground truncate">- {e.razao_social}</span>
                     </label>
                   ))}
                 </div>
@@ -757,9 +757,9 @@ function NovoUsuarioDialog({
               <Select value={empresaId} onValueChange={setEmpresaId}>
                 <SelectTrigger><SelectValue placeholder="Selecionar…" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_none">— Sem vínculo —</SelectItem>
+                  <SelectItem value="_none">- Sem vínculo -</SelectItem>
                   {empresas.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</SelectItem>
+                    <SelectItem key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -5,7 +5,7 @@ import { ParecerDetalhadoForm, type ParecerDetalhadoConfig } from "@/components/
 const config: Omit<ParecerDetalhadoConfig, "subtitulo"> = {
   papel: "Diretor Operacional",
   menuCodigo: "parecer-dir-operacional",
-  tituloCard: "Decisão executiva — capacidade operacional",
+  tituloCard: "Decisão executiva - capacidade operacional",
   cor: "accent",
   chipsExtras: [{ label: "Decisão executiva", tom: "warning" }],
   checklist: {
@@ -39,7 +39,7 @@ const config: Omit<ParecerDetalhadoConfig, "subtitulo"> = {
     { id: "centros_op", label: "Centros operativos envolvidos", tipo: "numero" },
   ],
   recomendacoes: [
-    "Aprovar — capacidade plena",
+    "Aprovar - capacidade plena",
     "Aprovar com plano de mobilização",
     "Aprovar com subcontratação",
     "Não recomendar",
@@ -69,7 +69,7 @@ export default function ParecerDiretorOperacional() {
             voltar={voltar}
             config={{
               ...config,
-              subtitulo: `${l.numero} · ${l.objeto} — avalie capacidade técnica, mobilização de equipes, equipamentos e logística.`,
+              subtitulo: `${l.numero} · ${l.objeto} - avalie capacidade técnica, mobilização de equipes, equipamentos e logística.`,
             }}
           />
         )}

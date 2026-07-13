@@ -33,7 +33,7 @@ async function fetchLicitacoes(empresaId: string): Promise<LicitacaoPipeline[]> 
 
   // Resolver nomes dos responsáveis em 1 query.
   // IMPORTANTE: falha aqui NÃO deve derrubar o dataReal das licitações.
-  // Se profiles falhar (RLS, etc.), seguimos com map vazio — o id UUID das licitações é preservado.
+  // Se profiles falhar (RLS, etc.), seguimos com map vazio - o id UUID das licitações é preservado.
   const ids = Array.from(
     new Set(
       rows

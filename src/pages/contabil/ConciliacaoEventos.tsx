@@ -72,10 +72,10 @@ export default function ConciliacaoEventos() {
               <tr key={`${r.origem_tipo}-${r.origem_id}`} className="border-t border-border/60">
                 <td className="px-3 py-2 font-mono text-xs">{r.origem_tipo}</td>
                 <td className="px-3 py-2">{r.doc}</td>
-                <td className="px-3 py-2 text-xs">{r.data ? new Date(r.data).toLocaleDateString("pt-BR") : "—"}</td>
+                <td className="px-3 py-2 text-xs">{r.data ? new Date(r.data).toLocaleDateString("pt-BR") : "-"}</td>
                 <td className="px-3 py-2 text-right">{fmt(r.valor)}</td>
                 <td className="px-3 py-2 text-xs"><Badge variant="outline">{r.status_origem}</Badge></td>
-                <td className="px-3 py-2 text-xs font-mono">{r.lancamento_numero ?? "—"}</td>
+                <td className="px-3 py-2 text-xs font-mono">{r.lancamento_numero ?? "-"}</td>
                 <td className="px-3 py-2 text-center">
                   {r.contabilizado
                     ? <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30">OK</Badge>

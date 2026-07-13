@@ -252,7 +252,7 @@ export default function NFEntrada() {
                       <SelectTrigger><SelectValue placeholder="Selecione um PC aprovado" /></SelectTrigger>
                       <SelectContent>
                         {pcsAprovados.map((p: any) => (
-                          <SelectItem key={p.id} value={p.id}>PC {p.numero} — R$ {Number(p.valor_total ?? 0).toLocaleString("pt-BR")}</SelectItem>
+                          <SelectItem key={p.id} value={p.id}>PC {p.numero} - R$ {Number(p.valor_total ?? 0).toLocaleString("pt-BR")}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -265,7 +265,7 @@ export default function NFEntrada() {
                   <div>
                     <Label>Fornecedor</Label>
                     <Select value={manualForm.fornecedor_id ?? ""} onValueChange={(v) => setManualForm({ ...manualForm, fornecedor_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
                       <SelectContent>
                         {fornecedores.map((f: any) => <SelectItem key={f.id} value={f.id}>{f.razao_social}</SelectItem>)}
                       </SelectContent>
@@ -276,7 +276,7 @@ export default function NFEntrada() {
                       <Select value={manualForm.almoxarifado_id ?? ""} onValueChange={(v) => setManualForm({ ...manualForm, almoxarifado_id: v })}>
                         <SelectTrigger><SelectValue placeholder="Matriz (padrão)" /></SelectTrigger>
                         <SelectContent>
-                          {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} — {a.nome}</SelectItem>)}
+                          {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} - {a.nome}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -335,7 +335,7 @@ export default function NFEntrada() {
                       <Select value={importForm.almoxarifado_id ?? ""} onValueChange={(v) => setImportForm({ ...importForm, almoxarifado_id: v })}>
                         <SelectTrigger><SelectValue placeholder="Matriz (padrão)" /></SelectTrigger>
                         <SelectContent>
-                          {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} — {a.nome}</SelectItem>)}
+                          {almoxarifados.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.codigo} - {a.nome}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -344,7 +344,7 @@ export default function NFEntrada() {
                         <div>
                           <Label>Contrato</Label>
                           <Select value={importForm.contrato_id ?? ""} onValueChange={(v) => setImportForm({ ...importForm, contrato_id: v })}>
-                            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
                             <SelectContent>
                               {contratos.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.numero}</SelectItem>)}
                             </SelectContent>
@@ -353,9 +353,9 @@ export default function NFEntrada() {
                         <div>
                           <Label>Centro de Custo</Label>
                           <Select value={importForm.centro_custo_id ?? ""} onValueChange={(v) => setImportForm({ ...importForm, centro_custo_id: v })}>
-                            <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
                             <SelectContent>
-                              {ccs.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>)}
+                              {ccs.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.codigo} - {c.nome}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </div>
@@ -427,7 +427,7 @@ export default function NFEntrada() {
                     <TableRow key={n.id}>
                       <TableCell className="font-medium">{n.numero}/{n.serie ?? "1"}</TableCell>
                       <TableCell className="text-xs">{new Date(n.data_emissao).toLocaleDateString("pt-BR")}</TableCell>
-                      <TableCell><div className="font-medium text-sm">{n.fornecedor_razao ?? "—"}</div></TableCell>
+                      <TableCell><div className="font-medium text-sm">{n.fornecedor_razao ?? "-"}</div></TableCell>
                       <TableCell className="text-xs">{n.fornecedor_cnpj}</TableCell>
                       <TableCell className="text-right font-medium">{fmtBRL(n.valor_total)}</TableCell>
                       <TableCell><Badge variant={s.variant} className="text-[10px]">{s.label}</Badge></TableCell>
@@ -469,11 +469,11 @@ export default function NFEntrada() {
               <TabsContent value="cabecalho" className="space-y-3 pt-3">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><Label>Chave de acesso</Label><p className="font-mono text-xs break-all">{nfSelecionada.chave_acesso}</p></div>
-                  <div><Label>Natureza</Label><p>{nfSelecionada.natureza_operacao ?? "—"}</p></div>
+                  <div><Label>Natureza</Label><p>{nfSelecionada.natureza_operacao ?? "-"}</p></div>
                   <div><Label>Fornecedor</Label><p>{nfSelecionada.fornecedor_razao}</p></div>
                   <div><Label>CNPJ</Label><p>{nfSelecionada.fornecedor_cnpj}</p></div>
                   <div><Label>Emissão</Label><p>{new Date(nfSelecionada.data_emissao).toLocaleDateString("pt-BR")}</p></div>
-                  <div><Label>Entrada</Label><p>{nfSelecionada.data_entrada ? new Date(nfSelecionada.data_entrada).toLocaleDateString("pt-BR") : "—"}</p></div>
+                  <div><Label>Entrada</Label><p>{nfSelecionada.data_entrada ? new Date(nfSelecionada.data_entrada).toLocaleDateString("pt-BR") : "-"}</p></div>
                   <div><Label>Valor produtos</Label><p>{fmtBRL(nfSelecionada.valor_produtos)}</p></div>
                   <div><Label>Frete</Label><p>{fmtBRL(nfSelecionada.valor_frete)}</p></div>
                   <div><Label>ICMS</Label><p>{fmtBRL(nfSelecionada.valor_icms)}</p></div>
@@ -502,7 +502,7 @@ export default function NFEntrada() {
                       return (
                         <TableRow key={it.id}>
                           <TableCell>{it.numero_item}</TableCell>
-                          <TableCell className="text-xs">{it.codigo_fornecedor ?? "—"}</TableCell>
+                          <TableCell className="text-xs">{it.codigo_fornecedor ?? "-"}</TableCell>
                           <TableCell>
                             <div className="text-sm">{it.descricao_original}</div>
                             {it.produto_criado_auto && <span className="text-[10px] text-warning">Produto criado automaticamente</span>}

@@ -45,7 +45,7 @@ const fmtBRL = (n: number | string | null) =>
   });
 
 const fmtDate = (d: string | null) =>
-  d ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR") : "—";
+  d ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR") : "-";
 
 type Linha = {
   total_count: number;
@@ -372,7 +372,7 @@ export default function RazaoDetalhado() {
       const all = await fetchAll(20000);
       if (all.length >= 20000) {
         toast.warning(
-          "Limite de 20.000 linhas no PDF atingido — refine os filtros ou use Excel.",
+          "Limite de 20.000 linhas no PDF atingido - refine os filtros ou use Excel.",
         );
       }
       const { default: jsPDF } = await import("jspdf");
@@ -385,7 +385,7 @@ export default function RazaoDetalhado() {
       const pageW = doc.internal.pageSize.getWidth();
       const pageH = doc.internal.pageSize.getHeight();
       const dataGer = new Date().toLocaleString("pt-BR");
-      const userEmail = user?.email ?? "—";
+      const userEmail = user?.email ?? "-";
       const path = location.pathname;
       const reportName = "Razão Contábil Detalhado";
 
@@ -498,7 +498,7 @@ export default function RazaoDetalhado() {
             { align: "right" },
           );
           doc.text(
-            `${reportName} — Lovable Cloud`,
+            `${reportName} - Lovable Cloud`,
             8,
             pageH - 6,
           );
@@ -658,7 +658,7 @@ export default function RazaoDetalhado() {
                   <SelectItem value="__all__">Todas as contas</SelectItem>
                   {(contasQ.data ?? []).map((c: any) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.classificacao} — {c.descricao}
+                      {c.classificacao} - {c.descricao}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -725,7 +725,7 @@ export default function RazaoDetalhado() {
                   <SelectItem value="__all__">Todos os CCs</SelectItem>
                   {(ccsQ.data ?? []).map((c: any) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.codigo} — {c.nome}
+                      {c.codigo} - {c.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -746,7 +746,7 @@ export default function RazaoDetalhado() {
                   <SelectItem value="__all__">Todos os contratos</SelectItem>
                   {(contratosQ.data ?? []).map((c: any) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.numero} — {(c.objeto ?? "").slice(0, 40)}
+                      {c.numero} - {(c.objeto ?? "").slice(0, 40)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -873,7 +873,7 @@ export default function RazaoDetalhado() {
                 {linhas.map((r, i) => (
                   <TableRow key={i} className="text-xs">
                     <TableCell className="whitespace-nowrap">{fmtDate(r.data_lcto)}</TableCell>
-                    <TableCell className="font-mono">{r.lcto_numero ?? "—"}</TableCell>
+                    <TableCell className="font-mono">{r.lcto_numero ?? "-"}</TableCell>
                     <TableCell>
                       <Badge
                         variant={r.origem === "app" ? "default" : "secondary"}
@@ -882,18 +882,18 @@ export default function RazaoDetalhado() {
                         {r.origem}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-primary">{r.conta_classif ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-primary">{r.conta_classif ?? "-"}</TableCell>
                     <TableCell className="max-w-[240px] truncate" title={r.conta_desc ?? ""}>
-                      {r.conta_desc ?? "—"}
+                      {r.conta_desc ?? "-"}
                     </TableCell>
                     <TableCell className="max-w-[160px] truncate" title={`${r.cc_codigo ?? ""} ${r.cc_nome ?? ""}`}>
-                      {r.cc_codigo ? `${r.cc_codigo} ${r.cc_nome ?? ""}` : "—"}
+                      {r.cc_codigo ? `${r.cc_codigo} ${r.cc_nome ?? ""}` : "-"}
                     </TableCell>
-                    <TableCell className="font-mono">{r.contrato_num ?? "—"}</TableCell>
+                    <TableCell className="font-mono">{r.contrato_num ?? "-"}</TableCell>
                     <TableCell className="max-w-[260px] truncate" title={r.historico ?? ""}>
-                      {r.historico ?? "—"}
+                      {r.historico ?? "-"}
                     </TableCell>
-                    <TableCell className="font-mono">{r.documento ?? "—"}</TableCell>
+                    <TableCell className="font-mono">{r.documento ?? "-"}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {Number(r.debito || 0) > 0 ? fmtBRL(r.debito) : ""}
                     </TableCell>

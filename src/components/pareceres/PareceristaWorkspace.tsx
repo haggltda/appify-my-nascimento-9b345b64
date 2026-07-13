@@ -6,7 +6,7 @@ interface Props {
   papel: string;
   /** subset de status que esta área costuma analisar (apenas filtro visual do grid) */
   statusFiltro?: string[];
-  /** render do detalhe — recebe a licitação selecionada */
+  /** render do detalhe - recebe a licitação selecionada */
   renderDetalhe: (licitacao: Licitacao, voltar: () => void) => ReactNode;
 }
 

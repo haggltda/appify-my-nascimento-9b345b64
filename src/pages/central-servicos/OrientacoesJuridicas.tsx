@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 
 // =====================================================================
-// CENTRAL DE SERVIÇOS — Orientações Jurídicas (biblioteca pública)
+// CENTRAL DE SERVIÇOS - Orientações Jurídicas (biblioteca pública)
 // Todos veem perguntas + respostas (SEM o nome de quem perguntou) e podem
 // enviar novas. A pergunta passa por aprovação (Diretor Administrativo) e só
 // então o Jurídico responde (em Jurídico → Parecer Jurídico).
@@ -17,7 +17,7 @@ interface Duvida {
 }
 
 const CATEGORIAS = ["Trabalhista", "Contratos", "Processos", "Tributário", "Cível", "Administrativo", "Compliance", "LGPD", "Outros"];
-const fmtDt = (s?: string) => { if (!s) return "—"; const d = new Date(s); return isNaN(+d) ? s : d.toLocaleDateString("pt-BR"); };
+const fmtDt = (s?: string) => { if (!s) return "-"; const d = new Date(s); return isNaN(+d) ? s : d.toLocaleDateString("pt-BR"); };
 const statusBadge = (s: string): { bg: string; c: string; label: string } => ({
   "Respondida": { bg: "#dcfce7", c: "#15803d", label: "Respondida" },
   "Aprovada": { bg: "#ede9fe", c: "#7c3aed", label: "Aguardando Jurídico" },
@@ -91,7 +91,7 @@ export default function OrientacoesJuridicas() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 16, background: "linear-gradient(135deg,#fff,#f8fbff)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", gap: 12, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800, color: "#0f3171" }}>📚 Orientações Jurídicas</div>
-          <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 2 }}>Biblioteca de respostas do Jurídico. Pesquise antes de perguntar — talvez já tenha resposta.</div>
+          <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 2 }}>Biblioteca de respostas do Jurídico. Pesquise antes de perguntar - talvez já tenha resposta.</div>
         </div>
         <button className="oj-btn" onClick={() => { setAsk({ ...ASK_RESET }); setAskModal(true); }} style={{ background: "#0f3171", color: "#fff", boxShadow: "0 10px 22px rgba(15,49,113,.18)" }}>+ Nova pergunta</button>
       </div>
@@ -154,7 +154,7 @@ export default function OrientacoesJuridicas() {
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Nova pergunta jurídica</div>
             <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Passa por aprovação e depois o Jurídico responde. A resposta fica pública na biblioteca (sem seu nome).</div>
             <div className="oj-fg"><label>Assunto / título *</label><input className="oj-fi" value={ask.titulo} onChange={e => setAsk(v => ({ ...v, titulo: e.target.value }))} placeholder="Ex.: Prazo para resposta de notificação" /></div>
-            <div className="oj-fg"><label>Categoria</label><select className="oj-fi" value={ask.categoria} onChange={e => setAsk(v => ({ ...v, categoria: e.target.value }))}><option value="">— Selecione —</option>{CATEGORIAS.map(c => <option key={c}>{c}</option>)}</select></div>
+            <div className="oj-fg"><label>Categoria</label><select className="oj-fi" value={ask.categoria} onChange={e => setAsk(v => ({ ...v, categoria: e.target.value }))}><option value="">- Selecione -</option>{CATEGORIAS.map(c => <option key={c}>{c}</option>)}</select></div>
             <div className="oj-fg"><label>Sua pergunta *</label><textarea className="oj-fi" rows={5} value={ask.pergunta} onChange={e => setAsk(v => ({ ...v, pergunta: e.target.value }))} placeholder="Descreva sua dúvida sobre processo, lei, contrato…" /></div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 6 }}>
               <button className="oj-btn" onClick={() => setAskModal(false)} style={{ background: "#fff", border: "1px solid #e2e8f0", color: "#475569" }}>Cancelar</button>

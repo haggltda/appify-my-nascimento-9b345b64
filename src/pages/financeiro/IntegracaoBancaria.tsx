@@ -124,7 +124,7 @@ export default function IntegracaoBancaria() {
     const { data, error } = await supabase.rpc("conciliacao_auto_match", { _empresa_id: empresaId });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     const r = data as any;
-    toast({ title: "Conciliação executada", description: `${r.matches_realizados}/${r.extratos_avaliados} conciliados — ${r.pendentes} pendentes` });
+    toast({ title: "Conciliação executada", description: `${r.matches_realizados}/${r.extratos_avaliados} conciliados - ${r.pendentes} pendentes` });
     carregar();
   }
 
@@ -143,7 +143,7 @@ export default function IntegracaoBancaria() {
 
       <Alert>
         <Info className="h-4 w-4" />
-        <AlertTitle>Estrutura pronta — operação pendente</AlertTitle>
+        <AlertTitle>Estrutura pronta - operação pendente</AlertTitle>
         <AlertDescription>
           As tabelas, campos e RPCs estão criados. Parsers de CNAB/OFX e envio por API/FTP serão plugados no próximo passo. Hoje você pode: configurar contas, registrar parâmetros e fazer upload manual de arquivos de retorno.
         </AlertDescription>
@@ -188,7 +188,7 @@ export default function IntegracaoBancaria() {
                       <TableCell><Badge variant="outline">{c.integracao_tipo || "manual"}</Badge></TableCell>
                       <TableCell>{c.integracao_ambiente || "sandbox"}</TableCell>
                       <TableCell><Badge variant={STATUS_VARIANTS[c.integracao_status || "nao_configurado"]}>{c.integracao_status || "nao_configurado"}</Badge></TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{c.integracao_ultima_sincronia ? new Date(c.integracao_ultima_sincronia).toLocaleString() : "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{c.integracao_ultima_sincronia ? new Date(c.integracao_ultima_sincronia).toLocaleString() : "-"}</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button variant="outline" size="sm" onClick={() => setEditConta(c)}>Configurar</Button>
                         <Button size="sm" onClick={() => navigate(`/app/financeiro/integracao-bancaria/builder/${c.id}`)}>
@@ -233,7 +233,7 @@ export default function IntegracaoBancaria() {
                   {retornos.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="text-xs">{new Date(r.data_recebimento).toLocaleString()}</TableCell>
-                      <TableCell>{r.conta_bancaria?.nome || "—"}</TableCell>
+                      <TableCell>{r.conta_bancaria?.nome || "-"}</TableCell>
                       <TableCell><Badge variant="outline">{r.formato}</Badge></TableCell>
                       <TableCell className="max-w-xs truncate text-xs">{r.arquivo_nome}</TableCell>
                       <TableCell><Badge variant={r.status === "erro" ? "destructive" : r.status === "processado" ? "default" : "secondary"}>{r.status}</Badge></TableCell>
@@ -278,7 +278,7 @@ export default function IntegracaoBancaria() {
                   {extratos.map((e) => (
                     <TableRow key={e.id}>
                       <TableCell className="text-xs">{e.data_lancamento}</TableCell>
-                      <TableCell>{e.conta_bancaria?.nome || "—"}</TableCell>
+                      <TableCell>{e.conta_bancaria?.nome || "-"}</TableCell>
                       <TableCell>{e.tipo === "credito" ? <Badge variant="default">+ Crédito</Badge> : <Badge variant="secondary">− Débito</Badge>}</TableCell>
                       <TableCell className="font-mono">R$ {Number(e.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell className="max-w-md truncate text-xs">{e.descricao}</TableCell>
@@ -360,7 +360,7 @@ export default function IntegracaoBancaria() {
       <Dialog open={!!editConta} onOpenChange={(o) => !o && setEditConta(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Configurar Integração — {editConta?.nome}</DialogTitle>
+            <DialogTitle>Configurar Integração - {editConta?.nome}</DialogTitle>
           </DialogHeader>
           {editConta && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -473,7 +473,7 @@ export default function IntegracaoBancaria() {
                 <Select value={uploadConta} onValueChange={setUploadConta}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
-                    {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome} — {c.banco}</SelectItem>)}
+                    {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome} - {c.banco}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

@@ -69,7 +69,7 @@ export default function DREGerencialReal() {
                 <tr key={id} className="border-t border-border/60">
                   <td className="px-2 py-1.5 font-mono text-primary">{l.codigo}</td>
                   <td className="px-2 py-1.5">{l.descricao}</td>
-                  {l.meses.map((v,i) => <td key={i} className={`px-2 py-1.5 text-right ${v<0 ? "text-red-500" : ""}`}>{v ? fmt(v) : "—"}</td>)}
+                  {l.meses.map((v,i) => <td key={i} className={`px-2 py-1.5 text-right ${v<0 ? "text-red-500" : ""}`}>{v ? fmt(v) : "-"}</td>)}
                   <td className={`px-2 py-1.5 text-right font-semibold ${total<0 ? "text-red-500" : ""}`}>{fmt(total)}</td>
                 </tr>
               );

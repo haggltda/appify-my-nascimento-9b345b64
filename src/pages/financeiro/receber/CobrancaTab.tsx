@@ -14,7 +14,7 @@ import { QrCode, FileText, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
+const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "-");
 
 export default function CobrancaTab() {
   const qc = useQueryClient();
@@ -107,7 +107,7 @@ export default function CobrancaTab() {
                         <TableCell className="space-x-1">
                           {temBoleto && <Badge variant="default" className="text-xs">Boleto</Badge>}
                           {temPix && <Badge variant="default" className="text-xs">PIX</Badge>}
-                          {!temBoleto && !temPix && <span className="text-xs text-muted-foreground">—</span>}
+                          {!temBoleto && !temPix && <span className="text-xs text-muted-foreground">-</span>}
                         </TableCell>
                         <TableCell className="text-right space-x-1">
                           <Button size="sm" variant={temBoleto ? "outline" : "default"} onClick={() => setOpenGerar({ titulo: t, tipo: "boleto" })}>
@@ -181,7 +181,7 @@ export default function CobrancaTab() {
                       <TableCell className="font-mono text-xs">{p.titulo_receber?.numero}</TableCell>
                       <TableCell>{p.titulo_receber?.sacado_nome}</TableCell>
                       <TableCell className="text-right">{fmtMoney(p.titulo_receber?.valor)}</TableCell>
-                      <TableCell className="text-xs">{p.expira_em ? new Date(p.expira_em).toLocaleString("pt-BR") : "—"}</TableCell>
+                      <TableCell className="text-xs">{p.expira_em ? new Date(p.expira_em).toLocaleString("pt-BR") : "-"}</TableCell>
                       <TableCell><Badge variant={p.status === "ativa" ? "default" : "secondary"} className="text-xs">{p.status}</Badge></TableCell>
                       <TableCell><Button size="sm" variant="outline" onClick={() => setVerPix(p)}><QrCode className="h-3 w-3" /></Button></TableCell>
                     </TableRow>
@@ -248,7 +248,7 @@ function GerarCobrancaDialog({ titulo, tipo, onClose }: { titulo: any; tipo: "bo
     <Dialog open onOpenChange={(o) => !o && onClose(false)}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Gerar {tipo === "boleto" ? "boleto" : "cobrança PIX"} — {titulo.numero ?? titulo.numero_documento}</DialogTitle>
+          <DialogTitle>Gerar {tipo === "boleto" ? "boleto" : "cobrança PIX"} - {titulo.numero ?? titulo.numero_documento}</DialogTitle>
           <DialogDescription>{titulo.sacado_nome ?? titulo.cliente_nome} • {fmtMoney(titulo.valor)} • venc. {fmtDate(titulo.data_vencimento)}</DialogDescription>
         </DialogHeader>
         {tipo === "boleto" ? (
@@ -287,7 +287,7 @@ function PixViewerDialog({ pix, onClose }: { pix: any; onClose: () => void }) {
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>PIX — {pix.titulo_receber?.numero}</DialogTitle>
+          <DialogTitle>PIX - {pix.titulo_receber?.numero}</DialogTitle>
           <DialogDescription>{pix.titulo_receber?.sacado_nome} • {fmtMoney(pix.titulo_receber?.valor)}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">

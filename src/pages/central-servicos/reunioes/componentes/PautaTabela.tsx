@@ -65,7 +65,7 @@ function AnexoPautaCelula({
 
     const grandes = aceitos.filter((f) => f.size > MAX_TAMANHO_ANEXO_MB * 1024 * 1024);
     if (grandes.length > 0) {
-      toast({ title: "Arquivo muito grande", description: `${grandes.map((f) => f.name).join(", ")} — limite de ${MAX_TAMANHO_ANEXO_MB}MB por arquivo.`, variant: "destructive" });
+      toast({ title: "Arquivo muito grande", description: `${grandes.map((f) => f.name).join(", ")} - limite de ${MAX_TAMANHO_ANEXO_MB}MB por arquivo.`, variant: "destructive" });
     }
 
     const validos = aceitos.filter((f) => f.size <= MAX_TAMANHO_ANEXO_MB * 1024 * 1024);
@@ -195,7 +195,7 @@ function PautaRow({
             clearValue=""
           />
         ) : (
-          <span className="text-sm">{nomeUsuario(usuarios, item.responsavel_user_id) ?? "—"}</span>
+          <span className="text-sm">{nomeUsuario(usuarios, item.responsavel_user_id) ?? "-"}</span>
         )}
       </td>
       <td className="w-36 py-2 pr-2">
@@ -207,7 +207,7 @@ function PautaRow({
             onChange={(e) => onAtualizarTopico(item.id, { prazo: e.target.value || null })}
           />
         ) : (
-          <span className="text-sm">{item.prazo ? new Date(item.prazo).toLocaleDateString("pt-BR") : "—"}</span>
+          <span className="text-sm">{item.prazo ? new Date(item.prazo).toLocaleDateString("pt-BR") : "-"}</span>
         )}
       </td>
       <td className="w-40 py-2 pr-2">
@@ -234,7 +234,7 @@ function PautaRow({
             onBlur={() => onSalvarResposta(item.id, texto, obs)}
           />
         ) : (
-          <span className="text-sm">{resposta?.texto_resposta || "—"}</span>
+          <span className="text-sm">{resposta?.texto_resposta || "-"}</span>
         )}
       </td>
       <td className="min-w-[160px] py-2 pr-2">
@@ -247,7 +247,7 @@ function PautaRow({
             onBlur={() => onSalvarResposta(item.id, texto, obs)}
           />
         ) : (
-          <span className="text-sm">{resposta?.encaminhamento || "—"}</span>
+          <span className="text-sm">{resposta?.encaminhamento || "-"}</span>
         )}
       </td>
       <td className="w-20 py-2 pr-2">

@@ -1,5 +1,5 @@
 // Helper compartilhado pra gerar PDFs no padrão visual do app (azul-marinho/
-// verde) — usado tanto pelos documentos de Solicitações ERP quanto por Atas
+// verde) - usado tanto pelos documentos de Solicitações ERP quanto por Atas
 // de Reunião.
 import jsPDF from "jspdf";
 
@@ -94,7 +94,7 @@ export class PdfDocumento {
     this.y += opts?.espacoDepois ?? 3;
   }
 
-  // "Assinaturas - <rótulo>" numa caixa com borda — mesmo padrão visual já
+  // "Assinaturas - <rótulo>" numa caixa com borda - mesmo padrão visual já
   // usado no PDF de assinaturas de Solicitações ERP.
   blocoAssinaturasColuna(rotulo: string, lista: Assinante[]) {
     const doc = this.doc;

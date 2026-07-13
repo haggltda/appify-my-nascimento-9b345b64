@@ -18,7 +18,7 @@ const LS_KEY = "gn:empresa_ativa";
 function mapEmpresa(row: any): EmpresaGrupo {
   return {
     id: row.id,
-    sigla: row.codigo ?? (row.razao_social ?? "—").slice(0, 6),
+    sigla: row.codigo ?? (row.razao_social ?? "-").slice(0, 6),
     razao: row.razao_social ?? row.nome_fantasia ?? row.codigo ?? "Empresa",
     cnpj: row.cnpj ?? "",
     regime: (row.regime ?? "Lucro Real") as EmpresaGrupo["regime"],

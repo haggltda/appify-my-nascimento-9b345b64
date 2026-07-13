@@ -81,7 +81,7 @@ function fmtCompact(v: number) {
 }
 
 function fmtDate(d: string | null) {
-  if (!d) return "—";
+  if (!d) return "-";
   const [y, m, day] = d.split("-");
   return `${day}/${m}/${y}`;
 }
@@ -241,7 +241,7 @@ export default function PainelExecutivo() {
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-base font-bold text-slate-900 tracking-tight">PAINEL GERENCIAL — LICITAÇÕES</h1>
+            <h1 className="text-base font-bold text-slate-900 tracking-tight">PAINEL GERENCIAL - LICITAÇÕES</h1>
             <p className="text-[11px] text-slate-500">Visão geral do desempenho da equipe e das licitações</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -252,7 +252,7 @@ export default function PainelExecutivo() {
                 onChange={(e) => setDateFrom(e.target.value)}
                 className="bg-transparent text-slate-700 outline-none w-32"
               />
-              <span className="text-slate-300">–</span>
+              <span className="text-slate-300">-</span>
               <input
                 type="date"
                 value={dateTo}
@@ -471,10 +471,10 @@ export default function PainelExecutivo() {
                     : "bg-slate-100 text-slate-600";
                   return (
                     <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="py-1.5 font-mono text-[10px] text-slate-400">{item.edital || "—"}</td>
+                      <td className="py-1.5 font-mono text-[10px] text-slate-400">{item.edital || "-"}</td>
                       <td className="max-w-[140px] px-2 py-1.5">
-                        <p className="line-clamp-1 text-slate-700">{item.objeto || "—"}</p>
-                        <p className="text-[10px] text-slate-400">{item.responsavel || "—"}</p>
+                        <p className="line-clamp-1 text-slate-700">{item.objeto || "-"}</p>
+                        <p className="text-[10px] text-slate-400">{item.responsavel || "-"}</p>
                       </td>
                       <td className="px-2 py-1.5 whitespace-nowrap text-slate-600">{fmtDate(item.data)}</td>
                       <td className="py-1.5 text-right">
@@ -590,15 +590,15 @@ export default function PainelExecutivo() {
                     : 0;
                   return (
                     <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="py-1.5 font-mono text-[10px] text-slate-400">{item.edital || "—"}</td>
-                      <td className="max-w-[150px] px-2 py-1.5 text-slate-700 truncate">{item.objeto || "—"}</td>
-                      <td className="px-2 py-1.5 text-slate-500">{item.responsavel || "—"}</td>
+                      <td className="py-1.5 font-mono text-[10px] text-slate-400">{item.edital || "-"}</td>
+                      <td className="max-w-[150px] px-2 py-1.5 text-slate-700 truncate">{item.objeto || "-"}</td>
+                      <td className="px-2 py-1.5 text-slate-500">{item.responsavel || "-"}</td>
                       <td className="px-2 py-1.5 text-center">
                         <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${ganhou ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                           {ganhou ? "Ganho" : "Perdido"}
                         </span>
                       </td>
-                      <td className="py-1.5 text-right text-slate-700">{valor ? fmtBRLKPI(valor) : "—"}</td>
+                      <td className="py-1.5 text-right text-slate-700">{valor ? fmtBRLKPI(valor) : "-"}</td>
                     </tr>
                   );
                 })}

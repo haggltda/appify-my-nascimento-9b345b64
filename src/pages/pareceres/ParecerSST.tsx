@@ -37,7 +37,7 @@ export default function ParecerSST() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Parecer SST — Saúde e Segurança do Trabalho"
+        title="Parecer SST - Saúde e Segurança do Trabalho"
         breadcrumb={["Licitações", "Análise & Decisão", "Parecer SST"]}
         subtitle="Selecione um processo da fila para avaliar riscos ocupacionais, EPIs e treinamentos exigidos."
       />
@@ -52,7 +52,7 @@ export default function ParecerSST() {
 
 function FormularioSST({ licitacao: l, voltar }: { licitacao: Licitacao; voltar: () => void }) {
   const { can } = usePermissoes();
-  // B2.1.e — Fase 4 (SST)
+  // B2.1.e - Fase 4 (SST)
   const canIncluir = can("incluir", "licitacoes", "parecer-sst");
   const canAprovar = can("aprovar", "licitacoes", "parecer-sst");
 
@@ -90,7 +90,7 @@ function FormularioSST({ licitacao: l, voltar }: { licitacao: Licitacao; voltar:
       {/* Cabeçalho do processo */}
       <section className="card-elevated p-5">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Processo</p>
-        <h2 className="mt-1 font-display text-lg font-bold">{l.numero} — {l.objeto}</h2>
+        <h2 className="mt-1 font-display text-lg font-bold">{l.numero} - {l.objeto}</h2>
         <p className="text-sm text-muted-foreground">
           {l.orgao} · {l.modalidade} · Responsável SST: Eng. Júlia Reis
         </p>
@@ -137,7 +137,7 @@ function FormularioSST({ licitacao: l, voltar }: { licitacao: Licitacao; voltar:
                 onChange={(e) => setCargo(e.target.value)}
                 className="h-10 w-full rounded-md border border-border bg-card px-3 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30"
               >
-                <option value="">— Selecione —</option>
+                <option value="">- Selecione -</option>
                 {cargosMock.map((c) => (
                   <option key={c}>{c}</option>
                 ))}

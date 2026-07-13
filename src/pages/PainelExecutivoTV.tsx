@@ -27,7 +27,7 @@ const fmtCompact = (v: number) =>
   : v >= 1_000 ? `${(v / 1_000).toFixed(0)}k`
   : `${v}`;
 
-// Trunca (não arredonda) para 1 casa decimal — ex: 39.99 → "39,9" nunca "40,0"
+// Trunca (não arredonda) para 1 casa decimal - ex: 39.99 → "39,9" nunca "40,0"
 function truncate1(n: number): string {
   return (Math.floor(n * 10) / 10).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
@@ -45,7 +45,7 @@ const formatBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function fmtDate(d: string | null) {
-  if (!d) return "—";
+  if (!d) return "-";
   const [y, m, day] = d.split("-");
   return `${day}/${m}/${y}`;
 }
@@ -238,7 +238,7 @@ export default function PainelExecutivoTV() {
           </div>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: N.cyan }}>Grupo Nascimento · Licitações</p>
-            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{empresa?.nome_fantasia ?? empresa?.razao_social ?? "—"}</p>
+            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{empresa?.nome_fantasia ?? empresa?.razao_social ?? "-"}</p>
           </div>
         </div>
 
@@ -394,7 +394,7 @@ function SlideMapa({ items }: { items: ReturnType<typeof usePainelLicitacao>["it
     return () => { cancelled = true; };
   }, [items.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Animação canvas — desenha outline + pontos tudo no mesmo canvas
+  // Animação canvas - desenha outline + pontos tudo no mesmo canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -543,7 +543,7 @@ function SlideMapa({ items }: { items: ReturnType<typeof usePainelLicitacao>["it
   );
 }
 
-// ─── GlassBar — barra horizontal reutilizável ─────────────────────────────────
+// ─── GlassBar - barra horizontal reutilizável ─────────────────────────────────
 function GlassBar({ label, value, pct, cor, fmt }: { label: string; value: string; pct: number; cor: string; fmt?: string }) {
   return (
     <div className="flex items-center gap-3">
@@ -622,7 +622,7 @@ function SlideFunil({ stats }: { stats: ReturnType<typeof usePainelLicitacao>["s
 function SlideEvolucao({ stats }: { stats: ReturnType<typeof usePainelLicitacao>["stats"] }) {
   const tt = { contentStyle: { background: "#0d0d1a", border: "1px solid rgba(0,245,255,0.15)", borderRadius: 8, fontSize: 13, color: "#fff" } };
   return (
-    <NeonCard title="Evolução do pipeline — últimos 6 meses" full>
+    <NeonCard title="Evolução do pipeline - últimos 6 meses" full>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={stats.evolucaoMensal} margin={{ left: 0, right: 20, top: 30, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,245,255,0.06)" />
@@ -669,7 +669,7 @@ function SlideAlertas({ stats }: { stats: ReturnType<typeof usePainelLicitacao>[
                 {fmtDate(item.data)}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-white">{item.edital || "—"} · {item.objeto || "Sem objeto"}</p>
+                <p className="truncate text-sm font-bold text-white">{item.edital || "-"} · {item.objeto || "Sem objeto"}</p>
                 <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>{item.responsavel || "Sem responsável"} · {item.fase}</p>
               </div>
               <div className="h-2 w-2 shrink-0 rounded-full animate-pulse" style={{ background: col, boxShadow: `0 0 8px ${col}` }} />

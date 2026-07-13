@@ -80,7 +80,7 @@ export default function PlanoAcoesDashboard() {
   return (
     <div>
       <PageHeader
-        title="Dashboard — Plano de Ações"
+        title="Dashboard - Plano de Ações"
         subtitle="Visão executiva consolidada do gerenciamento de tarefas Nascimento"
         module="Plano de Ações"
         breadcrumb={["Dashboard"]}

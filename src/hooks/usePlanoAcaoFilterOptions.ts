@@ -4,7 +4,7 @@ import type { SearchableOption } from "@/components/ui/searchable-select";
 
 /**
  * Extrai opções de filtro (Responsável, Comitê, Área, Setor) a partir das
- * rows já carregadas pela tela — client-side, sem nova query/RPC.
+ * rows já carregadas pela tela - client-side, sem nova query/RPC.
  *
  * Responsável tem dois caminhos:
  *  - canônico: value = `pid:${responsavel_profile_id}` (representa o usuário)

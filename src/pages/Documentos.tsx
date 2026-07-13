@@ -113,7 +113,7 @@ function CatalogoTab() {
               {tipos.map((t) => (
                 <tr key={t.id} className="border-t border-border hover:bg-muted/20">
                   <td className="px-4 py-3 font-medium">{t.nome}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{t.descricao || "—"}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{t.descricao || "-"}</td>
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => { setEditing(t); setModalOpen(true); }} className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground">
@@ -396,7 +396,7 @@ function ContratoDetail({ contrato, cliente, postos, configs }: {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              {addModal?.posto ? `Adicionar documento — ${addModal.posto}` : "Adicionar documento — Contrato geral"}
+              {addModal?.posto ? `Adicionar documento - ${addModal.posto}` : "Adicionar documento - Contrato geral"}
             </DialogTitle>
           </DialogHeader>
           {addModal && (
@@ -507,7 +507,7 @@ function DocForm({ tipos, jaAdicionados, initial, onSave, onCancel, saving }: {
           <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Periodicidade</label>
           <select value={periodicidade} onChange={(e) => setPeriodicidade(e.target.value)}
             className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm outline-none focus:border-primary">
-            <option value="">— sem periodicidade —</option>
+            <option value="">- sem periodicidade -</option>
             {PERIODICIDADES.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>

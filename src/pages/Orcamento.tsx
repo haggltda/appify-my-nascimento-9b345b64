@@ -68,7 +68,7 @@ export default function Orcamento() {
                   <td className="px-4 py-2.5 font-medium">{c.nome}</td>
                   <td className="px-4 py-2.5"><Badge variant="outline">{cicloStatusLabel[c.status] ?? c.status}</Badge></td>
                   <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                    {c.data_inicio ? new Date(c.data_inicio).toLocaleDateString("pt-BR") : "—"} → {c.data_fim ? new Date(c.data_fim).toLocaleDateString("pt-BR") : "—"}
+                    {c.data_inicio ? new Date(c.data_inicio).toLocaleDateString("pt-BR") : "-"} → {c.data_fim ? new Date(c.data_fim).toLocaleDateString("pt-BR") : "-"}
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <Button size="sm" variant="outline" onClick={() => setCicloAtivoId(c.id)}>Selecionar</Button>
@@ -200,9 +200,9 @@ function ContratosNoCiclo({ ciclo }: { ciclo: any }) {
                   </td>
                   <td className="px-4 py-2.5"><Badge variant="outline">{statusLabel[c.status] ?? c.status}</Badge></td>
                   <td className="px-4 py-2.5 text-right font-mono">{formatBRL(Number(c.faturamento_mensal))}</td>
-                  <td className="px-4 py-2.5 text-right font-mono">{orc ? formatBRL(Number(orc.valor_receita_total)) : "—"}</td>
+                  <td className="px-4 py-2.5 text-right font-mono">{orc ? formatBRL(Number(orc.valor_receita_total)) : "-"}</td>
                   <td className="px-4 py-2.5 text-right font-mono">
-                    {orc ? <span className={Number(orc.margem_estimada) >= 0 ? "text-success" : "text-destructive"}>{formatBRL(Number(orc.margem_estimada))}</span> : "—"}
+                    {orc ? <span className={Number(orc.margem_estimada) >= 0 ? "text-success" : "text-destructive"}>{formatBRL(Number(orc.margem_estimada))}</span> : "-"}
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <Button size="sm" variant={orc ? "outline" : "default"} onClick={() => handleGerar(c.id)} disabled={gerar.isPending}>

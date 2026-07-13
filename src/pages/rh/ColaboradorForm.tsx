@@ -259,7 +259,7 @@ export function ColaboradorForm({ open, onOpenChange, initial, onSaved }: Props)
 
           {/* ENDEREÇO */}
           <AccordionItem value="endereco">
-            <AccordionTrigger className="text-sm font-semibold">Informações Complementares — Endereço</AccordionTrigger>
+            <AccordionTrigger className="text-sm font-semibold">Informações Complementares - Endereço</AccordionTrigger>
             <AccordionContent>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <Field label="CEP"><Input value={val.endereco_cep ?? ""} onChange={(e) => set("endereco_cep", e.target.value)} /></Field>
@@ -280,7 +280,7 @@ export function ColaboradorForm({ open, onOpenChange, initial, onSaved }: Props)
             </AccordionContent>
           </AccordionItem>
 
-          {/* CONTAS BANCÁRIAS — só após salvar */}
+          {/* CONTAS BANCÁRIAS - só após salvar */}
           {val.id && (val.empresa_id ?? empresaId) && (
             <AccordionItem value="contas">
               <AccordionTrigger className="text-sm font-semibold">Contas Bancárias</AccordionTrigger>

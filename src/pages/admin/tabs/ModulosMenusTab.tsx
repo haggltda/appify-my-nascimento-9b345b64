@@ -15,7 +15,7 @@ interface Modulo { id: string; codigo: string; nome: string; ordem: number; ativ
 interface Menu { id: string; modulo_id: string; codigo: string; nome: string; rota: string | null; ordem: number; ativo: boolean }
 interface ProfileRow { id: string; display_name: string | null; email: string | null }
 
-// Remove acentos antes de virar slug — "Solicitações" → "solicitacoes", não "solicitações".
+// Remove acentos antes de virar slug - "Solicitações" → "solicitacoes", não "solicitações".
 // Sem isso, o código salvo no banco diverge do que outras partes do sistema esperam
 // (ex: comparações de menu_codigo) por causa de caracteres acentuados invisíveis na UI.
 const DIACRITICS_RE = new RegExp("[\\u0300-\\u036f]", "g");
@@ -212,7 +212,7 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
   const add = async () => {
     if (!novo.codigo || !novo.nome) return;
     const rotaTrim = novo.rota.trim();
-    // RouteGuard compara a rota com pathname exato (com barra inicial) — sem isso,
+    // RouteGuard compara a rota com pathname exato (com barra inicial) - sem isso,
     // matchMenuCode nunca encontra a rota e o switch de permissão fica sem efeito.
     const rotaNormalizada = rotaTrim ? (rotaTrim.startsWith("/") ? rotaTrim : `/${rotaTrim}`) : null;
     const { error } = await supabase.from("app_menu").insert({
@@ -240,7 +240,7 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
             <tr key={mn.id}>
               <td className="py-2 text-sm">{mn.nome}</td>
               <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.codigo}</td>
-              <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.rota ?? "—"}</td>
+              <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.rota ?? "-"}</td>
               <td className="py-2 text-right">
                 {isAdmin && mn.codigo === "central_servicos_formularios" && (
                   <Button size="sm" variant="outline" className="mr-2 h-7 gap-1.5 text-xs" onClick={() => setPermOpen(true)}>
@@ -299,7 +299,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
   });
 
   // Acesso efetivo real do usuário via RPC (combina role + overrides individuais).
-  // É isso que deve ser exibido nos switches — não apenas os registros explícitos.
+  // É isso que deve ser exibido nos switches - não apenas os registros explícitos.
   const effectiveQ = useQuery({
     queryKey: ["effective-menus-for-user", selectedUserId],
     enabled: !!selectedUserId,
@@ -332,7 +332,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
   const stageChange = (codigo: string, newValue: boolean) => {
     setPending((prev) => {
       const next = new Map(prev);
-      // If new value matches DB, no change needed — remove from pending
+      // If new value matches DB, no change needed - remove from pending
       if (newValue === dbHasAccess(codigo)) { next.delete(codigo); } else { next.set(codigo, newValue); }
       return next;
     });

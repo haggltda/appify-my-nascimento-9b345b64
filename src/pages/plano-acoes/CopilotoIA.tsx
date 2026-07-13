@@ -201,7 +201,7 @@ export default function CopilotoIA() {
       </header>
 
       <div className="grid flex-1 grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
-        {/* Coluna esquerda — Assistente */}
+        {/* Coluna esquerda - Assistente */}
         <div className="lg:col-span-3 xl:col-span-3 flex flex-col min-h-0">
           <AssistantPanel
             messages={messages}
@@ -216,7 +216,7 @@ export default function CopilotoIA() {
           />
         </div>
 
-        {/* Coluna central — Inteligência da IA */}
+        {/* Coluna central - Inteligência da IA */}
         <div className="lg:col-span-5 xl:col-span-5 flex flex-col min-h-0">
           <ScrollArea className="flex-1 lg:max-h-[calc(100vh-12rem)]">
             <div className="space-y-4 pr-2">
@@ -234,7 +234,7 @@ export default function CopilotoIA() {
           </ScrollArea>
         </div>
 
-        {/* Coluna direita — Ação em rascunho + extras */}
+        {/* Coluna direita - Ação em rascunho + extras */}
         <div className="lg:col-span-4 xl:col-span-4 flex flex-col min-h-0">
           <ScrollArea className="flex-1 lg:max-h-[calc(100vh-12rem)]">
             <div className="space-y-4 pr-2">
@@ -264,7 +264,7 @@ export default function CopilotoIA() {
                     <div className="space-y-1">
                       <Label className="text-xs uppercase tracking-wide text-muted-foreground">Prioridade *</Label>
                       <Select value={draft.prioridade_normalizada ?? ""} onValueChange={(v) => updateDraft({ prioridade_normalizada: v as Draft["prioridade_normalizada"] })}>
-                        <SelectTrigger className="bg-background/50"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectTrigger className="bg-background/50"><SelectValue placeholder="-" /></SelectTrigger>
                         <SelectContent>
                           {PRIORIDADES.map((p) => <SelectItem key={p} value={p}>{PRIORIDADE_LABEL[p]}</SelectItem>)}
                         </SelectContent>
@@ -277,9 +277,9 @@ export default function CopilotoIA() {
                       <Label className="text-xs uppercase tracking-wide text-muted-foreground">Comitê</Label>
                       {comitesList.length > 0 ? (
                         <Select value={draft.comite || "__none"} onValueChange={(v) => updateDraft({ comite: v === "__none" ? "" : v })}>
-                          <SelectTrigger className="bg-background/50"><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectTrigger className="bg-background/50"><SelectValue placeholder="-" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none">—</SelectItem>
+                            <SelectItem value="__none">-</SelectItem>
                             {comitesList.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                           </SelectContent>
                         </Select>
@@ -291,9 +291,9 @@ export default function CopilotoIA() {
                       <Label className="text-xs uppercase tracking-wide text-muted-foreground">Área</Label>
                       {areasDoComite.length > 0 ? (
                         <Select value={draft.area || "__none"} disabled={!draft.comite} onValueChange={(v) => updateDraft({ area: v === "__none" ? "" : v })}>
-                          <SelectTrigger className="bg-background/50"><SelectValue placeholder={draft.comite ? "—" : "Escolha o comitê"} /></SelectTrigger>
+                          <SelectTrigger className="bg-background/50"><SelectValue placeholder={draft.comite ? "-" : "Escolha o comitê"} /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__none">—</SelectItem>
+                            <SelectItem value="__none">-</SelectItem>
                             {areasDoComite.map((a: any) => <SelectItem key={a.nome} value={a.nome}>{a.nome}</SelectItem>)}
                           </SelectContent>
                         </Select>
@@ -306,9 +306,9 @@ export default function CopilotoIA() {
                     <Label className="text-xs uppercase tracking-wide text-muted-foreground">Setor</Label>
                     {setoresDaArea.length > 0 ? (
                       <Select value={draft.setor || "__none"} disabled={!draft.area} onValueChange={(v) => updateDraft({ setor: v === "__none" ? "" : v })}>
-                        <SelectTrigger className="bg-background/50"><SelectValue placeholder={draft.area ? "—" : "Escolha a área"} /></SelectTrigger>
+                        <SelectTrigger className="bg-background/50"><SelectValue placeholder={draft.area ? "-" : "Escolha a área"} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none">—</SelectItem>
+                          <SelectItem value="__none">-</SelectItem>
                           {setoresDaArea.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                         </SelectContent>
                       </Select>

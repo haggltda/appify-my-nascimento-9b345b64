@@ -173,7 +173,7 @@ export default function Razao() {
                       <td className="px-3 py-2 whitespace-nowrap">
                         {new Date(r.data_lancamento).toLocaleDateString("pt-BR")}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs">{r.numero ?? "—"}</td>
+                      <td className="px-3 py-2 font-mono text-xs">{r.numero ?? "-"}</td>
                       <td className="px-3 py-2">{r.historico}</td>
                       <td className="px-3 py-2 text-xs text-muted-foreground">{r.contrapartida ?? ""}</td>
                       <td className="px-3 py-2 text-right">

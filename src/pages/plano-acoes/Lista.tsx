@@ -14,7 +14,7 @@ import { STATUS_LABELS, STATUS_COR, PRIORIDADE_LABEL, PRIORIDADE_COR, STATUS_ORD
 import { Plus, Search, AlertTriangle, Clock, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
 
 const fmtDate = (s: string | null) => {
-  if (!s) return "—";
+  if (!s) return "-";
   const d = new Date(s);
   return isNaN(+d) ? s : d.toLocaleDateString("pt-BR");
 };
@@ -26,7 +26,7 @@ export default function PlanoAcoesLista() {
   const location = useLocation();
   const firstRenderRef = useRef(true);
 
-  // Filtros persistidos na URL — sobrevivem à navegação via botão Voltar do browser
+  // Filtros persistidos na URL - sobrevivem à navegação via botão Voltar do browser
   const busca   = searchParams.get("q")      ?? "";
   const fStatus = searchParams.get("status") ?? "__all";
   const fPrior  = searchParams.get("prior")  ?? "__all";
@@ -99,7 +99,7 @@ export default function PlanoAcoesLista() {
     <div>
       <PageHeader
         title="Plano de Ações"
-        subtitle="Gerenciador de Tarefas Nascimento — todas as ações, com filtros, status e pendências"
+        subtitle="Gerenciador de Tarefas Nascimento - todas as ações, com filtros, status e pendências"
         module="Plano de Ações"
         breadcrumb={["Lista geral"]}
         actions={
@@ -168,7 +168,7 @@ export default function PlanoAcoesLista() {
                     type="button"
                     onClick={() => setDateSort(d => d === "recent" ? "oldest" : "recent")}
                     className="flex items-center gap-1 hover:text-foreground"
-                    title={dateSort === "recent" ? "Mostrando mais recentes — clique para mais antigas" : "Mostrando mais antigas — clique para mais recentes"}
+                    title={dateSort === "recent" ? "Mostrando mais recentes - clique para mais antigas" : "Mostrando mais antigas - clique para mais recentes"}
                   >
                     Atualizada
                     {dateSort === "recent" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
@@ -193,8 +193,8 @@ export default function PlanoAcoesLista() {
                 <tr key={r.id} className="border-t border-border hover:bg-muted/40">
                   <td className="p-2 px-3 font-mono text-xs text-muted-foreground">{r.id_importacao ?? r.id.slice(0,8)}</td>
                   <td className="p-2">
-                    <div className="text-xs font-medium">{r.comite ?? "—"}</div>
-                    <div className="text-[11px] text-muted-foreground">{r.area ?? "—"}</div>
+                    <div className="text-xs font-medium">{r.comite ?? "-"}</div>
+                    <div className="text-[11px] text-muted-foreground">{r.area ?? "-"}</div>
                   </td>
                   <td className="p-2 max-w-[420px]">
                     <Link
@@ -206,7 +206,7 @@ export default function PlanoAcoesLista() {
                     </Link>
                   </td>
                   <td className="p-2 text-xs">
-                    <div>{r.responsavel_nome_origem ?? "—"}</div>
+                    <div>{r.responsavel_nome_origem ?? "-"}</div>
                     {r.lider_comite_nome_origem && <div className="text-[11px] text-muted-foreground">Comitê: {r.lider_comite_nome_origem}</div>}
                   </td>
                   <td className="p-2">

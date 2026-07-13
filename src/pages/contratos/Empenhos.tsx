@@ -18,7 +18,7 @@ export default function Empenhos() {
       <PageHeader
         title="Empenhos"
         breadcrumb={["Contratos", "Empenhos"]}
-        subtitle="Reservas orçamentárias formalizadas pelo órgão público — código, valor, data e área responsável."
+        subtitle="Reservas orçamentárias formalizadas pelo órgão público - código, valor, data e área responsável."
         actions={
           <button onClick={() => setOpen(true)} className="btn-relief inline-flex h-9 items-center gap-1.5 rounded-md bg-gradient-accent px-3 text-sm font-semibold text-accent-foreground">
             <Plus className="h-4 w-4" /> Cadastrar empenho

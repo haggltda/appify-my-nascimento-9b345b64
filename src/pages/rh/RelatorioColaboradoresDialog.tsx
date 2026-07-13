@@ -36,8 +36,8 @@ const COLUNAS: { key: ColKey; label: string; width?: number; align?: "left" | "r
 ];
 
 const fmtBRL = (v: any) =>
-  v == null || v === "" ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const fmtDate = (v: any) => (v ? new Date(v).toLocaleDateString("pt-BR") : "—");
+  v == null || v === "" ? "-" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtDate = (v: any) => (v ? new Date(v).toLocaleDateString("pt-BR") : "-");
 
 export function RelatorioColaboradoresDialog({ open, onOpenChange, rows }: Props) {
   const [status, setStatus] = useState<"todos" | "ativo" | "inativo" | "afastado">("todos");
@@ -119,7 +119,7 @@ export function RelatorioColaboradoresDialog({ open, onOpenChange, rows }: Props
           const v = (r as any)[c.key];
           if (c.key === "salario_base") return fmtBRL(v);
           if (c.key === "data_admissao") return fmtDate(v);
-          return v ?? "—";
+          return v ?? "-";
         }),
       ),
       styles: { fontSize: 7, cellPadding: 1.5, overflow: "linebreak" },

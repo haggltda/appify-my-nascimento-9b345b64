@@ -2,14 +2,14 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Gavel, Radio, Clock, TrendingDown, TrendingUp } from "lucide-react";
 
 const lances = [
-  { h: "10:42:18", emp: "NEN — Nascimento", v: 11_350_000, t: "down", obs: "Lance inicial" },
+  { h: "10:42:18", emp: "NEN - Nascimento", v: 11_350_000, t: "down", obs: "Lance inicial" },
   { h: "10:43:05", emp: "Concorrente A", v: 11_180_000, t: "down", obs: "" },
-  { h: "10:43:47", emp: "NEN — Nascimento", v: 11_050_000, t: "down", obs: "" },
+  { h: "10:43:47", emp: "NEN - Nascimento", v: 11_050_000, t: "down", obs: "" },
   { h: "10:44:32", emp: "Concorrente B", v: 10_980_000, t: "down", obs: "" },
   { h: "10:45:12", emp: "Concorrente A", v: 10_900_000, t: "down", obs: "" },
-  { h: "10:46:01", emp: "NEN — Nascimento", v: 10_840_000, t: "down", obs: "Estratégia de bloqueio" },
+  { h: "10:46:01", emp: "NEN - Nascimento", v: 10_840_000, t: "down", obs: "Estratégia de bloqueio" },
   { h: "10:46:55", emp: "Concorrente B", v: 10_780_000, t: "down", obs: "" },
-  { h: "10:47:30", emp: "NEN — Nascimento", v: 10_720_000, t: "down", obs: "Limite de margem próximo" },
+  { h: "10:47:30", emp: "NEN - Nascimento", v: 10_720_000, t: "down", obs: "Limite de margem próximo" },
 ];
 
 export default function Pregao() {
@@ -61,7 +61,7 @@ export default function Pregao() {
                     </div>
                     <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" /> {l.h}
-                      {l.obs && <span className="italic">— {l.obs}</span>}
+                      {l.obs && <span className="italic">- {l.obs}</span>}
                     </p>
                   </div>
                 </li>
@@ -85,10 +85,10 @@ export default function Pregao() {
           <div className="card-elevated p-5">
             <h3 className="font-display text-sm font-bold">Eventos da disputa</h3>
             <ul className="mt-3 space-y-2 text-xs">
-              <li className="rounded-md bg-info-soft px-3 py-2 text-info">10:30 — Sessão aberta</li>
-              <li className="rounded-md bg-muted px-3 py-2">10:35 — Habilitação verificada</li>
-              <li className="rounded-md bg-muted px-3 py-2">10:42 — Início dos lances</li>
-              <li className="rounded-md bg-warning-soft px-3 py-2 text-warning">10:50 — Suspensão técnica de 5 min</li>
+              <li className="rounded-md bg-info-soft px-3 py-2 text-info">10:30 - Sessão aberta</li>
+              <li className="rounded-md bg-muted px-3 py-2">10:35 - Habilitação verificada</li>
+              <li className="rounded-md bg-muted px-3 py-2">10:42 - Início dos lances</li>
+              <li className="rounded-md bg-warning-soft px-3 py-2 text-warning">10:50 - Suspensão técnica de 5 min</li>
             </ul>
           </div>
         </div>

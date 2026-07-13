@@ -72,7 +72,7 @@ export default function OBZVersoes() {
   return (
     <div className="space-y-6 p-6">
       <PageHeader
-        title="OBZ — Orçamento Base Zero"
+        title="OBZ - Orçamento Base Zero"
         subtitle="Versões anuais com lançamento mensal por linha DRE × centro de custo"
         module="Controladoria"
         breadcrumb={["Controladoria", "OBZ"]}
@@ -95,7 +95,7 @@ export default function OBZVersoes() {
                 {versoes.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma versão</TableCell></TableRow>}
                 {versoes.map((v) => (
                   <TableRow key={v.id}>
-                    <TableCell className="text-xs">{v.empresas?.sigla ?? v.empresas?.razao_social ?? "—"}</TableCell>
+                    <TableCell className="text-xs">{v.empresas?.sigla ?? v.empresas?.razao_social ?? "-"}</TableCell>
                     <TableCell>{v.ano}</TableCell>
                     <TableCell>v{v.versao}.{v.revisao}</TableCell>
                     <TableCell>{v.nome}</TableCell>
@@ -246,7 +246,7 @@ function EditarValoresDialog({ versaoId, onClose }: { versaoId: string; onClose:
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-7xl">
         <DialogHeader>
-          <DialogTitle>{versao?.nome} — {versao?.ano}</DialogTitle>
+          <DialogTitle>{versao?.nome} - {versao?.ano}</DialogTitle>
           <DialogDescription>
             Status: {versao && statusBadge(versao.status)} {!editavel && <span className="ml-2 text-warning">(somente leitura)</span>}
           </DialogDescription>
@@ -257,8 +257,8 @@ function EditarValoresDialog({ versaoId, onClose }: { versaoId: string; onClose:
           <Select value={ccId} onValueChange={setCcId}>
             <SelectTrigger className="w-80"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">— Sem CC (geral) —</SelectItem>
-              {ccs.map((c) => <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>)}
+              <SelectItem value="none">- Sem CC (geral) -</SelectItem>
+              {ccs.map((c) => <SelectItem key={c.id} value={c.id}>{c.codigo} - {c.nome}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>

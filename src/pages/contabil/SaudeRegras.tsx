@@ -50,11 +50,11 @@ type Status = "ok" | "agrupador" | "manual" | "inativo_ok" | "faltando" | "incom
 
 function classify(codigo: string, regra: Regra | undefined): Status {
   if (!regra) return "faltando";
-  // Agrupadores EVT-001 e EVT-006 mãe — esperado inativo
+  // Agrupadores EVT-001 e EVT-006 mãe - esperado inativo
   if (codigo === "EVT-001" || codigo === "EVT-006") return "agrupador";
-  // EVT-014 manual — sem D/C, ativo
+  // EVT-014 manual - sem D/C, ativo
   if (codigo === "EVT-014") return regra.ativo ? "manual" : "incompleto";
-  // EVT-006-D Simples — só HAGG ativa, demais ficam inativas mas com D/C ok
+  // EVT-006-D Simples - só HAGG ativa, demais ficam inativas mas com D/C ok
   if (codigo === "EVT-006-D" && !regra.ativo && regra.conta_debito_id && regra.conta_credito_id) {
     return "inativo_ok";
   }

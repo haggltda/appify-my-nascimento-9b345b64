@@ -97,7 +97,7 @@ export function IdentidadeTab() {
           <p className="text-xs text-muted-foreground">Logotipo, nomes e cores institucionais por empresa.</p>
         </div>
         <select value={eid} onChange={(e) => setEmpresaSel(e.target.value)} className="h-9 rounded-md border border-border bg-card px-3 text-xs">
-          {(empresasQ.data ?? []).map((e: any) => <option key={e.id} value={e.id}>{e.codigo} — {e.razao_social}</option>)}
+          {(empresasQ.data ?? []).map((e: any) => <option key={e.id} value={e.id}>{e.codigo} - {e.razao_social}</option>)}
         </select>
       </header>
 
