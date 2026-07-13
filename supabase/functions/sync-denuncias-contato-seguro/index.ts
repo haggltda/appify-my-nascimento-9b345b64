@@ -61,12 +61,10 @@ Deno.serve(async (req) => {
     .eq("user_id", caller.id).eq("role", "admin").maybeSingle();
   if (!adminRow) return json(403, { success: false, msg: "Somente administradores podem sincronizar denúncias." });
 
-  const log = async (sucesso: boolean, mensagem: string, tot?: number, novas?: number, atual?: number) => {
-    await supabase.from("CS_DENUNCIAS_SYNC_LOG").insert({
-      executado_por: caller.id, sucesso, mensagem,
-      total_recebidas: tot ?? null, novas: novas ?? null, atualizadas: atual ?? null,
-    });
-  };
+  // Log de sync removido (tabela CS_DENUNCIAS_SYNC_LOG dropada): o resultado
+  // já volta na resposta HTTP e é exibido no toast da tela. No-op mantido para
+  // não reestruturar as chamadas abaixo.
+  const log = async (_sucesso: boolean, _mensagem: string, _tot?: number, _novas?: number, _atual?: number) => { /* no-op */ };
 
   try {
     // Env secrets têm precedência; sem eles cai no Vault via cs_denuncias_config()

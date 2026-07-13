@@ -187,7 +187,6 @@ export default function Formularios() {
 
   const termo = busca.trim().toLowerCase();
   const filtrados = !termo ? forms : forms.filter(f => [f.titulo, f.descricao, f.slug].some(v => String(v ?? "").toLowerCase().includes(termo)));
-  const ativos = forms.filter(f => situacao(f, contagens[f.id] || 0).chave === "ativo");
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
@@ -207,23 +206,6 @@ export default function Formularios() {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 24px" }}>
-        {/* URLs ativas no momento */}
-        {ativos.length > 0 && (
-          <div style={{ marginBottom: 18, border: "1px solid #bbf7d0", borderRadius: 14, background: "#f0fdf4", padding: "12px 16px" }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "#15803d", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 }}>🔗 URLs ativas no momento ({ativos.length})</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {ativos.map(f => (
-                <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{f.titulo}</span>
-                  <a href={urlPublica(f.slug)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: "#0369a1", wordBreak: "break-all" }}>{urlPublica(f.slug)}</a>
-                  <button onClick={() => copiarUrl(f)} style={btn("#fff", "#15803d", "1px solid #86efac")}>Copiar</button>
-                  {f.encerra_em && <span style={{ fontSize: 11, color: "#a16207" }}>até {fmtDt(f.encerra_em)}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         <input placeholder="Buscar formulário..." value={busca} onChange={e => setBusca(e.target.value)}
           style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, color: "#0f172a", fontSize: 12, padding: "9px 12px", outline: "none", width: "100%", maxWidth: 420, marginBottom: 14, boxShadow: "0 8px 24px rgba(15,23,42,.06)" }} />
 
@@ -252,6 +234,7 @@ export default function Formularios() {
                       <span>por {f.criado_por_nome || "—"} · criado em {fmtDt(f.created_at)}</span>
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 11 }}>
+                      <a href={urlPublica(f.slug)} target="_blank" rel="noopener noreferrer" style={{ ...btn("#16a34a"), textDecoration: "none", display: "inline-block" }}>↗ Abrir</a>
                       <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}`)} style={btn("#0f3171")}>✏️ Editar</button>
                       <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}/respostas`)} style={btn("rgba(59,130,246,.1)", "#2563eb", "1px solid rgba(59,130,246,.3)")}>📊 Respostas</button>
                       {f.status !== "publicado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Publicar</button>}
