@@ -52,7 +52,7 @@ export default function FormularioRespostas() {
     setLoading(false);
     if (fRes.error) { nav("/app/central-servicos/formularios"); return; }
     setForm(fRes.data);
-    setPergs(normalizaPerguntas(fRes.data.perguntas));
+    setPergs(normalizaPerguntas(fRes.data.perguntas).filter(p => p.tipo !== "texto_info"));  // blocos de texto não são perguntas
     setResps((rRes.data ?? []).map((r: any) => ({ ...r, itens: r.itens ?? {} })));
   }, [id, nav]);
   useEffect(() => { load(); }, [load]);

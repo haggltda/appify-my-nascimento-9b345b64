@@ -15,6 +15,7 @@ import { Formulario, Pergunta, fmtDt, urlPublica, situacao, normalizaPerguntas, 
 export const TIPOS: { valor: string; rotulo: string; temOpcoes: boolean }[] = [
   { valor: "texto_curto",      rotulo: "Texto curto",              temOpcoes: false },
   { valor: "texto_longo",      rotulo: "Texto longo (parágrafo)",  temOpcoes: false },
+  { valor: "texto_info",       rotulo: "Texto informativo (só leitura)", temOpcoes: false },
   { valor: "colaborador",      rotulo: "Selecionar colaborador (cadastro)", temOpcoes: false },
   { valor: "escala_trabalho",  rotulo: "Escala de trabalho (turno)", temOpcoes: false },
   { valor: "multipla_escolha", rotulo: "Múltipla escolha (1 opção)", temOpcoes: true },
@@ -287,8 +288,13 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
         </select>
       </div>
 
-      <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição / ajuda - aparece abaixo do título (opcional)"
-        style={{ border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 9px", fontSize: 12, color: "#64748b", outline: "none", width: "100%", marginBottom: 10, background: "#fafbfc" }} />
+      {p.tipo === "texto_info" ? (
+        <textarea value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} rows={3} placeholder="Texto que o colaborador vai ler (o título fica em destaque acima)"
+          style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "#334155", outline: "none", width: "100%", marginBottom: 10, background: "#fff", resize: "vertical", fontFamily: "inherit" }} />
+      ) : (
+        <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição / ajuda - aparece abaixo do título (opcional)"
+          style={{ border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 9px", fontSize: 12, color: "#64748b", outline: "none", width: "100%", marginBottom: 10, background: "#fafbfc" }} />
+      )}
 
       {p.imagem_url && (
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
@@ -347,10 +353,13 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
       )}
 
       <div style={{ display: "flex", gap: 8, alignItems: "center", borderTop: "1px solid #f1f5f9", paddingTop: 10, flexWrap: "wrap" }}>
-        <label style={{ fontSize: 12, color: "#0f172a", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600 }}>
-          <input type="checkbox" checked={p.obrigatoria} onChange={e => muda(i, { obrigatoria: e.target.checked })} style={{ width: 14, height: 14, accentColor: "#dc2626" }} />
-          Obrigatória
-        </label>
+        {p.tipo !== "texto_info" && (
+          <label style={{ fontSize: 12, color: "#0f172a", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600 }}>
+            <input type="checkbox" checked={p.obrigatoria} onChange={e => muda(i, { obrigatoria: e.target.checked })} style={{ width: 14, height: 14, accentColor: "#dc2626" }} />
+            Obrigatória
+          </label>
+        )}
+        {p.tipo === "texto_info" && <span style={{ fontSize: 11.5, color: "#94a3b8", fontWeight: 700 }}>📄 Só leitura - o colaborador não responde</span>}
         <button onClick={() => imgRef.current?.click()} style={{ background: "none", border: "none", color: "#0369a1", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🖼 {p.imagem_url ? "Trocar" : "Adicionar"} imagem</button>
         <input ref={imgRef} type="file" accept="image/*" style={{ display: "none" }}
           onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await upload(f, `perg-${i + 1}`); if (url) muda(i, { imagem_url: url }); e.target.value = ""; }} />

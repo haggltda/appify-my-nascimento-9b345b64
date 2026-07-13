@@ -135,7 +135,7 @@ export default function FormularioPublico() {
 
   const enviar = async () => {
     for (const p of pergsVisiveis) {
-      if (!p.obrigatoria) continue;
+      if (p.tipo === "texto_info" || !p.obrigatoria) continue;
       const v = valores[p.id];
       const vazio = v == null || v === "" || (Array.isArray(v) && v.length === 0);
       if (vazio) { setErro(`Responda a pergunta obrigatória: "${p.titulo}"`); document.getElementById(`perg-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
@@ -211,10 +211,20 @@ export default function FormularioPublico() {
         ) : null}
 
         {/* Perguntas (só as visíveis para o setor do respondente) */}
-        {pergsVisiveis.map((p, i) => (
+        {(() => { let nq = 0; return pergsVisiveis.map((p) => {
+          // Texto informativo: só leitura, sem número, sem input, sem validação.
+          if (p.tipo === "texto_info") return (
+            <div key={p.id} style={{ ...card, background: "#f8fafc", borderLeft: "4px solid #0f3171" }}>
+              {p.titulo && <div style={{ fontSize: 15, fontWeight: 800, color: "#0f3171" }}>{p.titulo}</div>}
+              {p.descricao && <div style={{ fontSize: 14, color: "#334155", marginTop: p.titulo ? 6 : 0, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{p.descricao}</div>}
+              {p.imagem_url && <img src={p.imagem_url} alt="" style={{ maxWidth: "100%", maxHeight: 280, borderRadius: 10, marginTop: 10, border: "1px solid #f1f5f9" }} />}
+            </div>
+          );
+          nq++;
+          return (
           <div key={p.id} id={`perg-${p.id}`} style={card}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
-              {i + 1}. {p.titulo} {p.obrigatoria && <span style={{ color: "#dc2626" }}>*</span>}
+              {nq}. {p.titulo} {p.obrigatoria && <span style={{ color: "#dc2626" }}>*</span>}
             </div>
             {p.descricao && <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 3 }}>{p.descricao}</div>}
             {p.imagem_url && <img src={p.imagem_url} alt="" style={{ maxWidth: "100%", maxHeight: 280, borderRadius: 10, marginTop: 10, border: "1px solid #f1f5f9" }} />}
@@ -311,7 +321,8 @@ export default function FormularioPublico() {
               })()}
             </div>
           </div>
-        ))}
+          );
+        }); })()}
 
         {erro && <div style={{ background: "#fee2e2", color: "#b91c1c", padding: "11px 15px", borderRadius: 12, fontSize: 13, fontWeight: 700 }}>{erro}</div>}
 
