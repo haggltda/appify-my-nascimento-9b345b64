@@ -147,9 +147,9 @@ export default function FormularioEditor() {
               </div>
               <div style={{ gridColumn: "1 / -1", borderTop: "1px solid #f1f5f9", paddingTop: 12 }}>
                 <label style={lbl}>Pergunta que define o setor (para Administrativo × Operacional)</label>
-                <select value={form.pergunta_setor_id ?? ""} onChange={e => mudaForm({ pergunta_setor_id: e.target.value || null })} style={{ ...inp, width: "100%", maxWidth: 420 }}>
-                  <option value="">— Nenhuma (não classifica por setor) —</option>
-                  {pergs.filter(p => p.titulo.trim()).map(p => <option key={p.id} value={p.id}>{p.titulo}</option>)}
+                <select value={form.pergunta_setor_id ?? ""} onChange={e => mudaForm({ pergunta_setor_id: e.target.value || null })} style={{ ...inp, width: "100%", maxWidth: 420, textOverflow: "ellipsis" }}>
+                  <option value="">— Nenhuma (usa o setor do cadastro do respondente) —</option>
+                  {pergs.filter(p => p.titulo.trim()).map(p => <option key={p.id} value={p.id}>{p.titulo.length > 60 ? p.titulo.slice(0, 60) + "…" : p.titulo}</option>)}
                 </select>
                 <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 5 }}>
                   A resposta guarda o valor dessa pergunta como setor. Quem tem “Visualizar Administrativo/Operacional” vê conforme o setor for classificado no painel 🔐 Permissões.

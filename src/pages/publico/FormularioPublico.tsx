@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 
 // =====================================================================
 // NASCIMENTO FORMULÁRIOS — página PÚBLICA de resposta (/formularios/:slug)
@@ -38,6 +39,7 @@ function Aviso({ emoji, titulo, texto }: { emoji: string; titulo: string; texto:
 
 export default function FormularioPublico() {
   const { slug } = useParams();
+  const { empregado } = useVinculoEmpregado();  // cadastro do respondente logado (null se anônimo)
   const [form, setForm] = useState<Form | null>(null);
   const [pergs, setPergs] = useState<Perg[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,20 +81,28 @@ export default function FormularioPublico() {
       const vazio = v == null || v === "" || (Array.isArray(v) && v.length === 0);
       if (vazio) { setErro(`Responda a pergunta obrigatória: "${p.titulo}"`); document.getElementById(`perg-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
     }
-    if (form.coleta_identificacao && !nome.trim()) { setErro("Informe seu nome."); return; }
+    if (form.coleta_identificacao && !empregado && !nome.trim()) { setErro("Informe seu nome."); return; }
     setEnviando(true);
-    // Setor da resposta (p/ Administrativo × Operacional): valor da pergunta
-    // indicada no formulário. criado_por é preenchido pelo default (auth.uid())
-    // quando o respondente está logado; anônimo fica sem dono.
+    // Cadastro do respondente (logado): puxa nome/setor/cargo/... do EMPREGADOS
+    // e anexa como snapshot — o botão "Detalhes" na tela de respostas mostra tudo.
+    const cadastro = empregado ? {
+      id: empregado.id, nome: empregado.nome, cpf: empregado.cpf, cargo: empregado.cargo,
+      setor: empregado.setor, perfil: empregado.perfil, lider: empregado.lider,
+      situacao: empregado.situacao, admissao: empregado.admissao,
+      empresa: empregado.empresa, filial: empregado.filial, email: empregado.email,
+    } : null;
+    // Setor (p/ Administrativo × Operacional): cadastro tem prioridade; senão o
+    // valor da pergunta de setor indicada no formulário.
     const setorRaw = form.pergunta_setor_id ? valores[form.pergunta_setor_id] : null;
-    const setor = Array.isArray(setorRaw) ? (setorRaw[0] ? String(setorRaw[0]).trim() : null) : (setorRaw != null && setorRaw !== "" ? String(setorRaw).trim() : null);
-    const { error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert({
-      formulario_id: form.id,
-      respondente_nome: form.coleta_identificacao ? nome.trim() : null,
-      respondente_email: form.coleta_identificacao ? (email.trim() || null) : null,
-      setor,
-      itens: valores,
-    });
+    const setorPergunta = Array.isArray(setorRaw) ? (setorRaw[0] ? String(setorRaw[0]).trim() : null) : (setorRaw != null && setorRaw !== "" ? String(setorRaw).trim() : null);
+    const setor = (cadastro?.setor?.trim() || setorPergunta) || null;
+    const nomeResp = cadastro?.nome?.trim() || (form.coleta_identificacao ? nome.trim() : "") || null;
+    const emailResp = cadastro?.email?.trim() || (form.coleta_identificacao ? email.trim() : "") || null;
+    // criado_por é preenchido pelo default (auth.uid()) quando logado; anônimo sem dono.
+    const base = { formulario_id: form.id, respondente_nome: nomeResp, respondente_email: emailResp, itens: valores };
+    let { error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert({ ...base, setor, respondente_cadastro: cadastro });
+    // Banco ainda sem as colunas novas (setor/cadastro): reenvia só o básico.
+    if (error && /column|schema cache/i.test(error.message)) ({ error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(base));
     setEnviando(false);
     if (error) {
       setErro(/row-level security/i.test(error.message)
@@ -117,8 +127,20 @@ export default function FormularioPublico() {
           </div>
         </div>
 
-        {/* Identificação */}
-        {form.coleta_identificacao && (
+        {/* Identificação — cadastro puxado automaticamente quando logado */}
+        {empregado ? (
+          <div style={{ ...card, borderLeft: "4px solid #0f3171" }}>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#0f3171" }}>👤 Respondendo como {empregado.nome}</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+              {[["Setor", empregado.setor], ["Cargo", empregado.cargo], ["Filial", empregado.filial]].map(([k, v]) => v ? (
+                <span key={k} style={{ fontSize: 12, background: "#f1f5f9", borderRadius: 8, padding: "4px 10px", color: "#334155" }}>
+                  <b style={{ color: "#94a3b8", fontWeight: 700 }}>{k}:</b> {v}
+                </span>
+              ) : null)}
+            </div>
+            <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 8 }}>Seus dados de cadastro são anexados automaticamente à resposta — não precisa preencher de novo.</div>
+          </div>
+        ) : form.coleta_identificacao ? (
           <div style={card}>
             <div style={{ fontSize: 14.5, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>Sua identificação <span style={{ color: "#dc2626" }}>*</span></div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -126,7 +148,7 @@ export default function FormularioPublico() {
               <input placeholder="E-mail (opcional)" type="email" value={email} onChange={e => setEmail(e.target.value)} style={{ ...inp, flex: 1, minWidth: 200 }} />
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Perguntas */}
         {pergs.map((p, i) => (

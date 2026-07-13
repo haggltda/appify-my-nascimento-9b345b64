@@ -13,8 +13,17 @@ import { Formulario, Pergunta, fmtDt, situacao, normalizaPerguntas } from "./For
 interface Resposta {
   id: string; enviado_em: string;
   respondente_nome?: string | null; respondente_email?: string | null;
+  setor?: string | null; respondente_cadastro?: Record<string, any> | null;
   itens: Record<string, any>;
 }
+
+// Rótulos amigáveis do snapshot de cadastro (respondente_cadastro).
+const CADASTRO_CAMPOS: { k: string; rotulo: string }[] = [
+  { k: "nome", rotulo: "Nome" }, { k: "cpf", rotulo: "CPF" }, { k: "cargo", rotulo: "Cargo" },
+  { k: "setor", rotulo: "Setor" }, { k: "perfil", rotulo: "Perfil" }, { k: "lider", rotulo: "Líder" },
+  { k: "situacao", rotulo: "Situação" }, { k: "admissao", rotulo: "Admissão" },
+  { k: "empresa", rotulo: "Empresa" }, { k: "filial", rotulo: "Filial" }, { k: "email", rotulo: "E-mail" },
+];
 
 const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
   ({ padding: "6px 12px", borderRadius: 9, border, background: bg, color: c, fontSize: 12, fontWeight: 700, cursor: "pointer" });
@@ -29,6 +38,7 @@ export default function FormularioRespostas() {
   const [resps, setResps] = useState<Resposta[]>([]);
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState<"resumo" | "individuais">("resumo");
+  const [detalhe, setDetalhe] = useState<Resposta | null>(null);  // modal "Detalhes" do cadastro
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,7 +110,9 @@ export default function FormularioRespostas() {
                   <span style={{ fontSize: 12.5, fontWeight: 800, color: "#0f172a" }}>{r.respondente_nome || "Anônimo"}</span>
                   {r.respondente_email && <span style={{ fontSize: 11.5, color: "#64748b" }}>{r.respondente_email}</span>}
                   <span style={{ fontSize: 11, color: "#94a3b8" }}>{fmtDt(r.enviado_em)}</span>
+                  {r.setor && <span style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: "#eef2ff", color: "#4338ca" }}>{r.setor}</span>}
                   <div style={{ flex: 1 }} />
+                  {r.respondente_cadastro && <button onClick={() => setDetalhe(r)} style={btn("rgba(15,49,113,.08)", "#0f3171", "1px solid rgba(15,49,113,.2)")}>👤 Detalhes</button>}
                   <button onClick={() => excluirResp(r)} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 11.5, fontWeight: 700 }}>Excluir</button>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
@@ -116,6 +128,28 @@ export default function FormularioRespostas() {
           )}
         </div>
       </div>
+
+      {/* Modal Detalhes — cadastro do respondente (snapshot no momento da resposta) */}
+      {detalhe && detalhe.respondente_cadastro && (
+        <div onClick={() => setDetalhe(null)} style={{ position: "fixed", inset: 0, zIndex: 900, background: "rgba(15,23,42,.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 22, width: 520, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }}>
+            <button onClick={() => setDetalhe(null)} style={{ position: "absolute", top: 14, right: 16, border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#94a3b8" }}>×</button>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#0f3171", marginBottom: 2 }}>👤 {detalhe.respondente_cadastro.nome || detalhe.respondente_nome || "Respondente"}</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>Dados do cadastro no momento da resposta · {fmtDt(detalhe.enviado_em)}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {CADASTRO_CAMPOS.map(({ k, rotulo }) => {
+                const v = detalhe.respondente_cadastro?.[k];
+                return v ? (
+                  <div key={k} style={{ background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 10, padding: "8px 11px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".4px" }}>{rotulo}</div>
+                    <div style={{ fontSize: 12.5, color: "#0f172a", fontWeight: 600, marginTop: 2, wordBreak: "break-word" }}>{String(v)}</div>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
