@@ -1173,7 +1173,7 @@ function LocForm({
             <button
               type="button"
               onClick={() => setF("periculosidade", !(form.periculosidade as boolean))}
-              className={`relative h-5 w-9 rounded-full transition-colors ${form.periculosidade ? "bg-destructive" : "bg-muted-foreground/30"}`}
+              className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${form.periculosidade ? "bg-destructive" : "bg-muted-foreground/30"}`}
             >
               <span
                 className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${form.periculosidade ? "translate-x-4" : "translate-x-0.5"}`}
@@ -1187,7 +1187,7 @@ function LocForm({
             <button
               type="button"
               onClick={() => setF("insalubridade", !(form.insalubridade as boolean))}
-              className={`relative h-5 w-9 rounded-full transition-colors ${form.insalubridade ? "bg-warning" : "bg-muted-foreground/30"}`}
+              className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${form.insalubridade ? "bg-warning" : "bg-muted-foreground/30"}`}
             >
               <span
                 className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${form.insalubridade ? "translate-x-4" : "translate-x-0.5"}`}
