@@ -64,7 +64,7 @@ const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
 export default function Formularios() {
   const nav = useNavigate();
   const { user } = useAuth();
-  const { can, canVerAlguma } = useFormPerms();
+  const { can, canVerAlguma, isAdmin, setor } = useFormPerms();
   const [forms, setForms] = useState<Formulario[]>([]);
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -204,8 +204,15 @@ export default function Formularios() {
     load();
   };
 
+  // Formulário restrito a setores (setores_acesso) só aparece para esse setor;
+  // admin e gestores (editar/encerrar/ver tudo) enxergam todos.
+  const podeVerTodos = isAdmin || can("editar_criar") || can("encerrar_excluir") || can("ver_tudo");
+  const visiveis = forms.filter(f => {
+    const restr = f.setores_acesso ?? [];
+    return restr.length === 0 || podeVerTodos || (!!setor && restr.includes(setor));
+  });
   const termo = busca.trim().toLowerCase();
-  const filtrados = !termo ? forms : forms.filter(f => [f.titulo, f.descricao, f.slug].some(v => String(v ?? "").toLowerCase().includes(termo)));
+  const filtrados = !termo ? visiveis : visiveis.filter(f => [f.titulo, f.descricao, f.slug].some(v => String(v ?? "").toLowerCase().includes(termo)));
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
