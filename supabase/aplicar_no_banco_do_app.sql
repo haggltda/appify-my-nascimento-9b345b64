@@ -3270,6 +3270,9 @@ ALTER TABLE public."CS_FORMULARIOS"
 DO $mig$
 BEGIN
   IF to_regclass('public."CS_FORM_PERGUNTAS"') IS NOT NULL THEN
+    -- Só preenche quem AINDA não tem perguntas em jsonb — assim re-rodar não
+    -- apaga formulários criados/importados direto no jsonb (que não têm
+    -- linhas em CS_FORM_PERGUNTAS e virariam '[]').
     UPDATE public."CS_FORMULARIOS" f
        SET perguntas = COALESCE((
          SELECT jsonb_agg(jsonb_build_object(
@@ -3279,7 +3282,9 @@ BEGIN
                   'config', p.config)
                 ORDER BY p.ordem)
            FROM public."CS_FORM_PERGUNTAS" p
-          WHERE p.formulario_id = f.id), '[]'::jsonb);
+          WHERE p.formulario_id = f.id), '[]'::jsonb)
+     WHERE COALESCE(jsonb_array_length(f.perguntas), 0) = 0
+       AND EXISTS (SELECT 1 FROM public."CS_FORM_PERGUNTAS" p WHERE p.formulario_id = f.id);
   END IF;
 END
 $mig$;
@@ -3593,3 +3598,4 @@ CREATE POLICY cs_form_acessos_delete ON public."CS_FORM_ACESSOS"
 DROP FUNCTION IF EXISTS public.cs_form_pode_criar();
 
 NOTIFY pgrst, 'reload schema';
+
