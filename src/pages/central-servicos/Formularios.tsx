@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { parseSurveyMonkey, ImportResultado } from "@/utils/surveyMonkeyImporter";
 import { useFormPerms } from "@/hooks/useFormPerms";
-import FormulariosPermissoes from "./FormulariosPermissoes";
 
 // =====================================================================
 // CENTRAL DE SERVIÇOS — Nascimento Formulários (gestão)
@@ -64,8 +63,7 @@ const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
 export default function Formularios() {
   const nav = useNavigate();
   const { user } = useAuth();
-  const { can, canVerAlguma, isAdmin } = useFormPerms();
-  const [mostrarPerms, setMostrarPerms] = useState(false);
+  const { can, canVerAlguma } = useFormPerms();
   const [forms, setForms] = useState<Formulario[]>([]);
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -142,29 +140,37 @@ export default function Formularios() {
     const setorIdx = pergsNovas.findIndex(p => /\bsetor\b/i.test(p.titulo));
     const setorPergId = setorIdx >= 0 ? pergsNovas[setorIdx].id : null;
     const coerceSetor = (v: any) => { const x = Array.isArray(v) ? v[0] : v; const t = x == null ? "" : String(x).trim(); return t || null; };
+    // Cria o formulário INTEIRO (perguntas embutidas). pergunta_setor_id é
+    // enriquecimento — vai num update best-effort depois, pra não derrubar a
+    // importação em bancos que ainda não têm a coluna (migration de setores).
     const { data: form, error: e1 } = await (supabase as any).from("CS_FORMULARIOS").insert({
       titulo, slug: slugify(titulo), criado_por_nome: nome, coleta_identificacao: temIdent,
       descricao: "Importado do SurveyMonkey em " + new Date().toLocaleDateString("pt-BR") + ".",
-      perguntas: pergsNovas, pergunta_setor_id: setorPergId,
+      perguntas: pergsNovas,
     }).select("id").single();
     if (e1) { setImportando(false); toast("Erro ao criar formulário: " + e1.message, "err"); return; }
+    if (setorPergId) await (supabase as any).from("CS_FORMULARIOS").update({ pergunta_setor_id: setorPergId }).eq("id", form.id);  // ignora erro se a coluna não existe
 
     // Índice da pergunta → id, para gravar os itens das respostas.
     const idPorOrdem: Record<number, string> = {};
     pergsNovas.forEach((p, i) => { idPorOrdem[i] = p.id; });
 
+    const colunaFaltando = (m?: string) => !!m && /column|schema cache/i.test(m);
     let importadas = 0;
     for (let i = 0; i < importPreview.respostas.length; i += 200) {
-      const lote = importPreview.respostas.slice(i, i + 200).map(r => ({
+      const slice = importPreview.respostas.slice(i, i + 200);
+      const base = slice.map(r => ({
         formulario_id: form.id,
         enviado_em: r.enviado_em ?? new Date().toISOString(),
         respondente_nome: r.respondente_nome ?? null,
         respondente_email: r.respondente_email ?? null,
-        setor: setorIdx >= 0 ? coerceSetor(r.itens[setorIdx]) : null,
-        criado_por: null,  // respostas importadas não têm dono (só ver_tudo/admin/op enxergam)
         itens: Object.fromEntries(Object.entries(r.itens).map(([idx, v]) => [idPorOrdem[Number(idx)], v]).filter(([k]) => k)),
       }));
-      const { error: e3 } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(lote);
+      // Tenta com setor + criado_por (dono nulo p/ importadas); se essas colunas
+      // ainda não existem no banco, reenvia só as respostas (sem enriquecimento).
+      const lote = base.map((row, j) => ({ ...row, setor: setorIdx >= 0 ? coerceSetor(slice[j].itens[setorIdx]) : null, criado_por: null }));
+      let { error: e3 } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(lote);
+      if (colunaFaltando(e3?.message)) ({ error: e3 } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(base));
       if (e3) { setImportando(false); toast(`Erro nas respostas (${importadas} importadas): ` + e3.message, "err"); load(); return; }
       importadas += lote.length;
     }
@@ -209,7 +215,6 @@ export default function Formularios() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canVerAlguma && <button onClick={() => nav("/app/central-servicos/formularios/dashboard")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>📊 Dashboard</button>}
-          {isAdmin && <button onClick={() => setMostrarPerms(v => !v)} style={btn(mostrarPerms ? "#0f3171" : "#fff", mostrarPerms ? "#fff" : "#475569", "1px solid #e2e8f0")}>🔐 Permissões {mostrarPerms ? "▴" : "▾"}</button>}
           {can("editar_criar") && <>
             <button onClick={() => importRef.current?.click()} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬆ Importar SurveyMonkey</button>
             <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
@@ -220,8 +225,6 @@ export default function Formularios() {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 24px" }}>
-        {isAdmin && mostrarPerms && <FormulariosPermissoes onToast={toast} />}
-
         <input placeholder="Buscar formulário..." value={busca} onChange={e => setBusca(e.target.value)}
           style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, color: "#0f172a", fontSize: 12, padding: "9px 12px", outline: "none", width: "100%", maxWidth: 420, marginBottom: 14, boxShadow: "0 8px 24px rgba(15,23,42,.06)" }} />
 
