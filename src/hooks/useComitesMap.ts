@@ -14,6 +14,8 @@ export interface ComiteInfo {
   /** Compat: lista plana de nomes das áreas */
   areasNomes: string[];
   lider: string | null;
+  /** profile_id real do líder, quando o gestor do comitê está vinculado a uma conta */
+  liderProfileId: string | null;
 }
 
 /**
@@ -49,6 +51,15 @@ export function useComitesMap() {
         return m ? m[1].trim() : null;
       };
 
+      // Igual a liderFrom, mas também expõe o profile_id real — só existe
+      // quando o gestor está de fato vinculado a uma conta (gestor_profile_id),
+      // nunca quando o nome vem só do texto livre em "descricao".
+      const liderInfo = (gid: string | null, descricao: string | null): { nome: string | null; profileId: string | null } => {
+        if (gid && profileNome.get(gid)) return { nome: profileNome.get(gid)!, profileId: gid };
+        const m = (descricao ?? "").match(/^(?:l[ií]der|gestor)\s*:\s*(.+)$/i);
+        return m ? { nome: m[1].trim(), profileId: null } : { nome: null, profileId: null };
+      };
+
       const setoresPorArea = new Map<string, string[]>();
       for (const s of setores) {
         const arr = setoresPorArea.get(s.area_id) ?? [];
@@ -58,7 +69,7 @@ export function useComitesMap() {
 
       const out: Record<string, ComiteInfo> = {};
       for (const c of comites) {
-        const lider = liderFrom(c.gestor_profile_id, c.descricao);
+        const liderComite = liderInfo(c.gestor_profile_id, c.descricao);
         const myAreas = areas
           .filter(a => a.comite_id === c.id)
           .map<AreaInfo>(a => ({
@@ -70,7 +81,8 @@ export function useComitesMap() {
           comite: c.nome,
           areas: myAreas,
           areasNomes: myAreas.map(a => a.nome),
-          lider,
+          lider: liderComite.nome,
+          liderProfileId: liderComite.profileId,
         };
       }
 
@@ -103,6 +115,7 @@ export function useComitesMap() {
           areas: arr.map(n => ({ nome: n, gestor: null, setores: [] })),
           areasNomes: arr,
           lider,
+          liderProfileId: null,
         };
       }
       return fallback;
