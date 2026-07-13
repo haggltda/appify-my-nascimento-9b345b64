@@ -40,30 +40,33 @@ function Aviso({ emoji, titulo, texto }: { emoji: string; titulo: string; texto:
   );
 }
 
-// Pergunta "colaborador": lista todos os EMPREGADOS com Situacao "Trabalhando"
-// e o valor da resposta e o nome escolhido.
+// Pergunta "colaborador": busca no EMPREGADOS por nome (acha qualquer um);
+// exclui SÓ quem tem Situacao demitido. Valor da resposta = o nome escolhido.
 function ColaboradorSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [todos, setTodos] = useState<{ id: number; nome: string; setor?: string; cargo?: string }[]>([]);
   const [busca, setBusca] = useState("");
+  const [resultados, setResultados] = useState<{ id: number; nome: string; setor?: string; cargo?: string }[]>([]);
   const [aberto, setAberto] = useState(false);
-  useEffect(() => {
-    (async () => {
-      const { data } = await (supabase as any).from("EMPREGADOS")
-        .select('"ID","Nome","Setor_ERP","Título do Cargo"')
-        .eq("Situação", "Trabalhando").order('"Nome"').limit(5000);
-      setTodos((data ?? []).map((r: any) => ({ id: r["ID"], nome: r["Nome"] ?? "", setor: r["Setor_ERP"], cargo: r["Título do Cargo"] })).filter((x: any) => x.nome));
-    })();
-  }, []);
-  const q = busca.trim().toLowerCase();
-  const filtrados = (q ? todos.filter(t => t.nome.toLowerCase().includes(q) || String(t.setor ?? "").toLowerCase().includes(q)) : todos).slice(0, 80);
+  const buscar = async (texto: string) => {
+    setBusca(texto); setAberto(true);
+    const termo = texto.trim();
+    let query = (supabase as any).from("EMPREGADOS")
+      .select('"ID","Nome","Setor_ERP","Título do Cargo","Situação"')
+      .order('"Nome"').limit(40);
+    if (termo.length >= 2) query = query.ilike("Nome", `%${termo}%`);
+    const { data } = await query;
+    setResultados((data ?? [])
+      .filter((r: any) => !/demitid/i.test(String(r["Situação"] ?? "")))  // só demitido fica de fora
+      .map((r: any) => ({ id: r["ID"], nome: r["Nome"] ?? "", setor: r["Setor_ERP"], cargo: r["Título do Cargo"] }))
+      .filter((x: any) => x.nome));
+  };
   return (
     <div style={{ position: "relative", maxWidth: 420 }}>
-      <input value={aberto ? busca : (value || "")} onFocus={() => { setAberto(true); setBusca(""); }} onBlur={() => setTimeout(() => setAberto(false), 150)} onChange={e => setBusca(e.target.value)}
-        placeholder={todos.length ? "Buscar colaborador..." : "Carregando colaboradores..."} style={inp} />
+      <input value={aberto ? busca : (value || "")} onFocus={() => buscar("")} onBlur={() => setTimeout(() => setAberto(false), 150)} onChange={e => buscar(e.target.value)}
+        placeholder="Digite o nome do colaborador..." style={inp} />
       {aberto && (
         <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 20, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
-          {filtrados.length === 0 && <div style={{ padding: "8px 11px", fontSize: 12, color: "#94a3b8" }}>Nenhum colaborador encontrado.</div>}
-          {filtrados.map(r => (
+          {resultados.length === 0 && <div style={{ padding: "8px 11px", fontSize: 12, color: "#94a3b8" }}>{busca.trim().length < 2 ? "Digite ao menos 2 letras..." : "Nenhum colaborador encontrado."}</div>}
+          {resultados.map(r => (
             <div key={r.id} onMouseDown={() => { onChange(r.nome); setAberto(false); }} style={{ padding: "8px 11px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{r.nome}</div>
               <div style={{ fontSize: 11, color: "#94a3b8" }}>{[r.setor, r.cargo].filter(Boolean).join(" · ")}</div>
