@@ -15,7 +15,7 @@ interface Form {
   coleta_identificacao: boolean; imagem_capa_url?: string | null;
 }
 interface Perg {
-  id: string; ordem: number; tipo: string; titulo: string; descricao?: string | null;
+  id: string; tipo: string; titulo: string; descricao?: string | null;
   obrigatoria: boolean; imagem_url?: string | null; opcoes: string[]; config: Record<string, any>;
 }
 
@@ -50,11 +50,10 @@ export default function FormularioPublico() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: f } = await (supabase as any).from("CS_FORMULARIOS").select("id,titulo,descricao,slug,status,inicia_em,encerra_em,coleta_identificacao,imagem_capa_url").eq("slug", slug).maybeSingle();
+    const { data: f } = await (supabase as any).from("CS_FORMULARIOS").select("id,titulo,descricao,slug,status,inicia_em,encerra_em,coleta_identificacao,imagem_capa_url,perguntas").eq("slug", slug).maybeSingle();
     if (!f) { setLoading(false); setNaoEncontrado(true); return; }
-    const { data: ps } = await (supabase as any).from("CS_FORM_PERGUNTAS").select("*").eq("formulario_id", f.id).order("ordem");
     setForm(f);
-    setPergs((ps ?? []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} })));
+    setPergs((Array.isArray(f.perguntas) ? f.perguntas : []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} })));
     setLoading(false);
   }, [slug]);
   useEffect(() => { load(); }, [load]);

@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Formulario, fmtDt, situacao } from "./Formularios";
-import { Pergunta } from "./FormularioEditor";
+import { Formulario, Pergunta, fmtDt, situacao, normalizaPerguntas } from "./Formularios";
 
 // =====================================================================
 // NASCIMENTO FORMULÁRIOS — Respostas
@@ -26,22 +25,21 @@ export default function FormularioRespostas() {
   const { id } = useParams();
   const nav = useNavigate();
   const [form, setForm] = useState<Formulario | null>(null);
-  const [pergs, setPergs] = useState<(Pergunta & { id: string })[]>([]);
+  const [pergs, setPergs] = useState<Pergunta[]>([]);
   const [resps, setResps] = useState<Resposta[]>([]);
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState<"resumo" | "individuais">("resumo");
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fRes, pRes, rRes] = await Promise.all([
+    const [fRes, rRes] = await Promise.all([
       (supabase as any).from("CS_FORMULARIOS").select("*").eq("id", id).single(),
-      (supabase as any).from("CS_FORM_PERGUNTAS").select("*").eq("formulario_id", id).order("ordem"),
       (supabase as any).from("CS_FORM_RESPOSTAS").select("*").eq("formulario_id", id).order("enviado_em", { ascending: false }),
     ]);
     setLoading(false);
     if (fRes.error) { nav("/app/central-servicos/formularios"); return; }
     setForm(fRes.data);
-    setPergs((pRes.data ?? []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} })));
+    setPergs(normalizaPerguntas(fRes.data.perguntas));
     setResps((rRes.data ?? []).map((r: any) => ({ ...r, itens: r.itens ?? {} })));
   }, [id, nav]);
   useEffect(() => { load(); }, [load]);
@@ -122,7 +120,7 @@ export default function FormularioRespostas() {
   );
 }
 
-function ResumoPergunta({ p, i, resps }: { p: Pergunta & { id: string }; i: number; resps: Resposta[] }) {
+function ResumoPergunta({ p, i, resps }: { p: Pergunta; i: number; resps: Resposta[] }) {
   const valores = useMemo(() => resps.map(r => r.itens[p.id]).filter(v => v != null && v !== "" && !(Array.isArray(v) && v.length === 0)), [resps, p.id]);
 
   const conteudo = useMemo(() => {

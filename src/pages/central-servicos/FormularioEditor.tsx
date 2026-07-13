@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Formulario, fmtDt, urlPublica, situacao } from "./Formularios";
+import { Formulario, Pergunta, fmtDt, urlPublica, situacao, normalizaPerguntas, novoUuid } from "./Formularios";
 
 // =====================================================================
 // NASCIMENTO FORMULÁRIOS — Builder (editor de formulário)
 // Monta o formulário: título/descrição/capa, configurações (vigência,
 // limite de respostas, identificação do respondente) e as perguntas —
 // vários tipos, com imagem por pergunta, opções e obrigatoriedade.
-// Salvar = upsert das perguntas (preserva ids p/ não órfãr respostas).
+// Salvar = 1 update: perguntas vivem em CS_FORMULARIOS.perguntas (jsonb),
+// com ids estáveis p/ não órfãr respostas.
 // =====================================================================
 
 export const TIPOS: { valor: string; rotulo: string; temOpcoes: boolean }[] = [
@@ -21,12 +22,6 @@ export const TIPOS: { valor: string; rotulo: string; temOpcoes: boolean }[] = [
   { valor: "data",             rotulo: "Data",                     temOpcoes: false },
   { valor: "numero",           rotulo: "Número",                   temOpcoes: false },
 ];
-
-export interface Pergunta {
-  id?: string; formulario_id?: string; ordem: number; tipo: string;
-  titulo: string; descricao?: string | null; obrigatoria: boolean;
-  imagem_url?: string | null; opcoes: string[]; config: Record<string, any>;
-}
 
 const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
   ({ padding: "6px 12px", borderRadius: 9, border, background: bg, color: c, fontSize: 12, fontWeight: 700, cursor: "pointer" });
@@ -42,7 +37,6 @@ export default function FormularioEditor() {
   const nav = useNavigate();
   const [form, setForm] = useState<Formulario | null>(null);
   const [pergs, setPergs] = useState<Pergunta[]>([]);
-  const [removidas, setRemovidas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [sujo, setSujo] = useState(false);
@@ -56,22 +50,21 @@ export default function FormularioEditor() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fRes, pRes, vRes] = await Promise.all([
+    const [fRes, vRes] = await Promise.all([
       (supabase as any).from("CS_FORMULARIOS").select("*").eq("id", id).single(),
-      (supabase as any).from("CS_FORM_PERGUNTAS").select("*").eq("formulario_id", id).order("ordem"),
-      (supabase as any).from("CS_FORM_VISIBILIDADE").select("id, user_id").eq("formulario_id", id).order("id"),
+      (supabase as any).from("CS_FORM_ACESSOS").select("id, user_id").eq("papel", "visualiza").eq("formulario_id", id).order("id"),
     ]);
     setLoading(false);
     if (fRes.error) { toast("Formulário não encontrado.", "err"); nav("/app/central-servicos/formularios"); return; }
     setForm(fRes.data);
-    setPergs((pRes.data ?? []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} })));
+    setPergs(normalizaPerguntas(fRes.data.perguntas));
     const vis = vRes.data ?? [];
     setVisUsers(vis);
     if (vis.length) {
       const { data: profs } = await (supabase as any).from("profiles").select("id, display_name, email").in("id", vis.map((v: any) => v.user_id));
       setVisPerfis(Object.fromEntries((profs ?? []).map((p: any) => [p.id, p])));
     }
-    setRemovidas([]); setSujo(false);
+    setSujo(false);
   }, [id, nav]);
   useEffect(() => { load(); }, [load]);
 
@@ -86,23 +79,23 @@ export default function FormularioEditor() {
     setVisResultados((data ?? []).filter((p: any) => !ja.has(p.id)));
   };
   const addVisUser = async (p: { id: string; display_name?: string; email?: string }) => {
-    const { error } = await (supabase as any).from("CS_FORM_VISIBILIDADE").insert({ formulario_id: id, user_id: p.id });
+    const { error } = await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel: "visualiza", formulario_id: id, user_id: p.id });
     if (error) { toast("Erro: " + error.message, "err"); return; }
     setVisPerfis(x => ({ ...x, [p.id]: p }));
     setVisBusca(""); setVisResultados([]);
-    const { data } = await (supabase as any).from("CS_FORM_VISIBILIDADE").select("id, user_id").eq("formulario_id", id).order("id");
+    const { data } = await (supabase as any).from("CS_FORM_ACESSOS").select("id, user_id").eq("papel", "visualiza").eq("formulario_id", id).order("id");
     setVisUsers(data ?? []);
   };
   const delVisUser = async (v: { id: number; user_id: string }) => {
-    await (supabase as any).from("CS_FORM_VISIBILIDADE").delete().eq("id", v.id);
+    await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("id", v.id);
     setVisUsers(x => x.filter(i => i.id !== v.id));
   };
 
   const mudaForm = (patch: Partial<Formulario>) => { setForm(f => f ? { ...f, ...patch } : f); setSujo(true); };
   const mudaPerg = (i: number, patch: Partial<Pergunta>) => { setPergs(ps => ps.map((p, j) => j === i ? { ...p, ...patch } : p)); setSujo(true); };
 
-  const addPergunta = () => { setPergs(ps => [...ps, { ordem: ps.length, tipo: "texto_curto", titulo: "", obrigatoria: false, opcoes: [], config: {} }]); setSujo(true); };
-  const removePergunta = (i: number) => { const p = pergs[i]; if (p.id) setRemovidas(r => [...r, p.id!]); setPergs(ps => ps.filter((_, j) => j !== i)); setSujo(true); };
+  const addPergunta = () => { setPergs(ps => [...ps, { id: novoUuid(), tipo: "texto_curto", titulo: "", obrigatoria: false, opcoes: [], config: {} }]); setSujo(true); };
+  const removePergunta = (i: number) => { setPergs(ps => ps.filter((_, j) => j !== i)); setSujo(true); };
   const move = (i: number, dir: -1 | 1) => {
     setPergs(ps => { const a = [...ps]; const j = i + dir; if (j < 0 || j >= a.length) return ps; [a[i], a[j]] = [a[j], a[i]]; return a; });
     setSujo(true);
@@ -126,22 +119,16 @@ export default function FormularioEditor() {
       inicia_em: form.inicia_em || null, encerra_em: form.encerra_em || null,
       max_respostas: form.max_respostas || null, coleta_identificacao: form.coleta_identificacao,
       imagem_capa_url: form.imagem_capa_url || null,
+      perguntas: pergs.filter(p => p.titulo.trim()).map(p => ({
+        id: p.id, tipo: p.tipo, titulo: p.titulo.trim(), descricao: p.descricao || null,
+        obrigatoria: p.obrigatoria, imagem_url: p.imagem_url || null,
+        opcoes: p.opcoes.filter(o => o.trim()), config: p.config,
+      })),
       ...(form.visibilidade ? { visibilidade: form.visibilidade } : {}),
       ...(novoStatus ? { status: novoStatus } : {}),
     };
     const { error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update(patchForm).eq("id", form.id);
     if (e1) { setSalvando(false); toast("Erro ao salvar: " + e1.message, "err"); return; }
-
-    if (removidas.length) await (supabase as any).from("CS_FORM_PERGUNTAS").delete().in("id", removidas);
-    for (let i = 0; i < pergs.length; i++) {
-      const p = pergs[i];
-      if (!p.titulo.trim()) continue;
-      const row = { formulario_id: form.id, ordem: i, tipo: p.tipo, titulo: p.titulo.trim(), descricao: p.descricao || null, obrigatoria: p.obrigatoria, imagem_url: p.imagem_url || null, opcoes: p.opcoes.filter(o => o.trim()), config: p.config };
-      const { error: e2 } = p.id
-        ? await (supabase as any).from("CS_FORM_PERGUNTAS").update(row).eq("id", p.id)
-        : await (supabase as any).from("CS_FORM_PERGUNTAS").insert(row);
-      if (e2) { setSalvando(false); toast(`Erro na pergunta ${i + 1}: ` + e2.message, "err"); return; }
-    }
     setSalvando(false);
     toast(novoStatus === "publicado" ? "Publicado! URL ativa — copie na lista." : "Salvo.", "ok");
     load();
@@ -256,7 +243,7 @@ export default function FormularioEditor() {
           </div>
 
           {/* Perguntas */}
-          {pergs.map((p, i) => <PerguntaCard key={p.id ?? `nova-${i}`} p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} />)}
+          {pergs.map((p, i) => <PerguntaCard key={p.id} p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} />)}
 
           <button onClick={addPergunta} style={{ ...btn("#fff", "#0f3171", "2px dashed #cbd5e1"), padding: "14px", fontSize: 13.5, borderRadius: 14 }}>+ Adicionar pergunta</button>
         </div>

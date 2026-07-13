@@ -12,6 +12,12 @@ import { parseSurveyMonkey, ImportResultado } from "@/utils/surveyMonkeyImporter
 // Página pública de resposta: /formularios/<slug> (sem login).
 // =====================================================================
 
+export interface Pergunta {
+  id: string; tipo: string; titulo: string; descricao?: string | null;
+  obrigatoria: boolean; imagem_url?: string | null;
+  opcoes: string[]; config: Record<string, any>;
+}
+
 export interface Formulario {
   id: string; created_at: string; updated_at: string;
   titulo: string; descricao?: string | null; slug: string;
@@ -20,7 +26,16 @@ export interface Formulario {
   max_respostas?: number | null; coleta_identificacao: boolean;
   imagem_capa_url?: string | null; criado_por_nome?: string | null;
   criado_por?: string | null; visibilidade?: "todos" | "restrita";
+  perguntas?: Pergunta[];  // jsonb — ordem = posição no array
 }
+
+export const normalizaPerguntas = (v: any): Pergunta[] =>
+  (Array.isArray(v) ? v : []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} }));
+
+// crypto.randomUUID exige contexto seguro (HTTPS/localhost); produção roda em HTTP.
+export const novoUuid = (): string =>
+  (crypto as any).randomUUID?.() ??
+  "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = (Math.random() * 16) | 0; return (c === "x" ? r : (r & 0x3) | 0x8).toString(16); });
 
 export const fmtDt = (s?: string | null) => { if (!s) return "—"; const d = new Date(s); return isNaN(+d) ? String(s) : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
 export const urlPublica = (slug: string) => `${window.location.origin}/formularios/${slug}`;
@@ -113,23 +128,20 @@ export default function Formularios() {
     setImportando(true);
     const nome = user?.user_metadata?.nome ?? user?.email ?? "";
     const temIdent = importPreview.respostas.some(r => r.respondente_nome || r.respondente_email);
+    const pergsNovas: Pergunta[] = importPreview.perguntas.map(p => ({
+      id: novoUuid(), tipo: p.tipo, titulo: p.titulo, descricao: p.descricao ?? null,
+      obrigatoria: false, imagem_url: null, opcoes: p.opcoes, config: p.config,
+    }));
     const { data: form, error: e1 } = await (supabase as any).from("CS_FORMULARIOS").insert({
       titulo, slug: slugify(titulo), criado_por_nome: nome, coleta_identificacao: temIdent,
       descricao: "Importado do SurveyMonkey em " + new Date().toLocaleDateString("pt-BR") + ".",
+      perguntas: pergsNovas,
     }).select("id").single();
     if (e1) { setImportando(false); toast("Erro ao criar formulário: " + e1.message, "err"); return; }
 
-    const { data: pergs, error: e2 } = await (supabase as any).from("CS_FORM_PERGUNTAS").insert(
-      importPreview.perguntas.map((p, i) => ({
-        formulario_id: form.id, ordem: i, tipo: p.tipo, titulo: p.titulo,
-        descricao: p.descricao ?? null, obrigatoria: false, opcoes: p.opcoes, config: p.config,
-      })),
-    ).select("id, ordem");
-    if (e2) { setImportando(false); toast("Erro nas perguntas: " + e2.message, "err"); return; }
-
-    // Índice da pergunta → id real, para gravar os itens das respostas.
+    // Índice da pergunta → id, para gravar os itens das respostas.
     const idPorOrdem: Record<number, string> = {};
-    (pergs ?? []).forEach((p: any) => { idPorOrdem[p.ordem] = p.id; });
+    pergsNovas.forEach((p, i) => { idPorOrdem[i] = p.id; });
 
     let importadas = 0;
     for (let i = 0; i < importPreview.respostas.length; i += 200) {
@@ -153,19 +165,13 @@ export default function Formularios() {
 
   const duplicar = async (f: Formulario) => {
     const nome = user?.user_metadata?.nome ?? user?.email ?? "";
-    const { data: novo, error } = await (supabase as any).from("CS_FORMULARIOS").insert({
+    const { error } = await (supabase as any).from("CS_FORMULARIOS").insert({
       titulo: f.titulo + " (cópia)", descricao: f.descricao, slug: slugify(f.titulo),
       inicia_em: f.inicia_em, encerra_em: f.encerra_em, max_respostas: f.max_respostas,
       coleta_identificacao: f.coleta_identificacao, imagem_capa_url: f.imagem_capa_url, criado_por_nome: nome,
+      perguntas: normalizaPerguntas(f.perguntas).map(p => ({ ...p, id: novoUuid() })),
     }).select("id").single();
     if (error) { toast("Erro ao duplicar: " + error.message, "err"); return; }
-    const { data: pergs } = await (supabase as any).from("CS_FORM_PERGUNTAS").select("*").eq("formulario_id", f.id).order("ordem");
-    if (pergs?.length) {
-      await (supabase as any).from("CS_FORM_PERGUNTAS").insert(pergs.map((p: any) => ({
-        formulario_id: novo.id, ordem: p.ordem, tipo: p.tipo, titulo: p.titulo, descricao: p.descricao,
-        obrigatoria: p.obrigatoria, imagem_url: p.imagem_url, opcoes: p.opcoes, config: p.config,
-      })));
-    }
     toast("Formulário duplicado (como rascunho).", "ok");
     load();
   };

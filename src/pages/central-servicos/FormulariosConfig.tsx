@@ -33,7 +33,7 @@ export default function FormulariosConfig() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await (supabase as any).from("CS_FORM_GESTORES").select("*").order("created_at");
+    const { data } = await (supabase as any).from("CS_FORM_ACESSOS").select("id, user_id, created_at").eq("papel", "gestor").order("created_at");
     const gs: Gestor[] = data ?? [];
     setGestores(gs);
     if (gs.length) {
@@ -55,7 +55,7 @@ export default function FormulariosConfig() {
   };
 
   const adicionar = async (p: Perfil) => {
-    const { error } = await (supabase as any).from("CS_FORM_GESTORES").insert({ user_id: p.id });
+    const { error } = await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel: "gestor", user_id: p.id });
     if (error) { toast(/row-level security/i.test(error.message) ? "Você não tem permissão para alterar esta configuração." : "Erro: " + error.message, "err"); return; }
     setPerfis(x => ({ ...x, [p.id]: p }));
     setBusca(""); setResultados([]);
@@ -65,7 +65,7 @@ export default function FormulariosConfig() {
 
   const remover = async (g: Gestor) => {
     if (g.user_id === user?.id && gestores.length > 1 && !confirm("Remover a si mesmo? Você perderá o poder de criar formulários e mexer nesta configuração.")) return;
-    const { error } = await (supabase as any).from("CS_FORM_GESTORES").delete().eq("id", g.id);
+    const { error } = await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("id", g.id);
     if (error) { toast(/row-level security/i.test(error.message) ? "Você não tem permissão para alterar esta configuração." : "Erro: " + error.message, "err"); return; }
     toast(`${nome(g.user_id)} removido.`, "ok");
     load();
