@@ -42,54 +42,18 @@ export default function FormularioEditor() {
   const [sujo, setSujo] = useState(false);
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
   const capaRef = useRef<HTMLInputElement>(null);
-  const [visUsers, setVisUsers] = useState<{ id: number; user_id: string }[]>([]);
-  const [visPerfis, setVisPerfis] = useState<Record<string, { display_name?: string; email?: string }>>({});
-  const [visBusca, setVisBusca] = useState("");
-  const [visResultados, setVisResultados] = useState<{ id: string; display_name?: string; email?: string }[]>([]);
   const toast = (msg: string, t = "info") => { const tid = Date.now() + Math.random(); setToasts(x => [...x, { id: tid, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== tid)), 4200); };
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fRes, vRes] = await Promise.all([
-      (supabase as any).from("CS_FORMULARIOS").select("*").eq("id", id).single(),
-      (supabase as any).from("CS_FORM_ACESSOS").select("id, user_id").eq("papel", "visualiza").eq("formulario_id", id).order("id"),
-    ]);
+    const fRes = await (supabase as any).from("CS_FORMULARIOS").select("*").eq("id", id).single();
     setLoading(false);
     if (fRes.error) { toast("Formulário não encontrado.", "err"); nav("/app/central-servicos/formularios"); return; }
     setForm(fRes.data);
     setPergs(normalizaPerguntas(fRes.data.perguntas));
-    const vis = vRes.data ?? [];
-    setVisUsers(vis);
-    if (vis.length) {
-      const { data: profs } = await (supabase as any).from("profiles").select("id, display_name, email").in("id", vis.map((v: any) => v.user_id));
-      setVisPerfis(Object.fromEntries((profs ?? []).map((p: any) => [p.id, p])));
-    }
     setSujo(false);
   }, [id, nav]);
   useEffect(() => { load(); }, [load]);
-
-  // ── Visibilidade: quem pode ver este formulário na gestão ─────────────
-  const buscarVisUser = async (q: string) => {
-    setVisBusca(q);
-    if (q.trim().length < 2) { setVisResultados([]); return; }
-    const { data } = await (supabase as any).from("profiles")
-      .select("id, display_name, email")
-      .or(`display_name.ilike.%${q.trim()}%,email.ilike.%${q.trim()}%`).limit(8);
-    const ja = new Set(visUsers.map(v => v.user_id));
-    setVisResultados((data ?? []).filter((p: any) => !ja.has(p.id)));
-  };
-  const addVisUser = async (p: { id: string; display_name?: string; email?: string }) => {
-    const { error } = await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel: "visualiza", formulario_id: id, user_id: p.id });
-    if (error) { toast("Erro: " + error.message, "err"); return; }
-    setVisPerfis(x => ({ ...x, [p.id]: p }));
-    setVisBusca(""); setVisResultados([]);
-    const { data } = await (supabase as any).from("CS_FORM_ACESSOS").select("id, user_id").eq("papel", "visualiza").eq("formulario_id", id).order("id");
-    setVisUsers(data ?? []);
-  };
-  const delVisUser = async (v: { id: number; user_id: string }) => {
-    await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("id", v.id);
-    setVisUsers(x => x.filter(i => i.id !== v.id));
-  };
 
   const mudaForm = (patch: Partial<Formulario>) => { setForm(f => f ? { ...f, ...patch } : f); setSujo(true); };
   const mudaPerg = (i: number, patch: Partial<Pergunta>) => { setPergs(ps => ps.map((p, j) => j === i ? { ...p, ...patch } : p)); setSujo(true); };
@@ -124,7 +88,7 @@ export default function FormularioEditor() {
         obrigatoria: p.obrigatoria, imagem_url: p.imagem_url || null,
         opcoes: p.opcoes.filter(o => o.trim()), config: p.config,
       })),
-      ...(form.visibilidade ? { visibilidade: form.visibilidade } : {}),
+      pergunta_setor_id: form.pergunta_setor_id || null,
       ...(novoStatus ? { status: novoStatus } : {}),
     };
     const { error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update(patchForm).eq("id", form.id);
@@ -182,44 +146,14 @@ export default function FormularioEditor() {
                 </label>
               </div>
               <div style={{ gridColumn: "1 / -1", borderTop: "1px solid #f1f5f9", paddingTop: 12 }}>
-                <label style={lbl}>Visibilidade na gestão (quem vê este formulário no sistema)</label>
-                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 8 }}>
-                  <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600, color: "#0f172a" }}>
-                    <input type="radio" checked={(form.visibilidade ?? "todos") === "todos"} onChange={() => mudaForm({ visibilidade: "todos" })} />
-                    Todos os usuários do ERP
-                  </label>
-                  <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600, color: "#0f172a" }}>
-                    <input type="radio" checked={form.visibilidade === "restrita"} onChange={() => mudaForm({ visibilidade: "restrita" })} />
-                    Somente pessoas específicas
-                  </label>
+                <label style={lbl}>Pergunta que define o setor (para Administrativo × Operacional)</label>
+                <select value={form.pergunta_setor_id ?? ""} onChange={e => mudaForm({ pergunta_setor_id: e.target.value || null })} style={{ ...inp, width: "100%", maxWidth: 420 }}>
+                  <option value="">— Nenhuma (não classifica por setor) —</option>
+                  {pergs.filter(p => p.titulo.trim()).map(p => <option key={p.id} value={p.id}>{p.titulo}</option>)}
+                </select>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 5 }}>
+                  A resposta guarda o valor dessa pergunta como setor. Quem tem “Visualizar Administrativo/Operacional” vê conforme o setor for classificado no painel 🔐 Permissões.
                 </div>
-                {form.visibilidade === "restrita" && (
-                  <div style={{ background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 10, padding: "10px 12px" }}>
-                    <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 8 }}>Você (criador) e os gestores de formulários sempre veem. Adicione quem mais pode ver este formulário e suas respostas:</div>
-                    <div style={{ position: "relative", marginBottom: visUsers.length ? 8 : 0 }}>
-                      <input placeholder="Buscar usuário por nome ou e-mail..." value={visBusca} onChange={e => buscarVisUser(e.target.value)}
-                        style={{ ...inp, width: "100%", fontSize: 12.5 }} />
-                      {visResultados.length > 0 && (
-                        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 20, overflow: "hidden" }}>
-                          {visResultados.map(p => (
-                            <div key={p.id} onClick={() => addVisUser(p)} style={{ padding: "8px 11px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
-                              <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{p.display_name || "—"}</span>
-                              <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 8 }}>{p.email}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {visUsers.map(v => (
-                        <span key={v.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, padding: "4px 6px 4px 11px", color: "#0f172a" }}>
-                          {visPerfis[v.user_id]?.display_name || visPerfis[v.user_id]?.email || v.user_id.slice(0, 8)}
-                          <button onClick={() => delVisUser(v)} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 12 }}>✕</button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={lbl}>Imagem de capa</label>

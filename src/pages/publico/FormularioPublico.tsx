@@ -13,6 +13,7 @@ interface Form {
   id: string; titulo: string; descricao?: string | null; slug: string;
   status: string; inicia_em?: string | null; encerra_em?: string | null;
   coleta_identificacao: boolean; imagem_capa_url?: string | null;
+  pergunta_setor_id?: string | null;
 }
 interface Perg {
   id: string; tipo: string; titulo: string; descricao?: string | null;
@@ -50,7 +51,7 @@ export default function FormularioPublico() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: f } = await (supabase as any).from("CS_FORMULARIOS").select("id,titulo,descricao,slug,status,inicia_em,encerra_em,coleta_identificacao,imagem_capa_url,perguntas").eq("slug", slug).maybeSingle();
+    const { data: f } = await (supabase as any).from("CS_FORMULARIOS").select("id,titulo,descricao,slug,status,inicia_em,encerra_em,coleta_identificacao,imagem_capa_url,perguntas,pergunta_setor_id").eq("slug", slug).maybeSingle();
     if (!f) { setLoading(false); setNaoEncontrado(true); return; }
     setForm(f);
     setPergs((Array.isArray(f.perguntas) ? f.perguntas : []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} })));
@@ -80,10 +81,16 @@ export default function FormularioPublico() {
     }
     if (form.coleta_identificacao && !nome.trim()) { setErro("Informe seu nome."); return; }
     setEnviando(true);
+    // Setor da resposta (p/ Administrativo × Operacional): valor da pergunta
+    // indicada no formulário. criado_por é preenchido pelo default (auth.uid())
+    // quando o respondente está logado; anônimo fica sem dono.
+    const setorRaw = form.pergunta_setor_id ? valores[form.pergunta_setor_id] : null;
+    const setor = Array.isArray(setorRaw) ? (setorRaw[0] ? String(setorRaw[0]).trim() : null) : (setorRaw != null && setorRaw !== "" ? String(setorRaw).trim() : null);
     const { error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert({
       formulario_id: form.id,
       respondente_nome: form.coleta_identificacao ? nome.trim() : null,
       respondente_email: form.coleta_identificacao ? (email.trim() || null) : null,
+      setor,
       itens: valores,
     });
     setEnviando(false);

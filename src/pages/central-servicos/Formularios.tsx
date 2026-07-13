@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { parseSurveyMonkey, ImportResultado } from "@/utils/surveyMonkeyImporter";
+import { useFormPerms } from "@/hooks/useFormPerms";
+import FormulariosPermissoes from "./FormulariosPermissoes";
 
 // =====================================================================
 // CENTRAL DE SERVIÇOS — Nascimento Formulários (gestão)
@@ -27,6 +29,7 @@ export interface Formulario {
   imagem_capa_url?: string | null; criado_por_nome?: string | null;
   criado_por?: string | null; visibilidade?: "todos" | "restrita";
   perguntas?: Pergunta[];  // jsonb — ordem = posição no array
+  pergunta_setor_id?: string | null;  // qual pergunta classifica a resposta (Admin/Operac.)
 }
 
 export const normalizaPerguntas = (v: any): Pergunta[] =>
@@ -61,6 +64,8 @@ const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
 export default function Formularios() {
   const nav = useNavigate();
   const { user } = useAuth();
+  const { can, canVerAlguma, isAdmin } = useFormPerms();
+  const [mostrarPerms, setMostrarPerms] = useState(false);
   const [forms, setForms] = useState<Formulario[]>([]);
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -132,10 +137,15 @@ export default function Formularios() {
       id: novoUuid(), tipo: p.tipo, titulo: p.titulo, descricao: p.descricao ?? null,
       obrigatoria: false, imagem_url: null, opcoes: p.opcoes, config: p.config,
     }));
+    // Pergunta que define o setor (p/ Administrativo × Operacional): a que se
+    // chamar "setor". Cada resposta guarda o valor dessa pergunta em setor.
+    const setorIdx = pergsNovas.findIndex(p => /\bsetor\b/i.test(p.titulo));
+    const setorPergId = setorIdx >= 0 ? pergsNovas[setorIdx].id : null;
+    const coerceSetor = (v: any) => { const x = Array.isArray(v) ? v[0] : v; const t = x == null ? "" : String(x).trim(); return t || null; };
     const { data: form, error: e1 } = await (supabase as any).from("CS_FORMULARIOS").insert({
       titulo, slug: slugify(titulo), criado_por_nome: nome, coleta_identificacao: temIdent,
       descricao: "Importado do SurveyMonkey em " + new Date().toLocaleDateString("pt-BR") + ".",
-      perguntas: pergsNovas,
+      perguntas: pergsNovas, pergunta_setor_id: setorPergId,
     }).select("id").single();
     if (e1) { setImportando(false); toast("Erro ao criar formulário: " + e1.message, "err"); return; }
 
@@ -150,6 +160,8 @@ export default function Formularios() {
         enviado_em: r.enviado_em ?? new Date().toISOString(),
         respondente_nome: r.respondente_nome ?? null,
         respondente_email: r.respondente_email ?? null,
+        setor: setorIdx >= 0 ? coerceSetor(r.itens[setorIdx]) : null,
+        criado_por: null,  // respostas importadas não têm dono (só ver_tudo/admin/op enxergam)
         itens: Object.fromEntries(Object.entries(r.itens).map(([idx, v]) => [idPorOrdem[Number(idx)], v]).filter(([k]) => k)),
       }));
       const { error: e3 } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(lote);
@@ -196,16 +208,20 @@ export default function Formularios() {
           <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Crie formulários e pesquisas, publique numa URL e acompanhe as respostas.</div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={() => nav("/app/central-servicos/formularios/dashboard")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>📊 Dashboard</button>
-          <button onClick={() => nav("/app/central-servicos/formularios/config")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>⚙️ Configurações</button>
-          <button onClick={() => importRef.current?.click()} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬆ Importar SurveyMonkey</button>
-          <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
-            onChange={e => { const f = e.target.files?.[0]; if (f) abrirImport(f); e.target.value = ""; }} />
-          <button onClick={() => { setNovoTitulo(""); setCriando(true); }} style={btn("#0f3171")}>+ Novo formulário</button>
+          {canVerAlguma && <button onClick={() => nav("/app/central-servicos/formularios/dashboard")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>📊 Dashboard</button>}
+          {isAdmin && <button onClick={() => setMostrarPerms(v => !v)} style={btn(mostrarPerms ? "#0f3171" : "#fff", mostrarPerms ? "#fff" : "#475569", "1px solid #e2e8f0")}>🔐 Permissões {mostrarPerms ? "▴" : "▾"}</button>}
+          {can("editar_criar") && <>
+            <button onClick={() => importRef.current?.click()} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬆ Importar SurveyMonkey</button>
+            <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) abrirImport(f); e.target.value = ""; }} />
+            <button onClick={() => { setNovoTitulo(""); setCriando(true); }} style={btn("#0f3171")}>+ Novo formulário</button>
+          </>}
         </div>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 24px" }}>
+        {isAdmin && mostrarPerms && <FormulariosPermissoes onToast={toast} />}
+
         <input placeholder="Buscar formulário..." value={busca} onChange={e => setBusca(e.target.value)}
           style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, color: "#0f172a", fontSize: 12, padding: "9px 12px", outline: "none", width: "100%", maxWidth: 420, marginBottom: 14, boxShadow: "0 8px 24px rgba(15,23,42,.06)" }} />
 
@@ -234,17 +250,17 @@ export default function Formularios() {
                       <span>por {f.criado_por_nome || "—"} · criado em {fmtDt(f.created_at)}</span>
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 11 }}>
-                      <a href={urlPublica(f.slug)} target="_blank" rel="noopener noreferrer" style={{ ...btn("#16a34a"), textDecoration: "none", display: "inline-block" }}>↗ Abrir</a>
-                      <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}`)} style={btn("#0f3171")}>✏️ Editar</button>
-                      <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}/respostas`)} style={btn("rgba(59,130,246,.1)", "#2563eb", "1px solid rgba(59,130,246,.3)")}>📊 Respostas</button>
-                      {f.status !== "publicado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Publicar</button>}
+                      {can("responder") && <a href={urlPublica(f.slug)} target="_blank" rel="noopener noreferrer" style={{ ...btn("#16a34a"), textDecoration: "none", display: "inline-block" }}>↗ Abrir</a>}
+                      {can("editar_criar") && <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}`)} style={btn("#0f3171")}>✏️ Editar</button>}
+                      {canVerAlguma && <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}/respostas`)} style={btn("rgba(59,130,246,.1)", "#2563eb", "1px solid rgba(59,130,246,.3)")}>📊 Respostas</button>}
+                      {can("encerrar_excluir") && f.status !== "publicado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Publicar</button>}
                       {f.status === "publicado" && <>
                         <button onClick={() => copiarUrl(f)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>🔗 Copiar URL</button>
-                        <button onClick={() => mudarStatus(f, "encerrado")} style={btn("rgba(220,38,38,.08)", "#dc2626", "1px solid rgba(220,38,38,.25)")}>Encerrar</button>
+                        {can("encerrar_excluir") && <button onClick={() => mudarStatus(f, "encerrado")} style={btn("rgba(220,38,38,.08)", "#dc2626", "1px solid rgba(220,38,38,.25)")}>Encerrar</button>}
                       </>}
-                      {f.status === "encerrado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Reabrir</button>}
-                      <button onClick={() => duplicar(f)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Duplicar</button>
-                      <button onClick={() => excluir(f)} style={btn("transparent", "#94a3b8")}>Excluir</button>
+                      {can("encerrar_excluir") && f.status === "encerrado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Reabrir</button>}
+                      {can("editar_criar") && <button onClick={() => duplicar(f)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Duplicar</button>}
+                      {can("encerrar_excluir") && <button onClick={() => excluir(f)} style={btn("transparent", "#94a3b8")}>Excluir</button>}
                     </div>
                   </div>
                 </div>

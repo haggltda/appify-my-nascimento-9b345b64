@@ -115,7 +115,6 @@ import Formularios from "./pages/central-servicos/Formularios";
 import FormularioEditor from "./pages/central-servicos/FormularioEditor";
 import FormularioRespostas from "./pages/central-servicos/FormularioRespostas";
 import FormulariosDashboard from "./pages/central-servicos/FormulariosDashboard";
-import FormulariosConfig from "./pages/central-servicos/FormulariosConfig";
 import FormularioPublico from "./pages/publico/FormularioPublico";
 import Ferias from "./pages/rh/Ferias";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
@@ -287,7 +286,6 @@ const App = () => (
             <Route path="central-servicos/denuncias" element={<Denuncias />} />
             <Route path="central-servicos/formularios" element={<Formularios />} />
             <Route path="central-servicos/formularios/dashboard" element={<FormulariosDashboard />} />
-            <Route path="central-servicos/formularios/config" element={<FormulariosConfig />} />
             <Route path="central-servicos/formularios/:id" element={<FormularioEditor />} />
             <Route path="central-servicos/formularios/:id/respostas" element={<FormularioRespostas />} />
             {/* BI */}
