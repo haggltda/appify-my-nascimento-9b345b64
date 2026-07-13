@@ -12,7 +12,7 @@ import { useAccessibleMenus } from "@/hooks/useAccessibleMenus";
 import { useReunioes, useUsuariosAtivos } from "./useReunioes";
 import { CalendarioMes } from "./componentes/CalendarioMes";
 import { ReuniaoFormCriar } from "./ReuniaoFormCriar";
-import { ETAPA_COR, ETAPA_LABEL, nomeUsuario, SALAS_PRESENCIAIS } from "./types";
+import { ETAPA_COR, ETAPA_LABEL, nomeUsuario, salaResumo, SALAS_PRESENCIAIS } from "./types";
 
 function KpiTile({ icon, label, valor, sub, cor }: { icon: React.ReactNode; label: string; valor: number; sub: string; cor: string }) {
   return (
@@ -37,8 +37,7 @@ export default function Reunioes() {
   const [modo, setModo] = useState<"calendario" | "lista">("calendario");
   const [mesAtual, setMesAtual] = useState(() => new Date());
   const [diaSelecionado, setDiaSelecionado] = useState(() => new Date());
-  const [filtroResponsavel, setFiltroResponsavel] = useState("");
-  const [filtroConvidado, setFiltroConvidado] = useState("");
+  const [filtroPessoa, setFiltroPessoa] = useState("");
   const [filtroSala, setFiltroSala] = useState("");
 
   const opcoesResponsaveis = usuarios.map((u) => ({ value: u.id, label: u.display_name }));
@@ -46,11 +45,10 @@ export default function Reunioes() {
 
   const reunioesFiltradas = useMemo(
     () => reunioes.filter((r) =>
-      (!filtroResponsavel || r.responsavel_preenchimento_user_id === filtroResponsavel)
-      && (!filtroConvidado || r.convidados.includes(filtroConvidado))
-      && (!filtroSala || (r.tipo_local === "presencial" && r.local_ou_link === filtroSala)),
+      (!filtroPessoa || [r.criado_por, r.responsavel_preenchimento_user_id, ...r.convidados].includes(filtroPessoa))
+      && (!filtroSala || salaResumo(r) === filtroSala),
     ),
-    [reunioes, filtroResponsavel, filtroConvidado, filtroSala],
+    [reunioes, filtroPessoa, filtroSala],
   );
 
   const kpis = useMemo(() => {
@@ -92,19 +90,10 @@ export default function Reunioes() {
 
       <div className="flex flex-wrap items-center gap-2">
         <SearchableSelect
-          value={filtroResponsavel}
-          onChange={setFiltroResponsavel}
+          value={filtroPessoa}
+          onChange={setFiltroPessoa}
           options={opcoesResponsaveis}
-          placeholder="Pessoa responsável"
-          allowClear
-          clearValue=""
-          className="w-56"
-        />
-        <SearchableSelect
-          value={filtroConvidado}
-          onChange={setFiltroConvidado}
-          options={opcoesResponsaveis}
-          placeholder="Pessoa Convidada"
+          placeholder="Pesquisar Alguém"
           allowClear
           clearValue=""
           className="w-56"
