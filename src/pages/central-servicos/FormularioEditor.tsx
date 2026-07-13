@@ -123,8 +123,7 @@ export default function FormularioEditor() {
       {/* Cabeçalho */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "#fff", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0, flexWrap: "wrap" }}>
         <button onClick={() => nav("/app/central-servicos/formularios")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>← Voltar</button>
-        <input value={form.titulo} onChange={e => mudaForm({ titulo: e.target.value })} placeholder="Título do formulário"
-          style={{ ...inp, flex: 1, minWidth: 220, fontSize: 16, fontWeight: 800, color: "#0f3171", border: "1px solid transparent", background: "transparent" }} />
+        <div style={{ flex: 1, minWidth: 220, fontSize: 16, fontWeight: 800, color: form.titulo ? "#0f3171" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{form.titulo || "Sem título"}</div>
         <span style={{ fontSize: 10.5, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: sit.bg, color: sit.c }}>{sit.rotulo}</span>
         {form.status === "publicado" && <a href={urlPublica(form.slug)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#0369a1", fontWeight: 700 }}>Abrir URL ↗</a>}
         <button onClick={() => salvar()} disabled={salvando} style={btn(sujo ? "#0f3171" : "#94a3b8")}>{salvando ? "Salvando..." : "💾 Salvar"}</button>
@@ -140,6 +139,10 @@ export default function FormularioEditor() {
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 12 }}>🗂 Criar Formulário</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={lbl}>Título do formulário</label>
+                <input value={form.titulo} onChange={e => mudaForm({ titulo: e.target.value })} style={{ ...inp, width: "100%", fontSize: 14, fontWeight: 700, color: "#0f172a" }} placeholder="Ex.: Feedback Guiado 2026" />
+              </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={lbl}>Descrição do formulário (aparece no topo)</label>
                 <textarea value={form.descricao ?? ""} onChange={e => mudaForm({ descricao: e.target.value })} rows={2} style={{ ...inp, width: "100%", resize: "vertical" }} placeholder="Explique o objetivo do formulário..." />
