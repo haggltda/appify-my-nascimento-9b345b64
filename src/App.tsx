@@ -39,7 +39,6 @@ import ParecerDiretorOperacional from "./pages/pareceres/ParecerDiretorOperacion
 import ParecerDiretorAdministrativo from "./pages/pareceres/ParecerDiretorAdministrativo";
 import Implantacao from "./pages/contratos/Implantacao";
 import PlanilhaCusto from "./pages/licitacoes/PlanilhaCusto";
-import ChecklistImplantacao from "./pages/licitacoes/ChecklistImplantacao";
 import ContratosAtivos from "./pages/contratos/Ativos";
 import Empenhos from "./pages/contratos/Empenhos";
 import Postos from "./pages/contratos/Postos";
@@ -73,6 +72,7 @@ import Recebimentos from "./pages/suprimentos/Recebimentos";
 import Cotacoes from "./pages/suprimentos/Cotacoes";
 import ContasPagar from "./pages/financeiro/ContasPagar";
 import ContasReceber from "./pages/financeiro/ContasReceber";
+import Cobrancas from "./pages/cobrancas/Cobrancas";
 import FluxoCaixa from "./pages/financeiro/FluxoCaixa";
 import FluxoCaixaDiario from "./pages/financeiro/FluxoCaixaDiario";
 import CapitalGiro from "./pages/financeiro/CapitalGiro";
@@ -101,6 +101,22 @@ import Colaboradores from "./pages/rh/Colaboradores";
 import Alocacoes from "./pages/rh/Alocacoes";
 import Recrutamento from "./pages/rh/Recrutamento";
 import Patrimonios from "./pages/juridico/Patrimonios";
+import CentralDuvidas from "./pages/juridico/CentralDuvidas";
+import Processos from "./pages/juridico/Processos";
+import Advertencias from "./pages/juridico/Advertencias";
+import VerificacaoCandidatos from "./pages/juridico/VerificacaoCandidatos";
+import AsoCandidatos from "./pages/sst/AsoCandidatos";
+import NovasAdmissoes from "./pages/rh/NovasAdmissoes";
+import BancoTalentos from "./pages/rh/BancoTalentos";
+import RecrutamentoDashboard from "./pages/rh/RecrutamentoDashboard";
+import OrientacoesJuridicas from "./pages/central-servicos/OrientacoesJuridicas";
+import Denuncias from "./pages/central-servicos/Denuncias";
+import Formularios from "./pages/central-servicos/Formularios";
+import FormularioEditor from "./pages/central-servicos/FormularioEditor";
+import FormularioRespostas from "./pages/central-servicos/FormularioRespostas";
+import FormulariosDashboard from "./pages/central-servicos/FormulariosDashboard";
+import FormulariosConfig from "./pages/central-servicos/FormulariosConfig";
+import FormularioPublico from "./pages/publico/FormularioPublico";
 import Ferias from "./pages/rh/Ferias";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
 import BIDashboard from "./pages/bi/Dashboard";
@@ -157,6 +173,8 @@ const App = () => (
           {/* Portal público de resposta a formulários (sem login) */}
           <Route path="/formularios/:slug" element={<FormularioPublico />} />
           <Route path="/candidatura" element={<Navigate to="/vagas" replace />} />
+          {/* Nascimento Formulários — resposta pública, sem login */}
+          <Route path="/formularios/:slug" element={<FormularioPublico />} />
           <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
             <Route index element={<Inicio />} />
             <Route path="encarregados" element={<Navigate to="/app/encarregados/minhas-solicitacoes" replace />} />
@@ -177,7 +195,7 @@ const App = () => (
             <Route path="painel-executivo" element={<PainelExecutivo />} />
             <Route path="painel-executivo/tv" element={<PainelExecutivoTV />} />
             <Route path="presidencia" element={<Presidencia />} />
-            <Route path="pipeline" element={<Pipeline />} />
+            <Route path="licitacoes/grade" element={<Pipeline />} />
             <Route path="editais" element={<CadastroEdital />} />
             <Route path="documentos" element={<Documentos />} />
             <Route path="triagem" element={<TriagemIA />} />
@@ -198,7 +216,6 @@ const App = () => (
             <Route path="prontas-contrato" element={<ProntasContrato />} />
             <Route path="contratos/implantacao" element={<Implantacao />} />
             <Route path="licitacoes/planilha-custo" element={<PlanilhaCusto />} />
-            <Route path="licitacoes/checklist" element={<ChecklistImplantacao />} />
             <Route path="licitacoes/implantacao" element={<Implantacao />} />
             <Route path="contratos/ativos" element={<ContratosAtivos />} />
             <Route path="contratos/empenhos" element={<Empenhos />} />
@@ -240,6 +257,7 @@ const App = () => (
             {/* Financeiro */}
             <Route path="financeiro/contas-pagar" element={<ContasPagar />} />
             <Route path="financeiro/contas-receber" element={<ContasReceber />} />
+            <Route path="cobrancas" element={<Cobrancas />} />
             <Route path="financeiro/fluxo-caixa" element={<FluxoCaixa />} />
             <Route path="financeiro/fluxo-caixa-diario" element={<FluxoCaixaDiario />} />
             <Route path="financeiro/capital-giro" element={<CapitalGiro />} />
@@ -266,11 +284,29 @@ const App = () => (
             <Route path="rh/colaboradores" element={<Colaboradores />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             <Route path="rh/folha" element={<Folha />} />
+            <Route path="rh/novas-admissoes" element={<NovasAdmissoes />} />
+            <Route path="rh/banco-talentos" element={<BancoTalentos />} />
+            <Route path="rh/recrutamento-dashboard" element={<RecrutamentoDashboard />} />
             <Route path="rh/ferias" element={<Ferias />} />
             <Route path="rh/recrutamento" element={<Recrutamento />} />
             {/* Jurídico — Gestão Patrimonial */}
             <Route path="juridico" element={<Navigate to="/app/juridico/patrimonios" replace />} />
             <Route path="juridico/patrimonios" element={<Patrimonios />} />
+            <Route path="juridico/processos/dashboard" element={<Processos view="dashboard" />} />
+            <Route path="juridico/processos" element={<Processos view="processos" />} />
+            <Route path="juridico/processos/audiencias" element={<Processos view="audiencias" />} />
+            <Route path="juridico/advertencias" element={<Advertencias />} />
+            <Route path="juridico/candidatos" element={<VerificacaoCandidatos />} />
+            <Route path="juridico/duvidas" element={<CentralDuvidas />} />
+            {/* SST — ASO / Admissão (fila do Recrutamento) */}
+            <Route path="sst/aso" element={<AsoCandidatos />} />
+            <Route path="central-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
+            <Route path="central-servicos/denuncias" element={<Denuncias />} />
+            <Route path="central-servicos/formularios" element={<Formularios />} />
+            <Route path="central-servicos/formularios/dashboard" element={<FormulariosDashboard />} />
+            <Route path="central-servicos/formularios/config" element={<FormulariosConfig />} />
+            <Route path="central-servicos/formularios/:id" element={<FormularioEditor />} />
+            <Route path="central-servicos/formularios/:id/respostas" element={<FormularioRespostas />} />
             {/* BI */}
             <Route path="bi" element={<BIDashboard />} />
             {/* Integração & Migração */}

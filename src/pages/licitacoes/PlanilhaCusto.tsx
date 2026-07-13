@@ -3,7 +3,13 @@ import { toast } from "sonner";
 import {
   Search, Plus, Upload, Trash2, Pencil, ChevronDown, ChevronUp,
   FileSpreadsheet, X, Download, Eye, DatabaseZap, Building2, RefreshCw,
+  MapPin, Loader2, Check,
 } from "lucide-react";
+import {
+  usePlanilhaPostoLocalizacao, usePlanilhaPostoLocalizacaoAll,
+  usePostoLocalizacaoSave, usePostoLocalizacaoDelete,
+  type PostoLocalizacao,
+} from "@/hooks/usePlanilhaPostoLocalizacao";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   usePlanilhaCustos, useSavePlanilhaCusto, useDeletePlanilhaCusto,
@@ -12,6 +18,7 @@ import {
 } from "@/hooks/usePlanilhaCusto";
 import { importarPlanilha, type PlanilhaCustoImportada } from "@/utils/planilhaCustoImporter";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
+import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -117,10 +124,15 @@ export default function PlanilhaCusto() {
   const [editId, setEditId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [migracaoOpen, setMigracaoOpen] = useState(false);
+  const [importPostosOpen, setImportPostosOpen] = useState(false);
   const [contratosOpen, setContratosOpen] = useState(false);
   const [clientesOpen, setClientesOpen] = useState(false);
+  const [postosViewOpen, setPostosViewOpen] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
+  const [filtroOrexec, setFiltroOrexec] = useState<"" | "ORÇADO" | "EXECUTADO">("");
+  const [filtroVigencia, setFiltroVigencia] = useState<"" | "EM VIGÊNCIA" | "HISTÓRICO" | "A INICIAR">("");
   const [updateFromRow, setUpdateFromRow] = useState<PlanilhaCustoRow | undefined>();
+  const [postosRow, setPostosRow] = useState<PlanilhaCustoRow | null>(null);
   const { empresa } = useEmpresaAtiva();
 
   const { data: rows = [], isLoading } = usePlanilhaCustos();
@@ -131,7 +143,9 @@ export default function PlanilhaCusto() {
 
   const filtered = rows.filter((r) => {
     const status = statusMap.get(r.id) ?? "";
-    if (!showHistorico && status === "HISTÓRICO") return false;
+    if (!showHistorico && status === "HISTÓRICO" && !filtroVigencia) return false;
+    if (filtroVigencia && status !== filtroVigencia) return false;
+    if (filtroOrexec && r.orexec !== filtroOrexec) return false;
     return (
       r.cliente.toLowerCase().includes(q.toLowerCase()) ||
       r.contrato.toLowerCase().includes(q.toLowerCase()) ||
@@ -186,6 +200,12 @@ export default function PlanilhaCusto() {
         actions={
           <>
             <button
+              onClick={() => setImportPostosOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-muted"
+            >
+              <MapPin className="h-4 w-4" /> Importar Postos
+            </button>
+            <button
               onClick={() => setMigracaoOpen(true)}
               className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-muted"
             >
@@ -202,13 +222,19 @@ export default function PlanilhaCusto() {
       />
 
       {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Kpi label="Total de registros" v={String(rows.length)} />
         <Kpi label="Empresa ativa" v={empresa.sigla} />
         <Kpi
           label="Contratos distintos"
-          v={String(new Set(rows.map((r) => r.contrato)).size)}
+          v={String(new Set(rows.filter((r) => statusMap.get(r.id) === "EM VIGÊNCIA" && r.orexec === "EXECUTADO").map((r) => r.contrato)).size)}
           onClick={() => setContratosOpen(true)}
+          clickable
+        />
+        <Kpi
+          label="Postos cadastrados"
+          v={String(rows.filter((r) => statusMap.get(r.id) === "EM VIGÊNCIA" && r.orexec === "EXECUTADO").length)}
+          onClick={() => setPostosViewOpen(true)}
           clickable
         />
         <Kpi
@@ -231,6 +257,27 @@ export default function PlanilhaCusto() {
               className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary"
             />
           </div>
+          <select
+            value={filtroOrexec}
+            onChange={(e) => { setFiltroOrexec(e.target.value as typeof filtroOrexec); setPage(1); }}
+            className="h-9 rounded-md border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-primary"
+          >
+            <option value="">Orçado / Executado</option>
+            <option value="ORÇADO">Orçado</option>
+            <option value="EXECUTADO">Executado</option>
+          </select>
+
+          <select
+            value={filtroVigencia}
+            onChange={(e) => { setFiltroVigencia(e.target.value as typeof filtroVigencia); setPage(1); }}
+            className="h-9 rounded-md border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-primary"
+          >
+            <option value="">Vigência</option>
+            <option value="EM VIGÊNCIA">Em Vigência</option>
+            <option value="A INICIAR">A Iniciar</option>
+            <option value="HISTÓRICO">Histórico</option>
+          </select>
+
           <button
             onClick={() => { setShowHistorico((v) => !v); setPage(1); }}
             className={`inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition-colors ${
@@ -253,7 +300,7 @@ export default function PlanilhaCusto() {
                 <th className="px-4 py-3 text-center">Serviço</th>
                 <th className="px-4 py-3 text-center">Vigência</th>
                 <th className="px-4 py-3 text-center">Status</th>
-                <th className="px-4 py-3 text-center">Qt Postos</th>
+                <th className="px-4 py-3 text-center">Qt. Pessoas</th>
                 <th className="px-4 py-3 text-center">Total/Empregado</th>
                 <th className="px-4 py-3 text-center">Total Posto</th>
                 <th className="px-4 py-3 text-center">Tipo</th>
@@ -330,6 +377,15 @@ export default function PlanilhaCusto() {
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
                       </button>
+                      {r.orexec === "EXECUTADO" && statusMap.get(r.id) === "EM VIGÊNCIA" && (
+                        <button
+                          onClick={() => setPostosRow(r)}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                          title="Definir postos / localizações"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(r.id)}
                         className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
@@ -399,6 +455,19 @@ export default function PlanilhaCusto() {
         </DialogContent>
       </Dialog>
 
+      {/* Modal de importação de postos */}
+      <Dialog open={importPostosOpen} onOpenChange={(o) => !o && setImportPostosOpen(false)}>
+        <DialogContent className="max-w-2xl p-0">
+          {importPostosOpen && (
+            <ImportPostosModal
+              rows={rows}
+              empresaId={empresa.id}
+              onClose={() => setImportPostosOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de migração em lote */}
       <Dialog open={migracaoOpen} onOpenChange={(o) => !o && setMigracaoOpen(false)}>
         <DialogContent className="max-w-lg p-0">
@@ -426,12 +495,729 @@ export default function PlanilhaCusto() {
         </DialogContent>
       </Dialog>
 
+      {/* Modal de visão de postos */}
+      <Dialog open={postosViewOpen} onOpenChange={(o) => !o && setPostosViewOpen(false)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {postosViewOpen && <PostosViewModal rows={rows} statusMap={statusMap} empresaId={empresa.id} />}
+        </DialogContent>
+      </Dialog>
+
       {/* Modal de breakdown por cliente */}
       <Dialog open={clientesOpen} onOpenChange={(o) => !o && setClientesOpen(false)}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
           <ClientesModal rows={rows} statusMap={statusMap} />
         </DialogContent>
       </Dialog>
+
+      {/* Modal de definir postos / localizações */}
+      <Dialog open={!!postosRow} onOpenChange={(o) => !o && setPostosRow(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+          {postosRow && (
+            <PostosModal
+              row={postosRow}
+              empresaId={empresa.id}
+              onClose={() => setPostosRow(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Modal de Visão de Postos ────────────────────────────────────────────────
+
+function PostosViewModal({
+  rows,
+  statusMap,
+  empresaId,
+}: {
+  rows: PlanilhaCustoRow[];
+  statusMap: Map<string, string>;
+  empresaId: string;
+}) {
+  const [searchContrato, setSearchContrato] = useState("");
+  const [search, setSearch] = useState("");
+  const [contratoSelecionado, setContratoSelecionado] = useState<string | null>(null);
+  const [expandido, setExpandido] = useState<string | null>(null);
+
+  const { data: todasLocalizacoes = [] } = usePlanilhaPostoLocalizacaoAll(empresaId);
+
+  // Apenas EXECUTADO vigente
+  const postosVigentes = rows.filter(
+    (r) => r.orexec === "EXECUTADO" && statusMap.get(r.id) === "EM VIGÊNCIA"
+  );
+
+  // Índice de localizações por planilha_custo_id
+  const locByPlanilha = React.useMemo(() => {
+    const m = new Map<string, typeof todasLocalizacoes>();
+    for (const l of todasLocalizacoes) {
+      const arr = m.get(l.planilha_custo_id) ?? [];
+      arr.push(l);
+      m.set(l.planilha_custo_id, arr);
+    }
+    return m;
+  }, [todasLocalizacoes]);
+
+  // Contratos distintos com contagem de postos
+  const contratos = React.useMemo(() => {
+    const map = new Map<string, { contrato: string; cliente: string; qtPostos: number; qtPessoas: number }>();
+    for (const r of postosVigentes) {
+      const existing = map.get(r.contrato);
+      if (existing) {
+        existing.qtPostos += 1;
+        existing.qtPessoas += r.qt_postos || 0;
+      } else {
+        map.set(r.contrato, { contrato: r.contrato, cliente: r.cliente, qtPostos: 1, qtPessoas: r.qt_postos || 0 });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.contrato.localeCompare(b.contrato));
+  }, [postosVigentes]);
+
+  // Seleciona o primeiro contrato por padrão
+  React.useEffect(() => {
+    if (contratos.length > 0 && !contratoSelecionado) {
+      setContratoSelecionado(contratos[0].contrato);
+    }
+  }, [contratos, contratoSelecionado]);
+
+  // Postos do contrato selecionado, filtrados pela busca
+  const postosDoCont = postosVigentes.filter((r) => r.contrato === contratoSelecionado);
+  const filteredPostos = postosDoCont.filter(
+    (r) =>
+      r.posto.toLowerCase().includes(search.toLowerCase()) ||
+      r.cliente.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const totalPessoas = filteredPostos.reduce((s, r) => s + (r.qt_postos || 0), 0);
+
+  const [leftWidth, setLeftWidth] = React.useState(224);
+  const dragging = React.useRef(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  function onMouseDown(e: React.MouseEvent) {
+    dragging.current = true;
+    e.preventDefault();
+    function onMove(ev: MouseEvent) {
+      if (!dragging.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const newW = Math.min(Math.max(ev.clientX - rect.left, 140), rect.width - 200);
+      setLeftWidth(newW);
+    }
+    function onUp() {
+      dragging.current = false;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
+  return (
+    <div ref={containerRef} className="flex h-[600px]">
+      {/* ── Painel esquerdo: lista de contratos ── */}
+      <div style={{ width: leftWidth }} className="shrink-0 flex flex-col pr-3">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Contratos ({contratos.length})
+        </p>
+        <div className="relative mb-2">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={searchContrato}
+            onChange={(e) => setSearchContrato(e.target.value)}
+            placeholder="Buscar contrato…"
+            className="h-7 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none focus:border-primary"
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-1">
+          {contratos.filter((c) =>
+            c.contrato.toLowerCase().includes(searchContrato.toLowerCase()) ||
+            c.cliente.toLowerCase().includes(searchContrato.toLowerCase())
+          ).map((c) => {
+            const ativo = contratoSelecionado === c.contrato;
+            return (
+              <button
+                key={c.contrato}
+                onClick={() => { setContratoSelecionado(c.contrato); setExpandido(null); setSearch(""); }}
+                title={`${c.contrato}\n${c.cliente}`}
+                className={`w-full rounded-md px-3 py-2 text-left transition-colors ${
+                  ativo
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted/50 text-foreground"
+                }`}
+              >
+                <p className="text-xs font-semibold truncate leading-snug">{c.contrato}</p>
+                <p className={`text-[10px] truncate ${ativo ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                  {c.cliente}
+                </p>
+                <p className={`text-[10px] mt-0.5 ${ativo ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                  {c.qtPostos} posto{c.qtPostos !== 1 ? "s" : ""} · {c.qtPessoas} pessoas
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Divisor arrastável ── */}
+      <div
+        onMouseDown={onMouseDown}
+        className="w-1.5 shrink-0 cursor-col-resize hover:bg-primary/30 transition-colors border-x border-border mx-1"
+      />
+
+      {/* ── Painel direito: postos do contrato ── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {contratoSelecionado ? (
+          <>
+            <div className="mb-3 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h2 className="text-sm font-semibold truncate">{contratoSelecionado}</h2>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-success">EXECUTADO VIGENTE</span> · {filteredPostos.length} postos · {totalPessoas} pessoas
+                </p>
+              </div>
+              <div className="relative w-60 shrink-0">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar posto…"
+                  className="h-8 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {filteredPostos.map((r) => {
+                const locs = locByPlanilha.get(r.id) ?? [];
+                const totalExec = locs.reduce((s, l) => s + l.qt_pessoas_executadas, 0);
+                const totalOrc = locs.reduce((s, l) => s + l.qt_pessoas_orcadas, 0);
+                const bate = locs.length > 0 && totalExec === r.qt_postos;
+                const aberto = expandido === r.id;
+
+                return (
+                  <div key={r.id} className="rounded-lg border border-border overflow-hidden">
+                    <button
+                      onClick={() => setExpandido(aberto ? null : r.id)}
+                      className="flex w-full items-start justify-between px-4 py-3 text-left hover:bg-muted/30"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">{r.posto}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {r.cliente}
+                          {r.sindicato && <span className="ml-1 opacity-60">· {r.sindicato}</span>}
+                        </p>
+                        {locs.length === 0 && (
+                          <p className="mt-0.5 text-[10px] text-muted-foreground/60 italic">Sem localizações cadastradas</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 ml-4 shrink-0">
+                        {locs.length > 0 && (
+                          <span className={`text-[11px] font-semibold ${bate ? "text-success" : "text-warning"}`}>
+                            {bate ? "✓" : "⚠"} {locs.length} {locs.length > 1 ? "locais" : "local"}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">{r.qt_postos} pessoas</span>
+                        {aberto ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                      </div>
+                    </button>
+
+                    {aberto && (
+                      <div className="border-t border-border bg-muted/20 px-4 py-3 space-y-2">
+                        {locs.length === 0 ? (
+                          <p className="text-xs text-muted-foreground italic">Nenhuma localização cadastrada para este posto.</p>
+                        ) : (
+                          <>
+                            {locs.map((loc) => (
+                              <div key={loc.id} className="rounded-md border border-border bg-background px-3 py-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
+                                      <span className="text-sm font-medium">{loc.nome || "—"}</span>
+                                      {loc.periculosidade && (
+                                        <span className="inline-flex rounded-full bg-destructive/10 px-1.5 py-0.5 text-[9px] font-bold text-destructive">PERIC.</span>
+                                      )}
+                                      {loc.insalubridade && (
+                                        <span className="inline-flex rounded-full bg-warning/10 px-1.5 py-0.5 text-[9px] font-bold text-warning">INSALUB.</span>
+                                      )}
+                                    </div>
+                                    {(loc.logradouro || loc.municipio) && (
+                                      <p className="mt-0.5 pl-5 text-[11px] text-muted-foreground">
+                                        {[loc.logradouro, loc.numero, loc.bairro, loc.municipio, loc.uf].filter(Boolean).join(", ")}
+                                        {loc.cep && ` · CEP ${loc.cep}`}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="shrink-0 text-right text-xs text-muted-foreground">
+                                    <p>Exec: <strong className="text-foreground">{loc.qt_pessoas_executadas}</strong></p>
+                                    <p>Orc: <strong className="text-foreground">{loc.qt_pessoas_orcadas}</strong></p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            <div className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2 text-xs">
+                              <span className="text-muted-foreground">Total das localizações</span>
+                              <div className="flex gap-4">
+                                <span>Executado: <strong className={totalExec === r.qt_postos ? "text-success" : "text-warning"}>{totalExec}</strong></span>
+                                <span>Orçado: <strong>{totalOrc}</strong></span>
+                                <span className="text-muted-foreground">
+                                  Planilha: <strong>{r.qt_postos}</strong>{" "}
+                                  {totalExec === r.qt_postos ? "✓" : `⚠ dif. ${totalExec - r.qt_postos}`}
+                                </span>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {filteredPostos.length === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">Nenhum posto encontrado.</p>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="py-8 text-center text-sm text-muted-foreground">Selecione um contrato.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal de Postos / Localizações ──────────────────────────────────────────
+
+const UFS_LIST = [
+  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
+  "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
+];
+
+const EMPTY_LOC: Omit<PostoLocalizacao, "id" | "empresa_id" | "planilha_custo_id" | "created_at" | "updated_at"> = {
+  nome: "",
+  cep: "",
+  logradouro: "",
+  numero: "",
+  complemento: "",
+  bairro: "",
+  municipio: "",
+  uf: "",
+  periculosidade: false,
+  insalubridade: false,
+  qt_pessoas_orcadas: 0,
+  qt_pessoas_executadas: 0,
+};
+
+function PostosModal({
+  row,
+  empresaId,
+  onClose,
+}: {
+  row: PlanilhaCustoRow;
+  empresaId: string;
+  onClose: () => void;
+}) {
+  const { data: localizacoes = [], isLoading } = usePlanilhaPostoLocalizacao(row.id);
+  const save = usePostoLocalizacaoSave(row.id);
+  const del = usePostoLocalizacaoDelete(row.id);
+
+  const [editingId, setEditingId] = useState<string | "new" | null>(null);
+  const [form, setForm] = useState({ ...EMPTY_LOC });
+  const [cepLoading, setCepLoading] = useState(false);
+
+  function openNew() {
+    setForm({ ...EMPTY_LOC });
+    setEditingId("new");
+  }
+
+  function openEdit(loc: PostoLocalizacao) {
+    setForm({
+      nome: loc.nome ?? "",
+      cep: loc.cep ?? "",
+      logradouro: loc.logradouro ?? "",
+      numero: loc.numero ?? "",
+      complemento: loc.complemento ?? "",
+      bairro: loc.bairro ?? "",
+      municipio: loc.municipio ?? "",
+      uf: loc.uf ?? "",
+      periculosidade: loc.periculosidade,
+      insalubridade: loc.insalubridade,
+      qt_pessoas_orcadas: loc.qt_pessoas_orcadas,
+      qt_pessoas_executadas: loc.qt_pessoas_executadas,
+    });
+    setEditingId(loc.id);
+  }
+
+  function setF(k: keyof typeof EMPTY_LOC, v: string | number | boolean) {
+    setForm((p) => ({ ...p, [k]: v }));
+  }
+
+  async function buscarCep(cep: string) {
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) { toast.error("CEP não encontrado."); return; }
+      setForm((p) => ({
+        ...p,
+        logradouro: data.logradouro || p.logradouro,
+        bairro: data.bairro || p.bairro,
+        municipio: data.localidade || p.municipio,
+        uf: data.uf || p.uf,
+        complemento: data.complemento || p.complemento,
+      }));
+    } catch {
+      toast.error("Erro ao buscar CEP.");
+    } finally {
+      setCepLoading(false);
+    }
+  }
+
+  async function handleSave() {
+    if (!form.nome?.trim()) { toast.error("Informe um nome/descrição para a localização."); return; }
+    await save.mutateAsync({
+      ...(editingId !== "new" ? { id: editingId! } : {}),
+      empresa_id: empresaId,
+      planilha_custo_id: row.id,
+      ...form,
+      nome: form.nome?.trim() || null,
+      cep: form.cep?.trim() || null,
+      logradouro: form.logradouro?.trim() || null,
+      numero: form.numero?.trim() || null,
+      complemento: form.complemento?.trim() || null,
+      bairro: form.bairro?.trim() || null,
+      municipio: form.municipio?.trim() || null,
+      uf: form.uf?.trim() || null,
+    });
+    setEditingId(null);
+  }
+
+  const totalOrcado = localizacoes.reduce((s, l) => s + l.qt_pessoas_orcadas, 0);
+  const totalExecutado = localizacoes.reduce((s, l) => s + l.qt_pessoas_executadas, 0);
+
+  return (
+    <div className="flex flex-col">
+      {/* Header */}
+      <div className="flex items-start justify-between border-b border-border px-6 py-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" />
+            <h2 className="text-base font-semibold">Localizações do Posto</h2>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {row.posto} · {row.contrato} · {row.cliente}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Qt. pessoas (planilha): <strong>{row.qt_postos}</strong>
+          </p>
+        </div>
+      </div>
+
+      {/* Lista de localizações */}
+      <div className="px-6 py-4 space-y-3">
+        {isLoading && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+          </div>
+        )}
+
+        {!isLoading && localizacoes.length === 0 && editingId === null && (
+          <div className="rounded-lg border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+            Nenhuma localização cadastrada ainda.
+          </div>
+        )}
+
+        {localizacoes.map((loc) => (
+          <div key={loc.id} className="rounded-lg border border-border bg-card">
+            {editingId === loc.id ? (
+              <LocForm
+                form={form}
+                setF={setF}
+                cepLoading={cepLoading}
+                buscarCep={buscarCep}
+                onSave={handleSave}
+                onCancel={() => setEditingId(null)}
+                saving={save.isPending}
+              />
+            ) : (
+              <div className="flex items-start justify-between px-4 py-3">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">{loc.nome || "—"}</p>
+                  {(loc.logradouro || loc.municipio) && (
+                    <p className="text-xs text-muted-foreground">
+                      {[loc.logradouro, loc.numero, loc.bairro, loc.municipio, loc.uf].filter(Boolean).join(", ")}
+                      {loc.cep && ` · CEP ${loc.cep}`}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-3 pt-1">
+                    {loc.periculosidade && (
+                      <span className="inline-flex rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                        PERICULOSIDADE
+                      </span>
+                    )}
+                    {loc.insalubridade && (
+                      <span className="inline-flex rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                        INSALUBRIDADE
+                      </span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">
+                      Orçado: <strong>{loc.qt_pessoas_orcadas}</strong> · Executado: <strong>{loc.qt_pessoas_executadas}</strong>
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0 ml-3">
+                  <button
+                    onClick={() => openEdit(loc)}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                    title="Editar"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!confirm("Remover esta localização?")) return;
+                      del.mutate(loc.id);
+                    }}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    title="Remover"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Formulário nova localização */}
+        {editingId === "new" && (
+          <div className="rounded-lg border border-primary/30 bg-card">
+            <LocForm
+              form={form}
+              setF={setF}
+              cepLoading={cepLoading}
+              buscarCep={buscarCep}
+              onSave={handleSave}
+              onCancel={() => setEditingId(null)}
+              saving={save.isPending}
+            />
+          </div>
+        )}
+
+        {editingId === null && (
+          <button
+            onClick={openNew}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-dashed border-border px-4 text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary"
+          >
+            <Plus className="h-4 w-4" /> Adicionar localização
+          </button>
+        )}
+
+        {/* Totais */}
+        {localizacoes.length > 0 && (
+          <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <div className="flex items-center gap-6 text-sm">
+              <span className="text-muted-foreground">
+                Totais das localizações:
+              </span>
+              <span>
+                Orçado: <strong className="text-info">{totalOrcado}</strong>
+              </span>
+              <span>
+                Executado: <strong className="text-success">{totalExecutado}</strong>
+              </span>
+              {totalOrcado !== row.qt_postos && (
+                <span className="text-xs text-warning font-medium">
+                  ⚠ Orçado ({totalOrcado}) difere da planilha ({row.qt_postos} pessoas)
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end border-t border-border px-6 py-4">
+        <button
+          onClick={onClose}
+          className="inline-flex h-9 items-center rounded-md border border-border px-4 text-sm font-medium hover:bg-muted"
+        >
+          Fechar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LocForm({
+  form,
+  setF,
+  cepLoading,
+  buscarCep,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  form: typeof EMPTY_LOC;
+  setF: (k: keyof typeof EMPTY_LOC, v: string | number | boolean) => void;
+  cepLoading: boolean;
+  buscarCep: (cep: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  function inp(k: keyof typeof EMPTY_LOC, label: string, placeholder = "") {
+    return (
+      <div>
+        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </label>
+        <input
+          type="text"
+          value={(form[k] as string) ?? ""}
+          onChange={(e) => setF(k, e.target.value)}
+          placeholder={placeholder}
+          className="h-8 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 px-4 py-3">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="col-span-3">
+          {inp("nome", "Nome / Descrição *", "Ex: Sede Central, Bloco A...")}
+        </div>
+
+        {/* CEP com busca automática */}
+        <div>
+          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            CEP
+          </label>
+          <div className="flex gap-1.5">
+            <input
+              type="text"
+              value={(form.cep as string) ?? ""}
+              onChange={(e) => setF("cep", e.target.value)}
+              onBlur={(e) => buscarCep(e.target.value)}
+              placeholder="00000-000"
+              maxLength={9}
+              className="h-8 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={() => buscarCep(form.cep as string)}
+              disabled={cepLoading}
+              title="Buscar CEP"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded border border-border bg-background hover:bg-muted disabled:opacity-50"
+            >
+              {cepLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="col-span-2">{inp("logradouro", "Logradouro")}</div>
+        {inp("numero", "Número")}
+        {inp("complemento", "Complemento")}
+        {inp("bairro", "Bairro")}
+        {inp("municipio", "Município")}
+
+        {/* UF select */}
+        <div>
+          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            UF
+          </label>
+          <select
+            value={(form.uf as string) ?? ""}
+            onChange={(e) => setF("uf", e.target.value)}
+            className="h-8 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
+          >
+            <option value="">—</option>
+            {UFS_LIST.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+          </select>
+        </div>
+
+        {/* Pessoas */}
+        <div>
+          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Qt. Pessoas Orçadas
+          </label>
+          <input
+            type="number"
+            min={0}
+            value={(form.qt_pessoas_orcadas as number) ?? 0}
+            onChange={(e) => setF("qt_pessoas_orcadas", parseInt(e.target.value) || 0)}
+            className="h-8 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Qt. Pessoas Executadas
+          </label>
+          <input
+            type="number"
+            min={0}
+            value={(form.qt_pessoas_executadas as number) ?? 0}
+            onChange={(e) => setF("qt_pessoas_executadas", parseInt(e.target.value) || 0)}
+            className="h-8 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
+          />
+        </div>
+
+        {/* Toggles */}
+        <div className="col-span-3 flex gap-6 pt-1">
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <button
+              type="button"
+              onClick={() => setF("periculosidade", !(form.periculosidade as boolean))}
+              className={`relative h-5 w-9 rounded-full transition-colors ${form.periculosidade ? "bg-destructive" : "bg-muted-foreground/30"}`}
+            >
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${form.periculosidade ? "translate-x-4" : "translate-x-0.5"}`}
+              />
+            </button>
+            <span className={form.periculosidade ? "font-semibold text-destructive" : "text-muted-foreground"}>
+              Periculosidade
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <button
+              type="button"
+              onClick={() => setF("insalubridade", !(form.insalubridade as boolean))}
+              className={`relative h-5 w-9 rounded-full transition-colors ${form.insalubridade ? "bg-warning" : "bg-muted-foreground/30"}`}
+            >
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${form.insalubridade ? "translate-x-4" : "translate-x-0.5"}`}
+              />
+            </button>
+            <span className={form.insalubridade ? "font-semibold text-warning" : "text-muted-foreground"}>
+              Insalubridade
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 border-t border-border pt-3">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="inline-flex h-8 items-center rounded border border-border px-3 text-xs font-medium hover:bg-muted"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="inline-flex h-8 items-center gap-1.5 rounded bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+          Salvar
+        </button>
+      </div>
     </div>
   );
 }
@@ -1222,7 +2008,19 @@ function FormDrawer({
                     className="h-8 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
                   />
                 </div>
-                {numField("qt_postos", "Qt. Postos")}
+                <div>
+                  <label className="mb-1 flex min-h-[2rem] items-end text-[10px] font-semibold uppercase leading-tight tracking-wider text-muted-foreground">
+                    Qt. Pessoas
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={form.qt_postos ?? 0}
+                    onChange={(e) => set("qt_postos", parseInt(e.target.value) || 0)}
+                    className="h-8 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-primary"
+                  />
+                </div>
               </div>
             </Section>
 
@@ -1424,6 +2222,254 @@ function FormDrawer({
             </button>
           </div>
         </form>
+    </div>
+  );
+}
+
+// ─── Modal de Importação de Postos ───────────────────────────────────────────
+
+type PostoImportRow = {
+  contrato: string;
+  posto: string;
+  local: string;
+  qt_orcado: number;
+  qt_executado: number;
+  planilha_custo_ids: string[]; // todas as linhas com mesmo contrato+posto
+};
+
+function ImportPostosModal({
+  rows,
+  empresaId,
+  onClose,
+}: {
+  rows: PlanilhaCustoRow[];
+  empresaId: string;
+  onClose: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [parsed, setParsed] = useState<PostoImportRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  // índice: "contrato||posto" → lista de todos os planilha_custo_ids (orçado + executado)
+  const idxContratoPostoRef = React.useRef<Map<string, string[]>>(new Map());
+  React.useEffect(() => {
+    const idx = new Map<string, string[]>();
+    for (const r of rows) {
+      const key = `${r.contrato.trim().toLowerCase()}||${r.posto.trim().toLowerCase()}`;
+      const existing = idx.get(key) ?? [];
+      idx.set(key, [...existing, r.id]);
+    }
+    idxContratoPostoRef.current = idx;
+  }, [rows]);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLoading(true);
+    try {
+      const XLSX = await import("xlsx");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const sheetName = wb.SheetNames.find((s) =>
+        s.toLowerCase().includes("posto")
+      ) ?? wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const aoa: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+      // Detecta linha do cabeçalho buscando "Contrato" ou "Posto"
+      let headerRow = 0;
+      for (let i = 0; i < Math.min(5, aoa.length); i++) {
+        const row = aoa[i] as string[];
+        if (row.some((c) => String(c).toLowerCase().includes("contrato"))) {
+          headerRow = i;
+          break;
+        }
+      }
+      const headers = (aoa[headerRow] as string[]).map((h) => String(h).trim().toLowerCase());
+      const col = (name: string) => headers.findIndex((h) => h.includes(name));
+
+      const iContrato = col("contrato");
+      const iPosto = col("posto");
+      const iLocal = col("local");
+      const iOrcado = col("orçado") !== -1 ? col("orçado") : col("orcado");
+      const iExecutado = col("executado");
+
+      if (iContrato === -1 || iPosto === -1 || iLocal === -1) {
+        toast.error("Colunas Contrato, Posto e Local não encontradas na planilha.");
+        return;
+      }
+
+      const idx = idxContratoPostoRef.current;
+      const result: PostoImportRow[] = [];
+
+      for (let i = headerRow + 1; i < aoa.length; i++) {
+        const row = aoa[i] as any[];
+        const contrato = String(row[iContrato] ?? "").trim();
+        const posto = String(row[iPosto] ?? "").trim();
+        const local = String(row[iLocal] ?? "").trim();
+        if (!contrato || !posto || !local) continue;
+
+        const key = `${contrato.toLowerCase()}||${posto.toLowerCase()}`;
+        const planilha_custo_ids = idx.get(key) ?? [];
+
+        result.push({
+          contrato,
+          posto,
+          local,
+          qt_orcado: iOrcado !== -1 ? (parseInt(String(row[iOrcado])) || 0) : 0,
+          qt_executado: iExecutado !== -1 ? (parseInt(String(row[iExecutado])) || 0) : 0,
+          planilha_custo_ids,
+        });
+      }
+
+      setParsed(result);
+    } catch (err: any) {
+      toast.error("Erro ao ler arquivo: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const vinculados = parsed.filter((r) => r.planilha_custo_ids.length > 0);
+  const semVinculo = parsed.filter((r) => r.planilha_custo_ids.length === 0);
+
+  async function handleImport() {
+    if (!vinculados.length) return;
+    setImporting(true);
+    try {
+      // gera uma entrada para cada planilha_custo_id (orçado + executado)
+      const payload = vinculados.flatMap((r) =>
+        r.planilha_custo_ids.map((pid) => ({
+          empresa_id: empresaId,
+          planilha_custo_id: pid,
+          nome: r.local,
+          qt_pessoas_orcadas: r.qt_orcado,
+          qt_pessoas_executadas: r.qt_executado,
+          periculosidade: false,
+          insalubridade: false,
+        }))
+      );
+
+      const LOTE = 200;
+      for (let i = 0; i < payload.length; i += LOTE) {
+        const { error } = await (supabase as any)
+          .from("planilha_posto_localizacao")
+          .insert(payload.slice(i, i + LOTE));
+        if (error) throw error;
+      }
+
+      toast.success(`${vinculados.length} localizações importadas com sucesso!`);
+      onClose();
+    } catch (err: any) {
+      toast.error("Erro na importação: " + err.message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between border-b border-border px-6 py-4">
+        <div>
+          <h2 className="text-base font-semibold">Importar Postos / Localizações</h2>
+          <p className="text-xs text-muted-foreground">
+            Aba "postos" da Base de Contratos Vigentes · vincula pelo Contrato + Posto
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-4 px-6 py-5">
+        <div className="rounded-lg border border-amber-300/50 bg-amber-50/50 px-4 py-3 text-xs text-amber-800">
+          <strong>Atenção:</strong> Salve o arquivo <strong>.xlsm</strong> como <strong>.xlsx</strong> antes de selecionar.
+          Serão importadas apenas as linhas cujo Contrato + Posto existam na planilha de custo da empresa ativa.
+        </div>
+
+        <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center">
+          <MapPin className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm font-medium">Selecione a Base de Contratos Vigentes</p>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFile} />
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={loading}
+            className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted disabled:opacity-50"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            {loading ? "Lendo arquivo…" : "Selecionar arquivo (.xlsx)"}
+          </button>
+        </div>
+
+        {parsed.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <div className="flex-1 rounded-lg border border-success/30 bg-success-soft px-4 py-3 text-center">
+                <p className="text-2xl font-bold text-success">{vinculados.length}</p>
+                <p className="text-xs text-success/80">vinculados (serão importados)</p>
+              </div>
+              <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-3 text-center">
+                <p className="text-2xl font-bold text-muted-foreground">{semVinculo.length}</p>
+                <p className="text-xs text-muted-foreground">sem vínculo (ignorados)</p>
+              </div>
+            </div>
+
+            {semVinculo.length > 0 && (
+              <details className="rounded-lg border border-border">
+                <summary className="cursor-pointer px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/30">
+                  Ver {semVinculo.length} linhas sem vínculo (contrato/posto não encontrado)
+                </summary>
+                <div className="max-h-40 overflow-y-auto px-4 pb-3">
+                  {semVinculo.slice(0, 50).map((r, i) => (
+                    <p key={i} className="py-0.5 text-[11px] text-muted-foreground">
+                      · {r.contrato} · {r.posto} · {r.local}
+                    </p>
+                  ))}
+                  {semVinculo.length > 50 && (
+                    <p className="text-[11px] text-muted-foreground">…e mais {semVinculo.length - 50}</p>
+                  )}
+                </div>
+              </details>
+            )}
+
+            <div className="rounded-lg border border-border">
+              <p className="border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Prévia dos primeiros 8 vinculados
+              </p>
+              <div className="divide-y divide-border">
+                {vinculados.slice(0, 8).map((r, i) => (
+                  <div key={i} className="flex items-center justify-between px-4 py-2 text-xs">
+                    <div>
+                      <span className="font-medium">{r.posto}</span>
+                      <span className="mx-1.5 text-muted-foreground">·</span>
+                      <span className="text-muted-foreground">{r.local}</span>
+                    </div>
+                    <div className="flex gap-3 text-muted-foreground">
+                      <span>Orc: <strong>{r.qt_orcado}</strong></span>
+                      <span>Exec: <strong>{r.qt_executado}</strong></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border px-6 py-4">
+        <button
+          onClick={onClose}
+          className="inline-flex h-9 items-center rounded-md border border-border px-4 text-sm font-medium hover:bg-muted"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleImport}
+          disabled={!vinculados.length || importing}
+          className="btn-relief inline-flex h-9 items-center gap-1.5 rounded-md bg-gradient-accent px-5 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+        >
+          <MapPin className="h-4 w-4" />
+          {importing ? "Importando…" : `Importar ${vinculados.length || ""} localizações`}
+        </button>
+      </div>
     </div>
   );
 }
@@ -1836,7 +2882,7 @@ function ViewModal({
                 {row.data_vigencia && (
                   <span>Vigência: {new Date(row.data_vigencia + "T00:00:00").toLocaleDateString("pt-BR")}</span>
                 )}
-                {row.qt_postos > 0 && <span>Postos: {row.qt_postos}</span>}
+                {row.qt_postos > 0 && <span>Pessoas: {row.qt_postos}</span>}
                 {row.arquivo_origem && <span>Arquivo: {row.arquivo_origem}</span>}
               </div>
             </div>

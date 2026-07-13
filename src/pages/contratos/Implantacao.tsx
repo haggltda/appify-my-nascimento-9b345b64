@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { cn } from "@/lib/utils";
@@ -9,8 +9,11 @@ import {
   useRespostaUpsert,
   calcPrazo,
 } from "@/hooks/useImplantacao";
-import type { ImplantacaoContrato, ChecklistItem, Resposta } from "@/hooks/useImplantacao";
-import { CheckCircle2, Circle, Clock, Pencil, Eye, ArrowRight, Trash2 } from "lucide-react";
+import type { ImplantacaoContrato, ChecklistItem, Resposta, HistoricoEntry } from "@/hooks/useImplantacao";
+import { CheckCircle2, Circle, Clock, Pencil, Eye, ArrowRight, Trash2, MapPin, X as XIcon, CheckCircle, History } from "lucide-react";
+import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
+import { useDocTipos } from "@/hooks/useDocumentos";
+import { usePlanilhaCustos } from "@/hooks/usePlanilhaCusto";
 import { usePermissoes } from "@/context/PermissoesContext";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -49,7 +52,7 @@ export default function Implantacao() {
 
   const [contratoSelecionado, setContratoSelecionado] = useState<string | null>(null);
   const [momentoFiltro, setMomentoFiltro] = useState<string>("");
-  const [setorFiltro, setSetorFiltro] = useState<string>("");
+  const [responsavelFiltro, setResponsavelFiltro] = useState<string>("");
   const [editandoNome, setEditandoNome] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ImplantacaoContrato | null>(null);
   const [nomeConfirmados, setNomeConfirmados] = useState<Set<string>>(() => {
@@ -68,21 +71,27 @@ export default function Implantacao() {
     }
   }, [contratos, contratoSelecionado]);
 
-  const momentos = useMemo(() => [...new Set(checklistItems.map((i) => i.momento).filter(Boolean) as string[])], [checklistItems]);
-  const setores  = useMemo(() => [...new Set(checklistItems.map((i) => i.setor).filter(Boolean)  as string[])], [checklistItems]);
+  const momentos      = useMemo(() => [...new Set(checklistItems.map((i) => i.momento).filter(Boolean) as string[])], [checklistItems]);
+  const responsaveis  = useMemo(() => [...new Set(checklistItems.map((i) => i.responsavel_acao).filter(Boolean) as string[])].sort(), [checklistItems]);
 
   const itensFiltrados = useMemo(() => {
     return checklistItems.filter((i) => {
       if (momentoFiltro && i.momento !== momentoFiltro) return false;
-      if (setorFiltro  && i.setor   !== setorFiltro)   return false;
+      if (responsavelFiltro && i.responsavel_acao !== responsavelFiltro && i.responsavel_acao !== "Todos") return false;
       return true;
     });
-  }, [checklistItems, momentoFiltro, setorFiltro]);
+  }, [checklistItems, momentoFiltro, responsavelFiltro]);
 
-  const setoresFiltrados = useMemo(() => [...new Set(itensFiltrados.map((i) => i.setor))], [itensFiltrados]);
+  const responsaveisFiltrados = useMemo(() => [...new Set(itensFiltrados.map((i) => i.responsavel_acao))], [itensFiltrados]);
 
   const { data: respostas = [] } = useRespostas(contratoSelecionado, empresaAtivaId ?? null);
   const upsert = useRespostaUpsert(empresaAtivaId ?? "");
+  const { data: usuarios = [] } = useUsuariosEmpresa();
+  const usuariosMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    usuarios.forEach((u) => { m[u.id] = u.display_name ?? u.email ?? u.id; });
+    return m;
+  }, [usuarios]);
 
   async function handleDeleteContrato(id: string) {
     const { error } = await supabase.from("implantacao_contrato").delete().eq("id", id);
@@ -96,13 +105,13 @@ export default function Implantacao() {
   }
 
   const respostaMap = useMemo(() => {
-    const m: Record<string, Resposta> = {};
-    respostas.forEach((r) => { m[r.checklist_item_id] = r; });
+    const m: Record<number, Resposta> = {};
+    respostas.forEach((r) => { m[r.row_index] = r; });
     return m;
   }, [respostas]);
 
   const total       = checklistItems.length;
-  const respondidos = checklistItems.filter((i) => respostaMap[i.id]?.resposta).length;
+  const respondidos = checklistItems.filter((i) => respostaMap[i.row_index]?.resposta).length;
   const pct         = total > 0 ? Math.round((respondidos / total) * 100) : 0;
 
   function confirmarNome(id: string) {
@@ -207,12 +216,12 @@ export default function Implantacao() {
             </div>
           )}
 
-          {/* Filtro de Setor */}
-          {setores.length > 0 && (
+          {/* Filtro de Responsável */}
+          {responsaveis.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              <FiltroBtn active={setorFiltro === ""} onClick={() => setSetorFiltro("")} variant="setor">Todos setores</FiltroBtn>
-              {setores.map((s) => (
-                <FiltroBtn key={s} active={setorFiltro === s} onClick={() => setSetorFiltro(setorFiltro === s ? "" : s)} variant="setor">{s}</FiltroBtn>
+              <FiltroBtn active={responsavelFiltro === ""} onClick={() => setResponsavelFiltro("")} variant="setor">Todos responsáveis</FiltroBtn>
+              {responsaveis.map((r) => (
+                <FiltroBtn key={r} active={responsavelFiltro === r} onClick={() => setResponsavelFiltro(responsavelFiltro === r ? "" : r)} variant="setor">{r}</FiltroBtn>
               ))}
             </div>
           )}
@@ -222,15 +231,15 @@ export default function Implantacao() {
             <Empty title="Checklist vazio" message="Nenhum item de checklist cadastrado." />
           ) : contrato ? (
             <div className="space-y-6">
-              {setoresFiltrados.map((setor) => {
-                const itensSetor = itensFiltrados.filter((i) => i.setor === setor);
+              {responsaveisFiltrados.map((responsavel) => {
+                const itensSetor = itensFiltrados.filter((i) => i.responsavel_acao === responsavel);
                 const respSetor  = itensSetor.filter((i) => respostaMap[i.id]?.resposta).length;
                 return (
-                  <section key={setor}>
-                    {/* Header do setor */}
+                  <section key={responsavel}>
+                    {/* Header do responsável */}
                     <div className="flex items-center gap-3 border-b border-border pb-2 mb-3 flex-wrap">
-                      <span className="bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">{setor}</span>
-                      <span className="font-bold text-sm">{setor}</span>
+                      <span className="bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">{responsavel}</span>
+                      <span className="font-bold text-sm">{responsavel}</span>
                       <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{respSetor}/{itensSetor.length}</span>
                         <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -247,9 +256,10 @@ export default function Implantacao() {
                           key={item.id}
                           item={item}
                           contrato={contrato}
-                          resposta={respostaMap[item.id] ?? null}
+                          resposta={respostaMap[item.row_index] ?? null}
+                          usuariosMap={usuariosMap}
                           onSave={(resposta, obs) =>
-                            upsert.mutateAsync({ contratoId: contratoSelecionado!, itemId: item.id, resposta, obs })
+                            upsert.mutateAsync({ contratoId: contratoSelecionado!, rowIndex: item.row_index, resposta, obs })
                           }
                         />
                       ))}
@@ -295,24 +305,132 @@ export default function Implantacao() {
 
 // ── Card individual ───────────────────────────────────────────────────────────
 
+function isDocsItem(item: { categoria?: string | null; item: string }) {
+  return item.categoria?.toLowerCase().includes("document") || item.item.toLowerCase().includes("document");
+}
+function isEnderecosItem(item: { item: string }) {
+  return item.item.toLowerCase().includes("endere");
+}
+
+function DocMultiSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { data: tipos = [] } = useDocTipos();
+  const [expanded, setExpanded] = useState(false);
+  const selected: string[] = useMemo(() => {
+    try { return value ? JSON.parse(value) : []; } catch { return value ? [value] : []; }
+  }, [value]);
+
+  function toggle(nome: string) {
+    const next = selected.includes(nome) ? selected.filter((s) => s !== nome) : [...selected, nome];
+    onChange(next.length ? JSON.stringify(next) : "");
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Resumo sempre visível */}
+      {selected.length > 0 && (
+        <button onClick={() => setExpanded((p) => !p)}
+          className="w-full text-left rounded-md bg-primary/5 border border-primary/20 px-3 py-2 space-y-1 hover:bg-primary/10 transition-colors">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-primary">✓ {selected.length} documento{selected.length !== 1 ? "s" : ""} selecionado{selected.length !== 1 ? "s" : ""}</span>
+            <span className="text-[10px] text-primary/70">{expanded ? "▲ fechar" : "▼ editar"}</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {selected.map((nome) => (
+              <span key={nome} className="text-[10px] text-primary/80">• {nome}</span>
+            ))}
+          </div>
+        </button>
+      )}
+
+      {/* Lista completa — abre ao clicar ou quando vazio */}
+      {(expanded || selected.length === 0) && (
+        <div className="space-y-1">
+          {selected.length > 0 && (
+            <div className="flex flex-wrap gap-1 pb-1">
+              {selected.map((nome) => (
+                <span key={nome} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  {nome}
+                  <button onClick={() => toggle(nome)} className="hover:text-destructive"><XIcon className="w-2.5 h-2.5" /></button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="max-h-40 overflow-y-auto rounded-md border border-border divide-y divide-border">
+            {tipos.map((t) => {
+              const ativo = selected.includes(t.nome);
+              return (
+                <button key={t.id} onClick={() => toggle(t.nome)}
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors hover:bg-muted/40 ${ativo ? "bg-primary/5 font-medium text-primary" : ""}`}>
+                  <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${ativo ? "border-primary bg-primary text-white" : "border-border"}`}>
+                    {ativo && <CheckCircle className="w-2.5 h-2.5" />}
+                  </span>
+                  {t.nome}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EnderecosPostos({ contratoNome }: { contratoNome: string }) {
+  const { data: planilhaRows = [] } = usePlanilhaCustos();
+  const postos = useMemo(() => {
+    const seen = new Set<string>();
+    return planilhaRows
+      .filter((r) => r.orexec === "EXECUTADO" && r.contrato === contratoNome && r.posto)
+      .filter((r) => { if (seen.has(r.posto)) return false; seen.add(r.posto); return true; })
+      .map((r) => r.posto).sort();
+  }, [planilhaRows, contratoNome]);
+
+  if (postos.length === 0)
+    return <p className="text-xs text-muted-foreground italic">Nenhum posto encontrado para este contrato na Planilha de Custo.</p>;
+
+  return (
+    <div className="rounded-md border border-border divide-y divide-border max-h-48 overflow-y-auto">
+      {postos.map((p) => (
+        <div key={p} className="flex items-center gap-2 px-3 py-2 text-xs">
+          <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <span>{p}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CardChecklist({
   item,
   contrato,
   resposta: savedResp,
+  usuariosMap,
   onSave,
 }: {
   item: ChecklistItem;
   contrato: ImplantacaoContrato;
   resposta: Resposta | null;
+  usuariosMap: Record<string, string>;
   onSave: (resposta: string, obs: string) => Promise<unknown>;
 }) {
-  const isSimNao   = item.tipo_resposta === "simnao";
-  const prazo      = calcPrazo(item, contrato);
+  const isSimNao    = item.tipo_resposta === "simnao";
+  const isDocs      = isDocsItem(item);
+  const isEnderecos = isEnderecosItem(item);
+  const prazo       = calcPrazo(item, contrato);
   const answered   = !!savedResp?.resposta;
 
   const [localResp, setLocalResp] = useState<string>(savedResp?.resposta ?? "");
   const [localObs,  setLocalObs]  = useState<string>(savedResp?.obs ?? "");
   const [state, setState]         = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [showHistorico, setShowHistorico] = useState(false);
+  const historico: HistoricoEntry[] = savedResp?.historico ?? [];
+
+  useEffect(() => {
+    if (state === "idle") {
+      setLocalResp(savedResp?.resposta ?? "");
+      setLocalObs(savedResp?.obs ?? "");
+    }
+  }, [savedResp]);
 
   async function handleSave() {
     if (!localResp) return;
@@ -361,31 +479,28 @@ function CardChecklist({
       {/* Resposta */}
       <div className="space-y-1">
         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Resposta</span>
-        {isSimNao ? (
+        {isEnderecos ? (
+          <EnderecosPostos contratoNome={contrato.nome} />
+        ) : isDocs ? (
+          <DocMultiSelect value={localResp} onChange={setLocalResp} />
+        ) : isSimNao ? (
           <div className="flex gap-2">
             {(["Sim", "Não", "N/A"] as const).map((op) => (
-              <button
-                key={op}
-                onClick={() => setLocalResp(localResp === op ? "" : op)}
+              <button key={op} onClick={() => setLocalResp(localResp === op ? "" : op)}
                 className={cn(
                   "flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all",
-                  localResp === op && op === "Sim"  && "bg-emerald-50 border-emerald-500 text-emerald-700",
-                  localResp === op && op === "Não"  && "bg-red-50 border-red-500 text-red-700",
-                  localResp === op && op === "N/A"  && "bg-muted border-muted-foreground/40 text-muted-foreground",
+                  localResp === op && op === "Sim" && "bg-emerald-50 border-emerald-500 text-emerald-700",
+                  localResp === op && op === "Não" && "bg-red-50 border-red-500 text-red-700",
+                  localResp === op && op === "N/A" && "bg-muted border-muted-foreground/40 text-muted-foreground",
                   localResp !== op && "bg-card border-border text-foreground hover:bg-muted/50"
-                )}
-              >
+                )}>
                 {op === "Sim" ? "✓ Sim" : op === "Não" ? "✗ Não" : "N/A"}
               </button>
             ))}
           </div>
         ) : (
-          <Textarea
-            placeholder="Digite a resposta…"
-            className="min-h-[52px] text-xs resize-y"
-            value={localResp}
-            onChange={(e) => setLocalResp(e.target.value)}
-          />
+          <Textarea placeholder="Digite a resposta…" className="min-h-[52px] text-xs resize-y"
+            value={localResp} onChange={(e) => setLocalResp(e.target.value)} />
         )}
       </div>
 
@@ -400,19 +515,27 @@ function CardChecklist({
         />
       </div>
 
-      {/* Salvar */}
-      <Button
-        size="sm"
-        className={cn(
-          "w-full text-xs font-semibold",
-          state === "saved"  && "bg-emerald-600 hover:bg-emerald-600",
-          state === "failed" && "bg-destructive hover:bg-destructive",
+      {/* Salvar + Histórico */}
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          className={cn(
+            "flex-1 text-xs font-semibold",
+            state === "saved"  && "bg-emerald-600 hover:bg-emerald-600",
+            state === "failed" && "bg-destructive hover:bg-destructive",
+          )}
+          disabled={state === "saving" || !localResp}
+          onClick={handleSave}
+        >
+          {state === "saving" ? "Salvando…" : state === "saved" ? "✓ Salvo" : state === "failed" ? "✗ Falhou" : "Salvar"}
+        </Button>
+        {historico.length > 0 && (
+          <Button size="sm" variant="outline" className="px-2.5" title="Ver histórico" onClick={() => setShowHistorico(true)}>
+            <History className="h-3.5 w-3.5" />
+            <span className="ml-1 text-xs">{historico.length}</span>
+          </Button>
         )}
-        disabled={state === "saving" || !localResp}
-        onClick={handleSave}
-      >
-        {state === "saving" ? "Salvando…" : state === "saved" ? "✓ Salvo" : state === "failed" ? "✗ Falhou" : "Salvar"}
-      </Button>
+      </div>
 
       {/* Meta-block */}
       {(item.plano_acao || item.responsavel_acao || item.onde || prazo) && (
@@ -424,6 +547,44 @@ function CardChecklist({
           {prazo && <MetaRow label="Prazo" value={prazo} highlight />}
         </div>
       )}
+
+      {/* Modal histórico */}
+      <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm">
+              <History className="h-4 w-4" /> Histórico de alterações
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.item}</p>
+          </DialogHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="pb-2 pr-4 font-medium">Data</th>
+                  <th className="pb-2 pr-4 font-medium">Resposta</th>
+                  <th className="pb-2 pr-4 font-medium">Observações</th>
+                  <th className="pb-2 font-medium">Por</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {[...historico].reverse().map((h, i) => (
+                  <tr key={i} className="align-top">
+                    <td className="py-2 pr-4 text-muted-foreground whitespace-nowrap">
+                      {new Date(h.ts).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                    <td className="py-2 pr-4 max-w-[200px]">{h.resposta || "—"}</td>
+                    <td className="py-2 pr-4 max-w-[200px] text-muted-foreground">{h.obs || "—"}</td>
+                    <td className="py-2 text-muted-foreground whitespace-nowrap">
+                      {h.por ? (usuariosMap[h.por] ?? h.por) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

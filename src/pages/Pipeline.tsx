@@ -44,7 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, FileText, Eye, History, Upload, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Eye, History, Upload, CheckCircle2, XCircle, Trophy } from "lucide-react";
 import * as XLSX from "xlsx";
 
 // ── Constantes ─────────────────────────────────────────────────────────────
@@ -110,6 +110,7 @@ export default function Pipeline() {
   const [anoAtivo, setAnoAtivo] = useState<number | null>(null);
   const [busca, setBusca] = useState("");
   const [responsavelFiltro, setResponsavelFiltro] = useState<string>("Todos");
+  const [soGanhos, setSoGanhos] = useState(false);
 
   // lista de responsáveis únicos para o filtro
   const responsaveis = useMemo(() => {
@@ -138,7 +139,11 @@ export default function Pipeline() {
   const filtered = useMemo(() => {
     let list = [...items];
 
-    if (faseAtiva !== "Todas") list = list.filter((i) => i.fase === faseAtiva);
+    if (soGanhos) {
+      list = list.filter((i) => i.fase === "Finalizada" && i.posicao === 1);
+    } else if (faseAtiva !== "Todas") {
+      list = list.filter((i) => i.fase === faseAtiva);
+    }
 
     if (mesAtivo !== null || anoAtivo !== null) {
       list = list.filter((i) => {
@@ -210,7 +215,7 @@ export default function Pipeline() {
         {FASES.map((f) => (
           <button
             key={f}
-            onClick={() => setFaseAtiva(faseAtiva === f ? "Todas" : f)}
+            onClick={() => { setSoGanhos(false); setFaseAtiva(faseAtiva === f ? "Todas" : f); }}
             className={cn(
               "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition",
               faseAtiva === f
@@ -223,9 +228,24 @@ export default function Pipeline() {
             <span className="ml-1 font-bold tabular-nums">{stats[f]}</span>
           </button>
         ))}
-        {faseAtiva !== "Todas" && (
+        <button
+          onClick={() => { setSoGanhos((v) => !v); setFaseAtiva("Todas"); }}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition",
+            soGanhos
+              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+              : "border-border bg-card text-muted-foreground hover:bg-secondary"
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          Ganhos
+          <span className="ml-1 font-bold tabular-nums">
+            {items.filter((i) => i.fase === "Finalizada" && i.posicao === 1).length}
+          </span>
+        </button>
+        {(faseAtiva !== "Todas" || soGanhos) && (
           <button
-            onClick={() => setFaseAtiva("Todas")}
+            onClick={() => { setFaseAtiva("Todas"); setSoGanhos(false); }}
             className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground hover:bg-secondary"
           >
             Todas
@@ -683,22 +703,31 @@ function GradeCard({
     return `${dd}/${m}/${y}`;
   };
 
+  const isGanho = item.fase === "Finalizada" && item.posicao === 1;
+
   return (
-    <article className="card-floating space-y-3 p-4">
+    <article className={cn("card-floating space-y-3 p-4", isGanho && "border-l-4 border-l-emerald-500 bg-emerald-50/30")}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="truncate text-xs font-mono text-muted-foreground">{item.edital || "Sem número"}</p>
           <p className="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug">{item.objeto || "—"}</p>
         </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
-            FASE_COLOR[item.fase]
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isGanho && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              <Trophy className="h-3 w-3" /> Ganho
+            </span>
           )}
-        >
-          {item.fase}
-        </span>
+          <span
+            className={cn(
+              "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+              FASE_COLOR[item.fase]
+            )}
+          >
+            {item.fase}
+          </span>
+        </div>
       </div>
 
       {/* Meta */}
@@ -721,13 +750,15 @@ function GradeCard({
         </span>
         <span><span className="font-medium text-foreground">Responsável:</span> {item.responsavel || "—"}</span>
         <span><span className="font-medium text-foreground">Posição:</span> {item.posicao != null ? `${item.posicao}º` : "—"}</span>
-        {item.valor_global && (
+        {item.valor_global ? (
           <span className="col-span-2"><span className="font-medium text-foreground">Valor:</span> {
             Number(item.valor_global)
               ? Number(item.valor_global).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
               : item.valor_global
           }</span>
-        )}
+        ) : item.fase === "Finalizada" ? (
+          <span className="col-span-2 text-destructive font-semibold">⚠ Valor Global não preenchido</span>
+        ) : null}
       </div>
 
       {item.status_obs && (
@@ -826,6 +857,14 @@ function GradeSheet({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!f.valor_global) {
+      alert("Valor Global é obrigatório.");
+      return;
+    }
+    if (!f.qtd_pessoas) {
+      alert("Qtd. Pessoas é obrigatório.");
+      return;
+    }
     onSave({
       edital: f.edital || null,
       fase: f.fase,
@@ -947,12 +986,12 @@ function GradeSheet({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {field("Qtd. Pessoas", "qtd_pessoas", { type: "number" })}
+            {field("Qtd. Pessoas", "qtd_pessoas", { type: "number", required: true })}
             {field("Posição", "posicao", { type: "number" })}
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs">Valor Global</Label>
+            <Label className="text-xs">Valor Global <span className="text-destructive">*</span></Label>
             <CurrencyInput
               value={f.valor_global}
               onChange={(v) => setF((p) => ({ ...p, valor_global: v }))}

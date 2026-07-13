@@ -8,8 +8,21 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle, XCircle, ArrowRight, Clock } from "lucide-react";
+import { CheckCircle, XCircle, ArrowRight, Clock, MapPin, X as XIcon } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useDocTipos } from "@/hooks/useDocumentos";
+import { usePlanilhaCustos } from "@/hooks/usePlanilhaCusto";
+
+// detecção por categoria ou texto do item
+function isDocsItem(item: { categoria?: string | null; item: string }) {
+  return (
+    item.categoria?.toLowerCase().includes("document") ||
+    item.item.toLowerCase().includes("document")
+  ) ?? false;
+}
+function isEnderecosItem(item: { item: string }) {
+  return item.item.toLowerCase().includes("endere");
+}
 
 const MOMENTO_BALIZADOR: Record<string, string> = {
   "Captação": "4 dias antes da abertura",
@@ -54,11 +67,81 @@ function calcPrazo(prazoLimite: string | null, momento: string | null, dataInici
   return resolved;
 }
 
+function DocMultiSelect({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  const { data: tipos = [] } = useDocTipos();
+  const selected: string[] = useMemo(() => {
+    try { return value ? JSON.parse(value) : []; } catch { return []; }
+  }, [value]);
+
+  function toggle(nome: string) {
+    const next = selected.includes(nome)
+      ? selected.filter((s) => s !== nome)
+      : [...selected, nome];
+    onChange(next.length ? JSON.stringify(next) : null);
+  }
+
+  return (
+    <div className="space-y-2">
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selected.map((nome) => (
+            <span key={nome} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+              {nome}
+              <button onClick={() => toggle(nome)} className="hover:text-destructive"><XIcon className="w-3 h-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="max-h-40 overflow-y-auto rounded-md border border-border divide-y divide-border">
+        {tipos.map((t) => {
+          const ativo = selected.includes(t.nome);
+          return (
+            <button key={t.id} onClick={() => toggle(t.nome)}
+              className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors hover:bg-muted/40 ${ativo ? "bg-primary/5 font-medium text-primary" : ""}`}>
+              <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${ativo ? "border-primary bg-primary text-white" : "border-border"}`}>
+                {ativo && <CheckCircle className="w-2.5 h-2.5" />}
+              </span>
+              {t.nome}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EnderecosPostos({ contratoNome }: { contratoNome: string }) {
+  const { data: planilhaRows = [] } = usePlanilhaCustos();
+  const postos = useMemo(() => {
+    const seen = new Set<string>();
+    return planilhaRows
+      .filter((r) => r.orexec === "EXECUTADO" && r.contrato === contratoNome && r.posto)
+      .filter((r) => { if (seen.has(r.posto)) return false; seen.add(r.posto); return true; })
+      .map((r) => r.posto)
+      .sort();
+  }, [planilhaRows, contratoNome]);
+
+  if (postos.length === 0)
+    return <p className="text-xs text-muted-foreground italic">Nenhum posto encontrado para este contrato na Planilha de Custo.</p>;
+
+  return (
+    <div className="rounded-md border border-border divide-y divide-border max-h-48 overflow-y-auto">
+      {postos.map((p) => (
+        <div key={p} className="flex items-center gap-2 px-3 py-2 text-xs">
+          <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <span>{p}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CardChecklist({
   item,
   resposta,
   obs: savedObs,
   dataInicio,
+  contratoNome,
   onSave,
   saving,
 }: {
@@ -66,10 +149,14 @@ function CardChecklist({
   resposta: string | null;
   obs: string | null;
   dataInicio: string | null;
+  contratoNome: string;
   onSave: (resposta: string | null, obs: string | null) => Promise<void>;
   saving: boolean;
 }) {
   const isSimNao = item.tipo_resposta.toLowerCase().includes("sim");
+  const isDocs = isDocsItem(item);
+  const isEnderecos = isEnderecosItem(item);
+
   const [localResp, setLocalResp] = useState<string | null>(resposta);
   const [localObs, setLocalObs] = useState<string>(savedObs ?? "");
   const [state, setState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -89,6 +176,12 @@ function CardChecklist({
   }
 
   const answered = !!localResp;
+
+  // Parse docs saved as JSON for display in answered check
+  const docsCount = useMemo(() => {
+    if (!isDocs || !localResp) return 0;
+    try { return (JSON.parse(localResp) as string[]).length; } catch { return 0; }
+  }, [isDocs, localResp]);
 
   return (
     <div
@@ -118,34 +211,31 @@ function CardChecklist({
 
       {/* Pergunta */}
       <p className="text-sm font-semibold text-foreground leading-snug">{item.item}</p>
+      {isDocs && docsCount > 0 && (
+        <p className="text-[11px] text-muted-foreground">{docsCount} documento{docsCount !== 1 ? "s" : ""} selecionado{docsCount !== 1 ? "s" : ""}</p>
+      )}
 
       {/* Resposta */}
-      {isSimNao ? (
+      {isEnderecos ? (
+        <EnderecosPostos contratoNome={contratoNome} />
+      ) : isDocs ? (
+        <DocMultiSelect value={localResp} onChange={setLocalResp} />
+      ) : isSimNao ? (
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+          <Button variant="outline" size="sm"
             className={`flex-1 gap-1.5 ${localResp === "Sim" ? "bg-green-50 border-green-500 text-green-700" : ""}`}
-            onClick={() => setLocalResp(localResp === "Sim" ? null : "Sim")}
-          >
+            onClick={() => setLocalResp(localResp === "Sim" ? null : "Sim")}>
             <CheckCircle className="w-4 h-4" /> Sim
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          <Button variant="outline" size="sm"
             className={`flex-1 gap-1.5 ${localResp === "Não" ? "bg-red-50 border-red-500 text-red-700" : ""}`}
-            onClick={() => setLocalResp(localResp === "Não" ? null : "Não")}
-          >
+            onClick={() => setLocalResp(localResp === "Não" ? null : "Não")}>
             <XCircle className="w-4 h-4" /> Não
           </Button>
         </div>
       ) : (
-        <Textarea
-          placeholder="Digite a resposta…"
-          className="min-h-[54px] text-sm resize-y"
-          value={localResp ?? ""}
-          onChange={(e) => setLocalResp(e.target.value || null)}
-        />
+        <Textarea placeholder="Digite a resposta…" className="min-h-[54px] text-sm resize-y"
+          value={localResp ?? ""} onChange={(e) => setLocalResp(e.target.value || null)} />
       )}
 
       <Textarea
@@ -197,6 +287,7 @@ export default function ChecklistImplantacao() {
   const empresaId = useEmpresaId();
   const [contratoId, setContratoId] = useState<string>("");
   const [momentoFiltro, setMomentoFiltro] = useState<string>("");
+  const [responsavelFiltro, setResponsavelFiltro] = useState<string>("");
 
   const { data: items = [] } = useChecklistItems();
   const { data: respostas = [] } = useChecklistRespostas(contratoId || null);
@@ -226,16 +317,22 @@ export default function ChecklistImplantacao() {
   }, [respostas]);
 
   const momentos = useMemo(() => [...new Set(items.map((i) => i.momento).filter(Boolean))], [items]);
+  const responsaveis = useMemo(() => [...new Set(items.map((i) => i.responsavel_acao).filter(Boolean))].sort(), [items]);
 
-  const visibleItems = useMemo(
-    () => (momentoFiltro ? items.filter((i) => i.momento === momentoFiltro) : items),
-    [items, momentoFiltro]
-  );
+  const visibleItems = useMemo(() => {
+    let filtered = items;
+    if (momentoFiltro) filtered = filtered.filter((i) => i.momento === momentoFiltro);
+    if (responsavelFiltro) filtered = filtered.filter((i) =>
+      i.responsavel_acao === responsavelFiltro ||
+      (responsavelFiltro !== "Todos" && i.responsavel_acao === "Todos")
+    );
+    return filtered;
+  }, [items, momentoFiltro, responsavelFiltro]);
 
   const grupos = useMemo(() => {
     const m = new Map<string, typeof items>();
     visibleItems.forEach((item) => {
-      const g = item.setor || "Sem setor";
+      const g = item.responsavel_acao || "Sem responsável";
       if (!m.has(g)) m.set(g, []);
       m.get(g)!.push(item);
     });
@@ -290,24 +387,29 @@ export default function ChecklistImplantacao() {
         </div>
       )}
 
-      {/* Filtro de momento */}
+      {/* Filtros */}
       {items.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors ${momentoFiltro === "" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
-            onClick={() => setMomentoFiltro("")}
-          >
-            Todos
-          </button>
-          {momentos.map((m) => (
-            <button
-              key={m}
-              className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors ${momentoFiltro === m ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
-              onClick={() => setMomentoFiltro(m!)}
-            >
-              {m}
-            </button>
-          ))}
+        <div className="space-y-2">
+          {/* Filtro de momento */}
+          <div className="flex flex-wrap gap-2">
+            {[{ label: "Todos momentos", value: "" }, ...momentos.map((m) => ({ label: m!, value: m! }))].map(({ label, value }) => (
+              <button key={value}
+                className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors ${momentoFiltro === value ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary hover:text-primary"}`}
+                onClick={() => setMomentoFiltro(value)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Filtro de responsável */}
+          <div className="flex flex-wrap gap-2">
+            {[{ label: "Todos responsáveis", value: "" }, ...responsaveis.map((r) => ({ label: r!, value: r! }))].map(({ label, value }) => (
+              <button key={value}
+                className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors ${responsavelFiltro === value ? "bg-orange-500 text-white border-orange-500" : "bg-card border-border text-muted-foreground hover:border-orange-400 hover:text-orange-500"}`}
+                onClick={() => setResponsavelFiltro(value)}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -325,14 +427,14 @@ export default function ChecklistImplantacao() {
 
       {/* Grupos por setor */}
       {contratoId &&
-        Array.from(grupos.entries()).map(([setor, sectorItems]) => {
+        Array.from(grupos.entries()).map(([responsavel, sectorItems]) => {
           const respondidos = sectorItems.filter((i) => respostaMap[i.row_index]?.resposta).length;
           const spct = sectorItems.length ? Math.round((respondidos / sectorItems.length) * 100) : 0;
           return (
-            <section key={setor} className="space-y-3">
+            <section key={responsavel} className="space-y-3">
               <div className="flex items-center gap-3 border-b pb-2 flex-wrap">
-                <Badge className="bg-orange-500 text-white text-xs uppercase tracking-wide">{setor}</Badge>
-                <span className="font-bold text-sm">{setor}</span>
+                <Badge className="bg-orange-500 text-white text-xs uppercase tracking-wide">{responsavel}</Badge>
+                <span className="font-bold text-sm">{responsavel}</span>
                 <div className="ml-auto flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
                     {respondidos}/{sectorItems.length}
@@ -350,6 +452,7 @@ export default function ChecklistImplantacao() {
                     resposta={respostaMap[item.row_index]?.resposta ?? null}
                     obs={respostaMap[item.row_index]?.obs ?? null}
                     dataInicio={contrato?.data_inicio ?? null}
+                    contratoNome={contrato?.nome ?? ""}
                     onSave={(resp, obs) => handleSave(item.row_index, resp, obs)}
                     saving={salvar.isPending}
                   />

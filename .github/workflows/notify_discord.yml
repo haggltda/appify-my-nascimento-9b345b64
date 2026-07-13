@@ -17,7 +17,7 @@ jobs:
           # Mapeamento de logins -> nomes desejados
           case "$AUTHOR" in
             EduardoJeiel007) AUTHOR="duduzin" ;;
-            pablotasuyuki)   AUTHOR="pablero" ;;
+            Tasuyuk1)   AUTHOR="pablero" ;;
             joaovperetti)       AUTHOR="jão" ;;
           esac
 

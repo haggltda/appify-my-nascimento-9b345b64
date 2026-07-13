@@ -84,7 +84,7 @@ export default function Ferias() {
     setMotivo("");
     setMsgs([]);
     const { data } = await (supabase as any)
-      .from("SISTEMA_SOL_FERIAS_CHAT").select("*").eq("solicitacao_id", row.id).order("criado_em");
+      .from("SISTEMA_COMENTARIOS").select("*").eq("modulo", "ferias").eq("entidade_id", String(row.id)).order("created_at");
     setMsgs(data ?? []);
   };
   const fecharDrawer = () => { setDrawerId(null); setSol(null); };
@@ -108,12 +108,12 @@ export default function Ferias() {
     if (!chatInput.trim() || !drawerId) return;
     const txt = chatInput.trim();
     setChatInput("");
-    const { error } = await (supabase as any).from("SISTEMA_SOL_FERIAS_CHAT").insert({
-      solicitacao_id: drawerId, mensagem: txt,
+    const { error } = await (supabase as any).from("SISTEMA_COMENTARIOS").insert({
+      modulo: "ferias", entidade_id: String(drawerId), texto: txt,
       autor_nome: nome || user?.email || "Usuário", autor_cpf: user?.email ?? "",
     });
     if (error) { toast("Erro ao enviar.", "err"); return; }
-    const { data } = await (supabase as any).from("SISTEMA_SOL_FERIAS_CHAT").select("*").eq("solicitacao_id", drawerId).order("criado_em");
+    const { data } = await (supabase as any).from("SISTEMA_COMENTARIOS").select("*").eq("modulo", "ferias").eq("entidade_id", String(drawerId)).order("created_at");
     setMsgs(data ?? []);
   };
 
@@ -272,8 +272,8 @@ export default function Ferias() {
                     return (
                       <div key={m.id} style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "75%" }}>
                         <div style={{ fontSize: 10, color: "#94a3b8", padding: "0 2px", textAlign: mine ? "right" : "left" }}>{m.autor_nome}</div>
-                        <div style={{ background: mine ? "#0f3171" : "#f1f5f9", color: mine ? "#fff" : "#0f172a", borderRadius: 12, padding: "8px 12px", fontSize: 13 }}>{m.mensagem}</div>
-                        <div style={{ fontSize: 10, color: "#94a3b8", padding: "0 2px", textAlign: mine ? "right" : "left" }}>{fmtDt(m.criado_em)}</div>
+                        <div style={{ background: mine ? "#0f3171" : "#f1f5f9", color: mine ? "#fff" : "#0f172a", borderRadius: 12, padding: "8px 12px", fontSize: 13 }}>{m.texto}</div>
+                        <div style={{ fontSize: 10, color: "#94a3b8", padding: "0 2px", textAlign: mine ? "right" : "left" }}>{fmtDt(m.created_at)}</div>
                       </div>
                     );
                   })}

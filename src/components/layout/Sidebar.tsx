@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import logoGN from "@/assets/logo-nascimento-icon.png";
 import {
   LayoutDashboard,
@@ -44,10 +44,10 @@ import {
   Headset,
   ShieldAlert,
   ClipboardList,
+  Bell,
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
-import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
 import { useGradeAtivaCount } from "@/hooks/useGradeAtivaCount";
 import { EmpresaAtivaContext } from "@/context/EmpresaAtivaContext";
 import { Inbox } from "lucide-react";
@@ -76,6 +76,9 @@ interface ModuleDef {
   badge?: string;
   status: "active" | "soon";
   groups?: NavGroup[];
+  // Se definido, clicar no cabeçalho do módulo navega direto para esta rota
+  // (além de expandir os submódulos). Usado p/ módulos com página-hub própria.
+  headerLink?: string;
 }
 
 // Módulo Licitações — único navegável hoje
@@ -92,7 +95,7 @@ const licitacoesModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Painel Executivo", to: "/app/painel-executivo", icon: LayoutDashboard },
-        { label: "Grade de Licitações", to: "/app/pipeline", icon: FolderKanban, badge: "__grade_ativa__" },
+        { label: "Grade de Licitações", to: "/app/licitacoes/grade", icon: FolderKanban, badge: "__grade_ativa__" },
       ],
     },
     {
@@ -101,7 +104,6 @@ const licitacoesModule: ModuleDef = {
       items: [
         { label: "Capa de Edital Licitações", to: "/app/editais", icon: FileText },
         { label: "Planilha de Custo", to: "/app/licitacoes/planilha-custo", icon: TableProperties },
-        { label: "Checklist de Implantação", to: "/app/licitacoes/checklist", icon: ClipboardCheck },
         { label: "Implantação de Contratos", to: "/app/licitacoes/implantacao", icon: ListChecks },
         { label: "Documentos", to: "/app/documentos", icon: ScrollText },
         // B2: "Triagem & IA" removida do menu (rota /app/triagem segue existindo,
@@ -255,6 +257,7 @@ const financeiroModule: ModuleDef = {
         { label: "Programação de Pagamentos", to: "/app/financeiro/programacao-pagamentos", icon: Wallet },
         { label: "Validação Pós-Pagamento", to: "/app/financeiro/validacao-pos-pagamento", icon: Receipt },
         { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
+        { label: "Cobranças", to: "/app/cobrancas", icon: Bell },
         { label: "Fluxo de Caixa", to: "/app/financeiro/fluxo-caixa", icon: TrendingUp },
         { label: "Fluxo de Caixa Diário", to: "/app/financeiro/fluxo-caixa-diario", icon: TrendingUp },
         { label: "Conciliação Fluxo Caixa", to: "/app/financeiro/conciliacao-fluxo-caixa", icon: Receipt },
@@ -324,6 +327,7 @@ const rhModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Colaboradores", to: "/app/rh/colaboradores", icon: Users2 },
+        { label: "Novas Admissões", to: "/app/rh/novas-admissoes", icon: ClipboardCheck },
         { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
         { label: "Folha de Pagamento", to: "/app/rh/folha", icon: ListChecks },
         { label: "Gestão de Férias", to: "/app/rh/ferias", icon: CalendarRange },
@@ -345,7 +349,9 @@ const recrutamentoModule: ModuleDef = {
       label: "Gestão",
       defaultOpen: true,
       items: [
+        { label: "Dashboard", to: "/app/rh/recrutamento-dashboard", icon: BarChart3 },
         { label: "Gestão Recrutamento", to: "/app/rh/recrutamento", icon: UserCog },
+        { label: "Banco de Talentos", to: "/app/rh/banco-talentos", icon: Users2 },
       ],
     },
   ],
@@ -393,7 +399,7 @@ const sistemasModule: ModuleDef = {
 const centralServicosModule: ModuleDef = {
   id: "central_servicos",
   label: "Central de Serviços",
-  description: "Atas de reunião e mais",
+  description: "Atendimento e orientações ao colaborador",
   icon: Headset,
   basePath: "/app/central-servicos",
   status: "active",
@@ -416,11 +422,34 @@ const centralServicosModule: ModuleDef = {
 const juridicoModule: ModuleDef = {
   id: "juridico",
   label: "Jurídico",
-  description: "Patrimônios e obrigações",
+  description: "Patrimônios, obrigações e dúvidas",
   icon: Scale,
   basePath: "/app/juridico/patrimonios",
   status: "active",
   groups: [
+    {
+      label: "Processos",
+      defaultOpen: true,
+      items: [
+        { label: "Dashboard - Processos", to: "/app/juridico/processos/dashboard", icon: BarChart3 },
+        { label: "Processos", to: "/app/juridico/processos", icon: Scale },
+        { label: "Audiências", to: "/app/juridico/processos/audiencias", icon: CalendarRange },
+      ],
+    },
+    {
+      label: "Gestão de Advertências",
+      defaultOpen: true,
+      items: [
+        { label: "Advertências", to: "/app/juridico/advertencias", icon: Gavel },
+      ],
+    },
+    {
+      label: "Recrutamento",
+      defaultOpen: true,
+      items: [
+        { label: "Verificação de Candidatos", to: "/app/juridico/candidatos", icon: ClipboardCheck },
+      ],
+    },
     {
       label: "Gestão Patrimonial",
       defaultOpen: true,
@@ -428,8 +457,16 @@ const juridicoModule: ModuleDef = {
         { label: "Patrimônios", to: "/app/juridico/patrimonios", icon: Building2 },
       ],
     },
+    {
+      label: "Conhecimento",
+      defaultOpen: true,
+      items: [
+        { label: "Parecer Jurídico", to: "/app/juridico/duvidas", icon: BookOpen },
+      ],
+    },
   ],
 };
+
 
 // BI
 const biModule: ModuleDef = {
@@ -493,6 +530,25 @@ function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
   };
 }
 
+// SST — ASO / Admissão (fila do Recrutamento)
+const sstModule: ModuleDef = {
+  id: "sst",
+  label: "SST",
+  description: "Saúde e Segurança do Trabalho",
+  icon: HardHat,
+  basePath: "/app/sst/aso",
+  status: "active",
+  groups: [
+    {
+      label: "Recrutamento",
+      defaultOpen: true,
+      items: [
+        { label: "ASO / Admissão", to: "/app/sst/aso", icon: HardHat },
+      ],
+    },
+  ],
+};
+
 const erpModules: ModuleDef[] = [
   licitacoesModule,
   controladoriaOrcModule,
@@ -504,8 +560,9 @@ const erpModules: ModuleDef[] = [
   recrutamentoModule,
   encarregadosModule,
   sistemasModule,
-  centralServicosModule,
   juridicoModule,
+  sstModule,
+  centralServicosModule,
   biModule,
 ];
 
@@ -519,7 +576,6 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const location = useLocation();
   const { perms } = usePlanoAcaoPermissao();
   const { temAlcada, pendentes } = useTemAlcada();
-  const { data: access } = useAccessibleMenus("visualizar");
   const empresaCtx = useContext(EmpresaAtivaContext);
   const { data: gradeAtivaCount } = useGradeAtivaCount(empresaCtx?.empresa?.id ?? null);
 
@@ -529,34 +585,15 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
     integracaoModule,
   ];
 
-  // Sidebar filtra itens com base nos menus acessíveis do usuário.
-  // Cargo/role não concede bypass — acesso determinado pelo painel de usuários.
-  const SIDEBAR_TECHNICAL_ALLOWLIST = ["/app", "/app/meu-perfil", "/app/rh/recrutamento", "/app/rh/ferias", "/app/encarregados/minhas-solicitacoes", "/app/juridico/patrimonios", "/app/sistemas/solicitacoes-erp"];
+  // Sem regra de permissão no front: a sidebar mostra todos os módulos e telas.
   const visibleModules = useMemo(() => {
     const resolvedBadge = (badge: string | undefined) => {
       if (badge === "__grade_ativa__") return gradeAtivaCount != null ? String(gradeAtivaCount) : undefined;
       return badge;
     };
 
-    const base = !access ? allModules : (() => {
-      const canSee = (to: string) => {
-        const code = matchMenuCode(to, access.routes);
-        if (code) return access.codes.has(code);
-        return SIDEBAR_TECHNICAL_ALLOWLIST.includes(to);
-      };
-      return allModules
-        .map((mod) => {
-          if (!mod.groups) return mod;
-          const groups = mod.groups
-            .map((g) => ({ ...g, items: g.items.filter((i) => canSee(i.to)) }))
-            .filter((g) => g.items.length > 0);
-          return { ...mod, groups };
-        })
-        .filter((mod) => !mod.groups || mod.groups.length > 0);
-    })();
-
     // Resolve sentinels de badge dinâmico
-    return base.map((mod) => ({
+    return allModules.map((mod) => ({
       ...mod,
       badge: resolvedBadge(mod.badge),
       groups: mod.groups?.map((g) => ({
@@ -564,7 +601,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
         items: g.items.map((item) => ({ ...item, badge: resolvedBadge(item.badge) })),
       })),
     }));
-  }, [allModules, access, gradeAtivaCount]);
+  }, [allModules, gradeAtivaCount]);
 
   // Módulo ativo = aquele cujo ITEM (link real) casa com a rota atual.
   // Detecção por basePath não serve porque o Licitações usa basePath "/app"
@@ -574,7 +611,17 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
     let bestId: string | null = null;
     let bestLen = -1;
     for (const m of visibleModules) {
-      if (m.status !== "active" || !m.groups) continue;
+      if (m.status !== "active") continue;
+      // Página-hub do módulo (headerLink) ativa o módulo, mesmo sem submódulos (ex.: /app/central-servicos).
+      if (m.headerLink && m.headerLink !== "/app") {
+        const matchesHub =
+          location.pathname === m.headerLink || location.pathname.startsWith(m.headerLink + "/");
+        if (matchesHub && m.headerLink.length > bestLen) {
+          bestLen = m.headerLink.length;
+          bestId = m.id;
+        }
+      }
+      if (!m.groups) continue;
       for (const g of m.groups) {
         for (const item of g.items) {
           if (item.to === "/app") continue; // Início é página própria, não ativa nenhum módulo
@@ -760,13 +807,14 @@ function ModuleEntry({
   const isActiveModule = active;
   const Icon = mod.icon;
   const disabled = mod.status === "soon";
+  const navigate = useNavigate();
 
   return (
     <div className="mb-1">
       <button
         type="button"
         disabled={disabled}
-        onClick={onToggle}
+        onClick={() => { if (mod.headerLink) navigate(mod.headerLink); onToggle(); }}
         className={cn(
           "group relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
           isActiveModule
@@ -832,11 +880,16 @@ function SidebarGroup({ group }: { group: NavGroup }) {
       </button>
       {open && (
         <ul className="space-y-0.5">
-          {group.items.map((item) => (
+          {group.items.map((item) => {
+            // Match exato quando outro item do menu está aninhado sob esta rota
+            // (ex.: "Processos" é prefixo de "/processos/dashboard" e "/processos/audiencias");
+            // sem isso o item-pai acenderia junto com o filho.
+            const hasNested = group.items.some((o) => o.to !== item.to && o.to.startsWith(item.to + "/"));
+            return (
             <li key={item.to}>
               <NavLink
                 to={item.to}
-                end={item.to === "/app"}
+                end={item.to === "/app" || hasNested}
                 className={({ isActive }) =>
                   cn(
                     "group relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors",
@@ -860,7 +913,8 @@ function SidebarGroup({ group }: { group: NavGroup }) {
                 )}
               </NavLink>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>
