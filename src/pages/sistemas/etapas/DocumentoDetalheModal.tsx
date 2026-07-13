@@ -11,7 +11,7 @@ import {
 } from "./types";
 import { RESUMOS, temDadoResumo } from "./Resumos";
 import { Historico } from "./Historico";
-import { PdfDocumento, fmtDataHoraPdf } from "./pdfHelpers";
+import { PdfDocumento, fmtDataHoraPdf } from "@/lib/pdf/PdfDocumento";
 import type { DocumentoOficial } from "./documentos";
 
 const ETAPA_LABEL: Record<string, string> = Object.fromEntries(ETAPAS.map((e) => [e.key, e.label]));
@@ -152,7 +152,10 @@ function exportarEncerramentoPdf(
     porEtapa.get(a.etapa)!.push(a);
   });
   ETAPAS.filter((e) => porEtapa.has(e.key)).forEach((etapa) => {
-    pdf.blocoAssinaturasColuna(etapa.label, porEtapa.get(etapa.key)!, usuarios);
+    pdf.blocoAssinaturasColuna(
+      `Coluna: ${etapa.label}`,
+      porEtapa.get(etapa.key)!.map((a) => ({ nome: nomeUsuario(usuarios, a.user_id) ?? "Usuário", created_at: a.created_at })),
+    );
   });
 
   pdf.salvar(`encerramento-${titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`);
