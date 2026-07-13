@@ -12,7 +12,7 @@ import { useAccessibleMenus } from "@/hooks/useAccessibleMenus";
 import { useReunioes, useUsuariosAtivos } from "./useReunioes";
 import { CalendarioMes } from "./componentes/CalendarioMes";
 import { ReuniaoFormCriar } from "./ReuniaoFormCriar";
-import { ETAPA_COR, ETAPA_LABEL, nomeUsuario } from "./types";
+import { ETAPA_COR, ETAPA_LABEL, nomeUsuario, SALAS_PRESENCIAIS } from "./types";
 
 function KpiTile({ icon, label, valor, sub, cor }: { icon: React.ReactNode; label: string; valor: number; sub: string; cor: string }) {
   return (
@@ -38,12 +38,19 @@ export default function Reunioes() {
   const [mesAtual, setMesAtual] = useState(() => new Date());
   const [diaSelecionado, setDiaSelecionado] = useState(() => new Date());
   const [filtroResponsavel, setFiltroResponsavel] = useState("");
+  const [filtroConvidado, setFiltroConvidado] = useState("");
+  const [filtroSala, setFiltroSala] = useState("");
 
   const opcoesResponsaveis = usuarios.map((u) => ({ value: u.id, label: u.display_name }));
+  const opcoesSalas = SALAS_PRESENCIAIS.map((s) => ({ value: s, label: s }));
 
   const reunioesFiltradas = useMemo(
-    () => (filtroResponsavel ? reunioes.filter((r) => r.responsavel_preenchimento_user_id === filtroResponsavel) : reunioes),
-    [reunioes, filtroResponsavel],
+    () => reunioes.filter((r) =>
+      (!filtroResponsavel || r.responsavel_preenchimento_user_id === filtroResponsavel)
+      && (!filtroConvidado || r.convidados.includes(filtroConvidado))
+      && (!filtroSala || (r.tipo_local === "presencial" && r.local_ou_link === filtroSala)),
+    ),
+    [reunioes, filtroResponsavel, filtroConvidado, filtroSala],
   );
 
   const kpis = useMemo(() => {
@@ -89,6 +96,24 @@ export default function Reunioes() {
           onChange={setFiltroResponsavel}
           options={opcoesResponsaveis}
           placeholder="Pessoa responsável"
+          allowClear
+          clearValue=""
+          className="w-56"
+        />
+        <SearchableSelect
+          value={filtroConvidado}
+          onChange={setFiltroConvidado}
+          options={opcoesResponsaveis}
+          placeholder="Pessoa Convidada"
+          allowClear
+          clearValue=""
+          className="w-56"
+        />
+        <SearchableSelect
+          value={filtroSala}
+          onChange={setFiltroSala}
+          options={opcoesSalas}
+          placeholder="Salas de Reuniões"
           allowClear
           clearValue=""
           className="w-56"

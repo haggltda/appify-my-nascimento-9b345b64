@@ -1,22 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import type { Reuniao, Usuario } from "./types";
+import type { Reuniao, ReuniaoCalendario, Usuario } from "./types";
 import { registrarLog } from "./registrarLog";
 
 const REUNIAO_COLUNAS =
   "id, titulo, objetivo, data_hora, duracao_minutos, tipo_local, local_ou_link, etapa, criado_por, responsavel_preenchimento_user_id, motivo_cancelamento, created_at, updated_at";
 
+/** Calendário geral: todas as reuniões da empresa (recorte mínimo) — abrir o card ainda exige interação, via RLS de "reuniao". */
 export function useReunioes() {
   return useQuery({
-    queryKey: ["reuniao"],
+    queryKey: ["reuniao-calendario"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("reuniao")
-        .select(REUNIAO_COLUNAS)
-        .order("data_hora", { ascending: true });
+      const { data, error } = await (supabase as any).rpc("listar_reunioes_calendario");
       if (error) throw error;
-      return (data ?? []) as Reuniao[];
+      return (data ?? []) as ReuniaoCalendario[];
     },
   });
 }
@@ -188,7 +186,8 @@ export function useCriarReuniao() {
       return reuniaoId;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["reuniao"] });
+      qc.invalidateQueries({ queryKey: ["reuniao-calendario"] });
+      qc.invalidateQueries({ queryKey: ["reuniao-minhas"] });
       toast({ title: "Reunião agendada" });
     },
     onError: (error: any) => {
