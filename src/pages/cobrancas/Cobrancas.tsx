@@ -1,11 +1,9 @@
-
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Bell, AlertTriangle, Upload, ListChecks } from "lucide-react";
+import { Bell, AlertTriangle, ListChecks } from "lucide-react";
 import ReguaCobrancaTab from "@/pages/financeiro/receber/ReguaCobrancaTab";
 import AprovacaoCobrancaTab from "@/pages/financeiro/receber/AprovacaoCobrancaTab";
-import ImportarRelatorioServicoCard from "./ImportarRelatorioServicoCard";
 import NotasAbertoTab from "./NotasAbertoTab";
 
 export default function Cobrancas() {
@@ -21,12 +19,9 @@ export default function Cobrancas() {
       />
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="grid grid-cols-4 gap-1 h-auto p-1 max-w-2xl">
+        <TabsList className="grid grid-cols-3 gap-1 h-auto p-1 max-w-lg">
           <TabsTrigger value="notas" className="flex items-center gap-2">
             <ListChecks className="h-4 w-4" /> Notas em Aberto
-          </TabsTrigger>
-          <TabsTrigger value="importar" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" /> Importar
           </TabsTrigger>
           <TabsTrigger value="regua" className="flex items-center gap-2">
             <Bell className="h-4 w-4" /> Régua
@@ -38,9 +33,6 @@ export default function Cobrancas() {
 
         <TabsContent value="notas" className="mt-6">
           <NotasAbertoTab />
-        </TabsContent>
-        <TabsContent value="importar" className="mt-6">
-          <ImportarRelatorioServicoCard />
         </TabsContent>
         <TabsContent value="regua" className="mt-6">
           <ReguaCobrancaTab />

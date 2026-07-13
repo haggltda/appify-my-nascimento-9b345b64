@@ -258,6 +258,7 @@ const financeiroModule: ModuleDef = {
         { label: "Validação Pós-Pagamento", to: "/app/financeiro/validacao-pos-pagamento", icon: Receipt },
         { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
         { label: "Cobranças", to: "/app/cobrancas", icon: Bell },
+        { label: "Relatório de Serviços", to: "/app/financeiro/relatorio-servicos", icon: TableProperties },
         { label: "Fluxo de Caixa", to: "/app/financeiro/fluxo-caixa", icon: TrendingUp },
         { label: "Fluxo de Caixa Diário", to: "/app/financeiro/fluxo-caixa-diario", icon: TrendingUp },
         { label: "Conciliação Fluxo Caixa", to: "/app/financeiro/conciliacao-fluxo-caixa", icon: Receipt },
