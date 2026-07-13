@@ -29,6 +29,7 @@ export interface Formulario {
   criado_por?: string | null; visibilidade?: "todos" | "restrita";
   perguntas?: Pergunta[];  // jsonb — ordem = posição no array
   pergunta_setor_id?: string | null;  // qual pergunta classifica a resposta (Admin/Operac.)
+  setores_acesso?: string[] | null;   // setores (Setor_ERP) que podem ver/responder; null/vazio = todos
 }
 
 export const normalizaPerguntas = (v: any): Pergunta[] =>

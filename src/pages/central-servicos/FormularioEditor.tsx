@@ -78,7 +78,9 @@ export default function FormularioEditor() {
     if (!form.titulo.trim()) { toast("O formulário precisa de um título.", "err"); return; }
     if (novoStatus === "publicado" && pergs.filter(p => p.titulo.trim()).length === 0) { toast("Adicione ao menos 1 pergunta antes de publicar.", "err"); return; }
     setSalvando(true);
-    const patchForm: any = {
+    // Colunas garantidas (base) x colunas novas de setor/acesso (extra). Se o
+    // banco ainda não tem as novas, reenvia só a base — o save não trava.
+    const base: any = {
       titulo: form.titulo.trim(), descricao: form.descricao || null,
       inicia_em: form.inicia_em || null, encerra_em: form.encerra_em || null,
       max_respostas: form.max_respostas || null, coleta_identificacao: form.coleta_identificacao,
@@ -88,10 +90,11 @@ export default function FormularioEditor() {
         obrigatoria: p.obrigatoria, imagem_url: p.imagem_url || null,
         opcoes: p.opcoes.filter(o => o.trim()), config: p.config,
       })),
-      pergunta_setor_id: form.pergunta_setor_id || null,
       ...(novoStatus ? { status: novoStatus } : {}),
     };
-    const { error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update(patchForm).eq("id", form.id);
+    const extra = { pergunta_setor_id: form.pergunta_setor_id || null, setores_acesso: form.setores_acesso ?? null };
+    let { error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update({ ...base, ...extra }).eq("id", form.id);
+    if (e1 && /column|schema cache/i.test(e1.message)) ({ error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update(base).eq("id", form.id));
     if (e1) { setSalvando(false); toast("Erro ao salvar: " + e1.message, "err"); return; }
     setSalvando(false);
     toast(novoStatus === "publicado" ? "Publicado! URL ativa — copie na lista." : "Salvo.", "ok");
