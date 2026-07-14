@@ -14,8 +14,8 @@ import { ArrowDownToLine, AlertTriangle, Search, Filter, FileText } from "lucide
 import { toast } from "sonner";
 
 const fmtMoney = (n: any) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n) || 0);
-const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
-const fmtDataHora = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "—");
+const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "-");
+const fmtDataHora = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR") : "-");
 
 const statusBadge = (s: string) => {
   const map: Record<string, any> = {
@@ -54,7 +54,7 @@ export default function TitulosReceberTab() {
     },
   });
 
-  // Último envio de cobrança por setor (Financeiro/Jurídico) — equivalente às colunas
+  // Último envio de cobrança por setor (Financeiro/Jurídico) - equivalente às colunas
   // do sistema de cobranças antigo, agora nativo via a view titulo_ultimo_envio_setor.
   const { data: ultimosEnvios = [] } = useQuery<any[]>({
     queryKey: ["titulo-ultimo-envio-setor"],
@@ -191,12 +191,12 @@ export default function TitulosReceberTab() {
                         <TableCell className="font-mono text-xs">{t.numero ?? t.numero_documento}</TableCell>
                         <TableCell className="font-medium">{t.sacado_nome ?? t.cliente_nome}</TableCell>
                         <TableCell className="text-xs">
-                          {t.contrato ? <span>{t.contrato.numero}<br /><span className="text-muted-foreground">{t.contrato.orgao}</span></span> : "—"}
+                          {t.contrato ? <span>{t.contrato.numero}<br /><span className="text-muted-foreground">{t.contrato.orgao}</span></span> : "-"}
                         </TableCell>
                         <TableCell>{fmtDate(t.data_vencimento)}</TableCell>
                         <TableCell className="text-right font-medium">{fmtMoney(t.valor)}</TableCell>
                         <TableCell className="text-right">
-                          {Number(t.valor_recebido) > 0 ? fmtMoney(t.valor_recebido) : "—"}
+                          {Number(t.valor_recebido) > 0 ? fmtMoney(t.valor_recebido) : "-"}
                           {saldo > 0 && Number(t.valor_recebido) > 0 && <div className="text-xs text-muted-foreground">saldo {fmtMoney(saldo)}</div>}
                         </TableCell>
                         <TableCell>{meioBadge(t.meio_cobranca)}</TableCell>
@@ -304,9 +304,9 @@ function BaixaDialog({ titulo, onClose }: { titulo: any; onClose: (ok: boolean) 
           <div className="col-span-2">
             <Label>Conta bancária</Label>
             <Select value={contaId} onValueChange={setContaId}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="-" /></SelectTrigger>
               <SelectContent>
-                {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} — {c.banco_nome} {c.agencia}/{c.conta}</SelectItem>)}
+                {contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.banco_codigo} - {c.banco_nome} {c.agencia}/{c.conta}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

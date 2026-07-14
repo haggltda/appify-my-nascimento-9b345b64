@@ -91,7 +91,7 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
     if (form.repetir) {
       const datas = gerarDatasRecorrencia(dataHora, form.repetirAte);
       if (datas.length > MAX_OCORRENCIAS_RECORRENCIA) {
-        setErroConflito(`Essa recorrência geraria ${datas.length} reuniões — o limite é ${MAX_OCORRENCIAS_RECORRENCIA}. Escolha uma data final mais próxima.`);
+        setErroConflito(`Essa recorrência geraria ${datas.length} reuniões - o limite é ${MAX_OCORRENCIAS_RECORRENCIA}. Escolha uma data final mais próxima.`);
         return;
       }
       await criarRecorrentes.mutateAsync({

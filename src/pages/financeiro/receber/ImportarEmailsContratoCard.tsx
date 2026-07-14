@@ -8,7 +8,7 @@ import { Upload, CheckCircle2, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
 
 // Mesma lógica de normalização/casamento já validada no sistema de cobranças antigo
-// (main.py: normalizar_contrato) — só arrisca um "match" automático quando o número
+// (main.py: normalizar_contrato) - só arrisca um "match" automático quando o número
 // final do contrato bate com um único candidato; o resto fica pra revisão manual.
 
 function normalizar(txt: unknown): string {
@@ -150,7 +150,7 @@ export default function ImportarEmailsContratoCard() {
         </CardTitle>
         <CardDescription>
           Planilha com colunas EMPRESA, CONTRATO e EMAIL (mesma fonte usada no sistema de cobranças antigo).
-          Cada linha vira o(s) e-mail(s) padrão do contrato correspondente — só confirma automaticamente
+          Cada linha vira o(s) e-mail(s) padrão do contrato correspondente - só confirma automaticamente
           quando o casamento é exato ou o número do contrato bate com um único candidato; o resto fica marcado
           pra revisão manual, nada é importado sem você conferir.
         </CardDescription>
@@ -201,8 +201,8 @@ export default function ImportarEmailsContratoCard() {
                   {resultados.map((r, i) => (
                     <tr key={i} className="border-t">
                       <td className="px-2 py-1">{r.contrato}</td>
-                      <td className="px-2 py-1">{r.contratoEncontrado ?? "—"}</td>
-                      <td className="px-2 py-1 max-w-[220px] truncate" title={r.emails.join(", ")}>{r.emails.join(", ") || "—"}</td>
+                      <td className="px-2 py-1">{r.contratoEncontrado ?? "-"}</td>
+                      <td className="px-2 py-1 max-w-[220px] truncate" title={r.emails.join(", ")}>{r.emails.join(", ") || "-"}</td>
                       <td className="px-2 py-1">
                         {r.tipoMatch === "exato" && <Badge variant="default" className="text-[10px]">exato</Badge>}
                         {r.tipoMatch === "numero_unico" && <Badge variant="secondary" className="text-[10px]">nº único</Badge>}

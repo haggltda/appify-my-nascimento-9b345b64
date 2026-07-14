@@ -8,7 +8,7 @@ export default function RelatorioServicos() {
         module="Financeiro"
         breadcrumb={["Relatório de Serviços"]}
         title="Relatório de Serviços"
-        subtitle="Registro-mestre de notas fiscais em aberto — em desenvolvimento. Por enquanto, alimentado por importação da planilha oficial do Financeiro; a Cobrança consome esses mesmos dados."
+        subtitle="Registro-mestre de notas fiscais em aberto - em desenvolvimento. Por enquanto, alimentado por importação da planilha oficial do Financeiro; a Cobrança consome esses mesmos dados."
       />
 
       <ImportarRelatorioServicoCard />

@@ -7,7 +7,7 @@ import { registrarLog } from "./registrarLog";
 const REUNIAO_COLUNAS =
   "id, titulo, objetivo, data_hora, duracao_minutos, tipo_local, local_ou_link, etapa, criado_por, responsavel_preenchimento_user_id, motivo_cancelamento, created_at, updated_at";
 
-/** Calendário geral: todas as reuniões da empresa (recorte mínimo) — abrir o card ainda exige interação, via RLS de "reuniao". */
+/** Calendário geral: todas as reuniões da empresa (recorte mínimo) - abrir o card ainda exige interação, via RLS de "reuniao". */
 export function useReunioes() {
   return useQuery({
     queryKey: ["reuniao-calendario"],
@@ -204,7 +204,7 @@ interface ResultadoRecorrencia {
   puladas: { dataHoraIso: string; motivo: string }[];
 }
 
-/** Cria uma série de reuniões (mesmo conteúdo, datas diferentes) — cada data é uma tentativa independente, igual a criar uma avulsa; se uma data específica já estiver ocupada, só ela fica de fora. */
+/** Cria uma série de reuniões (mesmo conteúdo, datas diferentes) - cada data é uma tentativa independente, igual a criar uma avulsa; se uma data específica já estiver ocupada, só ela fica de fora. */
 export function useCriarReunioesRecorrentes() {
   const qc = useQueryClient();
   const { toast } = useToast();

@@ -81,7 +81,7 @@ interface ModuleDef {
   headerLink?: string;
 }
 
-// Módulo Licitações — único navegável hoje
+// Módulo Licitações - único navegável hoje
 const licitacoesModule: ModuleDef = {
   id: "licitacoes",
   label: "Licitações",
@@ -128,7 +128,7 @@ const licitacoesModule: ModuleDef = {
     {
       label: "Pregão & Encaminhamento",
       items: [
-        // B2.1.c.1 — "Pregão & Lances" inutilizado: item removido do menu e app_menu.ativo=false.
+        // B2.1.c.1 - "Pregão & Lances" inutilizado: item removido do menu e app_menu.ativo=false.
         //            Componente Pregao.tsx, rota /app/pregao e status "pregao" do fluxo preservados.
         { label: "Resultado Final", to: "/app/resultado", icon: Trophy },
         { label: "Prontas p/ Contrato", to: "/app/prontas-contrato", icon: PackageCheck },
@@ -150,13 +150,13 @@ const licitacoesModule: ModuleDef = {
       label: "Governança",
       items: [
         { label: "Histórico & Auditoria", to: "/app/historico", icon: History },
-        // Consolidação: "Administração" removida daqui — acesso único via rodapé "Configurações do ERP".
+        // Consolidação: "Administração" removida daqui - acesso único via rodapé "Configurações do ERP".
       ],
     },
   ],
 };
 
-// Módulo Controladoria & Orçamento — ativo (catálogos + OBZ)
+// Módulo Controladoria & Orçamento - ativo (catálogos + OBZ)
 const controladoriaOrcModule: ModuleDef = {
   id: "controladoria_orc",
   label: "Controladoria & Orçamento",
@@ -182,7 +182,7 @@ const controladoriaOrcModule: ModuleDef = {
       items: [
         { label: "Ciclos de Orçamento", to: "/app/orcamento", icon: Calculator },
         { label: "Planejador OBZ (mock)", to: "/app/controladoria/obz", icon: Calculator },
-        { label: "OBZ — Versões", to: "/app/controladoria/obz-versoes", icon: Calculator },
+        { label: "OBZ - Versões", to: "/app/controladoria/obz-versoes", icon: Calculator },
         { label: "DRE Gerencial", to: "/app/controladoria/dre-gerencial", icon: TrendingUp },
         { label: "Orçamento Completo", to: "/app/controladoria/orcamento-completo", icon: Calculator },
       ],
@@ -358,7 +358,7 @@ const recrutamentoModule: ModuleDef = {
   ],
 };
 
-// Encarregados — hub de solicitações (vaga, férias) + históricos/status
+// Encarregados - hub de solicitações (vaga, férias) + históricos/status
 const encarregadosModule: ModuleDef = {
   id: "encarregados",
   label: "Encarregados",
@@ -377,7 +377,7 @@ const encarregadosModule: ModuleDef = {
   ],
 };
 
-// Sistemas — demandas de sistemas (kanban de 13 etapas, acesso livre)
+// Sistemas - demandas de sistemas (kanban de 13 etapas, acesso livre)
 const sistemasModule: ModuleDef = {
   id: "sistemas",
   label: "Sistemas",
@@ -419,7 +419,7 @@ const centralServicosModule: ModuleDef = {
   ],
 };
 
-// Jurídico — Gestão Patrimonial e Obrigações
+// Jurídico - Gestão Patrimonial e Obrigações
 const juridicoModule: ModuleDef = {
   id: "juridico",
   label: "Jurídico",
@@ -531,7 +531,7 @@ function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
   };
 }
 
-// SST — ASO / Admissão (fila do Recrutamento)
+// SST - ASO / Admissão (fila do Recrutamento)
 const sstModule: ModuleDef = {
   id: "sst",
   label: "SST",

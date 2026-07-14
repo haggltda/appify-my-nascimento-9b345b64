@@ -56,7 +56,7 @@ export default function AprovacaoCobrancaTab() {
             <AlertTriangle className="h-4 w-4" /> Fila de aprovação ({pendentes.length})
           </CardTitle>
           <CardDescription>
-            Etapas jurídicas graves e canais não automatizados (WhatsApp) sempre passam por aqui antes de sair —
+            Etapas jurídicas graves e canais não automatizados (WhatsApp) sempre passam por aqui antes de sair -
             ninguém envia sozinho sem revisão.
           </CardDescription>
         </CardHeader>
@@ -75,7 +75,7 @@ export default function AprovacaoCobrancaTab() {
                   )}
                   <div className="flex-1 text-sm">
                     <span className="font-medium">{p.titulo_receber?.sacado_nome}</span>
-                    <span className="text-muted-foreground"> — Título {p.titulo_receber?.numero} — {p.destinatario ?? "sem destinatário"}</span>
+                    <span className="text-muted-foreground"> - Título {p.titulo_receber?.numero} - {p.destinatario ?? "sem destinatário"}</span>
                   </div>
                   <Button size="sm" variant="outline" onClick={() => setPreview(p)}>
                     <Eye className="h-3.5 w-3.5 mr-1" /> Ver
@@ -91,9 +91,9 @@ export default function AprovacaoCobrancaTab() {
         <Dialog open onOpenChange={(o) => !o && setPreview(null)}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{preview.assunto || "(sem assunto — canal " + preview.canal + ")"}</DialogTitle>
+              <DialogTitle>{preview.assunto || "(sem assunto - canal " + preview.canal + ")"}</DialogTitle>
               <DialogDescription>
-                {preview.titulo_receber?.sacado_nome} • Título {preview.titulo_receber?.numero} • Para: {preview.destinatario ?? "—"}
+                {preview.titulo_receber?.sacado_nome} • Título {preview.titulo_receber?.numero} • Para: {preview.destinatario ?? "-"}
               </DialogDescription>
             </DialogHeader>
 

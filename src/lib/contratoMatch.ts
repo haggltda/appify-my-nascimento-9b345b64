@@ -1,7 +1,7 @@
 // Casamento difuso de nome de contrato (planilha) contra a tabela `contrato`.
 // Mesma técnica validada no sistema de cobranças antigo (main.py: normalizar_contrato):
 // só arrisca um match automático quando o nome bate exato ou o número final do
-// contrato é único entre os candidatos — o resto fica pra revisão manual.
+// contrato é único entre os candidatos - o resto fica pra revisão manual.
 
 export function normalizarContrato(txt: unknown): string {
   return String(txt ?? "")

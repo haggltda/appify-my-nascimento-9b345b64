@@ -151,7 +151,7 @@ export default function PlanoAcaoDetalhe() {
 
   // Reset de área/setor quando o mapa de comitês termina de carregar depois
   // do registro (form.comite não muda, só comitesMap fica disponível depois).
-  // O líder NÃO é sincronizado aqui de propósito — ver handleComiteChange,
+  // O líder NÃO é sincronizado aqui de propósito - ver handleComiteChange,
   // que só roda quando o usuário efetivamente troca o comitê (nunca ao
   // carregar uma ação já salva, para não apagar um líder salvo manualmente).
   useEffect(() => {
@@ -164,7 +164,7 @@ export default function PlanoAcaoDetalhe() {
     });
   }, [form.comite, comitesMap]);
 
-  // Só roda a partir de interação real do usuário com o dropdown de Comitê —
+  // Só roda a partir de interação real do usuário com o dropdown de Comitê -
   // por isso a lógica fica no onValueChange, não num useEffect que também
   // dispararia ao carregar uma ação existente.
   const handleComiteChange = (v: string) => {
@@ -207,7 +207,7 @@ export default function PlanoAcaoDetalhe() {
   const uploadFile = async (file: File, planId: string) => {
     const { data: u } = await supabase.auth.getUser();
     const timestamp = Date.now();
-    // A key do storage não aceita acentos/espaços ("Invalid key") —
+    // A key do storage não aceita acentos/espaços ("Invalid key") -
     // sanitiza só o nome usado no path; o nome original fica intacto em nome_arquivo.
     const nomeSanitizado = file.name
       .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -310,7 +310,7 @@ export default function PlanoAcaoDetalhe() {
 
       // Sincroniza usuários de visibilidade específica.
       // O criador (user.id) é sempre mantido na lista para que ele não perca
-      // acesso ao próprio plano ao editar — a política RLS não tem bypass de criador
+      // acesso ao próprio plano ao editar - a política RLS não tem bypass de criador
       // para visibilidade='especifico'.
       await (supabase as any).from("plano_acao_visibilidade_usuario").delete().eq("plano_acao_id", id!);
       if (form.visibilidade === "especifico") {
@@ -426,7 +426,7 @@ export default function PlanoAcaoDetalhe() {
                 >
                   <SelectTrigger><SelectValue placeholder="Selecione o comitê" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
+                    <SelectItem value="__none">-</SelectItem>
                     {comitesReais.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     {form.comite && !comitesReais.includes(form.comite) && !TIPOS_REUNIAO.includes(form.comite) && (
                       <SelectItem value={form.comite}>{form.comite}</SelectItem>
@@ -446,7 +446,7 @@ export default function PlanoAcaoDetalhe() {
               >
                 <SelectTrigger><SelectValue placeholder="Selecione o tipo de reunião" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">—</SelectItem>
+                  <SelectItem value="__none">-</SelectItem>
                   {tiposReuniaoDisponiveis.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -457,7 +457,7 @@ export default function PlanoAcaoDetalhe() {
                 <Select value={form.area || "__none"} disabled={!podeEdit || !form.comite} onValueChange={v => set("area", v === "__none" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder={form.comite ? "Selecione o setor" : "Escolha o comitê primeiro"} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
+                    <SelectItem value="__none">-</SelectItem>
                     {areasDoComite.map((a: any) => <SelectItem key={a.nome} value={a.nome}>{a.nome}</SelectItem>)}
                     {form.area && !areasDoComite.some((a: any) => a.nome === form.area) && <SelectItem value={form.area}>{form.area}</SelectItem>}
                   </SelectContent>
@@ -598,9 +598,9 @@ export default function PlanoAcaoDetalhe() {
             </div>
             {(form.origem === "importacao_excel" || form.id_importacao || form.linha_csv) && (
               <div className="mt-3 grid gap-2 text-xs">
-                <div><span className="text-muted-foreground">ID importação:</span> <span className="font-mono">{form.id_importacao ?? "—"}</span></div>
-                <div><span className="text-muted-foreground">Linha CSV:</span> {form.linha_csv ?? "—"}</div>
-                <div><span className="text-muted-foreground">Status original:</span> {form.status_original ?? "—"}</div>
+                <div><span className="text-muted-foreground">ID importação:</span> <span className="font-mono">{form.id_importacao ?? "-"}</span></div>
+                <div><span className="text-muted-foreground">Linha CSV:</span> {form.linha_csv ?? "-"}</div>
+                <div><span className="text-muted-foreground">Status original:</span> {form.status_original ?? "-"}</div>
               </div>
             )}
           </Card>

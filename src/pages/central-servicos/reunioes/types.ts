@@ -61,7 +61,7 @@ export interface Reuniao {
   updated_at: string;
 }
 
-/** Recorte mínimo pro calendário — todas as reuniões da empresa, sem objetivo/motivo_cancelamento. */
+/** Recorte mínimo pro calendário - todas as reuniões da empresa, sem objetivo/motivo_cancelamento. */
 export interface ReuniaoCalendario {
   id: string;
   titulo: string;

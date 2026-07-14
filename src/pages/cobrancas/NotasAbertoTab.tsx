@@ -179,7 +179,7 @@ export default function NotasAbertoTab() {
           {selecionadas.size === 0 ? "Selecione uma ou mais notas do mesmo cliente." : `${selecionadas.size} nota(s) selecionada(s) de ${clienteSelecionado}.`}
         </div>
         <div className="flex gap-2">
-          <Button disabled={selecionadas.size === 0} title="Ainda não implementado — próxima etapa">
+          <Button disabled={selecionadas.size === 0} title="Ainda não implementado - próxima etapa">
             <Mail className="mr-2 h-4 w-4" /> Gerar E-mail
           </Button>
           <Button variant="secondary" disabled={selecionadas.size === 0} title="Ainda não implementado">

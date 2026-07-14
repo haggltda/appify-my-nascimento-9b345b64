@@ -1,5 +1,5 @@
 // Réplica exata da régua de faixas do sistema de cobranças antigo (main.py: definir_parecer).
-// `dias` = dias corridos desde a data de referência da nota (não é o atraso "real" ainda —
+// `dias` = dias corridos desde a data de referência da nota (não é o atraso "real" ainda -
 // a empresa dá 30 dias de prazo, então só a partir daí a nota está de fato vencida).
 
 export function definirFaixa(dias: number): string {

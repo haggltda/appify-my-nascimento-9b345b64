@@ -196,7 +196,7 @@ export default function ImportarRelatorioServicoCard() {
         </CardTitle>
         <CardDescription>
           Planilha oficial do Financeiro (mesma fonte do sistema de cobranças antigo). Cada importação substitui
-          por completo a lista de notas em aberto — pode selecionar os dois arquivos (ano atual e anterior) de
+          por completo a lista de notas em aberto - pode selecionar os dois arquivos (ano atual e anterior) de
           uma vez. Só entram notas com situação NORMAL, sem pagamento registrado e com 20+ dias desde a
           data de referência.
         </CardDescription>
