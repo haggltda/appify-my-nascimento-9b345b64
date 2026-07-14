@@ -266,7 +266,8 @@ export default function SolicitacoesErp() {
           "tipos_documentos_apoio, observacoes_abertura, " +
           "triagem_recebido_por, triagem_concluida_em, triagem_classificacao, triagem_sem_desenvolvimento, " +
           "triagem_sem_desenvolvimento_como, triagem_encaminhamento_para, triagem_encaminhamento_responsavel, " +
-          "triagem_parecer, triagem_decisao, triagem_data_decisao",
+          "triagem_parecer, triagem_decisao, triagem_data_decisao, " +
+          "an_criterios, an_pessoas_impactadas",
         )
         .order("created_at", { ascending: true });
       if (error) throw error;
