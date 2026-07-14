@@ -2,17 +2,18 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from "recharts";
-import { Formulario, fmtDt } from "./Formularios";
+import { Formulario, Pergunta, fmtDt, normalizaPerguntas } from "./Formularios";
 
 // =====================================================================
-// NASCIMENTO FORMULÁRIOS — 📊 Dashboard customizável
+// NASCIMENTO FORMULÁRIOS - 📊 Dashboard customizável
 // O usuário monta o próprio painel com widgets sobre os formulários:
-//   kpi      — indicador (total/hoje/7 dias/30 dias de respostas)
-//   grafico  — respostas de uma pergunta (barras ou pizza)
-//   tempo    — respostas por dia (série temporal)
-//   ultimas  — últimas respostas de um formulário
+//   kpi      - indicador (total/hoje/7 dias/30 dias de respostas)
+//   grafico  - respostas de uma pergunta (barras ou pizza)
+//   tempo    - respostas por dia (série temporal)
+//   ultimas  - últimas respostas de um formulário
 // Cada widget tem título, formulário, largura (1/3, 2/3, cheia) e pode ser
-// reordenado. O layout é salvo por usuário em CS_FORM_DASHBOARDS (jsonb).
+// reordenado. O layout é salvo por usuário em CS_FORM_ACESSOS
+// (papel 'dashboard', config jsonb).
 // Os dados respeitam a RLS: só aparecem formulários que o usuário vê.
 // =====================================================================
 
@@ -28,7 +29,7 @@ interface Widget {
   limite?: number;
   largura?: 1 | 2 | 3;
 }
-interface Perg { id: string; formulario_id: string; ordem: number; tipo: string; titulo: string; opcoes: string[]; config: Record<string, any>; }
+type Perg = Pergunta & { formulario_id: string };
 interface Resp { id: string; formulario_id: string; enviado_em: string; respondente_nome?: string | null; itens: Record<string, any>; }
 
 const CORES = ["#0f3171", "#2563eb", "#0891b2", "#16a34a", "#eab308", "#ea580c", "#dc2626", "#9333ea", "#db2777", "#64748b"];
@@ -47,7 +48,6 @@ const WIDGETS_PADRAO: Widget[] = [
 export default function FormulariosDashboard() {
   const nav = useNavigate();
   const [forms, setForms] = useState<Formulario[]>([]);
-  const [pergs, setPergs] = useState<Perg[]>([]);
   const [resps, setResps] = useState<Resp[]>([]);
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,14 +58,12 @@ export default function FormulariosDashboard() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fRes, pRes, rRes, dRes] = await Promise.all([
+    const [fRes, rRes, dRes] = await Promise.all([
       (supabase as any).from("CS_FORMULARIOS").select("*").order("created_at", { ascending: false }),
-      (supabase as any).from("CS_FORM_PERGUNTAS").select("id, formulario_id, ordem, tipo, titulo, opcoes, config").order("ordem"),
       (supabase as any).from("CS_FORM_RESPOSTAS").select("id, formulario_id, enviado_em, respondente_nome, itens").order("enviado_em", { ascending: false }).limit(5000),
-      (supabase as any).from("CS_FORM_DASHBOARDS").select("config").maybeSingle(),
+      (supabase as any).from("CS_FORM_ACESSOS").select("config").eq("papel", "dashboard").maybeSingle(),  // RLS: só a linha do próprio usuário
     ]);
     setForms(fRes.data ?? []);
-    setPergs((pRes.data ?? []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} })));
     setResps((rRes.data ?? []).map((r: any) => ({ ...r, itens: r.itens ?? {} })));
     const cfg = dRes.data?.config;
     setWidgets(Array.isArray(cfg) && cfg.length ? cfg : WIDGETS_PADRAO);
@@ -73,11 +71,16 @@ export default function FormulariosDashboard() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  const pergs = useMemo<Perg[]>(() => forms.flatMap(f => normalizaPerguntas(f.perguntas).map(p => ({ ...p, formulario_id: f.id }))), [forms]);
+
   const salvar = async () => {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
-    const { error } = await (supabase as any).from("CS_FORM_DASHBOARDS")
-      .upsert({ user_id: u.user.id, config: widgets, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    const { data: atual } = await (supabase as any).from("CS_FORM_ACESSOS")
+      .select("id").eq("papel", "dashboard").eq("user_id", u.user.id).maybeSingle();
+    const { error } = atual
+      ? await (supabase as any).from("CS_FORM_ACESSOS").update({ config: widgets }).eq("id", atual.id)
+      : await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel: "dashboard", user_id: u.user.id, config: widgets });
     if (error) { toast("Erro ao salvar: " + error.message, "err"); return; }
     setSujo(false);
     toast("Dashboard salvo.", "ok");
@@ -102,7 +105,7 @@ export default function FormulariosDashboard() {
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "#fff", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0, flexWrap: "wrap" }}>
         <button onClick={() => nav("/app/central-servicos/formularios")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>← Voltar</button>
         <div style={{ flex: 1, minWidth: 180 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#0f3171" }}>📊 Dashboard — Nascimento Formulários</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#0f3171" }}>📊 Dashboard - Nascimento Formulários</div>
           <div style={{ fontSize: 11.5, color: "#94a3b8" }}>Monte seu painel: adicione, configure, reordene e redimensione os widgets. O layout é seu.</div>
         </div>
         <button onClick={() => setEditando({ id: novoId(), tipo: "kpi", metrica: "total", formulario_id: "todos", largura: 1 })} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>+ Widget</button>
@@ -111,7 +114,7 @@ export default function FormulariosDashboard() {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "18px 24px 40px" }}>
         {widgets.length === 0 ? (
-          <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Painel vazio — clique em <b>+ Widget</b> para começar.</div>
+          <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Painel vazio - clique em <b>+ Widget</b> para começar.</div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
             {widgets.map((w, i) => (
@@ -146,7 +149,7 @@ export default function FormulariosDashboard() {
 function tituloWidget(w: Widget, formPorId: Record<string, Formulario>, pergs: Perg[]) {
   if (w.titulo?.trim()) return w.titulo;
   const nomeForm = w.formulario_id && w.formulario_id !== "todos" ? formPorId[w.formulario_id]?.titulo ?? "Formulário" : "Todos os formulários";
-  if (w.tipo === "kpi") return ({ total: "Total de respostas", hoje: "Respostas hoje", "7dias": "Respostas — 7 dias", "30dias": "Respostas — 30 dias" }[w.metrica ?? "total"]) + " · " + nomeForm;
+  if (w.tipo === "kpi") return ({ total: "Total de respostas", hoje: "Respostas hoje", "7dias": "Respostas - 7 dias", "30dias": "Respostas - 30 dias" }[w.metrica ?? "total"]) + " · " + nomeForm;
   if (w.tipo === "tempo") return "Respostas por dia · " + nomeForm;
   if (w.tipo === "ultimas") return "Últimas respostas · " + nomeForm;
   const p = pergs.find(x => x.id === w.pergunta_id);
@@ -207,7 +210,7 @@ function CorpoWidget({ w, resps, pergs, forms }: { w: Widget; resps: Resp[]; per
     );
   }
 
-  // grafico — distribuição das respostas de uma pergunta
+  // grafico - distribuição das respostas de uma pergunta
   const p = pergs.find(x => x.id === w.pergunta_id);
   if (!p) return <div style={{ fontSize: 12, color: "#94a3b8" }}>Configure a pergunta no ⚙.</div>;
   const cont: Record<string, number> = {};
@@ -266,8 +269,8 @@ function ModalWidget({ w, forms, pergs, onClose, onOk }: { w: Widget; forms: For
             </select>
           </div>
           <div>
-            <label style={lbl}>Título (opcional — vazio usa o automático)</label>
-            <input value={cfg.titulo ?? ""} onChange={e => m({ titulo: e.target.value })} style={inp} placeholder="Ex.: Clima — satisfação geral" />
+            <label style={lbl}>Título (opcional - vazio usa o automático)</label>
+            <input value={cfg.titulo ?? ""} onChange={e => m({ titulo: e.target.value })} style={inp} placeholder="Ex.: Clima - satisfação geral" />
           </div>
           <div>
             <label style={lbl}>Formulário</label>

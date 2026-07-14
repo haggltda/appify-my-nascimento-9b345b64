@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,12 +9,15 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import FormulariosPermissoes, { FormPermsUsuario } from "@/pages/central-servicos/FormulariosPermissoes";
+
+const FORM_MENU_CODIGO = "central_servicos_formularios";
 
 interface Modulo { id: string; codigo: string; nome: string; ordem: number; ativo: boolean; icone: string | null }
 interface Menu { id: string; modulo_id: string; codigo: string; nome: string; rota: string | null; ordem: number; ativo: boolean }
 interface ProfileRow { id: string; display_name: string | null; email: string | null }
 
-// Remove acentos antes de virar slug — "Solicitações" → "solicitacoes", não "solicitações".
+// Remove acentos antes de virar slug - "Solicitações" → "solicitacoes", não "solicitações".
 // Sem isso, o código salvo no banco diverge do que outras partes do sistema esperam
 // (ex: comparações de menu_codigo) por causa de caracteres acentuados invisíveis na UI.
 const DIACRITICS_RE = new RegExp("[\\u0300-\\u036f]", "g");
@@ -206,11 +209,12 @@ function CatalogoView({ isAdmin, modulosQ, menusQ, showAddForm, onAddFormClose, 
 
 function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string; menus: Menu[]; isAdmin: boolean; onChange: () => void }) {
   const [novo, setNovo] = useState({ codigo: "", nome: "", rota: "" });
+  const [permOpen, setPermOpen] = useState(false);  // painel de permissões do Nascimento Formulários
 
   const add = async () => {
     if (!novo.codigo || !novo.nome) return;
     const rotaTrim = novo.rota.trim();
-    // RouteGuard compara a rota com pathname exato (com barra inicial) — sem isso,
+    // RouteGuard compara a rota com pathname exato (com barra inicial) - sem isso,
     // matchMenuCode nunca encontra a rota e o switch de permissão fica sem efeito.
     const rotaNormalizada = rotaTrim ? (rotaTrim.startsWith("/") ? rotaTrim : `/${rotaTrim}`) : null;
     const { error } = await supabase.from("app_menu").insert({
@@ -234,18 +238,36 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
     <div className="bg-muted/20 px-12 py-3">
       <table className="w-full text-sm">
         <tbody className="divide-y divide-border">
-          {menus.map((mn) => (
-            <tr key={mn.id}>
-              <td className="py-2 text-sm">{mn.nome}</td>
-              <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.codigo}</td>
-              <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.rota ?? "—"}</td>
-              <td className="py-2 text-right">
-                {isAdmin && <Button size="sm" variant="ghost" onClick={() => remover(mn.id)}><Trash2 className="h-3 w-3" /></Button>}
-              </td>
-            </tr>
-          ))}
+          {menus.map((mn) => {
+            const isForm = mn.codigo === FORM_MENU_CODIGO;
+            return (
+              <Fragment key={mn.id}>
+                <tr>
+                  <td className="py-2 text-sm">{mn.nome}</td>
+                  <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.codigo}</td>
+                  <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.rota ?? "-"}</td>
+                  <td className="py-2 text-right">
+                    {isAdmin && isForm && (
+                      <Button size="sm" variant="ghost" className="mr-1 h-7 gap-1.5 text-xs" onClick={() => setPermOpen((v) => !v)}>
+                        {permOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />} Permissões
+                      </Button>
+                    )}
+                    {isAdmin && <Button size="sm" variant="ghost" onClick={() => remover(mn.id)}><Trash2 className="h-3 w-3" /></Button>}
+                  </td>
+                </tr>
+                {isForm && permOpen && (
+                  <tr>
+                    <td colSpan={4} className="pb-3">
+                      <FormulariosPermissoes onToast={(m, t) => toast({ title: m, variant: t === "err" ? "destructive" : "default" })} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
+
       {isAdmin && (
         <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
           <Input placeholder="código" value={novo.codigo} onChange={(e) => setNovo({ ...novo, codigo: e.target.value })} className="h-8 text-xs" />
@@ -281,7 +303,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
   });
 
   // Acesso efetivo real do usuário via RPC (combina role + overrides individuais).
-  // É isso que deve ser exibido nos switches — não apenas os registros explícitos.
+  // É isso que deve ser exibido nos switches - não apenas os registros explícitos.
   const effectiveQ = useQuery({
     queryKey: ["effective-menus-for-user", selectedUserId],
     enabled: !!selectedUserId,
@@ -314,7 +336,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
   const stageChange = (codigo: string, newValue: boolean) => {
     setPending((prev) => {
       const next = new Map(prev);
-      // If new value matches DB, no change needed — remove from pending
+      // If new value matches DB, no change needed - remove from pending
       if (newValue === dbHasAccess(codigo)) { next.delete(codigo); } else { next.set(codigo, newValue); }
       return next;
     });
@@ -471,18 +493,34 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
                     {modMenus.map((mn) => {
                       const menuAccess = hasAccess(mn.codigo);
                       const isPending = pending.has(mn.codigo);
+                      const isForm = mn.codigo === FORM_MENU_CODIGO;
+                      const capsOpen = expanded.has(mn.id);
                       return (
-                        <div key={mn.id} className={cn("flex items-center gap-2 px-12 py-2.5 hover:bg-muted/40", isPending && "bg-amber-50/50 dark:bg-amber-950/20")}>
-                          <div className="flex-1">
-                            <p className="text-sm">{mn.nome}</p>
-                            <p className="text-[11px] font-mono text-muted-foreground">{mn.codigo}{mn.rota ? ` · ${mn.rota}` : ""}</p>
+                        <div key={mn.id}>
+                          <div className={cn("flex items-center gap-2 px-12 py-2.5 hover:bg-muted/40", isPending && "bg-amber-50/50 dark:bg-amber-950/20")}>
+                            {isForm && isAdmin ? (
+                              <button onClick={() => toggleExpand(mn.id)} className="text-muted-foreground" title="Permissões do usuário nos formulários">
+                                {capsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              </button>
+                            ) : (
+                              <span className="h-4 w-4" />
+                            )}
+                            <div className="flex-1">
+                              <p className="text-sm">{mn.nome}</p>
+                              <p className="text-[11px] font-mono text-muted-foreground">{mn.codigo}{mn.rota ? ` · ${mn.rota}` : ""}</p>
+                            </div>
+                            <Switch
+                              checked={menuAccess}
+                              disabled={!isAdmin}
+                              onCheckedChange={() => stageChange(mn.codigo, !menuAccess)}
+                              aria-label={`Acesso ao menu ${mn.nome}`}
+                            />
                           </div>
-                          <Switch
-                            checked={menuAccess}
-                            disabled={!isAdmin}
-                            onCheckedChange={() => stageChange(mn.codigo, !menuAccess)}
-                            aria-label={`Acesso ao menu ${mn.nome}`}
-                          />
+                          {isForm && isAdmin && capsOpen && (
+                            <div className="border-t border-border/60 bg-background px-12 py-2">
+                              <FormPermsUsuario userId={selectedUserId} onToast={(m, t) => toast({ title: m, variant: t === "err" ? "destructive" : "default" })} />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
