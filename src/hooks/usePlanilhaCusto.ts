@@ -116,6 +116,7 @@ export type PlanilhaCustoRow = {
   encerrado: boolean;
   data_encerramento: string | null;
   justificativa_divergencia: JustificativaEntry[];
+  contrato_id: string | null;
   created_at: string;
   updated_at: string;
 };
