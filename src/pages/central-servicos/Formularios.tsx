@@ -3,14 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { parseSurveyMonkey, ImportResultado } from "@/utils/surveyMonkeyImporter";
+import { useFormPerms } from "@/hooks/useFormPerms";
 
 // =====================================================================
-// CENTRAL DE SERVIÇOS — Nascimento Formulários (gestão)
+// CENTRAL DE SERVIÇOS - Nascimento Formulários (gestão)
 // Lista os formulários, mostra as URLs públicas ATIVAS no momento,
 // vigência e nº de respostas. Ações: criar, editar (builder), publicar/
 // encerrar/reabrir, copiar URL, duplicar, ver respostas e excluir.
 // Página pública de resposta: /formularios/<slug> (sem login).
 // =====================================================================
+
+export interface Pergunta {
+  id: string; tipo: string; titulo: string; descricao?: string | null;
+  obrigatoria: boolean; imagem_url?: string | null;
+  opcoes: string[]; config: Record<string, any>;
+}
 
 export interface Formulario {
   id: string; created_at: string; updated_at: string;
@@ -20,9 +27,20 @@ export interface Formulario {
   max_respostas?: number | null; coleta_identificacao: boolean;
   imagem_capa_url?: string | null; criado_por_nome?: string | null;
   criado_por?: string | null; visibilidade?: "todos" | "restrita";
+  perguntas?: Pergunta[];  // jsonb - ordem = posição no array
+  pergunta_setor_id?: string | null;  // qual pergunta classifica a resposta (Admin/Operac.)
+  setores_acesso?: string[] | null;   // setores (Setor_ERP) que podem ver/responder; null/vazio = todos
 }
 
-export const fmtDt = (s?: string | null) => { if (!s) return "—"; const d = new Date(s); return isNaN(+d) ? String(s) : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
+export const normalizaPerguntas = (v: any): Pergunta[] =>
+  (Array.isArray(v) ? v : []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} }));
+
+// crypto.randomUUID exige contexto seguro (HTTPS/localhost); produção roda em HTTP.
+export const novoUuid = (): string =>
+  (crypto as any).randomUUID?.() ??
+  "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = (Math.random() * 16) | 0; return (c === "x" ? r : (r & 0x3) | 0x8).toString(16); });
+
+export const fmtDt = (s?: string | null) => { if (!s) return "-"; const d = new Date(s); return isNaN(+d) ? String(s) : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
 export const urlPublica = (slug: string) => `${window.location.origin}/formularios/${slug}`;
 export const slugify = (t: string) =>
   t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) +
@@ -37,7 +55,7 @@ export function situacao(f: Formulario, respostas?: number) {
   if (f.encerra_em && now > +new Date(f.encerra_em)) return { chave: "expirado", rotulo: "Prazo encerrado", bg: "#fef9c3", c: "#a16207" };
   if (f.max_respostas != null && respostas != null && respostas >= f.max_respostas)
     return { chave: "lotado", rotulo: "Limite de respostas atingido", bg: "#fef9c3", c: "#a16207" };
-  return { chave: "ativo", rotulo: "Ativo — recebendo respostas", bg: "#dcfce7", c: "#15803d" };
+  return { chave: "ativo", rotulo: "Ativo - recebendo respostas", bg: "#dcfce7", c: "#15803d" };
 }
 
 const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
@@ -46,6 +64,7 @@ const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
 export default function Formularios() {
   const nav = useNavigate();
   const { user } = useAuth();
+  const { can, canVerAlguma, isAdmin, setor } = useFormPerms();
   const [forms, setForms] = useState<Formulario[]>([]);
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -87,7 +106,7 @@ export default function Formularios() {
   const mudarStatus = async (f: Formulario, status: Formulario["status"]) => {
     const { error } = await (supabase as any).from("CS_FORMULARIOS").update({ status }).eq("id", f.id);
     if (error) { toast("Erro: " + error.message, "err"); return; }
-    toast(status === "publicado" ? "Formulário publicado — URL ativa." : status === "encerrado" ? "Formulário encerrado." : "Voltou para rascunho.", "ok");
+    toast(status === "publicado" ? "Formulário publicado - URL ativa." : status === "encerrado" ? "Formulário encerrado." : "Voltou para rascunho.", "ok");
     load();
   };
 
@@ -113,34 +132,46 @@ export default function Formularios() {
     setImportando(true);
     const nome = user?.user_metadata?.nome ?? user?.email ?? "";
     const temIdent = importPreview.respostas.some(r => r.respondente_nome || r.respondente_email);
+    const pergsNovas: Pergunta[] = importPreview.perguntas.map(p => ({
+      id: novoUuid(), tipo: p.tipo, titulo: p.titulo, descricao: p.descricao ?? null,
+      obrigatoria: false, imagem_url: null, opcoes: p.opcoes, config: p.config,
+    }));
+    // Pergunta que define o setor (p/ Administrativo × Operacional): a que se
+    // chamar "setor". Cada resposta guarda o valor dessa pergunta em setor.
+    const setorIdx = pergsNovas.findIndex(p => /\bsetor\b/i.test(p.titulo));
+    const setorPergId = setorIdx >= 0 ? pergsNovas[setorIdx].id : null;
+    const coerceSetor = (v: any) => { const x = Array.isArray(v) ? v[0] : v; const t = x == null ? "" : String(x).trim(); return t || null; };
+    // Cria o formulário INTEIRO (perguntas embutidas). pergunta_setor_id é
+    // enriquecimento - vai num update best-effort depois, pra não derrubar a
+    // importação em bancos que ainda não têm a coluna (migration de setores).
     const { data: form, error: e1 } = await (supabase as any).from("CS_FORMULARIOS").insert({
       titulo, slug: slugify(titulo), criado_por_nome: nome, coleta_identificacao: temIdent,
       descricao: "Importado do SurveyMonkey em " + new Date().toLocaleDateString("pt-BR") + ".",
+      perguntas: pergsNovas,
     }).select("id").single();
     if (e1) { setImportando(false); toast("Erro ao criar formulário: " + e1.message, "err"); return; }
+    if (setorPergId) await (supabase as any).from("CS_FORMULARIOS").update({ pergunta_setor_id: setorPergId }).eq("id", form.id);  // ignora erro se a coluna não existe
 
-    const { data: pergs, error: e2 } = await (supabase as any).from("CS_FORM_PERGUNTAS").insert(
-      importPreview.perguntas.map((p, i) => ({
-        formulario_id: form.id, ordem: i, tipo: p.tipo, titulo: p.titulo,
-        descricao: p.descricao ?? null, obrigatoria: false, opcoes: p.opcoes, config: p.config,
-      })),
-    ).select("id, ordem");
-    if (e2) { setImportando(false); toast("Erro nas perguntas: " + e2.message, "err"); return; }
-
-    // Índice da pergunta → id real, para gravar os itens das respostas.
+    // Índice da pergunta → id, para gravar os itens das respostas.
     const idPorOrdem: Record<number, string> = {};
-    (pergs ?? []).forEach((p: any) => { idPorOrdem[p.ordem] = p.id; });
+    pergsNovas.forEach((p, i) => { idPorOrdem[i] = p.id; });
 
+    const colunaFaltando = (m?: string) => !!m && /column|schema cache/i.test(m);
     let importadas = 0;
     for (let i = 0; i < importPreview.respostas.length; i += 200) {
-      const lote = importPreview.respostas.slice(i, i + 200).map(r => ({
+      const slice = importPreview.respostas.slice(i, i + 200);
+      const base = slice.map(r => ({
         formulario_id: form.id,
         enviado_em: r.enviado_em ?? new Date().toISOString(),
         respondente_nome: r.respondente_nome ?? null,
         respondente_email: r.respondente_email ?? null,
         itens: Object.fromEntries(Object.entries(r.itens).map(([idx, v]) => [idPorOrdem[Number(idx)], v]).filter(([k]) => k)),
       }));
-      const { error: e3 } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(lote);
+      // Tenta com setor + criado_por (dono nulo p/ importadas); se essas colunas
+      // ainda não existem no banco, reenvia só as respostas (sem enriquecimento).
+      const lote = base.map((row, j) => ({ ...row, setor: setorIdx >= 0 ? coerceSetor(slice[j].itens[setorIdx]) : null, criado_por: null }));
+      let { error: e3 } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(lote);
+      if (colunaFaltando(e3?.message)) ({ error: e3 } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(base));
       if (e3) { setImportando(false); toast(`Erro nas respostas (${importadas} importadas): ` + e3.message, "err"); load(); return; }
       importadas += lote.length;
     }
@@ -153,19 +184,13 @@ export default function Formularios() {
 
   const duplicar = async (f: Formulario) => {
     const nome = user?.user_metadata?.nome ?? user?.email ?? "";
-    const { data: novo, error } = await (supabase as any).from("CS_FORMULARIOS").insert({
+    const { error } = await (supabase as any).from("CS_FORMULARIOS").insert({
       titulo: f.titulo + " (cópia)", descricao: f.descricao, slug: slugify(f.titulo),
       inicia_em: f.inicia_em, encerra_em: f.encerra_em, max_respostas: f.max_respostas,
       coleta_identificacao: f.coleta_identificacao, imagem_capa_url: f.imagem_capa_url, criado_por_nome: nome,
+      perguntas: normalizaPerguntas(f.perguntas).map(p => ({ ...p, id: novoUuid() })),
     }).select("id").single();
     if (error) { toast("Erro ao duplicar: " + error.message, "err"); return; }
-    const { data: pergs } = await (supabase as any).from("CS_FORM_PERGUNTAS").select("*").eq("formulario_id", f.id).order("ordem");
-    if (pergs?.length) {
-      await (supabase as any).from("CS_FORM_PERGUNTAS").insert(pergs.map((p: any) => ({
-        formulario_id: novo.id, ordem: p.ordem, tipo: p.tipo, titulo: p.titulo, descricao: p.descricao,
-        obrigatoria: p.obrigatoria, imagem_url: p.imagem_url, opcoes: p.opcoes, config: p.config,
-      })));
-    }
     toast("Formulário duplicado (como rascunho).", "ok");
     load();
   };
@@ -179,9 +204,15 @@ export default function Formularios() {
     load();
   };
 
+  // Formulário restrito a setores (setores_acesso) só aparece para esse setor;
+  // admin e gestores (editar/encerrar/ver tudo) enxergam todos.
+  const podeVerTodos = isAdmin || can("editar_criar") || can("encerrar_excluir") || can("ver_tudo");
+  const visiveis = forms.filter(f => {
+    const restr = f.setores_acesso ?? [];
+    return restr.length === 0 || podeVerTodos || (!!setor && restr.includes(setor));
+  });
   const termo = busca.trim().toLowerCase();
-  const filtrados = !termo ? forms : forms.filter(f => [f.titulo, f.descricao, f.slug].some(v => String(v ?? "").toLowerCase().includes(termo)));
-  const ativos = forms.filter(f => situacao(f, contagens[f.id] || 0).chave === "ativo");
+  const filtrados = !termo ? visiveis : visiveis.filter(f => [f.titulo, f.descricao, f.slug].some(v => String(v ?? "").toLowerCase().includes(termo)));
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
@@ -191,33 +222,17 @@ export default function Formularios() {
           <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Crie formulários e pesquisas, publique numa URL e acompanhe as respostas.</div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={() => nav("/app/central-servicos/formularios/dashboard")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>📊 Dashboard</button>
-          <button onClick={() => nav("/app/central-servicos/formularios/config")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>⚙️ Configurações</button>
-          <button onClick={() => importRef.current?.click()} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬆ Importar SurveyMonkey</button>
-          <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
-            onChange={e => { const f = e.target.files?.[0]; if (f) abrirImport(f); e.target.value = ""; }} />
-          <button onClick={() => { setNovoTitulo(""); setCriando(true); }} style={btn("#0f3171")}>+ Novo formulário</button>
+          {canVerAlguma && <button onClick={() => nav("/app/central-servicos/formularios/dashboard")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>📊 Dashboard</button>}
+          {can("editar_criar") && <>
+            <button onClick={() => importRef.current?.click()} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬆ Importar SurveyMonkey</button>
+            <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) abrirImport(f); e.target.value = ""; }} />
+            <button onClick={() => { setNovoTitulo(""); setCriando(true); }} style={btn("#0f3171")}>+ Novo formulário</button>
+          </>}
         </div>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 24px" }}>
-        {/* URLs ativas no momento */}
-        {ativos.length > 0 && (
-          <div style={{ marginBottom: 18, border: "1px solid #bbf7d0", borderRadius: 14, background: "#f0fdf4", padding: "12px 16px" }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "#15803d", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 }}>🔗 URLs ativas no momento ({ativos.length})</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {ativos.map(f => (
-                <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{f.titulo}</span>
-                  <a href={urlPublica(f.slug)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, color: "#0369a1", wordBreak: "break-all" }}>{urlPublica(f.slug)}</a>
-                  <button onClick={() => copiarUrl(f)} style={btn("#fff", "#15803d", "1px solid #86efac")}>Copiar</button>
-                  {f.encerra_em && <span style={{ fontSize: 11, color: "#a16207" }}>até {fmtDt(f.encerra_em)}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         <input placeholder="Buscar formulário..." value={busca} onChange={e => setBusca(e.target.value)}
           style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, color: "#0f172a", fontSize: 12, padding: "9px 12px", outline: "none", width: "100%", maxWidth: 420, marginBottom: 14, boxShadow: "0 8px 24px rgba(15,23,42,.06)" }} />
 
@@ -243,19 +258,20 @@ export default function Formularios() {
                     <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 8, display: "flex", flexDirection: "column", gap: 2 }}>
                       <span>📬 <b style={{ color: "#0f172a" }}>{n}</b> resposta(s){f.max_respostas != null ? ` · limite ${f.max_respostas}` : ""}</span>
                       <span>🗓 {f.inicia_em || f.encerra_em ? `${f.inicia_em ? "de " + fmtDt(f.inicia_em) : ""} ${f.encerra_em ? "até " + fmtDt(f.encerra_em) : ""}` : "sem prazo definido"}</span>
-                      <span>por {f.criado_por_nome || "—"} · criado em {fmtDt(f.created_at)}</span>
+                      <span>por {f.criado_por_nome || "-"} · criado em {fmtDt(f.created_at)}</span>
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 11 }}>
-                      <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}`)} style={btn("#0f3171")}>✏️ Editar</button>
-                      <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}/respostas`)} style={btn("rgba(59,130,246,.1)", "#2563eb", "1px solid rgba(59,130,246,.3)")}>📊 Respostas</button>
-                      {f.status !== "publicado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Publicar</button>}
+                      {can("responder") && <a href={urlPublica(f.slug)} target="_blank" rel="noopener noreferrer" style={{ ...btn("#16a34a"), textDecoration: "none", display: "inline-block" }}>↗ Abrir</a>}
+                      {can("editar_criar") && <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}`)} style={btn("#0f3171")}>✏️ Editar</button>}
+                      {canVerAlguma && <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}/respostas`)} style={btn("rgba(59,130,246,.1)", "#2563eb", "1px solid rgba(59,130,246,.3)")}>📊 Respostas</button>}
+                      {can("encerrar_excluir") && f.status !== "publicado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Publicar</button>}
                       {f.status === "publicado" && <>
                         <button onClick={() => copiarUrl(f)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>🔗 Copiar URL</button>
-                        <button onClick={() => mudarStatus(f, "encerrado")} style={btn("rgba(220,38,38,.08)", "#dc2626", "1px solid rgba(220,38,38,.25)")}>Encerrar</button>
+                        {can("encerrar_excluir") && <button onClick={() => mudarStatus(f, "encerrado")} style={btn("rgba(220,38,38,.08)", "#dc2626", "1px solid rgba(220,38,38,.25)")}>Encerrar</button>}
                       </>}
-                      {f.status === "encerrado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Reabrir</button>}
-                      <button onClick={() => duplicar(f)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Duplicar</button>
-                      <button onClick={() => excluir(f)} style={btn("transparent", "#94a3b8")}>Excluir</button>
+                      {can("encerrar_excluir") && f.status === "encerrado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Reabrir</button>}
+                      {can("editar_criar") && <button onClick={() => duplicar(f)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Duplicar</button>}
+                      {can("encerrar_excluir") && <button onClick={() => excluir(f)} style={btn("transparent", "#94a3b8")}>Excluir</button>}
                     </div>
                   </div>
                 </div>
@@ -270,7 +286,7 @@ export default function Formularios() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900 }} onClick={() => setCriando(false)}>
           <div style={{ background: "#fff", borderRadius: 16, padding: 22, width: 440, maxWidth: "92vw", position: "relative" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Novo formulário</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>Dê um título — você monta as perguntas na próxima tela.</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>Dê um título - você monta as perguntas na próxima tela.</div>
             <input autoFocus placeholder="Ex.: Pesquisa de Clima 2026" value={novoTitulo} onChange={e => setNovoTitulo(e.target.value)}
               onKeyDown={e => e.key === "Enter" && criar()}
               style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 13.5, outline: "none" }} />
@@ -290,7 +306,7 @@ export default function Formularios() {
             <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 12 }}>
               {importPreview.formato === "respostas"
                 ? `Export de respostas individuais: ${importPreview.perguntas.length} pergunta(s) e ${importPreview.respostas.length} resposta(s).`
-                : `Export de resumo por pergunta: ${importPreview.perguntas.length} pergunta(s) — o formulário será replicado.`}
+                : `Export de resumo por pergunta: ${importPreview.perguntas.length} pergunta(s) - o formulário será replicado.`}
             </div>
             {importPreview.avisos.map((a, i) => (
               <div key={i} style={{ fontSize: 12, background: "#fffbeb", border: "1px solid #fde68a", color: "#a16207", borderRadius: 9, padding: "8px 10px", marginBottom: 10 }}>⚠️ {a}</div>
