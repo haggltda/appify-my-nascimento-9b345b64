@@ -18,6 +18,48 @@ No ERP: portado como importador manual (`ImportarRelatorioServicoCard.tsx` +
 tabela `cobranca_relatorio_nota`, substituída por completo a cada importação),
 enquanto `titulo_receber` não é alimentado por essa mesma fonte.
 
+### A fonte real, um nível abaixo: Banco de Dados NFs.xlsx
+
+O Relatório de Serviços não é a fonte primária — é um **export filtrado** de outra
+planilha: `Banco de Dados NFs.xlsx` (`S:\Gestão Financeira\Notas Grupo Nascimento\
+Emissão de notas Grupo Nascimento\Banco de Dados\`), controlada por 3 macros VBA
+(repassadas pelo Yuri em 2026-07-13, `Módulo1/2/3.bas`).
+
+Ciclo de vida real de uma nota, na coluna `AJ` desse arquivo:
+**PENDENTE → CONCLUÍDO** (ou **CANCELADO**) — alterado manualmente via macro
+`ConcluirOuCancelarNF` (alguém escolhe a linha, confirma conclusão/cancelamento,
+digita o número da nota fiscal na hora da conclusão).
+
+A macro `TransferirParaRelatorioServicos` só copia uma linha pro Relatório de
+Serviços (2025 ou 2026, escolhido pelo ano da data na coluna `F`) quando: status =
+CONCLUÍDO **e** ainda não foi transferida antes (controla isso guardando o nº da
+linha de destino na coluna `AN` do Banco de Dados — evita duplicar). Ou seja: nota
+pendente nunca aparece no que eu importo hoje.
+
+Tem sincronização de volta também: `BuscarNFsGeral` lê a coluna `K` (status) de
+dentro do Relatório de Serviços — se vier "CANCELADA" ou "SUBSTITUÍDA" ali, atualiza
+o status de volta no Banco de Dados original (`AJ`/`AP`).
+
+O Banco de Dados também tem sua própria aba `CONTRATOS`, e o casamento de contrato
+usa normalização de texto (maiúsculo, remove `/`, `-`, `.`, espaço) — mesma técnica
+que já implementei em `contratoMatch.ts`, validando a abordagem.
+
+**Implicação pra um nativo de verdade**: se um dia isso for reconstruído dentro do
+ERP, o alvo certo a replicar não é o Relatório de Serviços — é esse ciclo
+Pendente → Concluído/Cancelado do Banco de Dados NFs, que é o processo real de
+quem emite as notas.
+
+### Proveniência do nome do contrato
+
+O nome/número canônico de um contrato nasce na **Licitação**, na Planilha de Custo,
+no momento em que uma proposta vira contrato — é essa a fonte de verdade que
+`contrato.numero`/`contrato.orgao` no ERP deveriam refletir. As planilhas do
+Financeiro (Relatório de Serviços, RELAÇÃO OPERACIONAL.xlsx) usam nomes informais
+próprios, nunca sincronizados com esse nome canônico — é por isso que o casamento
+automático de contrato (nos dois importadores) sempre deixa uma fatia como "sem
+match": não é bug de matching, é ausência de uma chave comum real entre Financeiro
+e Licitação.
+
 ## Faixas (régua)
 
 `dias_atraso = dias - 30` (30 = prazo de pagamento da empresa). Ver `src/lib/faixaCobranca.ts`:
