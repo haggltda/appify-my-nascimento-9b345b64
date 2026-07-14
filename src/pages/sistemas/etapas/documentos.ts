@@ -12,7 +12,7 @@ export interface DocumentoOficial {
 }
 
 export const DOCUMENTOS_OFICIAIS: DocumentoOficial[] = [
-  { numero: "I", nome: "Formulário de Solicitação de Demanda", sigla: "FSD", tipo: "anexo_etapa", etapaOrigem: "solicitacao_demanda" },
+  { numero: "I", nome: "Formulário de Solicitação de Demanda", sigla: "FSD", tipo: "anexo_etapa", etapaOrigem: "analise_necessidade" },
   { numero: "II", nome: "Documento Funcional da Demanda", sigla: "DFD", tipo: "anexo_etapa", etapaOrigem: "documentacao_funcional", campoAnexo: "documentacao_tecnica" },
   { numero: "III", nome: "Parecer Técnico de Viabilidade", sigla: "PTV", tipo: "anexo_etapa", etapaOrigem: "analise_tecnica", campoAnexo: "analise_tecnica" },
   { numero: "IV", nome: "Ata de Aprovação e Priorização", sigla: "AAP", tipo: "anexo_etapa", etapaOrigem: "aprovacao_priorizacao", campoAnexo: "aprovacao_priorizacao" },

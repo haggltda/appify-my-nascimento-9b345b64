@@ -6,7 +6,8 @@ import {
   APROVACOES_TESTES_INTERNOS, BENEFICIOS_ESPERADOS_OPCOES, CLASSIFICACAO_DEMANDA_OPCOES,
   COMPLEXIDADE_LABEL, CRITERIO_TRIAGEM_LABEL, DOCUMENTOS_APOIO_OPCOES, ETAPAS,
   GRAU_URGENCIA_LABEL, IMPACTO_TIPO_OPCOES, STATUS_DESENVOLVIMENTO_LABEL,
-  TIPO_COMENTARIO_BORDA, TIPO_COMENTARIO_LABEL, fmtData, nomeUsuario,
+  TIPO_COMENTARIO_BORDA, TIPO_COMENTARIO_LABEL, TRIAGEM_CLASSIFICACAO_LABEL, TRIAGEM_DECISAO_LABEL,
+  fmtData, nomeUsuario,
   type Anexo, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
 
@@ -354,3 +355,306 @@ export const RESUMOS: Record<string, (props: ResumoProps) => JSX.Element> = {
   implantacao: ResumoImplantacao,
   acompanhamento_assistido: ResumoAcompanhamentoAssistido,
 };
+
+// ── helpers exclusivos do AnexoIFSDCompleto ──────────────────────────────────
+
+function FsdChk({ checked, label }: { checked: boolean; label: string }) {
+  // Usa ☑/☐ Unicode: são texto puro, sem CSS background/border separado,
+  // então html2canvas não tem offset entre fundo e conteúdo.
+  return (
+    <span style={{ display: "inline-block", fontSize: "11px", whiteSpace: "nowrap", verticalAlign: "top" }}>
+      <span style={{
+        display: "inline-block",
+        fontSize: "13px",
+        lineHeight: "1",
+        color: checked ? "#153169" : "#9ca3af",
+        marginRight: "3px",
+        verticalAlign: "middle",
+      }}>
+        {checked ? "☑" : "☐"}
+      </span>
+      <span style={{ verticalAlign: "middle" }}>{label}</span>
+    </span>
+  );
+}
+
+function FsdCaixa({ valor }: { valor: string | null | undefined }) {
+  return (
+    <div className="min-h-[36px] whitespace-pre-wrap rounded border border-border px-2 py-1.5 text-[11px]">
+      {valor || <span className="italic text-muted-foreground/50">—</span>}
+    </div>
+  );
+}
+
+function FsdSecao({ num, title }: { num: number; title: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: "6px", borderBottom: "1px solid #e5e7eb", paddingBottom: "2px", marginBottom: "6px" }}>
+      {/* position:absolute no número — evita desalinhamento de fundo vs texto no html2canvas */}
+      <span style={{
+        position: "relative",
+        display: "inline-block",
+        width: "16px",
+        height: "16px",
+        borderRadius: "50%",
+        backgroundColor: "#153169",
+        flexShrink: 0,
+      }}>
+        <span style={{
+          position: "absolute",
+          top: "2px",
+          left: "0",
+          right: "0",
+          textAlign: "center",
+          color: "white",
+          fontSize: "8px",
+          fontWeight: "bold",
+          lineHeight: "1",
+        }}>
+          {num}
+        </span>
+      </span>
+      <p style={{ margin: 0, fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.05em", color: "#153169", lineHeight: "16px" }}>{title}</p>
+    </div>
+  );
+}
+
+// ── componente principal ─────────────────────────────────────────────────────
+
+export function AnexoIFSDCompleto({
+  card,
+  anexos,
+}: {
+  card: Solicitacao;
+  anexos: Anexo[];
+  usuarios: Usuario[];
+}) {
+  const classifDemanda = card.classificacao_demanda ?? [];
+  const beneficios = card.beneficios_esperados_lista ?? [];
+  const docsApoio = card.tipos_documentos_apoio ?? [];
+  const anexosGerais = anexos.filter((a) => !a.campo);
+
+  return (
+    <div className="space-y-0 text-[11px]">
+      {/* ── PARTE A ── */}
+      <div className="mb-3 bg-[#153169] px-3 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider text-white">
+        PARTE A – SOLICITANTE
+      </div>
+
+      <div className="space-y-4 px-1">
+        {/* 1. Identificação */}
+        <div>
+          <FsdSecao num={1} title="Identificação da Demanda" />
+          <table className="w-full border-collapse text-[11px]">
+            <tbody>
+              <tr>
+                <td className="w-[28%] border border-border px-2 py-1.5 font-semibold">Data da Solicitação:</td>
+                <td className="w-[22%] border border-border px-2 py-1.5">{fmtData(card.created_at?.slice(0, 10)) ?? "—"}</td>
+                <td className="w-[22%] border border-border px-2 py-1.5 font-semibold">Área Solicitante:</td>
+                <td className="w-[28%] border border-border px-2 py-1.5">{card.area_solicitante ?? "—"}</td>
+              </tr>
+              <tr>
+                <td className="border border-border px-2 py-1.5 font-semibold">Responsável pela Solicitação:</td>
+                <td className="border border-border px-2 py-1.5">{card.responsavel_solicitacao ?? "—"}</td>
+                <td className="border border-border px-2 py-1.5 font-semibold">Cargo:</td>
+                <td className="border border-border px-2 py-1.5">{card.cargo_solicitante ?? "—"}</td>
+              </tr>
+              <tr>
+                <td className="border border-border px-2 py-1.5 font-semibold">E-mail:</td>
+                <td className="border border-border px-2 py-1.5">{card.email_solicitante ?? "—"}</td>
+                <td className="border border-border px-2 py-1.5 font-semibold">Telefone:</td>
+                <td className="border border-border px-2 py-1.5">{card.telefone_solicitante ?? "—"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* 2. Classificação da Demanda — largura total, 3 colunas */}
+        <div>
+          <FsdSecao num={2} title="Classificação da Demanda" />
+          <div className="grid grid-cols-3 gap-x-6 gap-y-2 rounded border border-border px-3 py-2.5">
+            {CLASSIFICACAO_DEMANDA_OPCOES.map((op) => (
+              <FsdChk key={op.value} checked={classifDemanda.includes(op.value)} label={op.label} />
+            ))}
+          </div>
+        </div>
+
+        {/* 3–4 lado a lado */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <FsdSecao num={3} title="Descrição da Necessidade" />
+            <FsdCaixa valor={card.descricao_necessidade} />
+          </div>
+          <div>
+            <FsdSecao num={4} title="Situação Atual" />
+            <FsdCaixa valor={card.problema_atual} />
+          </div>
+        </div>
+
+        {/* 5–6 lado a lado */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <FsdSecao num={5} title="Situação Desejada" />
+            <FsdCaixa valor={card.situacao_desejada} />
+          </div>
+          <div>
+            <FsdSecao num={6} title="Justificativa" />
+            <FsdCaixa valor={card.justificativa} />
+          </div>
+        </div>
+
+        {/* 7. Benefícios Esperados — largura total, 3 colunas (evita quebra de texto) */}
+        <div>
+          <FsdSecao num={7} title="Benefícios Esperados" />
+          <div className="grid grid-cols-3 gap-x-6 gap-y-2 rounded border border-border px-3 py-2.5">
+            {BENEFICIOS_ESPERADOS_OPCOES.map((op) => (
+              <FsdChk key={op.value} checked={beneficios.includes(op.value)} label={op.label} />
+            ))}
+          </div>
+        </div>
+
+        {/* 8. Impacto da Demanda — largura total */}
+        <div>
+          <FsdSecao num={8} title="Impacto da Demanda" />
+          <div className="rounded border border-border px-3 py-2.5">
+            <div className="flex gap-8">
+              {IMPACTO_TIPO_OPCOES.map((op) => (
+                <FsdChk key={op.value} checked={card.impacto_tipo === op.value} label={op.label} />
+              ))}
+            </div>
+            {card.areas_impactadas && (
+              <div className="mt-2">
+                <p className="text-[10px] text-muted-foreground">Quais áreas impactadas:</p>
+                <p className="mt-0.5">{card.areas_impactadas}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 9–10 lado a lado */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <FsdSecao num={9} title="Grau de Urgência" />
+            <div className="rounded border border-border px-3 py-2.5">
+              <div className="flex gap-6">
+                {(["baixa", "media", "alta"] as const).map((v) => (
+                  <FsdChk key={v} checked={card.grau_urgencia === v} label={GRAU_URGENCIA_LABEL[v]} />
+                ))}
+              </div>
+              {card.justificativa_urgencia && (
+                <div className="mt-2">
+                  <p className="text-[10px] text-muted-foreground">Justificativa da urgência:</p>
+                  <p className="mt-0.5">{card.justificativa_urgencia}</p>
+                </div>
+              )}
+            </div>
+          </div>
+          <div>
+            <FsdSecao num={10} title="Processo Documentado" />
+            <div className="rounded border border-border px-3 py-2.5">
+              <div className="flex gap-6">
+                <FsdChk checked={card.existe_processo_documentado === true} label="Sim" />
+                <FsdChk checked={card.existe_processo_documentado === false} label="Não" />
+              </div>
+              <p className="mt-2 text-[10px] text-muted-foreground">Código/referência:</p>
+              <p className="mt-0.5">{card.codigo_processo ?? "—"}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 11. Documentos de Apoio — largura total, 3 colunas */}
+        <div>
+          <FsdSecao num={11} title="Documentos de Apoio" />
+          <div className="grid grid-cols-3 gap-x-6 gap-y-2 rounded border border-border px-3 py-2.5">
+            {DOCUMENTOS_APOIO_OPCOES.map((op) => (
+              <FsdChk key={op.value} checked={docsApoio.includes(op.value)} label={op.label} />
+            ))}
+          </div>
+        </div>
+
+        {/* 12. Observações — largura total */}
+        <div>
+          <FsdSecao num={12} title="Observações" />
+          <FsdCaixa valor={card.observacoes_abertura} />
+        </div>
+      </div>
+
+      {/* ── PARTE B ── */}
+      <div className="mb-3 mt-5 bg-[#E67E22] px-3 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider text-white">
+        PARTE B – TRIAGEM INICIAL (CONTROLADORIA)
+      </div>
+
+      <div className="space-y-4 px-1">
+        {/* 13–14 lado a lado */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <FsdSecao num={13} title="Recebido por" />
+            <FsdCaixa valor={card.triagem_recebido_por} />
+          </div>
+          <div>
+            <FsdSecao num={14} title="Triagem Concluída em" />
+            <FsdCaixa valor={card.triagem_concluida_em ? fmtData(card.triagem_concluida_em.slice(0, 10)) : null} />
+          </div>
+        </div>
+
+        {/* 15. Classificação — largura total, 3 colunas */}
+        <div>
+          <FsdSecao num={15} title="Classificação da Demanda" />
+          <div className="grid grid-cols-3 gap-x-6 gap-y-2 rounded border border-border px-3 py-2.5">
+            {Object.entries(TRIAGEM_CLASSIFICACAO_LABEL).map(([value, label]) => (
+              <FsdChk key={value} checked={card.triagem_classificacao === value} label={label} />
+            ))}
+          </div>
+        </div>
+
+        {/* 16. Parecer — largura total */}
+        <div>
+          <FsdSecao num={16} title="Parecer da Controladoria" />
+          <FsdCaixa valor={card.triagem_parecer} />
+        </div>
+
+        {/* 17 */}
+        <div>
+          <FsdSecao num={17} title="Encaminhar para" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="mb-0.5 text-[10px] text-muted-foreground">Encaminhar para:</p>
+              <FsdCaixa valor={card.triagem_encaminhamento_para} />
+            </div>
+            <div>
+              <p className="mb-0.5 text-[10px] text-muted-foreground">Responsável:</p>
+              <FsdCaixa valor={card.triagem_encaminhamento_responsavel} />
+            </div>
+          </div>
+        </div>
+
+        {/* 18–19 */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FsdSecao num={18} title="Decisão da Triagem" />
+            <FsdCaixa
+              valor={card.triagem_decisao ? (TRIAGEM_DECISAO_LABEL[card.triagem_decisao] ?? card.triagem_decisao) : null}
+            />
+          </div>
+          <div>
+            <FsdSecao num={19} title="Data da Decisão" />
+            <FsdCaixa valor={card.triagem_data_decisao ? fmtData(card.triagem_data_decisao.slice(0, 10)) : null} />
+          </div>
+        </div>
+
+        {/* Anexos Gerais */}
+        {anexosGerais.length > 0 && (
+          <div>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Anexos Gerais</p>
+            <div className="space-y-1">
+              {anexosGerais.map((a) => (
+                <div key={a.id} className="rounded border border-border px-2 py-1 text-[11px] leading-4">
+                  <span className="break-all">{a.nome_arquivo}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

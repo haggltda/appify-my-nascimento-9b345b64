@@ -9,7 +9,7 @@ import {
   PESQUISA_PODE_ENCERRAR_OPCOES, PESQUISA_PODE_ENCERRAR_PERGUNTA, TIPO_SOLICITACAO_LABEL, nomeUsuario,
   type Anexo, type Assinatura, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
-import { RESUMOS, temDadoResumo } from "./Resumos";
+import { RESUMOS, AnexoIFSDCompleto, temDadoResumo } from "./Resumos";
 import { Historico } from "./Historico";
 import { PdfDocumento, fmtDataHoraPdf } from "@/lib/pdf/PdfDocumento";
 import type { DocumentoOficial } from "./documentos";
@@ -256,8 +256,18 @@ export function DocumentoDetalheModal({
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</p>
                 <h2 className="text-base font-bold text-[#153169]">{documento.nome} ({documento.sigla})</h2>
               </div>
-              {Resumo && <Resumo card={card} anexos={anexos} comentarios={comentarios} usuarios={usuarios} onDownloadAnexo={onDownloadAnexo} />}
-              <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL[documento.etapaOrigem]} assinaturas={assinaturasDaEtapa(documento.etapaOrigem)} usuarios={usuarios} />
+              {documento.sigla === "FSD" ? (
+                <>
+                  <AnexoIFSDCompleto card={card} anexos={anexos} usuarios={usuarios} />
+                  <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL["solicitacao_demanda"]} assinaturas={assinaturasDaEtapa("solicitacao_demanda")} usuarios={usuarios} />
+                  <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL["triagem_inicial"]} assinaturas={assinaturasDaEtapa("triagem_inicial")} usuarios={usuarios} />
+                </>
+              ) : (
+                <>
+                  {Resumo && <Resumo card={card} anexos={anexos} comentarios={comentarios} usuarios={usuarios} onDownloadAnexo={onDownloadAnexo} />}
+                  <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL[documento.etapaOrigem]} assinaturas={assinaturasDaEtapa(documento.etapaOrigem)} usuarios={usuarios} />
+                </>
+              )}
             </>
           )}
 

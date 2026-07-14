@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,12 +9,15 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { FormCap } from "@/hooks/useFormPerms";
+
+const FORM_MENU_CODIGO = "central_servicos_formularios";
 
 interface Modulo { id: string; codigo: string; nome: string; ordem: number; ativo: boolean; icone: string | null }
 interface Menu { id: string; modulo_id: string; codigo: string; nome: string; rota: string | null; ordem: number; ativo: boolean }
 interface ProfileRow { id: string; display_name: string | null; email: string | null }
 
-// Remove acentos antes de virar slug — "Solicitações" → "solicitacoes", não "solicitações".
+// Remove acentos antes de virar slug - "Solicitações" → "solicitacoes", não "solicitações".
 // Sem isso, o código salvo no banco diverge do que outras partes do sistema esperam
 // (ex: comparações de menu_codigo) por causa de caracteres acentuados invisíveis na UI.
 const DIACRITICS_RE = new RegExp("[\\u0300-\\u036f]", "g");
@@ -210,7 +213,7 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
   const add = async () => {
     if (!novo.codigo || !novo.nome) return;
     const rotaTrim = novo.rota.trim();
-    // RouteGuard compara a rota com pathname exato (com barra inicial) — sem isso,
+    // RouteGuard compara a rota com pathname exato (com barra inicial) - sem isso,
     // matchMenuCode nunca encontra a rota e o switch de permissão fica sem efeito.
     const rotaNormalizada = rotaTrim ? (rotaTrim.startsWith("/") ? rotaTrim : `/${rotaTrim}`) : null;
     const { error } = await supabase.from("app_menu").insert({
@@ -238,7 +241,7 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
             <tr key={mn.id}>
               <td className="py-2 text-sm">{mn.nome}</td>
               <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.codigo}</td>
-              <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.rota ?? "—"}</td>
+              <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.rota ?? "-"}</td>
               <td className="py-2 text-right">
                 {isAdmin && <Button size="sm" variant="ghost" onClick={() => remover(mn.id)}><Trash2 className="h-3 w-3" /></Button>}
               </td>
@@ -246,6 +249,7 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
           ))}
         </tbody>
       </table>
+
       {isAdmin && (
         <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
           <Input placeholder="código" value={novo.codigo} onChange={(e) => setNovo({ ...novo, codigo: e.target.value })} className="h-8 text-xs" />
@@ -281,7 +285,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
   });
 
   // Acesso efetivo real do usuário via RPC (combina role + overrides individuais).
-  // É isso que deve ser exibido nos switches — não apenas os registros explícitos.
+  // É isso que deve ser exibido nos switches - não apenas os registros explícitos.
   const effectiveQ = useQuery({
     queryKey: ["effective-menus-for-user", selectedUserId],
     enabled: !!selectedUserId,
@@ -314,7 +318,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
   const stageChange = (codigo: string, newValue: boolean) => {
     setPending((prev) => {
       const next = new Map(prev);
-      // If new value matches DB, no change needed — remove from pending
+      // If new value matches DB, no change needed - remove from pending
       if (newValue === dbHasAccess(codigo)) { next.delete(codigo); } else { next.set(codigo, newValue); }
       return next;
     });
@@ -471,18 +475,34 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
                     {modMenus.map((mn) => {
                       const menuAccess = hasAccess(mn.codigo);
                       const isPending = pending.has(mn.codigo);
+                      const isForm = mn.codigo === FORM_MENU_CODIGO;
+                      const capsOpen = expanded.has(mn.id);
                       return (
-                        <div key={mn.id} className={cn("flex items-center gap-2 px-12 py-2.5 hover:bg-muted/40", isPending && "bg-amber-50/50 dark:bg-amber-950/20")}>
-                          <div className="flex-1">
-                            <p className="text-sm">{mn.nome}</p>
-                            <p className="text-[11px] font-mono text-muted-foreground">{mn.codigo}{mn.rota ? ` · ${mn.rota}` : ""}</p>
+                        <div key={mn.id}>
+                          <div className={cn("flex items-center gap-2 px-12 py-2.5 hover:bg-muted/40", isPending && "bg-amber-50/50 dark:bg-amber-950/20")}>
+                            {isForm && isAdmin ? (
+                              <button onClick={() => toggleExpand(mn.id)} className="text-muted-foreground" title="Permissões do usuário nos formulários">
+                                {capsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              </button>
+                            ) : (
+                              <span className="h-4 w-4" />
+                            )}
+                            <div className="flex-1">
+                              <p className="text-sm">{mn.nome}</p>
+                              <p className="text-[11px] font-mono text-muted-foreground">{mn.codigo}{mn.rota ? ` · ${mn.rota}` : ""}</p>
+                            </div>
+                            <Switch
+                              checked={menuAccess}
+                              disabled={!isAdmin}
+                              onCheckedChange={() => stageChange(mn.codigo, !menuAccess)}
+                              aria-label={`Acesso ao menu ${mn.nome}`}
+                            />
                           </div>
-                          <Switch
-                            checked={menuAccess}
-                            disabled={!isAdmin}
-                            onCheckedChange={() => stageChange(mn.codigo, !menuAccess)}
-                            aria-label={`Acesso ao menu ${mn.nome}`}
-                          />
+                          {isForm && isAdmin && capsOpen && (
+                            <div className="border-t border-border/60 bg-background px-12 py-2">
+                              <FormPermsUsuario userId={selectedUserId} onToast={(m, t) => toast({ title: m, variant: t === "err" ? "destructive" : "default" })} />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -493,6 +513,71 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Permissões do Nascimento Formulários (capacidades por usuário) ─────────────
+// As regras/permissões ficam aqui no Módulos & Menus, não no módulo de origem.
+// Capacidades SOMENTE POR USUÁRIO (sem herança por setor). 'responder' já é de
+// todos por padrão; o resto é liberado por usuário nos toggles abaixo.
+
+const CAPS: { papel: FormCap; rotulo: string; desc: string }[] = [
+  { papel: "editar_criar",     rotulo: "Editar / Criar",           desc: "Criar e editar formularios" },
+  { papel: "responder",        rotulo: "Responder",                desc: "Abrir e enviar respostas (padrao de todos)" },
+  { papel: "encerrar_excluir", rotulo: "Encerrar / Excluir",       desc: "Publicar, encerrar, reabrir e excluir" },
+  { papel: "ver_tudo",         rotulo: "Visualizar tudo",          desc: "Ver todas as respostas" },
+  { papel: "ver_proprias",     rotulo: "So as proprias respostas", desc: "So o que a propria pessoa enviou" },
+];
+
+// Lista de capacidades como linhas com Switch à direita (mesmo padrão dos menus).
+function CapToggles({ caps, onToggle }: { caps: Set<string>; onToggle: (papel: FormCap) => void }) {
+  return (
+    <div className="divide-y divide-border/60">
+      {CAPS.map((c) => (
+        <div key={c.papel} className="flex items-center gap-3 py-2.5">
+          <div className="flex-1">
+            <p className="text-sm">{c.rotulo}</p>
+            <p className="text-[11px] text-muted-foreground">{c.desc}</p>
+          </div>
+          <Switch checked={caps.has(c.papel)} onCheckedChange={() => onToggle(c.papel)} aria-label={c.rotulo} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Capacidades de UM usuário, na cascata de "Acesso por Usuário".
+function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: string, t?: string) => void }) {
+  const [caps, setCaps] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const erroPerm = (m: string) => /row-level|permission|policy/i.test(m) ? "So administradores alteram permissoes." : "Erro: " + m;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const uRes = await (supabase as any).from("CS_FORM_ACESSOS").select("papel").eq("user_id", userId).neq("papel", "dashboard");
+    setCaps(new Set<string>((uRes.data ?? []).map((r: any) => r.papel)));
+    setLoading(false);
+  }, [userId]);
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = async (papel: FormCap) => {
+    const tem = caps.has(papel);
+    const { error } = tem
+      ? await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", papel)
+      : await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel, user_id: userId });
+    if (error) { onToast(erroPerm(error.message), "err"); return; }
+    setCaps(c => { const n = new Set(c); tem ? n.delete(papel) : n.add(papel); return n; });
+  };
+
+  if (loading) return <div className="py-2 text-xs text-muted-foreground">Carregando permissoes...</div>;
+
+  return (
+    <div className="py-1">
+      <div className="mb-1 text-[11.5px] text-muted-foreground">
+        O que <b>este usuario</b> pode fazer nos formularios. <span className="text-muted-foreground/70">Responder ja e liberado a todos.</span>
+      </div>
+      <CapToggles caps={caps} onToggle={toggle} />
     </div>
   );
 }
