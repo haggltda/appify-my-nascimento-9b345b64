@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, Ban, Info, Paperclip } from "lucide-react";
@@ -68,6 +68,11 @@ const PESSOAS_OPCOES = [
 export function AnaliseNecessidadePanel({ card, papeis, anexos, onUpdate, onAnexar, onDownloadAnexo, onExcluir }: EtapaPanelProps) {
   const podeAgir = papeis.comite;
   const [arquivos, setArquivos] = useState<File[]>([]);
+  const [criteriosLocal, setCriteriosLocal] = useState<string[]>(card.an_criterios ?? []);
+  const [pessoasLocal, setPessoasLocal] = useState<string | null>(card.an_pessoas_impactadas ?? null);
+
+  useEffect(() => { setCriteriosLocal(card.an_criterios ?? []); }, [card.an_criterios]);
+  useEffect(() => { setPessoasLocal(card.an_pessoas_impactadas ?? null); }, [card.an_pessoas_impactadas]);
 
   if (card.recusado) {
     return (
@@ -79,13 +84,18 @@ export function AnaliseNecessidadePanel({ card, papeis, anexos, onUpdate, onAnex
     );
   }
 
-  const criteriosSelecionados = card.an_criterios ?? [];
-
   function toggleCriterio(key: string, checked: boolean) {
     const novo = checked
-      ? [...criteriosSelecionados, key]
-      : criteriosSelecionados.filter((k) => k !== key);
+      ? [...criteriosLocal, key]
+      : criteriosLocal.filter((k) => k !== key);
+    setCriteriosLocal(novo);
     onUpdate({ an_criterios: novo });
+  }
+
+  function togglePessoas(key: string) {
+    const novo = pessoasLocal === key ? null : key;
+    setPessoasLocal(novo);
+    onUpdate({ an_pessoas_impactadas: novo });
   }
 
   const tipoDemanda = card.classificacao_demanda?.length
@@ -146,7 +156,7 @@ export function AnaliseNecessidadePanel({ card, papeis, anexos, onUpdate, onAnex
             {gi > 0 && <div className="border-t border-border/60 mt-1 mb-2" />}
             <div className="space-y-1.5">
               {grupo.itens.map(({ key, label }) => {
-                const checked = criteriosSelecionados.includes(key);
+                const checked = criteriosLocal.includes(key);
                 return (
                   <label
                     key={key}
@@ -177,11 +187,9 @@ export function AnaliseNecessidadePanel({ card, papeis, anexos, onUpdate, onAnex
             >
               <input
                 type="checkbox"
-                checked={card.an_pessoas_impactadas === key}
+                checked={pessoasLocal === key}
                 disabled={!podeAgir}
-                onChange={() =>
-                  onUpdate({ an_pessoas_impactadas: card.an_pessoas_impactadas === key ? null : key })
-                }
+                onChange={() => togglePessoas(key)}
                 className="h-3.5 w-3.5 flex-shrink-0 rounded border-border accent-primary"
               />
               {label}
