@@ -24,7 +24,7 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
 
 function normalizeTab(raw: string | null): Tab {
   if (raw && (VALID_TABS as string[]).includes(raw)) return raw as Tab;
-  return "usuarios";
+  return "modulos";
 }
 
 export default function Administracao() {

@@ -6,32 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FileText } from "lucide-react";
 import { ETAPAS, nomeUsuario, type Anexo, type Comentario, type Convidado, type Solicitacao, type Usuario } from "./types";
+import { FONTE_ASSINATURA, gerarPngAssinatura } from "@/lib/assinatura";
 
 const ETAPA_LABEL: Record<string, string> = Object.fromEntries(ETAPAS.map((e) => [e.key, e.label]));
 import { DOCUMENTOS_OFICIAIS, documentoDisponivel, type DocumentoOficial } from "./documentos";
 import { DocumentoDetalheModal } from "./DocumentoDetalheModal";
-
-const FONTE_ASSINATURA = "'Dancing Script', cursive";
-
-// Renderiza o nome digitado num canvas em letra cursiva/emendada (uma vez,
-// não é desenho à mão) e devolve o PNG em base64.
-async function gerarPngAssinatura(nome: string): Promise<string> {
-  await document.fonts.load(`700 64px ${FONTE_ASSINATURA}`);
-  await document.fonts.ready;
-
-  const canvas = document.createElement("canvas");
-  canvas.width = 700;
-  canvas.height = 220;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#1e293b";
-  ctx.font = `700 72px ${FONTE_ASSINATURA}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(nome, canvas.width / 2, canvas.height / 2);
-  return canvas.toDataURL("image/png");
-}
 
 function AssinarForm({ nomePadrao, onSalvar }: { nomePadrao: string; onSalvar: (png: string) => Promise<void> }) {
   const [nome, setNome] = useState(nomePadrao);

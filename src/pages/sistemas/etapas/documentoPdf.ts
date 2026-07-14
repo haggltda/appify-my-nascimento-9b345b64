@@ -6,7 +6,7 @@ import {
   GRAU_URGENCIA_LABEL, STATUS_DESENVOLVIMENTO_LABEL, TIPO_SOLICITACAO_LABEL, fmtData, nomeUsuario,
   type Anexo, type Assinatura, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
-import { PdfDocumento, fmtDataHoraPdf } from "./pdfHelpers";
+import { PdfDocumento, fmtDataHoraPdf } from "@/lib/pdf/PdfDocumento";
 
 const ETAPA_LABEL: Record<string, string> = Object.fromEntries(ETAPAS.map((e) => [e.key, e.label]));
 
@@ -174,7 +174,10 @@ export function exportarPdfEtapa(
 
   if (assinaturas && assinaturas.length > 0) {
     pdf.y += 4;
-    pdf.blocoAssinaturasColuna(etapaLabel, assinaturas, usuarios);
+    pdf.blocoAssinaturasColuna(
+      `Coluna: ${etapaLabel}`,
+      assinaturas.map((a) => ({ nome: nomeUsuario(usuarios, a.user_id) ?? "Usuário", created_at: a.created_at })),
+    );
   }
 
   pdf.salvar(`${etapaLabel.replace(/[^a-zA-Z0-9]+/g, "_")}-${card.titulo.replace(/[^a-zA-Z0-9]+/g, "_")}.pdf`);

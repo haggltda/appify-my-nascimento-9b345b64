@@ -37,6 +37,14 @@ export const SALAS_PRESENCIAIS = [
   "Outro",
 ] as const;
 
+const SALAS_FIXAS: readonly string[] = SALAS_PRESENCIAIS.filter((s) => s !== "Outro");
+
+/** "Online" pra reunião online; nome da sala fixa se for uma das 3 nomeadas; "Outro" pra qualquer sala digitada livre. */
+export function salaResumo(r: { tipo_local: "presencial" | "online"; local_ou_link: string }): string {
+  if (r.tipo_local === "online") return "Online";
+  return SALAS_FIXAS.includes(r.local_ou_link) ? r.local_ou_link : "Outro";
+}
+
 export interface Reuniao {
   id: string;
   titulo: string;
@@ -51,6 +59,20 @@ export interface Reuniao {
   motivo_cancelamento: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Recorte mínimo pro calendário — todas as reuniões da empresa, sem objetivo/motivo_cancelamento. */
+export interface ReuniaoCalendario {
+  id: string;
+  titulo: string;
+  data_hora: string;
+  duracao_minutos: number;
+  tipo_local: "presencial" | "online";
+  local_ou_link: string;
+  etapa: ReuniaoEtapa;
+  criado_por: string;
+  responsavel_preenchimento_user_id: string;
+  convidados: string[];
 }
 
 export interface ReuniaoPauta {

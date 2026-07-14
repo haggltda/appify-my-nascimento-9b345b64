@@ -42,6 +42,9 @@ import {
   Wrench,
   FileOutput,
   Headset,
+  ShieldAlert,
+  ClipboardList,
+  Bell,
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
@@ -78,7 +81,7 @@ interface ModuleDef {
   headerLink?: string;
 }
 
-// Módulo Licitações - único navegável hoje
+// Módulo Licitações — único navegável hoje
 const licitacoesModule: ModuleDef = {
   id: "licitacoes",
   label: "Licitações",
@@ -101,7 +104,6 @@ const licitacoesModule: ModuleDef = {
       items: [
         { label: "Capa de Edital Licitações", to: "/app/editais", icon: FileText },
         { label: "Planilha de Custo", to: "/app/licitacoes/planilha-custo", icon: TableProperties },
-        { label: "Checklist de Implantação", to: "/app/licitacoes/checklist", icon: ClipboardCheck },
         { label: "Implantação de Contratos", to: "/app/licitacoes/implantacao", icon: ListChecks },
         { label: "Documentos", to: "/app/documentos", icon: ScrollText },
         // B2: "Triagem & IA" removida do menu (rota /app/triagem segue existindo,
@@ -126,7 +128,7 @@ const licitacoesModule: ModuleDef = {
     {
       label: "Pregão & Encaminhamento",
       items: [
-        // B2.1.c.1 - "Pregão & Lances" inutilizado: item removido do menu e app_menu.ativo=false.
+        // B2.1.c.1 — "Pregão & Lances" inutilizado: item removido do menu e app_menu.ativo=false.
         //            Componente Pregao.tsx, rota /app/pregao e status "pregao" do fluxo preservados.
         { label: "Resultado Final", to: "/app/resultado", icon: Trophy },
         { label: "Prontas p/ Contrato", to: "/app/prontas-contrato", icon: PackageCheck },
@@ -148,13 +150,13 @@ const licitacoesModule: ModuleDef = {
       label: "Governança",
       items: [
         { label: "Histórico & Auditoria", to: "/app/historico", icon: History },
-        // Consolidação: "Administração" removida daqui - acesso único via rodapé "Configurações do ERP".
+        // Consolidação: "Administração" removida daqui — acesso único via rodapé "Configurações do ERP".
       ],
     },
   ],
 };
 
-// Módulo Controladoria & Orçamento - ativo (catálogos + OBZ)
+// Módulo Controladoria & Orçamento — ativo (catálogos + OBZ)
 const controladoriaOrcModule: ModuleDef = {
   id: "controladoria_orc",
   label: "Controladoria & Orçamento",
@@ -180,7 +182,7 @@ const controladoriaOrcModule: ModuleDef = {
       items: [
         { label: "Ciclos de Orçamento", to: "/app/orcamento", icon: Calculator },
         { label: "Planejador OBZ (mock)", to: "/app/controladoria/obz", icon: Calculator },
-        { label: "OBZ - Versões", to: "/app/controladoria/obz-versoes", icon: Calculator },
+        { label: "OBZ — Versões", to: "/app/controladoria/obz-versoes", icon: Calculator },
         { label: "DRE Gerencial", to: "/app/controladoria/dre-gerencial", icon: TrendingUp },
         { label: "Orçamento Completo", to: "/app/controladoria/orcamento-completo", icon: Calculator },
       ],
@@ -255,6 +257,8 @@ const financeiroModule: ModuleDef = {
         { label: "Programação de Pagamentos", to: "/app/financeiro/programacao-pagamentos", icon: Wallet },
         { label: "Validação Pós-Pagamento", to: "/app/financeiro/validacao-pos-pagamento", icon: Receipt },
         { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
+        { label: "Cobranças", to: "/app/cobrancas", icon: Bell },
+        { label: "Relatório de Serviços", to: "/app/financeiro/relatorio-servicos", icon: TableProperties },
         { label: "Fluxo de Caixa", to: "/app/financeiro/fluxo-caixa", icon: TrendingUp },
         { label: "Fluxo de Caixa Diário", to: "/app/financeiro/fluxo-caixa-diario", icon: TrendingUp },
         { label: "Conciliação Fluxo Caixa", to: "/app/financeiro/conciliacao-fluxo-caixa", icon: Receipt },
@@ -354,7 +358,7 @@ const recrutamentoModule: ModuleDef = {
   ],
 };
 
-// Encarregados - hub de solicitações (vaga, férias) + históricos/status
+// Encarregados — hub de solicitações (vaga, férias) + históricos/status
 const encarregadosModule: ModuleDef = {
   id: "encarregados",
   label: "Encarregados",
@@ -373,7 +377,7 @@ const encarregadosModule: ModuleDef = {
   ],
 };
 
-// Sistemas - demandas de sistemas (kanban de 13 etapas, acesso livre)
+// Sistemas — demandas de sistemas (kanban de 13 etapas, acesso livre)
 const sistemasModule: ModuleDef = {
   id: "sistemas",
   label: "Sistemas",
@@ -392,18 +396,30 @@ const sistemasModule: ModuleDef = {
   ],
 };
 
-// Central de Serviços - sem submódulos: clicar abre o painel (hub) com os cards.
+// Central de Serviços
 const centralServicosModule: ModuleDef = {
   id: "central_servicos",
   label: "Central de Serviços",
   description: "Atendimento e orientações ao colaborador",
   icon: Headset,
   basePath: "/app/central-servicos",
-  headerLink: "/app/central-servicos",
   status: "active",
+  groups: [
+    {
+      label: "Central de Serviços",
+      defaultOpen: true,
+      items: [
+        { label: "Central de Serviços", to: "/app/central-servicos", icon: Headset },
+        { label: "Orientações Jurídicas", to: "/app/central-servicos/orientacoes-juridicas", icon: BookOpen },
+        { label: "Denúncias (Canal de Ética)", to: "/app/central-servicos/denuncias", icon: ShieldAlert },
+        { label: "Nascimento Formulários", to: "/app/central-servicos/formularios", icon: ClipboardList },
+        { label: "Agenda de Reunião", to: "/app/central-servicos/reunioes", icon: CalendarRange },
+      ],
+    },
+  ],
 };
 
-// Jurídico - Gestão Patrimonial e Obrigações
+// Jurídico — Gestão Patrimonial e Obrigações
 const juridicoModule: ModuleDef = {
   id: "juridico",
   label: "Jurídico",
@@ -515,7 +531,7 @@ function buildPlanoAcoesModule(podeCopiloto: boolean): ModuleDef {
   };
 }
 
-// SST - ASO / Admissão (fila do Recrutamento)
+// SST — ASO / Admissão (fila do Recrutamento)
 const sstModule: ModuleDef = {
   id: "sst",
   label: "SST",

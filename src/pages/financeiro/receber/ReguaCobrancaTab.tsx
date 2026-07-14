@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Bell, Plus, Trash2, Mail, MessageSquare, AlertTriangle, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { useEmpresaId } from "@/hooks/useEmpresaId";
+import ImportarEmailsContratoCard from "./ImportarEmailsContratoCard";
 
 const canalIcon = (c: string) => {
   if (c === "email") return <Mail className="h-3.5 w-3.5" />;
@@ -200,6 +201,8 @@ export default function ReguaCobrancaTab() {
           </Table>
         </CardContent>
       </Card>
+
+      <ImportarEmailsContratoCard />
 
       {openNova && <NovaReguaDialog empresaId={empresaId} onClose={(ok) => { setOpenNova(false); if (ok) qc.invalidateQueries({ queryKey: ["reguas-cobranca"] }); }} />}
       {openEtapa && reguaId && <NovaEtapaDialog reguaId={reguaId} templates={templates} onClose={(ok) => { setOpenEtapa(false); if (ok) qc.invalidateQueries({ queryKey: ["regua-etapas"] }); }} />}
