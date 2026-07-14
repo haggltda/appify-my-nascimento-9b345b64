@@ -1,19 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Formulario, fmtDt, urlPublica, situacao } from "./Formularios";
+import { Formulario, Pergunta, fmtDt, urlPublica, situacao, normalizaPerguntas, novoUuid } from "./Formularios";
 
 // =====================================================================
-// NASCIMENTO FORMULÁRIOS — Builder (editor de formulário)
+// NASCIMENTO FORMULÁRIOS - Builder (editor de formulário)
 // Monta o formulário: título/descrição/capa, configurações (vigência,
-// limite de respostas, identificação do respondente) e as perguntas —
+// limite de respostas, identificação do respondente) e as perguntas -
 // vários tipos, com imagem por pergunta, opções e obrigatoriedade.
-// Salvar = upsert das perguntas (preserva ids p/ não órfãr respostas).
+// Salvar = 1 update: perguntas vivem em CS_FORMULARIOS.perguntas (jsonb),
+// com ids estáveis p/ não órfãr respostas.
 // =====================================================================
 
 export const TIPOS: { valor: string; rotulo: string; temOpcoes: boolean }[] = [
   { valor: "texto_curto",      rotulo: "Texto curto",              temOpcoes: false },
   { valor: "texto_longo",      rotulo: "Texto longo (parágrafo)",  temOpcoes: false },
+  { valor: "texto_info",       rotulo: "Texto informativo (só leitura)", temOpcoes: false },
+  { valor: "colaborador",      rotulo: "Selecionar colaborador (cadastro)", temOpcoes: false },
+  { valor: "escala_trabalho",  rotulo: "Escala de trabalho (turno)", temOpcoes: false },
   { valor: "multipla_escolha", rotulo: "Múltipla escolha (1 opção)", temOpcoes: true },
   { valor: "caixas_selecao",   rotulo: "Caixas de seleção (várias)", temOpcoes: true },
   { valor: "lista_suspensa",   rotulo: "Lista suspensa",           temOpcoes: true },
@@ -21,12 +25,6 @@ export const TIPOS: { valor: string; rotulo: string; temOpcoes: boolean }[] = [
   { valor: "data",             rotulo: "Data",                     temOpcoes: false },
   { valor: "numero",           rotulo: "Número",                   temOpcoes: false },
 ];
-
-export interface Pergunta {
-  id?: string; formulario_id?: string; ordem: number; tipo: string;
-  titulo: string; descricao?: string | null; obrigatoria: boolean;
-  imagem_url?: string | null; opcoes: string[]; config: Record<string, any>;
-}
 
 const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
   ({ padding: "6px 12px", borderRadius: 9, border, background: bg, color: c, fontSize: 12, fontWeight: 700, cursor: "pointer" });
@@ -37,72 +35,67 @@ const lbl: React.CSSProperties = { display: "block", fontSize: 10.5, fontWeight:
 const paraLocal = (iso?: string | null) => { if (!iso) return ""; const d = new Date(iso); if (isNaN(+d)) return ""; const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 const paraIso = (local: string) => (local ? new Date(local).toISOString() : null);
 
+/** textarea que cresce sozinho conforme o texto (sem precisar arrastar). */
+function AutoTextarea({ value, onChange, placeholder, style, minRows = 2 }: { value: string; onChange: (v: string) => void; placeholder?: string; style?: React.CSSProperties; minRows?: number }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }, [value]);
+  return <textarea ref={ref} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={minRows}
+    style={{ ...style, overflow: "hidden", resize: "none" }} />;
+}
+
 export default function FormularioEditor() {
   const { id } = useParams();
   const nav = useNavigate();
   const [form, setForm] = useState<Formulario | null>(null);
   const [pergs, setPergs] = useState<Pergunta[]>([]);
-  const [removidas, setRemovidas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [sujo, setSujo] = useState(false);
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
   const capaRef = useRef<HTMLInputElement>(null);
-  const [visUsers, setVisUsers] = useState<{ id: number; user_id: string }[]>([]);
-  const [visPerfis, setVisPerfis] = useState<Record<string, { display_name?: string; email?: string }>>({});
-  const [visBusca, setVisBusca] = useState("");
-  const [visResultados, setVisResultados] = useState<{ id: string; display_name?: string; email?: string }[]>([]);
+  const [setoresErp, setSetoresErp] = useState<string[]>([]);   // setores distintos de EMPREGADOS
+  const [mostrarEncerra, setMostrarEncerra] = useState(false);
+  const [maisOpcoes, setMaisOpcoes] = useState(false);
+  const [massaOpen, setMassaOpen] = useState(false);   // adicionar perguntas em massa
+  const [massaTexto, setMassaTexto] = useState("");
   const toast = (msg: string, t = "info") => { const tid = Date.now() + Math.random(); setToasts(x => [...x, { id: tid, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== tid)), 4200); };
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [fRes, pRes, vRes] = await Promise.all([
-      (supabase as any).from("CS_FORMULARIOS").select("*").eq("id", id).single(),
-      (supabase as any).from("CS_FORM_PERGUNTAS").select("*").eq("formulario_id", id).order("ordem"),
-      (supabase as any).from("CS_FORM_VISIBILIDADE").select("id, user_id").eq("formulario_id", id).order("id"),
-    ]);
+    const fRes = await (supabase as any).from("CS_FORMULARIOS").select("*").eq("id", id).single();
     setLoading(false);
     if (fRes.error) { toast("Formulário não encontrado.", "err"); nav("/app/central-servicos/formularios"); return; }
     setForm(fRes.data);
-    setPergs((pRes.data ?? []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} })));
-    const vis = vRes.data ?? [];
-    setVisUsers(vis);
-    if (vis.length) {
-      const { data: profs } = await (supabase as any).from("profiles").select("id, display_name, email").in("id", vis.map((v: any) => v.user_id));
-      setVisPerfis(Object.fromEntries((profs ?? []).map((p: any) => [p.id, p])));
-    }
-    setRemovidas([]); setSujo(false);
+    setPergs(normalizaPerguntas(fRes.data.perguntas));
+    if (fRes.data.encerra_em) setMostrarEncerra(true);
+    setSujo(false);
   }, [id, nav]);
   useEffect(() => { load(); }, [load]);
 
-  // ── Visibilidade: quem pode ver este formulário na gestão ─────────────
-  const buscarVisUser = async (q: string) => {
-    setVisBusca(q);
-    if (q.trim().length < 2) { setVisResultados([]); return; }
-    const { data } = await (supabase as any).from("profiles")
-      .select("id, display_name, email")
-      .or(`display_name.ilike.%${q.trim()}%,email.ilike.%${q.trim()}%`).limit(8);
-    const ja = new Set(visUsers.map(v => v.user_id));
-    setVisResultados((data ?? []).filter((p: any) => !ja.has(p.id)));
-  };
-  const addVisUser = async (p: { id: string; display_name?: string; email?: string }) => {
-    const { error } = await (supabase as any).from("CS_FORM_VISIBILIDADE").insert({ formulario_id: id, user_id: p.id });
-    if (error) { toast("Erro: " + error.message, "err"); return; }
-    setVisPerfis(x => ({ ...x, [p.id]: p }));
-    setVisBusca(""); setVisResultados([]);
-    const { data } = await (supabase as any).from("CS_FORM_VISIBILIDADE").select("id, user_id").eq("formulario_id", id).order("id");
-    setVisUsers(data ?? []);
-  };
-  const delVisUser = async (v: { id: number; user_id: string }) => {
-    await (supabase as any).from("CS_FORM_VISIBILIDADE").delete().eq("id", v.id);
-    setVisUsers(x => x.filter(i => i.id !== v.id));
-  };
+  // Setores do cadastro (EMPREGADOS.Setor_ERP) - para "Acesso" e visibilidade por setor.
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any).from("EMPREGADOS").select('"Setor_ERP"').limit(20000);
+      setSetoresErp([...new Set((data ?? []).map((r: any) => String(r["Setor_ERP"] ?? "").trim()).filter(Boolean))].sort() as string[]);
+    })();
+  }, []);
 
   const mudaForm = (patch: Partial<Formulario>) => { setForm(f => f ? { ...f, ...patch } : f); setSujo(true); };
   const mudaPerg = (i: number, patch: Partial<Pergunta>) => { setPergs(ps => ps.map((p, j) => j === i ? { ...p, ...patch } : p)); setSujo(true); };
 
-  const addPergunta = () => { setPergs(ps => [...ps, { ordem: ps.length, tipo: "texto_curto", titulo: "", obrigatoria: false, opcoes: [], config: {} }]); setSujo(true); };
-  const removePergunta = (i: number) => { const p = pergs[i]; if (p.id) setRemovidas(r => [...r, p.id!]); setPergs(ps => ps.filter((_, j) => j !== i)); setSujo(true); };
+  const addPergunta = () => { setPergs(ps => [...ps, { id: novoUuid(), tipo: "texto_curto", titulo: "", obrigatoria: false, opcoes: [], config: {} }]); setSujo(true); };
+  const addEmMassa = () => {
+    const linhas = massaTexto.split("\n").map(l => l.trim()).filter(Boolean);
+    if (!linhas.length) { setMassaOpen(false); return; }
+    setPergs(ps => [...ps, ...linhas.map(t => ({ id: novoUuid(), tipo: "texto_curto", titulo: t, obrigatoria: false, opcoes: [] as string[], config: {} as Record<string, any> }))]);
+    setMassaTexto(""); setMassaOpen(false); setSujo(true);
+  };
+  const insertPergunta = (i: number) => { setPergs(ps => { const a = [...ps]; a.splice(i + 1, 0, { id: novoUuid(), tipo: "texto_curto", titulo: "", obrigatoria: false, opcoes: [], config: {} }); return a; }); setSujo(true); };
+  const removePergunta = (i: number) => { setPergs(ps => ps.filter((_, j) => j !== i)); setSujo(true); };
   const move = (i: number, dir: -1 | 1) => {
     setPergs(ps => { const a = [...ps]; const j = i + dir; if (j < 0 || j >= a.length) return ps; [a[i], a[j]] = [a[j], a[i]]; return a; });
     setSujo(true);
@@ -121,29 +114,26 @@ export default function FormularioEditor() {
     if (!form.titulo.trim()) { toast("O formulário precisa de um título.", "err"); return; }
     if (novoStatus === "publicado" && pergs.filter(p => p.titulo.trim()).length === 0) { toast("Adicione ao menos 1 pergunta antes de publicar.", "err"); return; }
     setSalvando(true);
-    const patchForm: any = {
+    // Colunas garantidas (base) x colunas novas de setor/acesso (extra). Se o
+    // banco ainda não tem as novas, reenvia só a base - o save não trava.
+    const base: any = {
       titulo: form.titulo.trim(), descricao: form.descricao || null,
       inicia_em: form.inicia_em || null, encerra_em: form.encerra_em || null,
       max_respostas: form.max_respostas || null, coleta_identificacao: form.coleta_identificacao,
       imagem_capa_url: form.imagem_capa_url || null,
-      ...(form.visibilidade ? { visibilidade: form.visibilidade } : {}),
+      perguntas: pergs.filter(p => p.titulo.trim()).map(p => ({
+        id: p.id, tipo: p.tipo, titulo: p.titulo.trim(), descricao: p.descricao || null,
+        obrigatoria: p.obrigatoria, imagem_url: p.imagem_url || null,
+        opcoes: p.opcoes.filter(o => o.trim()), config: p.config,
+      })),
       ...(novoStatus ? { status: novoStatus } : {}),
     };
-    const { error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update(patchForm).eq("id", form.id);
+    const extra = { pergunta_setor_id: form.pergunta_setor_id || null, setores_acesso: form.setores_acesso ?? null };
+    let { error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update({ ...base, ...extra }).eq("id", form.id);
+    if (e1 && /column|schema cache/i.test(e1.message)) ({ error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update(base).eq("id", form.id));
     if (e1) { setSalvando(false); toast("Erro ao salvar: " + e1.message, "err"); return; }
-
-    if (removidas.length) await (supabase as any).from("CS_FORM_PERGUNTAS").delete().in("id", removidas);
-    for (let i = 0; i < pergs.length; i++) {
-      const p = pergs[i];
-      if (!p.titulo.trim()) continue;
-      const row = { formulario_id: form.id, ordem: i, tipo: p.tipo, titulo: p.titulo.trim(), descricao: p.descricao || null, obrigatoria: p.obrigatoria, imagem_url: p.imagem_url || null, opcoes: p.opcoes.filter(o => o.trim()), config: p.config };
-      const { error: e2 } = p.id
-        ? await (supabase as any).from("CS_FORM_PERGUNTAS").update(row).eq("id", p.id)
-        : await (supabase as any).from("CS_FORM_PERGUNTAS").insert(row);
-      if (e2) { setSalvando(false); toast(`Erro na pergunta ${i + 1}: ` + e2.message, "err"); return; }
-    }
     setSalvando(false);
-    toast(novoStatus === "publicado" ? "Publicado! URL ativa — copie na lista." : "Salvo.", "ok");
+    toast(novoStatus === "publicado" ? "Publicado! URL ativa - copie na lista." : "Salvo.", "ok");
     load();
   };
 
@@ -155,8 +145,7 @@ export default function FormularioEditor() {
       {/* Cabeçalho */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "#fff", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0, flexWrap: "wrap" }}>
         <button onClick={() => nav("/app/central-servicos/formularios")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>← Voltar</button>
-        <input value={form.titulo} onChange={e => mudaForm({ titulo: e.target.value })} placeholder="Título do formulário"
-          style={{ ...inp, flex: 1, minWidth: 220, fontSize: 16, fontWeight: 800, color: "#0f3171", border: "1px solid transparent", background: "transparent" }} />
+        <div style={{ flex: 1, minWidth: 220, fontSize: 16, fontWeight: 800, color: form.titulo ? "#0f3171" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{form.titulo || "Sem título"}</div>
         <span style={{ fontSize: 10.5, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: sit.bg, color: sit.c }}>{sit.rotulo}</span>
         {form.status === "publicado" && <a href={urlPublica(form.slug)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#0369a1", fontWeight: 700 }}>Abrir URL ↗</a>}
         <button onClick={() => salvar()} disabled={salvando} style={btn(sujo ? "#0f3171" : "#94a3b8")}>{salvando ? "Salvando..." : "💾 Salvar"}</button>
@@ -168,74 +157,48 @@ export default function FormularioEditor() {
       <div style={{ flex: 1, overflowY: "auto", padding: "18px 24px 40px" }}>
         <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
 
-          {/* Configurações */}
+          {/* Criar Formulário */}
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 12 }}>⚙️ Configurações</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 12 }}>🗂 Criar Formulário</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={lbl}>Descrição (aparece no topo do formulário)</label>
-                <textarea value={form.descricao ?? ""} onChange={e => mudaForm({ descricao: e.target.value })} rows={2} style={{ ...inp, width: "100%", resize: "vertical" }} placeholder="Explique o objetivo do formulário..." />
+                <label style={lbl}>Título do formulário</label>
+                <input value={form.titulo} onChange={e => mudaForm({ titulo: e.target.value })} style={{ ...inp, width: "100%", fontSize: 14, fontWeight: 700, color: "#0f172a" }} placeholder="Ex.: Feedback Guiado 2026" />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={lbl}>Descrição do formulário (aparece no topo)</label>
+                <AutoTextarea value={form.descricao ?? ""} onChange={v => mudaForm({ descricao: v })} minRows={2} placeholder="Explique o objetivo do formulário..." style={{ ...inp, width: "100%" }} />
               </div>
               <div>
-                <label style={lbl}>Abre em (opcional)</label>
-                <input type="datetime-local" value={paraLocal(form.inicia_em)} onChange={e => mudaForm({ inicia_em: paraIso(e.target.value) })} style={{ ...inp, width: "100%" }} />
+                <label style={lbl}>Data de criação</label>
+                <div style={{ ...inp, width: "100%", background: "#f8fafc", color: "#475569", fontWeight: 600 }}>{fmtDt(form.created_at)}</div>
               </div>
               <div>
-                <label style={lbl}>Encerra em (opcional) — duração do formulário</label>
-                <input type="datetime-local" value={paraLocal(form.encerra_em)} onChange={e => mudaForm({ encerra_em: paraIso(e.target.value) })} style={{ ...inp, width: "100%" }} />
-              </div>
-              <div>
-                <label style={lbl}>Limite de respostas (opcional)</label>
-                <input type="number" min={1} value={form.max_respostas ?? ""} onChange={e => mudaForm({ max_respostas: e.target.value ? Number(e.target.value) : null })} style={{ ...inp, width: "100%" }} placeholder="Sem limite" />
-              </div>
-              <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 6 }}>
-                <label style={{ fontSize: 12.5, color: "#0f172a", display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontWeight: 600 }}>
-                  <input type="checkbox" checked={form.coleta_identificacao} onChange={e => mudaForm({ coleta_identificacao: e.target.checked })} style={{ width: 15, height: 15 }} />
-                  Pedir nome e e-mail do respondente
-                </label>
-              </div>
-              <div style={{ gridColumn: "1 / -1", borderTop: "1px solid #f1f5f9", paddingTop: 12 }}>
-                <label style={lbl}>Visibilidade na gestão (quem vê este formulário no sistema)</label>
-                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 8 }}>
-                  <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600, color: "#0f172a" }}>
-                    <input type="radio" checked={(form.visibilidade ?? "todos") === "todos"} onChange={() => mudaForm({ visibilidade: "todos" })} />
-                    Todos os usuários do ERP
-                  </label>
-                  <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600, color: "#0f172a" }}>
-                    <input type="radio" checked={form.visibilidade === "restrita"} onChange={() => mudaForm({ visibilidade: "restrita" })} />
-                    Somente pessoas específicas
-                  </label>
-                </div>
-                {form.visibilidade === "restrita" && (
-                  <div style={{ background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 10, padding: "10px 12px" }}>
-                    <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 8 }}>Você (criador) e os gestores de formulários sempre veem. Adicione quem mais pode ver este formulário e suas respostas:</div>
-                    <div style={{ position: "relative", marginBottom: visUsers.length ? 8 : 0 }}>
-                      <input placeholder="Buscar usuário por nome ou e-mail..." value={visBusca} onChange={e => buscarVisUser(e.target.value)}
-                        style={{ ...inp, width: "100%", fontSize: 12.5 }} />
-                      {visResultados.length > 0 && (
-                        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 20, overflow: "hidden" }}>
-                          {visResultados.map(p => (
-                            <div key={p.id} onClick={() => addVisUser(p)} style={{ padding: "8px 11px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
-                              <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{p.display_name || "—"}</span>
-                              <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 8 }}>{p.email}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {visUsers.map(v => (
-                        <span key={v.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, padding: "4px 6px 4px 11px", color: "#0f172a" }}>
-                          {visPerfis[v.user_id]?.display_name || visPerfis[v.user_id]?.email || v.user_id.slice(0, 8)}
-                          <button onClick={() => delVisUser(v)} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 12 }}>✕</button>
-                        </span>
-                      ))}
-                    </div>
+                <label style={lbl}>Encerramento automático</label>
+                {form.encerra_em || mostrarEncerra ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input type="datetime-local" value={paraLocal(form.encerra_em)} onChange={e => mudaForm({ encerra_em: paraIso(e.target.value) })} style={{ ...inp, flex: 1 }} />
+                    <button onClick={() => { mudaForm({ encerra_em: null }); setMostrarEncerra(false); }} style={btn("#fff", "#dc2626", "1px solid rgba(220,38,38,.25)")}>✕</button>
                   </div>
+                ) : (
+                  <button onClick={() => setMostrarEncerra(true)} style={{ ...btn("#fff", "#0f3171", "1px dashed #cbd5e1"), width: "100%", padding: "8px" }}>+ Adicionar encerramento automático</button>
                 )}
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={lbl}>Imagem de capa</label>
+                <label style={lbl}>Acesso - quais setores podem ver/responder (vazio = todos)</label>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {setoresErp.length === 0 && <span style={{ fontSize: 12, color: "#94a3b8" }}>Carregando setores…</span>}
+                  {setoresErp.map(s => {
+                    const on = (form.setores_acesso ?? []).includes(s);
+                    return (
+                      <span key={s} onClick={() => { const set = new Set(form.setores_acesso ?? []); on ? set.delete(s) : set.add(s); mudaForm({ setores_acesso: set.size ? [...set] : null }); }}
+                        style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, cursor: "pointer", border: on ? "1px solid #0f3171" : "1px solid #e2e8f0", background: on ? "#0f3171" : "#fff", color: on ? "#fff" : "#64748b" }}>{s}</span>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={lbl}>Imagem de capa (opcional)</label>
                 {form.imagem_capa_url
                   ? <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <img src={form.imagem_capa_url} alt="capa" style={{ height: 64, borderRadius: 10, border: "1px solid #e2e8f0" }} />
@@ -247,6 +210,34 @@ export default function FormularioEditor() {
                         onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await upload(f, "capa"); if (url) mudaForm({ imagem_capa_url: url }); e.target.value = ""; }} />
                     </>}
               </div>
+
+              {/* Mais opções - abre em, limite, identificação, pergunta de setor */}
+              <div style={{ gridColumn: "1 / -1", borderTop: "1px solid #f1f5f9", paddingTop: 10 }}>
+                <button onClick={() => setMaisOpcoes(v => !v)} style={{ background: "none", border: "none", color: "#0f3171", fontSize: 12, fontWeight: 800, cursor: "pointer", padding: 0 }}>Mais opções {maisOpcoes ? "▴" : "▾"}</button>
+              </div>
+              {maisOpcoes && <>
+                <div>
+                  <label style={lbl}>Abre em (opcional)</label>
+                  <input type="datetime-local" value={paraLocal(form.inicia_em)} onChange={e => mudaForm({ inicia_em: paraIso(e.target.value) })} style={{ ...inp, width: "100%" }} />
+                </div>
+                <div>
+                  <label style={lbl}>Limite de respostas (opcional)</label>
+                  <input type="number" min={1} value={form.max_respostas ?? ""} onChange={e => mudaForm({ max_respostas: e.target.value ? Number(e.target.value) : null })} style={{ ...inp, width: "100%" }} placeholder="Sem limite" />
+                </div>
+                <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center" }}>
+                  <label style={{ fontSize: 12.5, color: "#0f172a", display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontWeight: 600 }}>
+                    <input type="checkbox" checked={form.coleta_identificacao} onChange={e => mudaForm({ coleta_identificacao: e.target.checked })} style={{ width: 15, height: 15 }} />
+                    Pedir nome e e-mail (quando o respondente não está logado)
+                  </label>
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={lbl}>Pergunta que define o setor (fallback do cadastro, p/ Admin × Operacional)</label>
+                  <select value={form.pergunta_setor_id ?? ""} onChange={e => mudaForm({ pergunta_setor_id: e.target.value || null })} style={{ ...inp, width: "100%", maxWidth: 420, textOverflow: "ellipsis" }}>
+                    <option value="">- Nenhuma (usa o setor do cadastro do respondente) -</option>
+                    {pergs.filter(p => p.titulo.trim()).map(p => <option key={p.id} value={p.id}>{p.titulo.length > 60 ? p.titulo.slice(0, 60) + "…" : p.titulo}</option>)}
+                  </select>
+                </div>
+              </>}
             </div>
             {form.status === "publicado" && (
               <div style={{ marginTop: 12, fontSize: 12, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d", borderRadius: 9, padding: "8px 10px", wordBreak: "break-all" }}>
@@ -256,9 +247,32 @@ export default function FormularioEditor() {
           </div>
 
           {/* Perguntas */}
-          {pergs.map((p, i) => <PerguntaCard key={p.id ?? `nova-${i}`} p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} />)}
+          {pergs.map((p, i) => (
+            <div key={p.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <PerguntaCard p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} setores={setoresErp} />
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button onClick={() => insertPergunta(i)} title="Inserir pergunta abaixo"
+                  style={{ width: 28, height: 28, borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", color: "#0f3171", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1, boxShadow: "0 2px 6px rgba(15,23,42,.08)" }}>+</button>
+              </div>
+            </div>
+          ))}
 
-          <button onClick={addPergunta} style={{ ...btn("#fff", "#0f3171", "2px dashed #cbd5e1"), padding: "14px", fontSize: 13.5, borderRadius: 14 }}>+ Adicionar pergunta</button>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={addPergunta} style={{ ...btn("#fff", "#0f3171", "2px dashed #cbd5e1"), flex: 1, minWidth: 200, padding: "14px", fontSize: 13.5, borderRadius: 14 }}>+ Adicionar pergunta</button>
+            <button onClick={() => setMassaOpen(v => !v)} style={{ ...btn(massaOpen ? "#0f3171" : "#fff", massaOpen ? "#fff" : "#0f3171", "2px dashed #cbd5e1"), padding: "14px", fontSize: 13.5, borderRadius: 14 }}>➕ Adicionar em massa</button>
+          </div>
+
+          {massaOpen && (
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "16px 18px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0f3171", marginBottom: 4 }}>Adicionar várias perguntas de uma vez</div>
+              <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 8 }}>Uma pergunta por linha. Entram como “Texto curto” - depois é só ajustar o tipo de cada uma.</div>
+              <textarea value={massaTexto} onChange={e => setMassaTexto(e.target.value)} rows={7} placeholder={"Pergunta 1\nPergunta 2\nPergunta 3\nPergunta 4\nPergunta 5"} style={{ ...inp, width: "100%", resize: "vertical", fontFamily: "inherit" }} />
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10 }}>
+                <button onClick={() => { setMassaOpen(false); setMassaTexto(""); }} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Cancelar</button>
+                <button onClick={addEmMassa} style={btn("#0f3171")}>Adicionar {massaTexto.split("\n").map(l => l.trim()).filter(Boolean).length} pergunta(s)</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -271,15 +285,18 @@ export default function FormularioEditor() {
   );
 }
 
-function PerguntaCard({ p, i, total, muda, move, remove, upload }: {
+function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
   p: Pergunta; i: number; total: number;
   muda: (i: number, patch: Partial<Pergunta>) => void;
   move: (i: number, dir: -1 | 1) => void;
   remove: (i: number) => void;
   upload: (f: File, prefixo: string) => Promise<string | null>;
+  setores: string[];
 }) {
   const imgRef = useRef<HTMLInputElement>(null);
+  const [mostrarSetor, setMostrarSetor] = useState(false);
   const tipo = TIPOS.find(t => t.valor === p.tipo);
+  const setoresVis: string[] = Array.isArray(p.config.setores) ? p.config.setores : [];
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
@@ -292,8 +309,13 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload }: {
         </select>
       </div>
 
-      <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição/ajuda (opcional)"
-        style={{ border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 9px", fontSize: 12, color: "#64748b", outline: "none", width: "100%", marginBottom: 10, background: "#fafbfc" }} />
+      {p.tipo === "texto_info" ? (
+        <AutoTextarea value={p.descricao ?? ""} onChange={v => muda(i, { descricao: v })} minRows={3} placeholder="Texto que o colaborador vai ler (o título fica em destaque acima)"
+          style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "#334155", outline: "none", width: "100%", marginBottom: 10, background: "#fff", fontFamily: "inherit" }} />
+      ) : (
+        <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição / ajuda - aparece abaixo do título (opcional)"
+          style={{ border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 9px", fontSize: 12, color: "#64748b", outline: "none", width: "100%", marginBottom: 10, background: "#fafbfc" }} />
+      )}
 
       {p.imagem_url && (
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
@@ -314,6 +336,10 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload }: {
           ))}
           <button onClick={() => muda(i, { opcoes: [...p.opcoes, `Opção ${p.opcoes.length + 1}`] })}
             style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#0369a1", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "2px 0" }}>+ Adicionar opção</button>
+          <label style={{ fontSize: 11.5, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600, color: "#0f172a", marginTop: 4 }}>
+            <input type="checkbox" checked={!!p.config.outro} onChange={e => muda(i, { config: { ...p.config, outro: e.target.checked } })} style={{ width: 14, height: 14 }} />
+            Permitir opção “Outro” - o respondente descreve
+          </label>
         </div>
       )}
 
@@ -330,11 +356,34 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload }: {
         </div>
       )}
 
+      {setores.length > 0 && (
+        <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 8, marginBottom: 4 }}>
+          <button onClick={() => setMostrarSetor(v => !v)} style={{ background: "none", border: "none", color: setoresVis.length ? "#0f3171" : "#94a3b8", fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0 }}>
+            👁 {setoresVis.length
+              ? `Só ${setoresVis.length} setor(es) ${p.tipo === "texto_info" ? "veem" : "respondem"}`
+              : `Todos os setores ${p.tipo === "texto_info" ? "veem" : "respondem"}`} {mostrarSetor ? "▴" : "▾"}
+          </button>
+          {mostrarSetor && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+              <span style={{ width: "100%", fontSize: 11, color: "#94a3b8", marginBottom: 2 }}>{p.tipo === "texto_info" ? "Apenas esses setores veem este texto:" : "Apenas esses setores respondem esta pergunta:"}</span>
+              {setores.map(s => {
+                const on = setoresVis.includes(s);
+                return <span key={s} onClick={() => { const set = new Set(setoresVis); on ? set.delete(s) : set.add(s); muda(i, { config: { ...p.config, setores: set.size ? [...set] : undefined } }); }}
+                  style={{ padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: "pointer", border: on ? "1px solid #0f3171" : "1px solid #e2e8f0", background: on ? "#0f3171" : "#fff", color: on ? "#fff" : "#64748b" }}>{s}</span>;
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 8, alignItems: "center", borderTop: "1px solid #f1f5f9", paddingTop: 10, flexWrap: "wrap" }}>
-        <label style={{ fontSize: 12, color: "#0f172a", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600 }}>
-          <input type="checkbox" checked={p.obrigatoria} onChange={e => muda(i, { obrigatoria: e.target.checked })} style={{ width: 14, height: 14, accentColor: "#dc2626" }} />
-          Obrigatória
-        </label>
+        {p.tipo !== "texto_info" && (
+          <label style={{ fontSize: 12, color: "#0f172a", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600 }}>
+            <input type="checkbox" checked={p.obrigatoria} onChange={e => muda(i, { obrigatoria: e.target.checked })} style={{ width: 14, height: 14, accentColor: "#dc2626" }} />
+            Obrigatória
+          </label>
+        )}
+        {p.tipo === "texto_info" && <span style={{ fontSize: 11.5, color: "#94a3b8", fontWeight: 700 }}>📄 Só leitura - o colaborador não responde</span>}
         <button onClick={() => imgRef.current?.click()} style={{ background: "none", border: "none", color: "#0369a1", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🖼 {p.imagem_url ? "Trocar" : "Adicionar"} imagem</button>
         <input ref={imgRef} type="file" accept="image/*" style={{ display: "none" }}
           onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await upload(f, `perg-${i + 1}`); if (url) muda(i, { imagem_url: url }); e.target.value = ""; }} />
