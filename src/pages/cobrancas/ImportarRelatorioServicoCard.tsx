@@ -82,7 +82,7 @@ export default function ImportarRelatorioServicoCard() {
 
     try {
       const { data: empresas } = await (supabase as any).from("empresas").select("id, codigo");
-      const { data: contratos } = await (supabase as any).from("contrato").select("id, numero, orgao, empresa_id");
+      const { data: contratos } = await (supabase as any).from("contratos").select("id, nome, empresa_id, status");
       const empresaPorCodigo = new Map<string, string>((empresas ?? []).map((e: any) => [e.codigo, e.id]));
       const todosContratos: ContratoCandidato[] = contratos ?? [];
 

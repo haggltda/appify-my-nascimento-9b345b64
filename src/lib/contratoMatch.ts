@@ -1,5 +1,6 @@
-// Casamento difuso de nome de contrato (planilha) contra a tabela `contrato`.
-// Mesma técnica validada no sistema de cobranças antigo (main.py: normalizar_contrato):
+// Casamento difuso de nome de contrato (planilha) contra a tabela `contratos`
+// (fonte oficial de contratos do ERP — decisão de 2026-07-14). Mesma técnica
+// validada no sistema de cobranças antigo (main.py: normalizar_contrato):
 // só arrisca um match automático quando o nome bate exato ou o número final do
 // contrato é único entre os candidatos — o resto fica pra revisão manual.
 
@@ -18,9 +19,9 @@ export function numeroFinalContrato(txtNormalizado: string): string {
 
 export interface ContratoCandidato {
   id: string;
-  numero: string | null;
-  orgao: string | null;
+  nome: string;
   empresa_id: string;
+  status: string;
 }
 
 export type TipoMatchContrato = "exato" | "numero_unico" | "sem_match";
@@ -31,12 +32,12 @@ export function encontrarContrato(
 ): { match: ContratoCandidato | null; tipo: TipoMatchContrato } {
   const chaveAlvo = normalizarContrato(alvo);
 
-  const exato = candidatos.find((c) => normalizarContrato(`${c.orgao ?? ""}${c.numero ?? ""}`) === chaveAlvo);
+  const exato = candidatos.find((c) => normalizarContrato(c.nome) === chaveAlvo);
   if (exato) return { match: exato, tipo: "exato" };
 
   const numAlvo = numeroFinalContrato(chaveAlvo);
   if (numAlvo) {
-    const mesmoNumero = candidatos.filter((c) => numeroFinalContrato(normalizarContrato(c.numero)) === numAlvo);
+    const mesmoNumero = candidatos.filter((c) => numeroFinalContrato(normalizarContrato(c.nome)) === numAlvo);
     if (mesmoNumero.length === 1) return { match: mesmoNumero[0], tipo: "numero_unico" };
   }
 
