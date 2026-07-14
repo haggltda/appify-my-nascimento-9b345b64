@@ -73,6 +73,9 @@ export interface Solicitacao {
   triagem_parecer: string | null;
   triagem_decisao: string | null;
   triagem_data_decisao: string | null;
+  // Análise de Necessidade — critérios de prioridade e pessoas impactadas
+  an_criterios:          string[] | null;
+  an_pessoas_impactadas: string   | null;
 }
 
 export interface Anexo {
