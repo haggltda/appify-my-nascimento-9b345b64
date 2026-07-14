@@ -6,16 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare, Save, Lock } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import FormulariosPermissoes from "@/pages/central-servicos/FormulariosPermissoes";
 
 interface Modulo { id: string; codigo: string; nome: string; ordem: number; ativo: boolean; icone: string | null }
 interface Menu { id: string; modulo_id: string; codigo: string; nome: string; rota: string | null; ordem: number; ativo: boolean }
 interface ProfileRow { id: string; display_name: string | null; email: string | null }
 
-// Remove acentos antes de virar slug - "Solicitações" → "solicitacoes", não "solicitações".
+// Remove acentos antes de virar slug — "Solicitações" → "solicitacoes", não "solicitações".
 // Sem isso, o código salvo no banco diverge do que outras partes do sistema esperam
 // (ex: comparações de menu_codigo) por causa de caracteres acentuados invisíveis na UI.
 const DIACRITICS_RE = new RegExp("[\\u0300-\\u036f]", "g");
@@ -207,12 +206,11 @@ function CatalogoView({ isAdmin, modulosQ, menusQ, showAddForm, onAddFormClose, 
 
 function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string; menus: Menu[]; isAdmin: boolean; onChange: () => void }) {
   const [novo, setNovo] = useState({ codigo: "", nome: "", rota: "" });
-  const [permOpen, setPermOpen] = useState(false);  // painel de permissões do Nascimento Formulários
 
   const add = async () => {
     if (!novo.codigo || !novo.nome) return;
     const rotaTrim = novo.rota.trim();
-    // RouteGuard compara a rota com pathname exato (com barra inicial) - sem isso,
+    // RouteGuard compara a rota com pathname exato (com barra inicial) — sem isso,
     // matchMenuCode nunca encontra a rota e o switch de permissão fica sem efeito.
     const rotaNormalizada = rotaTrim ? (rotaTrim.startsWith("/") ? rotaTrim : `/${rotaTrim}`) : null;
     const { error } = await supabase.from("app_menu").insert({
@@ -240,30 +238,14 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
             <tr key={mn.id}>
               <td className="py-2 text-sm">{mn.nome}</td>
               <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.codigo}</td>
-              <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.rota ?? "-"}</td>
+              <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.rota ?? "—"}</td>
               <td className="py-2 text-right">
-                {isAdmin && mn.codigo === "central_servicos_formularios" && (
-                  <Button size="sm" variant="outline" className="mr-2 h-7 gap-1.5 text-xs" onClick={() => setPermOpen(true)}>
-                    <Lock className="h-3.5 w-3.5" /> Gerenciar Permissões
-                  </Button>
-                )}
                 {isAdmin && <Button size="sm" variant="ghost" onClick={() => remover(mn.id)}><Trash2 className="h-3 w-3" /></Button>}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-
-      {permOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 900, background: "rgba(15,23,42,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, overflowY: "auto" }} onClick={() => setPermOpen(false)}>
-          <div style={{ width: "100%", maxWidth: 980 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-              <button onClick={() => setPermOpen(false)} style={{ background: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(15,23,42,.15)" }}>✕ Fechar</button>
-            </div>
-            <FormulariosPermissoes onToast={(m, t) => toast({ title: m, variant: t === "err" ? "destructive" : "default" })} />
-          </div>
-        </div>
-      )}
       {isAdmin && (
         <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
           <Input placeholder="código" value={novo.codigo} onChange={(e) => setNovo({ ...novo, codigo: e.target.value })} className="h-8 text-xs" />
@@ -299,7 +281,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
   });
 
   // Acesso efetivo real do usuário via RPC (combina role + overrides individuais).
-  // É isso que deve ser exibido nos switches - não apenas os registros explícitos.
+  // É isso que deve ser exibido nos switches — não apenas os registros explícitos.
   const effectiveQ = useQuery({
     queryKey: ["effective-menus-for-user", selectedUserId],
     enabled: !!selectedUserId,
@@ -332,7 +314,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
   const stageChange = (codigo: string, newValue: boolean) => {
     setPending((prev) => {
       const next = new Map(prev);
-      // If new value matches DB, no change needed - remove from pending
+      // If new value matches DB, no change needed — remove from pending
       if (newValue === dbHasAccess(codigo)) { next.delete(codigo); } else { next.set(codigo, newValue); }
       return next;
     });
