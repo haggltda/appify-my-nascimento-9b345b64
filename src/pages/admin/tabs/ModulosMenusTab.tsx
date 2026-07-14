@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FormPermsUsuario } from "@/pages/central-servicos/FormulariosPermissoes";
+import type { FormCap } from "@/hooks/useFormPerms";
 
 const FORM_MENU_CODIGO = "central_servicos_formularios";
 
@@ -513,6 +513,71 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Permissões do Nascimento Formulários (capacidades por usuário) ─────────────
+// As regras/permissões ficam aqui no Módulos & Menus, não no módulo de origem.
+// Capacidades SOMENTE POR USUÁRIO (sem herança por setor). 'responder' já é de
+// todos por padrão; o resto é liberado por usuário nos toggles abaixo.
+
+const CAPS: { papel: FormCap; rotulo: string; desc: string }[] = [
+  { papel: "editar_criar",     rotulo: "Editar / Criar",           desc: "Criar e editar formularios" },
+  { papel: "responder",        rotulo: "Responder",                desc: "Abrir e enviar respostas (padrao de todos)" },
+  { papel: "encerrar_excluir", rotulo: "Encerrar / Excluir",       desc: "Publicar, encerrar, reabrir e excluir" },
+  { papel: "ver_tudo",         rotulo: "Visualizar tudo",          desc: "Ver todas as respostas" },
+  { papel: "ver_proprias",     rotulo: "So as proprias respostas", desc: "So o que a propria pessoa enviou" },
+];
+
+// Lista de capacidades como linhas com Switch à direita (mesmo padrão dos menus).
+function CapToggles({ caps, onToggle }: { caps: Set<string>; onToggle: (papel: FormCap) => void }) {
+  return (
+    <div className="divide-y divide-border/60">
+      {CAPS.map((c) => (
+        <div key={c.papel} className="flex items-center gap-3 py-2.5">
+          <div className="flex-1">
+            <p className="text-sm">{c.rotulo}</p>
+            <p className="text-[11px] text-muted-foreground">{c.desc}</p>
+          </div>
+          <Switch checked={caps.has(c.papel)} onCheckedChange={() => onToggle(c.papel)} aria-label={c.rotulo} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Capacidades de UM usuário, na cascata de "Acesso por Usuário".
+function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: string, t?: string) => void }) {
+  const [caps, setCaps] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const erroPerm = (m: string) => /row-level|permission|policy/i.test(m) ? "So administradores alteram permissoes." : "Erro: " + m;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const uRes = await (supabase as any).from("CS_FORM_ACESSOS").select("papel").eq("user_id", userId).neq("papel", "dashboard");
+    setCaps(new Set<string>((uRes.data ?? []).map((r: any) => r.papel)));
+    setLoading(false);
+  }, [userId]);
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = async (papel: FormCap) => {
+    const tem = caps.has(papel);
+    const { error } = tem
+      ? await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", papel)
+      : await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel, user_id: userId });
+    if (error) { onToast(erroPerm(error.message), "err"); return; }
+    setCaps(c => { const n = new Set(c); tem ? n.delete(papel) : n.add(papel); return n; });
+  };
+
+  if (loading) return <div className="py-2 text-xs text-muted-foreground">Carregando permissoes...</div>;
+
+  return (
+    <div className="py-1">
+      <div className="mb-1 text-[11.5px] text-muted-foreground">
+        O que <b>este usuario</b> pode fazer nos formularios. <span className="text-muted-foreground/70">Responder ja e liberado a todos.</span>
+      </div>
+      <CapToggles caps={caps} onToggle={toggle} />
     </div>
   );
 }
