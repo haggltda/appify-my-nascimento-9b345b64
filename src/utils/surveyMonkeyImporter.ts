@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 
 // =====================================================================
-// NASCIMENTO FORMULÁRIOS — importador de exports do SurveyMonkey
+// NASCIMENTO FORMULÁRIOS - importador de exports do SurveyMonkey
 //
 // Suporta os dois formatos de exportação (.xlsx) do SurveyMonkey:
 //
@@ -44,7 +44,14 @@ const norm = (v: unknown) => s(v).toLowerCase();
 
 /** Rótulos de campos de contato do SurveyMonkey (viram texto_curto). */
 const CONTATO = /^(first name|last name|name|company|address|address 2|city\/town|state\/province|zip\/postal code|country|email address|phone number)?:$/i;
-const META_COLS = /^(respondent id|collector id|start date|end date|ip address|email address|first name|last name|custom data( \d+)?)$/i;
+/** Sub-rótulos de identificação (grupo First name/Last name/… → um texto só). */
+const CONTATO_SUB = /^(first name|last name|name|company|address|address 2|city\/town|state\/province|zip\/postal code|country|email address|phone number)$/i;
+// Aceita o export "humano" (Respondent ID, End Date) e o export via API
+// (respondent_id, date_created, email_address) - normalizamos "_"→" " antes.
+const META_COLS = /^(respondent id|collector id|start date|end date|date created|date modified|ip address|email address|first name|last name|custom( data)?( \d+)?)$/i;
+
+/** norm + underscores viram espaço (cabeçalhos estilo API: respondent_id). */
+const normH = (v: unknown) => norm(v).replace(/_/g, " ");
 
 function limpaOpcao(o: string) {
   return o.replace(/^✓\s*/, "").replace(/:\s*$/, "").trim();
@@ -70,7 +77,7 @@ function parseResumo(wb: XLSX.WorkBook, qSheets: string[]): ImportResultado {
     const tituloPerg = s(rows[1]?.[0]) || s(rows[0]?.[0]) || nome;
 
     // Coleta as opções entre "Answer Choices" e "Answered/Skipped".
-    // Perguntas de quiz têm coluna extra "Score" — o percentual fica na
+    // Perguntas de quiz têm coluna extra "Score" - o percentual fica na
     // coluna do cabeçalho "Responses" (posição varia).
     const opcoes: string[] = [];
     const percentuais: number[] = [];
@@ -127,7 +134,7 @@ function parseRespostas(wb: XLSX.WorkBook): ImportResultado {
   let nomeAba = "";
   for (const n of wb.SheetNames) {
     const rows: Linha[] = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "", range: 0 });
-    const linha0 = (rows[0] ?? []).map(norm);
+    const linha0 = (rows[0] ?? []).map(normH);
     if (linha0.some((c) => c === "respondent id" || c === "collector id")) { sheet = wb.Sheets[n]; nomeAba = n; break; }
   }
   if (!sheet) {
@@ -150,7 +157,7 @@ function parseRespostas(wb: XLSX.WorkBook): ImportResultado {
   let grupoAtual: Grupo | null = null;
   for (let c = 0; c < cab.length; c++) {
     const h = s(cab[c]);
-    if (h && META_COLS.test(h)) { meta[norm(h)] = c; grupoAtual = null; continue; }
+    if (h && META_COLS.test(normH(h))) { meta[normH(h)] = c; grupoAtual = null; continue; }
     if (h) { grupoAtual = { titulo: h, cols: [c], subs: [s(sub[c])] }; grupos.push(grupoAtual); continue; }
     if (grupoAtual) { grupoAtual.cols.push(c); grupoAtual.subs.push(s(sub[c])); }
   }
@@ -161,15 +168,24 @@ function parseRespostas(wb: XLSX.WorkBook): ImportResultado {
   const extratores: ((linha: Linha) => unknown)[] = [];
 
   for (const g of grupos) {
+    // Grupo de identificação (subs "First name"/"Last name"/…): vira um
+    // único texto_curto juntando as células preenchidas da linha.
+    const subsN = g.subs.map(norm);
+    if (subsN.some((x) => x) && subsN.every((x) => x === "" || CONTATO_SUB.test(x))) {
+      perguntas.push({ tipo: "texto_curto", titulo: g.titulo, opcoes: [], config: {} });
+      extratores.push((linha) => g.cols.map((c) => s(linha[c])).filter(Boolean).join(" ") || undefined);
+      continue;
+    }
     // Classifica as colunas do grupo: coluna de VALOR (sub "Response"/
-    // "Open-Ended Response" — a resposta está na célula), coluna "Other
-    // (please specify)" (texto livre do "outro") e colunas de OPÇÃO
-    // (sub = nome da opção; célula preenchida = marcada).
+    // "Open-Ended Response" ou coluna única - a resposta está na célula),
+    // coluna "Other (please specify)" (texto livre do "outro") e colunas de
+    // OPÇÃO (sub = nome da opção; célula preenchida = marcada).
     const cls = g.cols.map((c, i) => {
       const sub = norm(g.subs[i]);
-      if (/other .*specify|^outro/.test(sub)) return { c, tipo: "outro" as const, opt: "" };
+      if (/other .*specify|^outr[oa]/.test(sub)) return { c, tipo: "outro" as const, opt: "" };
       if (/open-ended/.test(sub)) return { c, tipo: "aberta" as const, opt: "" };
       if (sub === "response" || sub === "" || sub === "resposta") return { c, tipo: "valor" as const, opt: "" };
+      if (g.cols.length === 1) return { c, tipo: "valor" as const, opt: "" }; // coluna única = valor (data/número/texto), nunca opção
       return { c, tipo: "opcao" as const, opt: limpaOpcao(g.subs[i]) };
     });
     const valCols = cls.filter((x) => x.tipo === "valor" || x.tipo === "aberta");
@@ -197,7 +213,7 @@ function parseRespostas(wb: XLSX.WorkBook): ImportResultado {
       extratores.push((linha) => {
         const v = s(linha[col]);
         const o = textoOutro(linha);
-        if (v && o) return `${v} — ${o}`;
+        if (v && o) return `${v} - ${o}`;
         if (v) return v;
         return o ? `Outro: ${o}` : undefined;
       });
@@ -221,12 +237,14 @@ function parseRespostas(wb: XLSX.WorkBook): ImportResultado {
     const d = new Date(s(v));
     return isNaN(+d) ? undefined : d.toISOString();
   };
+  // Data de envio: "End Date" (export humano) ou date_modified/date_created (API).
+  const endCol = meta["date modified"] ?? meta["end date"] ?? meta["date created"] ?? meta["start date"];
   const respostas: ImportResposta[] = dados.map((linha) => {
     const itens: Record<number, unknown> = {};
     extratores.forEach((ex, i) => { const v = ex(linha); if (v !== undefined) itens[i] = v; });
     const nome = [s(linha[meta["first name"]]), s(linha[meta["last name"]])].filter(Boolean).join(" ");
     return {
-      enviado_em: meta["end date"] != null ? dt(linha[meta["end date"]]) : undefined,
+      enviado_em: endCol != null ? dt(linha[endCol]) : undefined,
       respondente_nome: nome || undefined,
       respondente_email: meta["email address"] != null ? (s(linha[meta["email address"]]) || undefined) : undefined,
       itens,
