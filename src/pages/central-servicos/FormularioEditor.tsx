@@ -35,6 +35,18 @@ const lbl: React.CSSProperties = { display: "block", fontSize: 10.5, fontWeight:
 const paraLocal = (iso?: string | null) => { if (!iso) return ""; const d = new Date(iso); if (isNaN(+d)) return ""; const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
 const paraIso = (local: string) => (local ? new Date(local).toISOString() : null);
 
+/** textarea que cresce sozinho conforme o texto (sem precisar arrastar). */
+function AutoTextarea({ value, onChange, placeholder, style, minRows = 2 }: { value: string; onChange: (v: string) => void; placeholder?: string; style?: React.CSSProperties; minRows?: number }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }, [value]);
+  return <textarea ref={ref} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={minRows}
+    style={{ ...style, overflow: "hidden", resize: "none" }} />;
+}
+
 export default function FormularioEditor() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -82,6 +94,7 @@ export default function FormularioEditor() {
     setPergs(ps => [...ps, ...linhas.map(t => ({ id: novoUuid(), tipo: "texto_curto", titulo: t, obrigatoria: false, opcoes: [] as string[], config: {} as Record<string, any> }))]);
     setMassaTexto(""); setMassaOpen(false); setSujo(true);
   };
+  const insertPergunta = (i: number) => { setPergs(ps => { const a = [...ps]; a.splice(i + 1, 0, { id: novoUuid(), tipo: "texto_curto", titulo: "", obrigatoria: false, opcoes: [], config: {} }); return a; }); setSujo(true); };
   const removePergunta = (i: number) => { setPergs(ps => ps.filter((_, j) => j !== i)); setSujo(true); };
   const move = (i: number, dir: -1 | 1) => {
     setPergs(ps => { const a = [...ps]; const j = i + dir; if (j < 0 || j >= a.length) return ps; [a[i], a[j]] = [a[j], a[i]]; return a; });
@@ -154,7 +167,7 @@ export default function FormularioEditor() {
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={lbl}>Descrição do formulário (aparece no topo)</label>
-                <textarea value={form.descricao ?? ""} onChange={e => mudaForm({ descricao: e.target.value })} rows={2} style={{ ...inp, width: "100%", resize: "vertical" }} placeholder="Explique o objetivo do formulário..." />
+                <AutoTextarea value={form.descricao ?? ""} onChange={v => mudaForm({ descricao: v })} minRows={2} placeholder="Explique o objetivo do formulário..." style={{ ...inp, width: "100%" }} />
               </div>
               <div>
                 <label style={lbl}>Data de criação</label>
@@ -234,7 +247,15 @@ export default function FormularioEditor() {
           </div>
 
           {/* Perguntas */}
-          {pergs.map((p, i) => <PerguntaCard key={p.id} p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} setores={setoresErp} />)}
+          {pergs.map((p, i) => (
+            <div key={p.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <PerguntaCard p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} setores={setoresErp} />
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button onClick={() => insertPergunta(i)} title="Inserir pergunta abaixo"
+                  style={{ width: 28, height: 28, borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", color: "#0f3171", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1, boxShadow: "0 2px 6px rgba(15,23,42,.08)" }}>+</button>
+              </div>
+            </div>
+          ))}
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button onClick={addPergunta} style={{ ...btn("#fff", "#0f3171", "2px dashed #cbd5e1"), flex: 1, minWidth: 200, padding: "14px", fontSize: 13.5, borderRadius: 14 }}>+ Adicionar pergunta</button>
@@ -289,8 +310,8 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
       </div>
 
       {p.tipo === "texto_info" ? (
-        <textarea value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} rows={3} placeholder="Texto que o colaborador vai ler (o título fica em destaque acima)"
-          style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "#334155", outline: "none", width: "100%", marginBottom: 10, background: "#fff", resize: "vertical", fontFamily: "inherit" }} />
+        <AutoTextarea value={p.descricao ?? ""} onChange={v => muda(i, { descricao: v })} minRows={3} placeholder="Texto que o colaborador vai ler (o título fica em destaque acima)"
+          style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "#334155", outline: "none", width: "100%", marginBottom: 10, background: "#fff", fontFamily: "inherit" }} />
       ) : (
         <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição / ajuda - aparece abaixo do título (opcional)"
           style={{ border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 9px", fontSize: 12, color: "#64748b", outline: "none", width: "100%", marginBottom: 10, background: "#fafbfc" }} />
