@@ -517,7 +517,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
                             />
                           </div>
                           {isForm && isAdmin && capsOpen && (
-                            <div className="border-t border-border/60 bg-background px-12 py-2">
+                            <div className="border-t border-border/60 bg-muted/10 py-1">
                               <FormPermsUsuario userId={selectedUserId} onToast={(m, t) => toast({ title: m, variant: t === "err" ? "destructive" : "default" })} />
                             </div>
                           )}

@@ -7,9 +7,9 @@ import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 // =====================================================================
 // NASCIMENTO FORMULARIOS - capacidades do usuario logado
 // Espelha a RLS (public.cs_form_cap): admin faz tudo; 'responder' e o default
-// de todos; as demais capacidades vem de CS_FORM_ACESSOS por USUARIO ou pelo
-// SETOR (Setor_ERP) do usuario. Usado so p/ mostrar/esconder botoes - a
-// autoridade continua sendo a RLS no banco.
+// de todos; as demais capacidades vem de CS_FORM_ACESSOS por USUARIO (sem mais
+// heranca por setor). Usado so p/ mostrar/esconder botoes - a autoridade
+// continua sendo a RLS no banco.
 // =====================================================================
 
 export type FormCap =
@@ -29,16 +29,11 @@ export function useFormPerms() {
 
   const carregar = useCallback(async () => {
     if (!user) { setCaps(new Set()); setLoading(false); return; }
-    const [uRes, sRes] = await Promise.all([
-      (supabase as any).from("CS_FORM_ACESSOS").select("papel").eq("user_id", user.id).neq("papel", "dashboard"),
-      setor ? (supabase as any).from("CS_FORM_ACESSOS").select("papel").eq("setor", setor) : Promise.resolve({ data: [] }),
-    ]);
-    const s = new Set<string>();
-    (uRes.data ?? []).forEach((r: any) => s.add(r.papel));
-    (sRes.data ?? []).forEach((r: any) => s.add(r.papel));
-    setCaps(s);
+    // So capacidades concedidas ao PROPRIO usuario (sem heranca por setor).
+    const uRes = await (supabase as any).from("CS_FORM_ACESSOS").select("papel").eq("user_id", user.id).neq("papel", "dashboard");
+    setCaps(new Set<string>((uRes.data ?? []).map((r: any) => r.papel)));
     setLoading(false);
-  }, [user, setor]);
+  }, [user]);
   useEffect(() => { carregar(); }, [carregar]);
 
   // 'responder' e liberado por padrao p/ todo autenticado.
