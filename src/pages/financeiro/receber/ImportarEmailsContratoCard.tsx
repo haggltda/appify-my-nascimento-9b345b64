@@ -6,23 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Upload, CheckCircle2, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
-
-// Mesma lógica de normalização/casamento já validada no sistema de cobranças antigo
-// (main.py: normalizar_contrato) — só arrisca um "match" automático quando o número
-// final do contrato bate com um único candidato; o resto fica pra revisão manual.
-
-function normalizar(txt: unknown): string {
-  return String(txt ?? "")
-    .toUpperCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^A-Z0-9]/g, "");
-}
-
-function numeroFinal(txtNormalizado: string): string {
-  const m = txtNormalizado.match(/(\d+)$/);
-  return m ? m[1] : "";
-}
+import { encontrarContrato, type ContratoCandidato, type TipoMatchContrato } from "@/lib/contratoMatch";
 
 const PADRAO_EMAIL = /[\w.\-+]+@[\w.\-]+\.\w+/g;
 
@@ -30,7 +14,7 @@ type LinhaPlanilha = { empresa: string; contrato: string; emails: string[] };
 type LinhaResultado = LinhaPlanilha & {
   contratoId: string | null;
   contratoEncontrado: string | null;
-  tipoMatch: "exato" | "numero_unico" | "sem_match";
+  tipoMatch: TipoMatchContrato;
 };
 
 export default function ImportarEmailsContratoCard() {
@@ -68,34 +52,21 @@ export default function ImportarEmailsContratoCard() {
 
         // Busca todas as empresas e contratos de uma vez pra casar em memória
         const { data: empresas } = await (supabase as any).from("empresas").select("id, codigo");
-        const { data: contratos } = await (supabase as any).from("contrato").select("id, numero, orgao, empresa_id");
+        const { data: contratos } = await (supabase as any).from("contratos").select("id, nome, empresa_id, status");
 
         const empresaPorCodigo = new Map((empresas ?? []).map((e: any) => [e.codigo, e.id]));
+        const todosContratos: ContratoCandidato[] = contratos ?? [];
 
         const resultado: LinhaResultado[] = planilha.map((linha) => {
           const empresaId = empresaPorCodigo.get(linha.empresa);
-          const candidatos = (contratos ?? []).filter((c: any) => !empresaId || c.empresa_id === empresaId);
-
-          const chaveAlvo = normalizar(linha.contrato);
-          let match = candidatos.find((c: any) => normalizar(`${c.orgao ?? ""}${c.numero ?? ""}`) === chaveAlvo);
-          let tipoMatch: LinhaResultado["tipoMatch"] = match ? "exato" : "sem_match";
-
-          if (!match) {
-            const numAlvo = numeroFinal(chaveAlvo);
-            if (numAlvo) {
-              const mesmoNumero = candidatos.filter((c: any) => numeroFinal(normalizar(c.numero)) === numAlvo);
-              if (mesmoNumero.length === 1) {
-                match = mesmoNumero[0];
-                tipoMatch = "numero_unico";
-              }
-            }
-          }
+          const candidatos = empresaId ? todosContratos.filter((c) => c.empresa_id === empresaId) : todosContratos;
+          const { match, tipo } = encontrarContrato(candidatos, linha.contrato);
 
           return {
             ...linha,
             contratoId: match?.id ?? null,
-            contratoEncontrado: match ? `${match.orgao ?? ""} ${match.numero ?? ""}`.trim() : null,
-            tipoMatch,
+            contratoEncontrado: match?.nome ?? null,
+            tipoMatch: tipo,
           };
         });
 
