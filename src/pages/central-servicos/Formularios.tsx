@@ -64,7 +64,7 @@ const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
 export default function Formularios() {
   const nav = useNavigate();
   const { user } = useAuth();
-  const { can, canVerAlguma, isAdmin, setor } = useFormPerms();
+  const { can, canVerAlguma, setor } = useFormPerms();
   const [forms, setForms] = useState<Formulario[]>([]);
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -205,8 +205,8 @@ export default function Formularios() {
   };
 
   // Formulário restrito a setores (setores_acesso) só aparece para esse setor;
-  // admin e gestores (editar/encerrar/ver tudo) enxergam todos.
-  const podeVerTodos = isAdmin || can("editar_criar") || can("encerrar_excluir") || can("ver_tudo");
+  // quem gerencia (editar/encerrar/ver tudo) enxerga todos.
+  const podeVerTodos = can("editar_criar") || can("encerrar_excluir") || can("ver_tudo");
   const visiveis = forms.filter(f => {
     const restr = f.setores_acesso ?? [];
     return restr.length === 0 || podeVerTodos || (!!setor && restr.includes(setor));
@@ -216,6 +216,12 @@ export default function Formularios() {
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
+      <style>{`
+        .nf-card { transition: transform .28s cubic-bezier(.4,0,.2,1), box-shadow .28s cubic-bezier(.4,0,.2,1); will-change: transform; }
+        .nf-card:hover { transform: translateY(-5px); box-shadow: 0 20px 44px rgba(15,23,42,.15); border-color: #c7d2fe; }
+        .nf-cover { transition: transform .55s cubic-bezier(.4,0,.2,1); }
+        .nf-card:hover .nf-cover { transform: scale(1.07); }
+      `}</style>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "linear-gradient(135deg,#fff 0%,#f8fbff 100%)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0, gap: 14, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 19, fontWeight: 800, color: "#0f3171" }}>📋 Nascimento Formulários</div>
@@ -246,8 +252,12 @@ export default function Formularios() {
               const sit = situacao(f, contagens[f.id] || 0);
               const n = contagens[f.id] || 0;
               return (
-                <div key={f.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
-                  {f.imagem_capa_url && <div style={{ height: 84, background: `url(${f.imagem_capa_url}) center/cover` }} />}
+                <div key={f.id} className="nf-card" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
+                  {f.imagem_capa_url && (
+                    <div style={{ height: 128, background: "linear-gradient(135deg,#f8fbff 0%,#eef2ff 100%)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img src={f.imagem_capa_url} alt="" className="nf-cover" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} />
+                    </div>
+                  )}
                   <div style={{ height: 3, background: sit.chave === "ativo" ? "#16a34a" : sit.chave === "rascunho" ? "#94a3b8" : "#f59e0b" }} />
                   <div style={{ padding: "13px 15px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>

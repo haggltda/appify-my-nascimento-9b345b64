@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { usePermissoes } from "@/context/PermissoesContext";
 import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import FormulariosPermissoes, { FormPermsUsuario } from "@/pages/central-servicos/FormulariosPermissoes";
+import { FormPermsUsuario } from "@/pages/central-servicos/FormulariosPermissoes";
 
 const FORM_MENU_CODIGO = "central_servicos_formularios";
 
@@ -209,7 +209,6 @@ function CatalogoView({ isAdmin, modulosQ, menusQ, showAddForm, onAddFormClose, 
 
 function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string; menus: Menu[]; isAdmin: boolean; onChange: () => void }) {
   const [novo, setNovo] = useState({ codigo: "", nome: "", rota: "" });
-  const [permOpen, setPermOpen] = useState(false);  // painel de permissões do Nascimento Formulários
 
   const add = async () => {
     if (!novo.codigo || !novo.nome) return;
@@ -238,33 +237,16 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
     <div className="bg-muted/20 px-12 py-3">
       <table className="w-full text-sm">
         <tbody className="divide-y divide-border">
-          {menus.map((mn) => {
-            const isForm = mn.codigo === FORM_MENU_CODIGO;
-            return (
-              <Fragment key={mn.id}>
-                <tr>
-                  <td className="py-2 text-sm">{mn.nome}</td>
-                  <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.codigo}</td>
-                  <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.rota ?? "-"}</td>
-                  <td className="py-2 text-right">
-                    {isAdmin && isForm && (
-                      <Button size="sm" variant="ghost" className="mr-1 h-7 gap-1.5 text-xs" onClick={() => setPermOpen((v) => !v)}>
-                        {permOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />} Permissões
-                      </Button>
-                    )}
-                    {isAdmin && <Button size="sm" variant="ghost" onClick={() => remover(mn.id)}><Trash2 className="h-3 w-3" /></Button>}
-                  </td>
-                </tr>
-                {isForm && permOpen && (
-                  <tr>
-                    <td colSpan={4} className="pb-3">
-                      <FormulariosPermissoes onToast={(m, t) => toast({ title: m, variant: t === "err" ? "destructive" : "default" })} />
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            );
-          })}
+          {menus.map((mn) => (
+            <tr key={mn.id}>
+              <td className="py-2 text-sm">{mn.nome}</td>
+              <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.codigo}</td>
+              <td className="py-2 text-[11px] font-mono text-muted-foreground">{mn.rota ?? "-"}</td>
+              <td className="py-2 text-right">
+                {isAdmin && <Button size="sm" variant="ghost" onClick={() => remover(mn.id)}><Trash2 className="h-3 w-3" /></Button>}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -517,7 +499,7 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
                             />
                           </div>
                           {isForm && isAdmin && capsOpen && (
-                            <div className="border-t border-border/60 bg-muted/10 py-1">
+                            <div className="border-t border-border/60 bg-background px-12 py-2">
                               <FormPermsUsuario userId={selectedUserId} onToast={(m, t) => toast({ title: m, variant: t === "err" ? "destructive" : "default" })} />
                             </div>
                           )}
