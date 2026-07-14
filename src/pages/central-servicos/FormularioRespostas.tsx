@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Formulario, Pergunta, fmtDt, situacao, normalizaPerguntas } from "./Formularios";
+import EmpregadoDetalheModal, { normNome } from "./EmpregadoDetalheModal";
 
 // =====================================================================
 // NASCIMENTO FORMULÁRIOS - Respostas
@@ -33,6 +34,18 @@ const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "15px 17px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" };
 const valorTexto = (v: any) => v == null || v === "" ? "-" : Array.isArray(v) ? v.join("; ") : String(v);
 
+// Nome de empregado citado numa resposta: vira link p/ a ficha (👤). Se não
+// bater com o cadastro, renderiza texto normal.
+function NomeLink({ texto, ehPessoa, onPessoa }: { texto: string; ehPessoa: (v: any) => boolean; onPessoa: (n: string) => void }) {
+  if (!ehPessoa(texto)) return <>{texto}</>;
+  return (
+    <button onClick={() => onPessoa(texto)} title="Ver ficha do colaborador"
+      style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "#0f3171", fontWeight: 700, cursor: "pointer", textAlign: "left", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 2 }}>
+      👤 {texto}
+    </button>
+  );
+}
+
 export default function FormularioRespostas() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -42,6 +55,8 @@ export default function FormularioRespostas() {
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState<"resumo" | "individuais">("resumo");
   const [detalhe, setDetalhe] = useState<Resposta | null>(null);  // modal "Detalhes" do cadastro
+  const [pessoa, setPessoa] = useState<string | null>(null);      // modal ficha do empregado (nome citado)
+  const [nomesEmp, setNomesEmp] = useState<Set<string>>(new Set()); // nomes do cadastro (normalizados) p/ tornar clicável
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,6 +71,19 @@ export default function FormularioRespostas() {
     setResps((rRes.data ?? []).map((r: any) => ({ ...r, itens: r.itens ?? {} })));
   }, [id, nav]);
   useEffect(() => { load(); }, [load]);
+
+  // Nomes do cadastro (EMPREGADOS) só para saber quais valores de resposta são
+  // pessoas de verdade (viram link p/ a ficha). Best-effort: se falhar, ninguém
+  // fica clicável. Só a coluna "Nome" p/ não pesar.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await (supabase as any).from("EMPREGADOS").select('"Nome"');
+        setNomesEmp(new Set((data ?? []).map((e: any) => normNome(e["Nome"])).filter(Boolean)));
+      } catch { /* ignore */ }
+    })();
+  }, []);
+  const ehPessoa = useCallback((v: any) => { const n = normNome(v); return !!n && nomesEmp.has(n); }, [nomesEmp]);
 
   const exportCsv = () => {
     if (!form) return;
@@ -105,12 +133,16 @@ export default function FormularioRespostas() {
           {resps.length === 0 ? (
             <div style={{ ...card, textAlign: "center", color: "#94a3b8", padding: 50 }}>Nenhuma resposta ainda. Compartilhe a URL pública do formulário.</div>
           ) : aba === "resumo" ? (
-            pergs.map((p, i) => <ResumoPergunta key={p.id} p={p} i={i} resps={resps} />)
+            pergs.map((p, i) => <ResumoPergunta key={p.id} p={p} i={i} resps={resps} ehPessoa={ehPessoa} onPessoa={setPessoa} />)
           ) : (
             resps.map(r => (
               <div key={r.id} style={card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 800, color: "#0f172a" }}>{r.respondente_nome || "Anônimo"}</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 800, color: "#0f172a" }}>
+                    {r.respondente_nome && ehPessoa(r.respondente_nome)
+                      ? <NomeLink texto={r.respondente_nome} ehPessoa={ehPessoa} onPessoa={setPessoa} />
+                      : (r.respondente_nome || "Anônimo")}
+                  </span>
                   {r.respondente_email && <span style={{ fontSize: 11.5, color: "#64748b" }}>{r.respondente_email}</span>}
                   <span style={{ fontSize: 11, color: "#94a3b8" }}>{fmtDt(r.enviado_em)}</span>
                   {r.setor && <span style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: "#eef2ff", color: "#4338ca" }}>{r.setor}</span>}
@@ -159,11 +191,14 @@ export default function FormularioRespostas() {
           </div>
         </div>
       )}
+
+      {/* Modal Ficha do empregado - dados AO VIVO da EMPREGADOS + formulários que participou */}
+      {pessoa && <EmpregadoDetalheModal nome={pessoa} onClose={() => setPessoa(null)} />}
     </div>
   );
 }
 
-function ResumoPergunta({ p, i, resps }: { p: Pergunta; i: number; resps: Resposta[] }) {
+function ResumoPergunta({ p, i, resps, ehPessoa, onPessoa }: { p: Pergunta; i: number; resps: Resposta[]; ehPessoa: (v: any) => boolean; onPessoa: (n: string) => void }) {
   const valores = useMemo(() => resps.map(r => r.itens[p.id]).filter(v => v != null && v !== "" && !(Array.isArray(v) && v.length === 0)), [resps, p.id]);
 
   const conteudo = useMemo(() => {
@@ -186,7 +221,9 @@ function ResumoPergunta({ p, i, resps }: { p: Pergunta; i: number; resps: Respos
             const pct = total ? Math.round((n / total) * 100) : 0;
             return (
               <div key={k} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 12.5, color: "#0f172a", width: 180, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={k}>{k}</span>
+                <span style={{ fontSize: 12.5, color: "#0f172a", width: 180, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={k}>
+                  <NomeLink texto={k} ehPessoa={ehPessoa} onPessoa={onPessoa} />
+                </span>
                 <div style={{ flex: 1, height: 18, background: "#f1f5f9", borderRadius: 9, overflow: "hidden" }}>
                   <div style={{ width: `${pct}%`, height: "100%", background: "#0f3171", borderRadius: 9, transition: "width .3s" }} />
                 </div>
@@ -206,10 +243,17 @@ function ResumoPergunta({ p, i, resps }: { p: Pergunta; i: number; resps: Respos
     // texto/data: lista
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 240, overflowY: "auto" }}>
-        {valores.map((v, vi) => <div key={vi} style={{ fontSize: 12.5, color: "#0f172a", background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 10px" }}>{valorTexto(v)}</div>)}
+        {valores.map((v, vi) => {
+          const txt = valorTexto(v);
+          return (
+            <div key={vi} style={{ fontSize: 12.5, color: "#0f172a", background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 10px" }}>
+              <NomeLink texto={txt} ehPessoa={ehPessoa} onPessoa={onPessoa} />
+            </div>
+          );
+        })}
       </div>
     );
-  }, [p, valores]);
+  }, [p, valores, ehPessoa, onPessoa]);
 
   return (
     <div style={card}>
