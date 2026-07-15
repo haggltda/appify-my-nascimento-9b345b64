@@ -89,6 +89,7 @@ import IntegracaoBancaria from "./pages/financeiro/IntegracaoBancaria";
 import IntegracaoBancariaBuilder from "./pages/financeiro/IntegracaoBancariaBuilder";
 import ProgramacaoPagamentos from "./pages/financeiro/ProgramacaoPagamentos";
 import ValidacaoPosPagamento from "./pages/financeiro/ValidacaoPosPagamento";
+import ConciliacaoBancaria from "./pages/financeiro/ConciliacaoBancaria";
 import Lancamentos from "./pages/contabil/Lancamentos";
 import PlanoContas from "./pages/contabil/PlanoContas";
 import AprovacaoContas from "./pages/contabil/AprovacaoContas";
@@ -264,6 +265,7 @@ const App = () => (
             <Route path="financeiro/integracao-bancaria/builder/:contaId" element={<IntegracaoBancariaBuilder />} />
             <Route path="financeiro/programacao-pagamentos" element={<ProgramacaoPagamentos />} />
             <Route path="financeiro/validacao-pos-pagamento" element={<ValidacaoPosPagamento />} />
+            <Route path="financeiro/conciliacao-bancaria" element={<ConciliacaoBancaria />} />
             {/* Fiscal */}
             <Route path="fiscal" element={<Fiscal />} />
             {/* Contábil */}
