@@ -1,0 +1,51 @@
+name: Notify Eduardo on New PR (DM)
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install discord.js
+
+      - name: Send DM to Eduardo
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          USER_ID: "1384572666752663653"
+        run: |
+          node -e "
+          const { Client, GatewayIntentBits } = require('discord.js');
+          const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages], partials: ['CHANNEL'] });
+
+          client.login(process.env.DISCORD_TOKEN);
+
+          client.once('ready', async () => {
+            console.log('Bot conectado!');
+            await new Promise(r => setTimeout(r, 8000)); // espera 8 segundos para garantir conexão
+
+            try {
+              const user = await client.users.fetch(process.env.USER_ID);
+              const pr = process.env.GITHUB_EVENT_PATH ? require(process.env.GITHUB_EVENT_PATH).pull_request : null;
+              const message = pr
+                ? \`🚀 Novo Pull Request criado!\nTítulo: \${pr.title}\nAutor: \${pr.user.login}\n🔗 \${pr.html_url}\`
+                : 'Novo PR detectado!';
+              await user.send(message);
+              console.log('Mensagem enviada com sucesso!');
+            } catch (error) {
+              console.error('Erro ao enviar DM:', error);
+            } finally {
+              client.destroy();
+            }
+          });
+          "
