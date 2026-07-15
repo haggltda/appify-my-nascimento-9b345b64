@@ -132,6 +132,7 @@ export interface DfdDados {
   estrutura_interface?: string[];
   navegacao?: string[];
   elementos_visuais?: string[];
+  referencia_sistemas?: string[];
   referencia_outro_sistema?: string;
   // 7. Perfis e Permissões
   perfis?: string[];
@@ -151,6 +152,7 @@ export interface DfdDados {
   // 12. Validação do DFD
   situacao?: string;
   observacoes_finais?: string;
+  validacoes_dfd?: Array<{ area: string; nome?: string; cargo?: string; data?: string; situacao?: string; }>;
 }
 
 export interface PtvDados {
