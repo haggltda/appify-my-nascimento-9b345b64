@@ -7,8 +7,8 @@ import {
   COMPLEXIDADE_LABEL, CRITERIO_TRIAGEM_LABEL, DOCUMENTOS_APOIO_OPCOES, ETAPAS,
   GRAU_URGENCIA_LABEL, IMPACTO_TIPO_OPCOES, STATUS_DESENVOLVIMENTO_LABEL,
   TIPO_COMENTARIO_BORDA, TIPO_COMENTARIO_LABEL, TRIAGEM_CLASSIFICACAO_LABEL, TRIAGEM_DECISAO_LABEL,
-  fmtData, nomeUsuario,
-  type Anexo, type Comentario, type Convidado, type Solicitacao, type Usuario,
+  fmtData, nomeUsuario, sdNumero, TIPO_SOLICITACAO_LABEL,
+  type Anexo, type Comentario, type Convidado, type DfdDados, type DfdEtapa, type Solicitacao, type Usuario,
 } from "./types";
 
 const ETAPA_LABEL: Record<string, string> = Object.fromEntries(ETAPAS.map((e) => [e.key, e.label]));
@@ -654,6 +654,341 @@ export function AnexoIFSDCompleto({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Anexo II – DFD ───────────────────────────────────────────────────────────
+
+interface DfdAnexoProps {
+  card: Solicitacao;
+  anexos: Anexo[];
+  usuarios: Usuario[];
+}
+
+function DfdChk({ checked, label }: { checked: boolean; label: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "baseline", gap: 4, fontSize: 11 }}>
+      <span style={{ fontSize: 11 }}>{checked ? "☑" : "☐"}</span>
+      <span>{label}</span>
+    </span>
+  );
+}
+
+function DfdSecao({ titulo }: { titulo: string }) {
+  return (
+    <div style={{ background: "#153169", color: "#fff", padding: "3px 8px", marginBottom: 6, borderRadius: 3 }}>
+      <span style={{ fontSize: 11, fontWeight: "bold", textTransform: "uppercase", letterSpacing: 1 }}>{titulo}</span>
+    </div>
+  );
+}
+
+function DfdSubsecao({ titulo }: { titulo: string }) {
+  return (
+    <p style={{ fontSize: 10, fontWeight: "bold", textTransform: "uppercase", color: "#153169", borderBottom: "1px solid #ddd", paddingBottom: 2, marginBottom: 4 }}>
+      {titulo}
+    </p>
+  );
+}
+
+function DfdLinha({ label, valor }: { label: string; valor: string | null | undefined }) {
+  return (
+    <div style={{ display: "flex", gap: 6, fontSize: 11, marginBottom: 2 }}>
+      <span style={{ fontWeight: "bold", color: "#153169", whiteSpace: "nowrap" }}>{label}:</span>
+      <span>{valor ?? "—"}</span>
+    </div>
+  );
+}
+
+function DfdChkGrupo({ opcoes, values }: { opcoes: { k: string; l: string }[]; values: string[] | undefined }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px", marginBottom: 4 }}>
+      {opcoes.map(({ k, l }) => (
+        <DfdChk key={k} checked={(values ?? []).includes(k)} label={l} />
+      ))}
+    </div>
+  );
+}
+
+function DfdTabela({ colunas, linhas }: { colunas: string[]; linhas: (string | boolean | null | undefined)[][] }) {
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10, marginBottom: 6 }}>
+      <thead>
+        <tr style={{ background: "#f0f4ff" }}>
+          {colunas.map((c) => (
+            <th key={c} style={{ border: "1px solid #ccc", padding: "2px 4px", textAlign: "left", fontWeight: "bold" }}>{c}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {linhas.map((linha, i) => (
+          <tr key={i}>
+            {linha.map((cel, j) => (
+              <td key={j} style={{ border: "1px solid #ccc", padding: "2px 4px" }}>
+                {typeof cel === "boolean" ? (cel ? "Sim" : "Não") : (cel ?? "—")}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+const DFD_TIPO_SOLUCAO = [
+  { k: "novo_modulo", l: "Novo módulo" }, { k: "nova_funcionalidade", l: "Nova funcionalidade" },
+  { k: "correcao_falha", l: "Correção de falha — Bug" }, { k: "solicitacao_melhoria", l: "Solicitação de Melhoria" },
+  { k: "automacao", l: "Automação" }, { k: "integracao", l: "Integração" },
+  { k: "relatorio", l: "Relatório" }, { k: "dashboard", l: "Dashboard" },
+  { k: "alteracao_regra_negocio", l: "Alteração de regra de negócio" },
+  { k: "alteracao_processo", l: "Alteração de processo existente" }, { k: "outro", l: "Outro" },
+];
+const DFD_MODULOS = [
+  { k: "recrutamento_selecao", l: "Recrutamento e Seleção" }, { k: "admissao", l: "Admissão" },
+  { k: "rh", l: "RH" }, { k: "financeiro", l: "Financeiro" }, { k: "compras_supply", l: "Compras / Supply" },
+  { k: "licitacoes", l: "Licitações" }, { k: "operacional", l: "Operacional" },
+  { k: "contratos", l: "Contratos" }, { k: "juridico", l: "Jurídico" }, { k: "sst", l: "SST" },
+  { k: "treinamentos", l: "Treinamentos" }, { k: "crm", l: "CRM" }, { k: "outro", l: "Outro" },
+];
+const DFD_CONTEMPLAR = [
+  { k: "criar_cadastro", l: "Criar cadastro novo" }, { k: "alterar_cadastro", l: "Alterar cadastro existente" },
+  { k: "consultar_informacoes", l: "Consultar informações" }, { k: "controlar_andamento", l: "Controlar andamento" },
+  { k: "controlar_status", l: "Controlar status" }, { k: "controlar_aprovacoes", l: "Controlar aprovações" },
+  { k: "controlar_reprovacoes", l: "Controlar reprovações" }, { k: "permitir_cancelamento", l: "Permitir cancelamento" },
+  { k: "permitir_devolucao", l: "Permitir devolução" }, { k: "permitir_anexar", l: "Permitir anexar docs" },
+  { k: "gerar_documento", l: "Gerar documento" }, { k: "gerar_relatorio", l: "Gerar relatório" },
+  { k: "gerar_dashboard", l: "Gerar dashboard" }, { k: "enviar_notificacoes", l: "Enviar notificações" },
+  { k: "controlar_prazos", l: "Controlar prazos" }, { k: "controlar_responsaveis", l: "Controlar responsáveis" },
+  { k: "registrar_historico", l: "Registrar histórico" }, { k: "bloquear_avanco_pendencia", l: "Bloquear avanço" },
+  { k: "integrar_outro_sistema", l: "Integrar" }, { k: "importar_dados", l: "Importar dados" },
+  { k: "exportar_dados", l: "Exportar dados" }, { k: "permitir_acesso_externos", l: "Acesso externo" }, { k: "outro", l: "Outro" },
+];
+const DFD_ESCOPO_NEGATIVO = [
+  { k: "nao_integracao", l: "Não contempla integração" }, { k: "nao_dashboard", l: "Não contempla dashboard" },
+  { k: "nao_relatorio_gerencial", l: "Não contempla relatório gerencial" }, { k: "nao_app_mobile", l: "Não contempla app mobile" },
+  { k: "nao_assinatura_digital", l: "Não contempla assinatura digital" }, { k: "nao_envio_whatsapp", l: "Não contempla WhatsApp" },
+  { k: "nao_envio_email", l: "Não contempla e-mail automático" }, { k: "nao_acesso_externo", l: "Não contempla acesso externo" },
+  { k: "nao_migracao_dados", l: "Não contempla migração de dados" }, { k: "nao_automacao_total", l: "Não contempla automação total" },
+  { k: "outro", l: "Outro" },
+];
+const DFD_MATRIZ_COLS = [
+  { k: "registrar", l: "Registrar" }, { k: "validar", l: "Validar" }, { k: "aprovar", l: "Aprovar" },
+  { k: "notificar", l: "Notificar" }, { k: "gerar_doc", l: "Gerar doc." }, { k: "integrar", l: "Integrar" }, { k: "encerrar", l: "Encerrar" },
+];
+
+export function AnexoIIDFDCompleto({ card, anexos: _anexos, usuarios: _usuarios }: DfdAnexoProps) {
+  const d: DfdDados = card.dfd_dados ?? {};
+  const etapas: DfdEtapa[] = d.etapas ?? [];
+  const tipoDemanda = card.classificacao_demanda?.length
+    ? card.classificacao_demanda.map((v) => CLASSIFICACAO_DEMANDA_OPCOES.find((o) => o.value === v)?.label ?? v).join(", ")
+    : (card.tipo_solicitacao ? (TIPO_SOLICITACAO_LABEL[card.tipo_solicitacao] ?? card.tipo_solicitacao) : null);
+  const etapaLabel = (codigo: string | undefined) => {
+    const e = etapas.find((x) => x.codigo === codigo);
+    return e ? `${e.codigo} – ${e.descricao}` : (codigo ?? "—");
+  };
+
+  return (
+    <div style={{ fontFamily: "Arial, sans-serif", color: "#111", maxWidth: 900, margin: "0 auto" }}>
+      {/* Cabeçalho */}
+      <div style={{ background: "#153169", color: "#fff", padding: "8px 12px", marginBottom: 12, borderRadius: 4 }}>
+        <div style={{ fontSize: 14, fontWeight: "bold", textTransform: "uppercase" }}>
+          ANEXO II – DOCUMENTO FUNCIONAL DA DEMANDA (DFD)
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 8 }}>
+        <DfdLinha label="Número da Demanda" valor={sdNumero(card)} />
+        <DfdLinha label="Área Solicitante" valor={card.area_solicitante} />
+        <DfdLinha label="Responsável" valor={card.responsavel_solicitacao} />
+        <DfdLinha label="Usuário-chave" valor={d.usuario_chave} />
+        <DfdLinha label="Tipo da Demanda" valor={tipoDemanda} />
+      </div>
+      <div style={{ marginBottom: 4 }}>
+        <span style={{ fontWeight: "bold", color: "#153169", fontSize: 11 }}>Objetivo: </span>
+        <span style={{ fontSize: 11 }}>{d.objetivo ?? "—"}</span>
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <span style={{ fontWeight: "bold", color: "#153169", fontSize: 11 }}>Justificativa: </span>
+        <span style={{ fontSize: 11 }}>{d.justificativa ?? "—"}</span>
+      </div>
+
+      {/* Seção 1 */}
+      <DfdSecao titulo="1. Escopo Funcional da Solução" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        <DfdSubsecao titulo="1.1 Tipo de solução" />
+        <DfdChkGrupo opcoes={DFD_TIPO_SOLUCAO} values={d.tipo_solucao} />
+        <DfdSubsecao titulo="1.2 Módulos impactados" />
+        <DfdChkGrupo opcoes={DFD_MODULOS} values={d.modulos_impactados} />
+        <DfdSubsecao titulo="1.3 A solução deverá contemplar" />
+        <DfdChkGrupo opcoes={DFD_CONTEMPLAR} values={d.contemplar} />
+        <DfdSubsecao titulo="1.6 Escopo negativo" />
+        <DfdChkGrupo opcoes={DFD_ESCOPO_NEGATIVO} values={d.escopo_negativo} />
+      </div>
+
+      {/* Seção 2 */}
+      <DfdSecao titulo="2. Mapa das Etapas do Processo" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        <DfdSubsecao titulo="2.1 Etapas" />
+        {etapas.length === 0 ? (
+          <p style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>Nenhuma etapa cadastrada.</p>
+        ) : (
+          <DfdTabela
+            colunas={["Código", "Descrição"]}
+            linhas={etapas.map((e) => [e.codigo, e.descricao])}
+          />
+        )}
+        <DfdSubsecao titulo="2.4 Encerramento — o processo se encerra quando:" />
+        <DfdChkGrupo opcoes={[
+          { k: "solicitacao_aprovada", l: "A solicitação for aprovada" }, { k: "solicitacao_reprovada", l: "For reprovada" },
+          { k: "execucao_concluida", l: "Execução concluída" }, { k: "documento_gerado", l: "Documento gerado" },
+          { k: "responsavel_finalizar", l: "Responsável finalizar" }, { k: "prazo_expirar", l: "Prazo expirar" },
+          { k: "houver_cancelamento", l: "Cancelamento" }, { k: "outro", l: "Outro" },
+        ]} values={d.encerramento} />
+      </div>
+
+      {/* Seção 3 */}
+      <DfdSecao titulo="3. Matriz Funcional por Etapa" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        {etapas.length === 0 ? (
+          <p style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>Nenhuma etapa cadastrada.</p>
+        ) : (
+          <DfdTabela
+            colunas={["Etapa", ...DFD_MATRIZ_COLS.map((c) => c.l), "Hist. S", "Hist. N", "Notif. S", "Notif. N", "Bloq. S", "Bloq. N", "Bloq. O"]}
+            linhas={etapas.map((e) => {
+              const row = d.matriz?.[e.codigo] ?? {};
+              const r = row as Record<string, boolean>;
+              return [
+                `${e.codigo} – ${e.descricao}`,
+                ...DFD_MATRIZ_COLS.map((c) => r[c.k] ? "☑" : "☐"),
+                r["gera_historico"] ? "☑" : "☐",
+                r["gera_historico_n"] ? "☑" : "☐",
+                r["gera_notificacao"] ? "☑" : "☐",
+                r["gera_notificacao_n"] ? "☑" : "☐",
+                r["bloqueia_avanco"] ? "☑" : "☐",
+                r["bloqueia_nao"] ? "☑" : "☐",
+                r["bloqueia_outro"] ? "☑" : "☐",
+              ];
+            })}
+          />
+        )}
+      </div>
+
+      {/* Seção 4 */}
+      <DfdSecao titulo="4. Regras de Negócio e Validações" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        <DfdSubsecao titulo="4.1 Matriz de regras" />
+        {(d.regras_negocio ?? []).some((r) => r.regra || r.etapa) ? (
+          <DfdTabela
+            colunas={["Etapa", "Tipo", "Regra / Validação", "Responsável"]}
+            linhas={(d.regras_negocio ?? []).filter((r) => r.regra || r.etapa).map((r) => [etapaLabel(r.etapa), r.tipo ?? "—", r.regra ?? "—", r.responsavel ?? "—"])}
+          />
+        ) : (
+          <p style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>Não preenchido.</p>
+        )}
+        <DfdSubsecao titulo="4.3 Controle de prazo" />
+        <DfdLinha label="Terá controle de prazo?" valor={d.tem_prazo === "sim" ? "Sim" : d.tem_prazo === "nao" ? "Não" : d.tem_prazo ?? "—"} />
+      </div>
+
+      {/* Seção 5 */}
+      <DfdSecao titulo="5. Funcionalidades e Ações Sistêmicas" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        <DfdSubsecao titulo="5.2 Detalhamento das ações" />
+        {(d.acoes ?? []).some((a) => a.acao) ? (
+          <DfdTabela
+            colunas={["Ação", "Etapa", "Precisa aprovação", "Gera histórico"]}
+            linhas={(d.acoes ?? []).filter((a) => a.acao).map((a) => [a.acao ?? "—", etapaLabel(a.etapa_vinculada), a.precisa_aprovacao === true ? "Sim" : a.precisa_aprovacao === false ? "Não" : "—", a.gera_historico === true ? "Sim" : a.gera_historico === false ? "Não" : "—"])}
+          />
+        ) : (
+          <p style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>Não preenchido.</p>
+        )}
+      </div>
+
+      {/* Seção 7 */}
+      <DfdSecao titulo="7. Perfis e Permissões de Acesso" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        <DfdSubsecao titulo="7.2 Matriz resumida de permissões" />
+        {(d.permissoes ?? []).some((p) => p.perfil) ? (
+          <DfdTabela
+            colunas={["Perfil", "Etapa", "Vis.", "Inc.", "Alt.", "Apr.", "Rep.", "Can.", "Anex.", "Exp.", "Ind."]}
+            linhas={(d.permissoes ?? []).filter((p) => p.perfil).map((p) => {
+              const row = p as Record<string, unknown>;
+              const chk = (k: string) => row[k] ? "☑" : "☐";
+              return [p.perfil ?? "—", etapaLabel(p.etapa_vinculada), chk("visualizar"), chk("incluir"), chk("alterar"), chk("aprovar"), chk("reprovar"), chk("cancelar"), chk("anexar"), chk("exportar"), chk("indicadores")];
+            })}
+          />
+        ) : (
+          <p style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>Não preenchido.</p>
+        )}
+      </div>
+
+      {/* Seção 8 */}
+      <DfdSecao titulo="8. Integrações" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        <DfdLinha label="Terá integração?" valor={d.tem_integracao === "sim" ? "Sim" : d.tem_integracao === "nao" ? "Não" : d.tem_integracao ?? "—"} />
+        {(d.integracoes ?? []).some((i) => i.sistema) && (
+          <DfdTabela
+            colunas={["Etapa", "Sistema", "Dados", "Frequência", "Tratamento em caso de falha"]}
+            linhas={(d.integracoes ?? []).filter((i) => i.sistema).map((i) => [etapaLabel(i.etapa_vinculada), i.sistema ?? "—", i.dados ?? "—", i.frequencia ?? "—", i.tratamento_falha ?? "—"])}
+          />
+        )}
+      </div>
+
+      {/* Seção 9 */}
+      <DfdSecao titulo="9. Documentos, Relatórios e Indicadores" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        {(d.documentos ?? []).some((doc) => doc.documento) && (
+          <>
+            <DfdSubsecao titulo="9.1 Documentos e relatórios" />
+            <DfdTabela
+              colunas={["Etapa", "Documento", "Finalidade", "Gerado automaticamente?", "Quem acessa?"]}
+              linhas={(d.documentos ?? []).filter((doc) => doc.documento).map((doc) => [etapaLabel(doc.etapa_vinculada), doc.documento ?? "—", doc.finalidade ?? "—", doc.gerado_auto === true ? "Sim" : doc.gerado_auto === false ? "Não" : "—", doc.quem_acessa ?? "—"])}
+            />
+          </>
+        )}
+        {(d.indicadores ?? []).some((ind) => ind.indicador) && (
+          <>
+            <DfdSubsecao titulo="9.2 Indicadores" />
+            <DfdTabela
+              colunas={["Etapa", "Indicador", "Objetivo", "Fonte", "Frequência", "Responsável"]}
+              linhas={(d.indicadores ?? []).filter((ind) => ind.indicador).map((ind) => [etapaLabel(ind.etapa_vinculada), ind.indicador ?? "—", ind.objetivo ?? "—", ind.fonte ?? "—", ind.frequencia ?? "—", ind.responsavel ?? "—"])}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Seção 10 */}
+      <DfdSecao titulo="10. Premissas, Restrições, Dependências e Riscos" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        {(d.premissas ?? []).some((p) => p.responsavel || p.tratamento) ? (
+          <DfdTabela
+            colunas={["Tipos", "Etapa", "Responsável", "Impacto", "Tratamento"]}
+            linhas={(d.premissas ?? []).filter((p) => p.responsavel || p.tratamento).map((p) => [(p.tipos ?? []).join(", ") || "—", etapaLabel(p.etapa_vinculada), p.responsavel ?? "—", p.impacto ?? "—", p.tratamento ?? "—"])}
+          />
+        ) : (
+          <p style={{ fontSize: 11, color: "#888", fontStyle: "italic" }}>Não preenchido.</p>
+        )}
+      </div>
+
+      {/* Seção 11 */}
+      <DfdSecao titulo="11. Critérios de Homologação" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        {(d.criterios_etapa ?? []).some((c) => c.criterio) && (
+          <>
+            <DfdSubsecao titulo="11.1 Critérios por etapa" />
+            <DfdTabela
+              colunas={["Etapa", "O que validar na homologação", "Resultado esperado"]}
+              linhas={(d.criterios_etapa ?? []).filter((c) => c.criterio).map((c) => [etapaLabel(c.etapa_vinculada), c.criterio ?? "—", c.resultado ?? "—"])}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Seção 12 */}
+      <DfdSecao titulo="12. Validação do DFD" />
+      <div style={{ padding: "0 4px", marginBottom: 8 }}>
+        <DfdLinha label="Situação" valor={d.situacao ?? "—"} />
+        {d.observacoes_finais && <DfdLinha label="Observações finais" valor={d.observacoes_finais} />}
       </div>
     </div>
   );

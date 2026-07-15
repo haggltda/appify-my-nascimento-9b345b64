@@ -9,7 +9,7 @@ import {
   PESQUISA_PODE_ENCERRAR_OPCOES, PESQUISA_PODE_ENCERRAR_PERGUNTA, TIPO_SOLICITACAO_LABEL, nomeUsuario,
   type Anexo, type Assinatura, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
-import { RESUMOS, AnexoIFSDCompleto, temDadoResumo } from "./Resumos";
+import { RESUMOS, AnexoIFSDCompleto, AnexoIIDFDCompleto, temDadoResumo } from "./Resumos";
 import { Historico } from "./Historico";
 import { PdfDocumento, fmtDataHoraPdf } from "@/lib/pdf/PdfDocumento";
 import type { DocumentoOficial } from "./documentos";
@@ -261,6 +261,11 @@ export function DocumentoDetalheModal({
                   <AnexoIFSDCompleto card={card} anexos={anexos} usuarios={usuarios} />
                   <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL["solicitacao_demanda"]} assinaturas={assinaturasDaEtapa("solicitacao_demanda")} usuarios={usuarios} />
                   <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL["triagem_inicial"]} assinaturas={assinaturasDaEtapa("triagem_inicial")} usuarios={usuarios} />
+                </>
+              ) : documento.sigla === "DFD" ? (
+                <>
+                  <AnexoIIDFDCompleto card={card} anexos={anexos} usuarios={usuarios} />
+                  <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL["documentacao_funcional"]} assinaturas={assinaturasDaEtapa("documentacao_funcional")} usuarios={usuarios} />
                 </>
               ) : (
                 <>
