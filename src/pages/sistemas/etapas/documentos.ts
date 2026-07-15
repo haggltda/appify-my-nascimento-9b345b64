@@ -14,7 +14,7 @@ export interface DocumentoOficial {
 export const DOCUMENTOS_OFICIAIS: DocumentoOficial[] = [
   { numero: "I", nome: "Formulário de Solicitação de Demanda", sigla: "FSD", tipo: "anexo_etapa", etapaOrigem: "analise_necessidade" },
   { numero: "II", nome: "Documento Funcional da Demanda", sigla: "DFD", tipo: "anexo_etapa", etapaOrigem: "analise_tecnica", campoAnexo: "documentacao_tecnica" },
-  { numero: "III", nome: "Parecer Técnico de Viabilidade", sigla: "PTV", tipo: "anexo_etapa", etapaOrigem: "analise_tecnica", campoAnexo: "analise_tecnica" },
+  { numero: "III", nome: "Parecer Técnico de Viabilidade", sigla: "PTV", tipo: "anexo_etapa", etapaOrigem: "aprovacao_priorizacao", campoAnexo: "analise_tecnica" },
   { numero: "IV", nome: "Ata de Aprovação e Priorização", sigla: "AAP", tipo: "anexo_etapa", etapaOrigem: "aprovacao_priorizacao", campoAnexo: "aprovacao_priorizacao" },
   { numero: "V", nome: "Relatório de Testes Internos", sigla: "RTI", tipo: "anexo_etapa", etapaOrigem: "testes_internos", campoAnexo: "testes_internos" },
   { numero: "VI", nome: "Termo de Homologação da Área", sigla: "THA", tipo: "anexo_etapa", etapaOrigem: "homologacao_area_solicitante", campoAnexo: "homologacao_area_solicitante" },

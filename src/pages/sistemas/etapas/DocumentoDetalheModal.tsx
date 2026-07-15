@@ -9,7 +9,7 @@ import {
   PESQUISA_PODE_ENCERRAR_OPCOES, PESQUISA_PODE_ENCERRAR_PERGUNTA, TIPO_SOLICITACAO_LABEL, nomeUsuario,
   type Anexo, type Assinatura, type Comentario, type Convidado, type Solicitacao, type Usuario,
 } from "./types";
-import { RESUMOS, AnexoIFSDCompleto, AnexoIIDFDCompleto, temDadoResumo } from "./Resumos";
+import { RESUMOS, AnexoIFSDCompleto, AnexoIIDFDCompleto, AnexoIIIPTVCompleto, temDadoResumo } from "./Resumos";
 import { Historico } from "./Historico";
 import { PdfDocumento, fmtDataHoraPdf } from "@/lib/pdf/PdfDocumento";
 import type { DocumentoOficial } from "./documentos";
@@ -266,6 +266,11 @@ export function DocumentoDetalheModal({
                 <>
                   <AnexoIIDFDCompleto card={card} anexos={anexos} usuarios={usuarios} />
                   <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL["documentacao_funcional"]} assinaturas={assinaturasDaEtapa("documentacao_funcional")} usuarios={usuarios} />
+                </>
+              ) : documento.sigla === "PTV" ? (
+                <>
+                  <AnexoIIIPTVCompleto card={card} anexos={anexos} usuarios={usuarios} />
+                  <BlocoAssinaturasColuna etapaLabel={ETAPA_LABEL["analise_tecnica"]} assinaturas={assinaturasDaEtapa("analise_tecnica")} usuarios={usuarios} />
                 </>
               ) : (
                 <>
