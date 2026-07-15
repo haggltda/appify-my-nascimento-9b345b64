@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 import logoNascimento from "@/assets/logo-nascimento-icon.png";
 
@@ -16,6 +17,7 @@ interface Form {
   status: string; inicia_em?: string | null; encerra_em?: string | null;
   coleta_identificacao: boolean; imagem_capa_url?: string | null;
   pergunta_setor_id?: string | null; setores_acesso?: string[] | null;
+  seguranca?: "liberado" | "restrito"; exige_senha?: boolean;
 }
 interface Perg {
   id: string; tipo: string; titulo: string; descricao?: string | null;
@@ -88,7 +90,10 @@ function Blobs() {
   );
 }
 
-function Aviso({ emoji, titulo, texto }: { emoji: string; titulo: string; texto: string }) {
+function Aviso({ emoji, titulo, texto, acao, children }: {
+  emoji: string; titulo: string; texto: string;
+  acao?: { rotulo: string; href: string }; children?: React.ReactNode;
+}) {
   return (
     <div className="fp-bg" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, overflow: "hidden" }}>
       <AnimStyles /><Blobs />
@@ -96,6 +101,12 @@ function Aviso({ emoji, titulo, texto }: { emoji: string; titulo: string; texto:
         <div style={{ fontSize: 44 }}>{emoji}</div>
         <div style={{ fontSize: 19, fontWeight: 800, color: "#0f172a", marginTop: 10 }}>{titulo}</div>
         <div style={{ fontSize: 13.5, color: "#64748b", marginTop: 6, lineHeight: 1.6 }}>{texto}</div>
+        {children}
+        {acao && (
+          <a href={acao.href} className="fp-submit" style={{ display: "inline-block", marginTop: 16, padding: "11px 20px", borderRadius: 11, background: "#0f3171", color: "#fff", fontSize: 14, fontWeight: 800, textDecoration: "none" }}>
+            {acao.rotulo}
+          </a>
+        )}
       </div>
     </div>
   );
@@ -160,8 +171,16 @@ function ColaboradorSelect({ value, onChange }: { value: string; onChange: (v: s
 
 export default function FormularioPublico() {
   const { slug } = useParams();
+  const { user, loading: authLoading } = useAuth();
   const { empregado, loading: vinculoLoading } = useVinculoEmpregado();  // cadastro do respondente logado (null se anônimo)
   const abertoEm = useRef(Date.now());  // p/ tempo de conclusão
+  // Porta: metadados de segurança que o anon pode ver antes de entrar.
+  const [porta, setPorta] = useState<{ existe: boolean; seguranca?: string; exige_senha?: boolean; publicado?: boolean } | null>(null);
+  const [podeResponder, setPodeResponder] = useState<boolean | null>(null); // veredito do banco (cs_form_alvo)
+  const [senhaOk, setSenhaOk] = useState(false);
+  const [senhaTxt, setSenhaTxt] = useState("");
+  const [senhaErro, setSenhaErro] = useState("");
+  const [conferindo, setConferindo] = useState(false);
   const [form, setForm] = useState<Form | null>(null);
   const [pergs, setPergs] = useState<Perg[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,16 +196,66 @@ export default function FormularioPublico() {
   const [outroTxt, setOutroTxt] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
+    if (authLoading) return;
     setLoading(true);
+
+    // 1. Portaria (SECURITY DEFINER): existe? é restrito? pede senha? Sem isto
+    //    um restrito daria "não encontrado" pro anon, em vez de mandar ao login.
+    let p: any = null;
+    try { ({ data: p } = await (supabase as any).rpc("cs_form_porta", { _slug: slug })); } catch { /* banco antigo */ }
+    // Banco sem a RPC ainda: segue o fluxo antigo (tudo liberado).
+    const pt = p ?? { existe: true, seguranca: "liberado", exige_senha: false, publicado: true };
+    setPorta(pt);
+    if (!pt.existe) { setLoading(false); setNaoEncontrado(true); return; }
+
+    // 2. Restrito sem login: para aqui, a tela manda entrar no ERP.
+    if (pt.seguranca === "restrito" && !user) { setLoading(false); return; }
+
+    // 3. Lê o formulário (a RLS entrega: liberado p/ anon, e logado p/ quem tem
+    //    a visibilidade de gestão).
     const { data: f } = await (supabase as any).from("CS_FORMULARIOS").select("*").eq("slug", slug).maybeSingle();
     if (!f) { setLoading(false); setNaoEncontrado(true); return; }
     setForm(f);
-    setPergs((Array.isArray(f.perguntas) ? f.perguntas : []).map((p: any) => ({ ...p, opcoes: Array.isArray(p.opcoes) ? p.opcoes : [], config: p.config ?? {} })));
+    setPergs((Array.isArray(f.perguntas) ? f.perguntas : []).map((p2: any) => ({ ...p2, opcoes: Array.isArray(p2.opcoes) ? p2.opcoes : [], config: p2.config ?? {} })));
+
+    // 4. Veredito de acesso e senha: as MESMAS funções que a policy de INSERT
+    //    usa — a tela nunca promete o que o banco vai negar.
+    if (pt.seguranca === "restrito") {
+      try {
+        const { data: ok } = await (supabase as any).rpc("cs_form_alvo", { _form_id: f.id });
+        setPodeResponder(ok !== false);
+      } catch { setPodeResponder(true); }
+      if (pt.exige_senha) {
+        try {
+          const { data: sok } = await (supabase as any).rpc("cs_form_senha_ok", { _form_id: f.id });
+          setSenhaOk(sok === true);
+        } catch { setSenhaOk(false); }
+      } else setSenhaOk(true);
+    } else { setPodeResponder(true); setSenhaOk(true); }
     setLoading(false);
-  }, [slug]);
+  }, [slug, user, authLoading]);
   useEffect(() => { load(); }, [load]);
 
-  if (loading || vinculoLoading) return <Aviso emoji="⏳" titulo="Carregando..." texto="Um instante." />;
+  const conferirSenha = async () => {
+    if (!senhaTxt.trim()) return;
+    setConferindo(true); setSenhaErro("");
+    const { data, error } = await (supabase as any).rpc("cs_form_conferir_senha", { _slug: slug, _senha: senhaTxt });
+    setConferindo(false);
+    if (error) { setSenhaErro("Erro ao conferir: " + error.message); return; }
+    if (data === true) { setSenhaOk(true); setSenhaTxt(""); } else setSenhaErro("Senha incorreta.");
+  };
+
+  if (loading || vinculoLoading || authLoading) return <Aviso emoji="⏳" titulo="Carregando..." texto="Um instante." />;
+
+  // Restrito e sem login: manda entrar e volta direto pra cá (?next=).
+  if (porta?.existe && porta.seguranca === "restrito" && !user) {
+    const next = encodeURIComponent(`/formularios/${slug}`);
+    return (
+      <Aviso emoji="🔒" titulo="Formulário restrito"
+        texto="Este formulário é só para usuários do ERP. Entre com o seu usuário — você volta direto pra cá."
+        acao={{ rotulo: "Entrar no ERP →", href: `/login?next=${next}` }} />
+    );
+  }
   if (naoEncontrado || !form) return <Aviso emoji="🔍" titulo="Formulário não encontrado" texto="O link pode estar errado ou o formulário não está mais disponível." />;
 
   const now = Date.now();
@@ -194,21 +263,45 @@ export default function FormularioPublico() {
     return <Aviso emoji="🗓" titulo="Ainda não abriu" texto={`Este formulário abre em ${fmtDt(form.inicia_em)}. Volte depois!`} />;
   if (form.encerra_em && now > +new Date(form.encerra_em))
     return <Aviso emoji="⛔" titulo="Formulário encerrado" texto={`O prazo para responder terminou em ${fmtDt(form.encerra_em)}.`} />;
-  // Acesso por setor: se restrito, só quem é dos setores liberados responde.
-  const acesso = form.setores_acesso ?? [];
-  if (acesso.length > 0) {
-    if (!empregado) return <Aviso emoji="🔒" titulo="Formulário restrito" texto="Este formulário é restrito a setores específicos. Entre com seu usuário do ERP para responder." />;
-    if (!acesso.includes(empregado.setor)) return <Aviso emoji="🔒" titulo="Sem acesso" texto={`Este formulário é só para os setores: ${acesso.join(", ")}. O seu (${empregado.setor || "-"}) não está liberado.`} />;
+  // Público-alvo: veredito do banco (cs_form_alvo) — o mesmo que a policy de
+  // INSERT aplica. Aqui é só p/ explicar; a trava de verdade é a RLS.
+  if (podeResponder === false) {
+    const st = form.setores_acesso ?? [];
+    return <Aviso emoji="🔒" titulo="Sem acesso"
+      texto={st.length
+        ? `Este formulário é só para os setores: ${st.join(", ")} (ou pessoas escolhidas). O seu${empregado?.setor ? ` (${empregado.setor})` : ""} não está liberado.`
+        : "Você não está na lista de quem pode responder este formulário."} />;
+  }
+  // Senha do formulário: já logado e no alvo, falta a senha.
+  if (porta?.exige_senha && !senhaOk) {
+    return (
+      <Aviso emoji="🔑" titulo="Este formulário pede uma senha"
+        texto="Peça a senha a quem te enviou o formulário.">
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+          <input type="password" autoFocus value={senhaTxt} onChange={e => { setSenhaTxt(e.target.value); setSenhaErro(""); }}
+            onKeyDown={e => { if (e.key === "Enter") conferirSenha(); }}
+            placeholder="Senha do formulário" style={{ ...inp, textAlign: "center" }} />
+          {senhaErro && <div style={{ fontSize: 12.5, color: "#dc2626", fontWeight: 700 }}>{senhaErro}</div>}
+          <button onClick={conferirSenha} disabled={conferindo || !senhaTxt.trim()}
+            style={{ padding: "11px 16px", borderRadius: 11, border: "none", cursor: conferindo || !senhaTxt.trim() ? "default" : "pointer", background: conferindo || !senhaTxt.trim() ? "#94a3b8" : "#0f3171", color: "#fff", fontSize: 14, fontWeight: 800 }}>
+            {conferindo ? "Conferindo…" : "Abrir formulário"}
+          </button>
+        </div>
+      </Aviso>
+    );
   }
   if (enviado) return <SuccessScreen />;
 
   const setVal = (pid: string, v: any) => { setValores(x => ({ ...x, [pid]: v })); setErro(""); };
 
   // Perguntas visíveis ao respondente: uma pergunta pode ser limitada a setores
-  // (config.setores). Sem cadastro (anônimo), perguntas restritas ficam ocultas.
+  // (config.setores) e/ou a pessoas (config.pessoas = user_id do ERP), em UNIÃO.
+  // Vazio nos dois = todos veem. Anônimo não passa em nenhuma das duas.
   const perguntaVisivel = (p: Perg) => {
     const s: string[] = Array.isArray(p.config?.setores) ? p.config.setores : [];
-    return s.length === 0 || (!!empregado && s.includes(empregado.setor));
+    const u: string[] = Array.isArray(p.config?.pessoas) ? p.config.pessoas : [];
+    if (s.length === 0 && u.length === 0) return true;
+    return (!!empregado && s.includes(empregado.setor)) || (!!user && u.includes(user.id));
   };
   const pergsVisiveis = pergs.filter(perguntaVisivel);
 
