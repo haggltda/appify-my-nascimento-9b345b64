@@ -78,6 +78,8 @@ export interface Solicitacao {
   an_pessoas_impactadas: string   | null;
   // Documentação Funcional — formulário DFD completo (JSONB)
   dfd_dados: DfdDados | null;
+  // Análise Técnica — formulário PTV completo (JSONB)
+  ptv_dados: PtvDados | null;
 }
 
 export interface DfdEtapa {
@@ -149,6 +151,38 @@ export interface DfdDados {
   // 12. Validação do DFD
   situacao?: string;
   observacoes_finais?: string;
+}
+
+export interface PtvDados {
+  // Seção 2 — Conferência mínima do DFD
+  dfd_suficiente?: string;
+  dfd_pendencias?: string[];
+  dfd_encaminhamento?: string[];
+  // Seção 3 — Viabilidade técnica
+  tecnicamente_viavel?: string;
+  forma_atendimento?: string[];
+  impedimento_tecnico?: string;
+  impedimento_tipos?: string[];
+  // Seção 4.3 — Override manual da prioridade (só Gerente de Sistemas)
+  prioridade_override?: string;
+  pode_alterar_prioridade?: string;
+  prioridade_justificativa?: string;
+  // Seção 4.4 — Complexidade técnica (preenchimento manual TI)
+  complexidade_itens?: string[];
+  // Seção 5 — Dependências, riscos e condições
+  tem_dependencias?: string;
+  dependencia_tipos?: string[];
+  tem_risco_tecnico?: string;
+  risco_tipos?: string[];
+  dividir_fases?: string;
+  fase1_entrega?: string;
+  fase2_complementacao?: string;
+  encaminhar_comite?: string;
+  comite_motivos?: string[];
+  observacao_5?: string;
+  // Seção 6 — Parecer técnico final
+  parecer_final?: string[];
+  observacoes_justificativas?: string;
 }
 
 export interface Anexo {
