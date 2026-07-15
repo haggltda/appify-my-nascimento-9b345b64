@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
+import logoNascimento from "@/assets/logo-nascimento-icon.png";
 
 // =====================================================================
 // NASCIMENTO FORMULÁRIOS - página PÚBLICA de resposta (/formularios/:slug)
@@ -36,8 +37,15 @@ function AnimStyles() {
     @keyframes fpCheck { to { stroke-dashoffset: 0; } }
     @keyframes fpShimmer { 0% { transform: translateX(-130%); } 100% { transform: translateX(260%); } }
     @keyframes fpSpin { to { transform: rotate(360deg); } }
+    @keyframes fpFloatY { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(4deg); } }
+    @keyframes fpRise { 0% { transform: translateY(0) scale(.5); opacity:0; } 12% { opacity:.45; } 88% { opacity:.45; } 100% { transform: translateY(-105vh) scale(1); opacity:0; } }
     .fp-bg { background: radial-gradient(1200px 600px at 15% -10%, #e7efff 0%, transparent 55%), radial-gradient(1000px 500px at 100% 0%, #eef2ff 0%, transparent 50%), #eef2fb; position: relative; }
     .fp-blob { position: fixed; border-radius: 50%; filter: blur(64px); opacity:.45; z-index:0; pointer-events:none; animation: fpBlob 20s ease-in-out infinite; }
+    .fp-side { position: fixed; top: 34%; width: 108px; opacity:.07; z-index:0; pointer-events:none; user-select:none; animation: fpFloatY 9s ease-in-out infinite; }
+    .fp-side-l { left: 2.5%; }
+    .fp-side-r { right: 2.5%; animation-delay: -4.5s; }
+    .fp-particle { position: fixed; bottom: -12px; border-radius: 50%; opacity:0; z-index:0; pointer-events:none; background: radial-gradient(circle at 30% 30%, #f59e0b, #0f3171); animation: fpRise linear infinite; }
+    @media (max-width: 920px) { .fp-side { display:none; } }
     .fp-scope { position: relative; z-index: 1; }
     .fp-in { opacity:0; animation: fpFadeUp .6s cubic-bezier(.22,1,.36,1) forwards; }
     .fp-card-h { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
@@ -52,15 +60,30 @@ function AnimStyles() {
     .fp-scale-btn { transition: transform .15s ease, background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease; }
     .fp-scale-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(15,49,113,.18); }
     .fp-spin { animation: fpSpin .8s linear infinite; display:inline-block; }
-    @media (prefers-reduced-motion: reduce) { .fp-in,.fp-blob,.fp-submit::after { animation: none !important; } .fp-in { opacity:1 !important; } }
+    @media (prefers-reduced-motion: reduce) { .fp-in,.fp-blob,.fp-side,.fp-particle,.fp-submit::after { animation: none !important; } .fp-in { opacity:1 !important; } .fp-particle { display:none; } }
   `}</style>;
 }
 
+// Fundo decorativo: manchas suaves, partículas subindo e a logo Nascimento
+// de cada lado com uma leve flutuação. Tudo pointer-events:none e z-index 0.
 function Blobs() {
+  const particulas = [
+    { left: "6%", size: 9, dur: "13s", delay: "0s" },
+    { left: "20%", size: 6, dur: "17s", delay: "3s" },
+    { left: "38%", size: 11, dur: "15s", delay: "6s" },
+    { left: "58%", size: 7, dur: "19s", delay: "2s" },
+    { left: "74%", size: 9, dur: "14s", delay: "8s" },
+    { left: "90%", size: 6, dur: "18s", delay: "5s" },
+  ];
   return (
     <>
       <div className="fp-blob" style={{ width: 340, height: 340, background: "#bfdbfe", top: "6%", left: "8%" }} />
       <div className="fp-blob" style={{ width: 300, height: 300, background: "#ddd6fe", bottom: "6%", right: "8%", animationDelay: "-7s" }} />
+      <img src={logoNascimento} alt="" className="fp-side fp-side-l" />
+      <img src={logoNascimento} alt="" className="fp-side fp-side-r" />
+      {particulas.map((p, i) => (
+        <span key={i} className="fp-particle" style={{ left: p.left, width: p.size, height: p.size, animationDuration: p.dur, animationDelay: p.delay }} />
+      ))}
     </>
   );
 }
@@ -287,9 +310,9 @@ export default function FormularioPublico() {
           const delay = `${0.14 + idx * 0.05}s`;
           // Texto informativo: só leitura, sem número, sem input, sem validação.
           if (p.tipo === "texto_info") return (
-            <div key={p.id} className="fp-in fp-card-h" style={{ ...card, background: "#f8fafc", borderLeft: "4px solid #0f3171", animationDelay: delay }}>
-              {p.titulo && <div style={{ fontSize: 15, fontWeight: 800, color: "#0f3171" }}>{p.titulo}</div>}
-              {p.descricao && <div style={{ fontSize: 14, color: "#334155", marginTop: p.titulo ? 6 : 0, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{p.descricao}</div>}
+            <div key={p.id} className="fp-in fp-card-h" style={{ ...card, background: "#f8fafc", borderLeft: `4px solid ${p.config?.cor || "#0f3171"}`, animationDelay: delay }}>
+              {p.titulo && <div style={{ fontSize: 15, fontWeight: 800, color: p.config?.cor || "#0f3171" }}>{p.titulo}</div>}
+              {p.descricao && <div style={{ fontSize: 14, color: p.config?.cor || "#334155", marginTop: p.titulo ? 6 : 0, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{p.descricao}</div>}
               {p.imagem_url && <img src={p.imagem_url} alt="" style={{ maxWidth: "100%", maxHeight: 280, borderRadius: 10, marginTop: 10, border: "1px solid #f1f5f9" }} />}
             </div>
           );

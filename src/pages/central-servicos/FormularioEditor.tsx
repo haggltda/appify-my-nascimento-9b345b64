@@ -26,6 +26,17 @@ export const TIPOS: { valor: string; rotulo: string; temOpcoes: boolean }[] = [
   { valor: "numero",           rotulo: "Número",                   temOpcoes: false },
 ];
 
+// Cores predefinidas para o texto informativo (o valor "" = cor padrão).
+export const CORES_TEXTO: { nome: string; valor: string }[] = [
+  { nome: "Padrão",   valor: "" },
+  { nome: "Vermelho", valor: "#dc2626" },
+  { nome: "Laranja",  valor: "#ea580c" },
+  { nome: "Amarelo",  valor: "#ca8a04" },
+  { nome: "Verde",    valor: "#16a34a" },
+  { nome: "Azul",     valor: "#0f3171" },
+  { nome: "Roxo",     valor: "#7c3aed" },
+];
+
 const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
   ({ padding: "6px 12px", borderRadius: 9, border, background: bg, color: c, fontSize: 12, fontWeight: 700, cursor: "pointer" });
 const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 9, padding: "8px 10px", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff" };
@@ -299,19 +310,34 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
   const setoresVis: string[] = Array.isArray(p.config.setores) ? p.config.setores : [];
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-        <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", flexShrink: 0 }}>#{i + 1}</span>
-        <input value={p.titulo} onChange={e => muda(i, { titulo: e.target.value })} placeholder="Escreva a pergunta..."
-          style={{ border: "none", borderBottom: "2px solid #e2e8f0", padding: "6px 2px", fontSize: 14.5, fontWeight: 700, color: "#0f172a", outline: "none", flex: 1, background: "transparent" }} />
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", flexShrink: 0, paddingTop: 8 }}>#{i + 1}</span>
+        <AutoTextarea value={p.titulo} onChange={v => muda(i, { titulo: v })} minRows={1} placeholder="Escreva a pergunta..."
+          style={{ border: "none", borderBottom: "2px solid #e2e8f0", padding: "6px 2px", fontSize: 14.5, fontWeight: 700, color: "#0f172a", outline: "none", flex: 1, background: "transparent", lineHeight: 1.4 }} />
         <select value={p.tipo} onChange={e => muda(i, { tipo: e.target.value, opcoes: TIPOS.find(t => t.valor === e.target.value)?.temOpcoes && p.opcoes.length === 0 ? ["Opção 1"] : p.opcoes })}
-          style={{ border: "1px solid #e2e8f0", borderRadius: 9, padding: "7px 8px", fontSize: 12, outline: "none", background: "#fff", fontWeight: 600 }}>
+          style={{ border: "1px solid #e2e8f0", borderRadius: 9, padding: "7px 8px", fontSize: 12, outline: "none", background: "#fff", fontWeight: 600, flexShrink: 0, marginTop: 2 }}>
           {TIPOS.map(t => <option key={t.valor} value={t.valor}>{t.rotulo}</option>)}
         </select>
       </div>
 
       {p.tipo === "texto_info" ? (
-        <AutoTextarea value={p.descricao ?? ""} onChange={v => muda(i, { descricao: v })} minRows={3} placeholder="Texto que o colaborador vai ler (o título fica em destaque acima)"
-          style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "#334155", outline: "none", width: "100%", marginBottom: 10, background: "#fff", fontFamily: "inherit" }} />
+        <div style={{ marginBottom: 10 }}>
+          <AutoTextarea value={p.descricao ?? ""} onChange={v => muda(i, { descricao: v })} minRows={3} placeholder="Texto que o colaborador vai ler (o título fica em destaque acima)"
+            style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: p.config.cor || "#334155", fontWeight: p.config.cor ? 600 : 400, outline: "none", width: "100%", background: "#fff", fontFamily: "inherit" }} />
+          <div style={{ display: "flex", gap: 7, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px" }}>Cor do texto</span>
+            {CORES_TEXTO.map(c => {
+              const on = (p.config.cor || "") === c.valor;
+              return (
+                <button key={c.nome} title={c.nome} onClick={() => muda(i, { config: { ...p.config, cor: c.valor || undefined } })}
+                  style={{ width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0,
+                    background: c.valor || "#64748b",
+                    border: on ? "2px solid #0f172a" : "2px solid #fff",
+                    boxShadow: on ? "0 0 0 2px #0f172a" : "0 0 0 1px #e2e8f0" }} />
+              );
+            })}
+          </div>
+        </div>
       ) : (
         <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição / ajuda - aparece abaixo do título (opcional)"
           style={{ border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 9px", fontSize: 12, color: "#64748b", outline: "none", width: "100%", marginBottom: 10, background: "#fafbfc" }} />
