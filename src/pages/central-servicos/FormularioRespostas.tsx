@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Formulario, Pergunta, fmtDt, situacao, normalizaPerguntas } from "./Formularios";
-import EmpregadoDetalheModal, { normNome } from "./EmpregadoDetalheModal";
+import EmpregadoDetalheModal, { normNome, carregarVinculos } from "./EmpregadoDetalheModal";
 
 // =====================================================================
 // NASCIMENTO FORMULÁRIOS - Respostas
@@ -34,15 +34,86 @@ const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "15px 17px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" };
 const valorTexto = (v: any) => v == null || v === "" ? "-" : Array.isArray(v) ? v.join("; ") : String(v);
 
+// Toda resposta do Resumo usa a MESMA tipografia (itálico), seja ela um nome
+// vinculado ao cadastro ou um texto qualquer - quem é pessoa se distingue só
+// pelo 👤 e pelo sublinhado pontilhado, não por peso/cor.
+const valorFonte: React.CSSProperties = { fontSize: 12.5, fontStyle: "italic", fontWeight: 500, color: "#0f172a" };
+const btnMini = (bg: string, c: string, border: string): React.CSSProperties =>
+  ({ padding: "3px 9px", borderRadius: 7, border, background: bg, color: c, fontSize: 10.5, fontWeight: 700, cursor: "pointer", flexShrink: 0 });
+const rotFiltro: React.CSSProperties = { display: "block", fontSize: 11.5, fontWeight: 600, color: "#94a3b8", marginBottom: 4 };
+const selFiltro: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 9, padding: "8px 10px", fontSize: 12.5, outline: "none", fontFamily: "inherit", background: "#fff", color: "#0f172a" };
+
 // Nome de empregado citado numa resposta: vira link p/ a ficha (👤). Se não
-// bater com o cadastro, renderiza texto normal.
+// bater com o cadastro, renderiza texto normal (mesma fonte).
 function NomeLink({ texto, ehPessoa, onPessoa }: { texto: string; ehPessoa: (v: any) => boolean; onPessoa: (n: string) => void }) {
-  if (!ehPessoa(texto)) return <>{texto}</>;
+  if (!ehPessoa(texto)) return <span style={valorFonte}>{texto}</span>;
   return (
     <button onClick={() => onPessoa(texto)} title="Ver ficha do colaborador"
-      style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "#0f3171", fontWeight: 700, cursor: "pointer", textAlign: "left", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 2 }}>
+      style={{ ...valorFonte, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 2 }}>
       👤 {texto}
     </button>
+  );
+}
+
+// Linha da lista de respostas abertas: valor + ação. "Detalhes" abre a ficha
+// de quem já casa com o cadastro; "Vincular" abre a mesma ficha no modo de
+// amarrar o texto a um empregado (nome incompleto, grafia diferente...).
+function LinhaValor({ texto, ehPessoa, onPessoa }: { texto: string; ehPessoa: (v: any) => boolean; onPessoa: (n: string) => void }) {
+  const pessoa = ehPessoa(texto);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 10px" }}>
+      <div style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>
+        <NomeLink texto={texto} ehPessoa={ehPessoa} onPessoa={onPessoa} />
+      </div>
+      <button onClick={() => onPessoa(texto)} title={pessoa ? "Ver ficha completa" : "Vincular este nome a um empregado"}
+        style={pessoa
+          ? btnMini("rgba(15,49,113,.08)", "#0f3171", "1px solid rgba(15,49,113,.2)")
+          : btnMini("#fff", "#94a3b8", "1px solid #e2e8f0")}>
+        {pessoa ? "Detalhes" : "Vincular"}
+      </button>
+    </div>
+  );
+}
+
+// Barra de filtros - larga, alinhada com o cabeçalho (não com os cards, que
+// são estreitos). Filtra Resumo, Individuais e o CSV de uma vez só.
+export function FiltrosRespostas({ fResp, setFResp, opcoesResp, fSetor, setFSetor, opcoesSetor, fDe, setFDe, fAte, setFAte, filtrando, onLimpar }: {
+  fResp: string; setFResp: (v: string) => void; opcoesResp: string[];
+  fSetor: string; setFSetor: (v: string) => void; opcoesSetor: string[];
+  fDe: string; setFDe: (v: string) => void; fAte: string; setFAte: (v: string) => void;
+  filtrando: boolean; onLimpar: () => void;
+}) {
+  return (
+    <div style={{ ...card, display: "flex", alignItems: "flex-end", gap: 14, flexWrap: "wrap", padding: "12px 16px", margin: "14px 24px 0", borderRadius: 18, flexShrink: 0 }}>
+      <span style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", paddingBottom: 9 }}>Filtros:</span>
+      <div style={{ flex: "1 1 190px", minWidth: 165 }}>
+        <label style={rotFiltro}>Respondente</label>
+        <select value={fResp} onChange={e => setFResp(e.target.value)} style={selFiltro}>
+          <option value="">Todos os respondentes</option>
+          {opcoesResp.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </div>
+      <div style={{ flex: "1 1 190px", minWidth: 165 }}>
+        <label style={rotFiltro}>Setor</label>
+        <select value={fSetor} onChange={e => setFSetor(e.target.value)} style={selFiltro}>
+          <option value="">Todos os setores</option>
+          {opcoesSetor.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+      <div>
+        <label style={rotFiltro}>Data de criação</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="date" value={fDe} max={fAte || undefined} onChange={e => setFDe(e.target.value)} style={{ ...selFiltro, width: 148 }} />
+          <span style={{ fontSize: 12.5, color: "#64748b", fontWeight: 600 }}>até</span>
+          <input type="date" value={fAte} min={fDe || undefined} onChange={e => setFAte(e.target.value)} style={{ ...selFiltro, width: 148 }} />
+        </div>
+      </div>
+      <div style={{ flex: 1 }} />
+      <button onClick={onLimpar} disabled={!filtrando}
+        style={{ ...btn("#fff", filtrando ? "#475569" : "#cbd5e1", "1px solid #e2e8f0"), cursor: filtrando ? "pointer" : "default", padding: "8px 14px" }}>
+        ▽ Limpar filtros
+      </button>
+    </div>
   );
 }
 
@@ -54,9 +125,14 @@ export default function FormularioRespostas() {
   const [resps, setResps] = useState<Resposta[]>([]);
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState<"resumo" | "individuais">("resumo");
+  const [fResp, setFResp] = useState("");    // filtro: respondente (nome exato)
+  const [fSetor, setFSetor] = useState("");  // filtro: setor carimbado na resposta
+  const [fDe, setFDe] = useState("");        // filtro: data de criação (yyyy-mm-dd)
+  const [fAte, setFAte] = useState("");
   const [detalhe, setDetalhe] = useState<Resposta | null>(null);  // modal "Detalhes" do cadastro
   const [pessoa, setPessoa] = useState<string | null>(null);      // modal ficha do empregado (nome citado)
   const [nomesEmp, setNomesEmp] = useState<Set<string>>(new Set()); // nomes do cadastro (normalizados) p/ tornar clicável
+  const [vinculos, setVinculos] = useState<Set<string>>(new Set()); // apelidos vinculados à mão (CS_FORM_VINCULOS)
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,21 +151,50 @@ export default function FormularioRespostas() {
   // Nomes do cadastro (EMPREGADOS) só para saber quais valores de resposta são
   // pessoas de verdade (viram link p/ a ficha). Best-effort: se falhar, ninguém
   // fica clicável. Só a coluna "Nome" p/ não pesar.
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await (supabase as any).from("EMPREGADOS").select('"Nome"');
-        setNomesEmp(new Set((data ?? []).map((e: any) => normNome(e["Nome"])).filter(Boolean)));
-      } catch { /* ignore */ }
-    })();
+  const carregarNomes = useCallback(async () => {
+    try {
+      const { data } = await (supabase as any).from("EMPREGADOS").select('"Nome"');
+      setNomesEmp(new Set((data ?? []).map((e: any) => normNome(e["Nome"])).filter(Boolean)));
+    } catch { /* ignore */ }
+    setVinculos(await carregarVinculos());
   }, []);
-  const ehPessoa = useCallback((v: any) => { const n = normNome(v); return !!n && nomesEmp.has(n); }, [nomesEmp]);
+  useEffect(() => { carregarNomes(); }, [carregarNomes]);
+
+  // Pessoa = bate com o cadastro OU foi vinculada à mão (nome incompleto etc.).
+  const ehPessoa = useCallback((v: any) => {
+    const n = normNome(v);
+    return !!n && (nomesEmp.has(n) || vinculos.has(n));
+  }, [nomesEmp, vinculos]);
+
+  // Opções dos filtros: saem das próprias respostas (só o que existe aparece).
+  const opcoesResp = useMemo(() => [...new Set(resps.map(r => (r.respondente_nome ?? "").trim()).filter(Boolean))].sort(), [resps]);
+  const opcoesSetor = useMemo(() => [...new Set(resps.map(r => (r.setor ?? "").trim()).filter(Boolean))].sort(), [resps]);
+  // Respostas filtradas alimentam AS DUAS abas (resumo e individuais) e o CSV.
+  // Data: intervalo fechado nas duas pontas - "até 31/05" inclui o dia 31
+  // inteiro (por isso o fim do dia, não 00:00).
+  const respsFiltradas = useMemo(() => {
+    const de = fDe ? new Date(`${fDe}T00:00:00`).getTime() : null;
+    const ate = fAte ? new Date(`${fAte}T23:59:59.999`).getTime() : null;
+    return resps.filter(r => {
+      if (fResp && (r.respondente_nome ?? "").trim() !== fResp) return false;
+      if (fSetor && (r.setor ?? "").trim() !== fSetor) return false;
+      if (de != null || ate != null) {
+        const t = new Date(r.enviado_em).getTime();
+        if (isNaN(t)) return false;
+        if (de != null && t < de) return false;
+        if (ate != null && t > ate) return false;
+      }
+      return true;
+    });
+  }, [resps, fResp, fSetor, fDe, fAte]);
+  const filtrando = !!(fResp || fSetor || fDe || fAte);
+  const limparFiltros = () => { setFResp(""); setFSetor(""); setFDe(""); setFAte(""); };
 
   const exportCsv = () => {
     if (!form) return;
     const esc = (s: any) => `"${String(s ?? "").replace(/"/g, '""')}"`;
     const cab = ["Enviado em", "Nome", "E-mail", ...pergs.map(p => p.titulo)];
-    const linhas = resps.map(r => [
+    const linhas = respsFiltradas.map(r => [
       fmtDt(r.enviado_em), r.respondente_nome ?? "", r.respondente_email ?? "",
       ...pergs.map(p => valorTexto(r.itens[p.id])),
     ]);
@@ -125,17 +230,29 @@ export default function FormularioRespostas() {
             </button>
           ))}
         </div>
-        <button onClick={exportCsv} disabled={!resps.length} style={btn(resps.length ? "#16a34a" : "#94a3b8")}>⬇ Exportar CSV</button>
+        <button onClick={exportCsv} disabled={!respsFiltradas.length} style={btn(respsFiltradas.length ? "#16a34a" : "#94a3b8")}>⬇ Exportar CSV</button>
       </div>
+
+      {resps.length > 0 && (
+        <FiltrosRespostas
+          fResp={fResp} setFResp={setFResp} opcoesResp={opcoesResp}
+          fSetor={fSetor} setFSetor={setFSetor} opcoesSetor={opcoesSetor}
+          fDe={fDe} setFDe={setFDe} fAte={fAte} setFAte={setFAte}
+          filtrando={filtrando} onLimpar={limparFiltros} />
+      )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "18px 24px 40px" }}>
         <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
           {resps.length === 0 ? (
             <div style={{ ...card, textAlign: "center", color: "#94a3b8", padding: 50 }}>Nenhuma resposta ainda. Compartilhe a URL pública do formulário.</div>
+          ) : respsFiltradas.length === 0 ? (
+            <div style={{ ...card, textAlign: "center", color: "#94a3b8", padding: 40 }}>
+              Nenhuma resposta bate com o filtro. <button onClick={limparFiltros} style={{ background: "none", border: "none", color: "#2563eb", fontWeight: 700, cursor: "pointer", fontSize: 12.5 }}>Limpar filtros</button>
+            </div>
           ) : aba === "resumo" ? (
-            pergs.map((p, i) => <ResumoPergunta key={p.id} p={p} i={i} resps={resps} ehPessoa={ehPessoa} onPessoa={setPessoa} />)
+            pergs.map((p, i) => <ResumoPergunta key={p.id} p={p} i={i} resps={respsFiltradas} ehPessoa={ehPessoa} onPessoa={setPessoa} />)
           ) : (
-            resps.map(r => (
+            respsFiltradas.map(r => (
               <div key={r.id} style={card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 12.5, fontWeight: 800, color: "#0f172a" }}>
@@ -155,7 +272,7 @@ export default function FormularioRespostas() {
                   {pergs.map(p => (
                     <div key={p.id} style={{ fontSize: 12.5 }}>
                       <span style={{ color: "#94a3b8", fontWeight: 700 }}>{p.titulo}: </span>
-                      <span style={{ color: "#0f172a" }}>{valorTexto(r.itens[p.id])}</span>
+                      <NomeLink texto={valorTexto(r.itens[p.id])} ehPessoa={ehPessoa} onPessoa={setPessoa} />
                     </div>
                   ))}
                 </div>
@@ -192,8 +309,10 @@ export default function FormularioRespostas() {
         </div>
       )}
 
-      {/* Modal Ficha do empregado - dados AO VIVO da EMPREGADOS + formulários que participou */}
-      {pessoa && <EmpregadoDetalheModal nome={pessoa} onClose={() => setPessoa(null)} />}
+      {/* Modal Ficha do empregado - dados AO VIVO da EMPREGADOS + formulários que participou.
+          onVinculado: acabou de amarrar um nome solto a um empregado -> recarrega
+          os nomes p/ o texto virar link aqui na hora. */}
+      {pessoa && <EmpregadoDetalheModal nome={pessoa} onClose={() => setPessoa(null)} onVinculado={carregarNomes} />}
     </div>
   );
 }
@@ -243,14 +362,9 @@ function ResumoPergunta({ p, i, resps, ehPessoa, onPessoa }: { p: Pergunta; i: n
     // texto/data: lista
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 240, overflowY: "auto" }}>
-        {valores.map((v, vi) => {
-          const txt = valorTexto(v);
-          return (
-            <div key={vi} style={{ fontSize: 12.5, color: "#0f172a", background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 10px" }}>
-              <NomeLink texto={txt} ehPessoa={ehPessoa} onPessoa={onPessoa} />
-            </div>
-          );
-        })}
+        {valores.map((v, vi) => (
+          <LinhaValor key={vi} texto={valorTexto(v)} ehPessoa={ehPessoa} onPessoa={onPessoa} />
+        ))}
       </div>
     );
   }, [p, valores, ehPessoa, onPessoa]);

@@ -18,8 +18,14 @@ export default function Login() {
   const { disableDemo } = useDemoMode();
   const { user, loading: authLoading } = useAuth();
 
+  // ?next=/rota — p/ onde voltar depois de entrar (formulário restrito manda
+  // o respondente pra cá e quer ele de volta na página do formulário).
+  // Só caminho interno: barra o open-redirect p/ site externo (//evil.com).
+  const nextRaw = new URLSearchParams(location.search).get("next");
+  const destino = nextRaw && /^\/(?!\/)/.test(nextRaw) ? nextRaw : "/app";
+
   if (!authLoading && user) {
-    return <Navigate to="/app" replace />;
+    return <Navigate to={destino} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,7 +36,7 @@ export default function Login() {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw signInError;
       disableDemo();
-      navigate("/app");
+      navigate(destino);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
       if (msg.includes("Invalid login credentials")) setError("E-mail ou senha incorretos.");
