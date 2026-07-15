@@ -267,7 +267,11 @@ export default function SolicitacoesErp() {
           "triagem_recebido_por, triagem_concluida_em, triagem_classificacao, triagem_sem_desenvolvimento, " +
           "triagem_sem_desenvolvimento_como, triagem_encaminhamento_para, triagem_encaminhamento_responsavel, " +
           "triagem_parecer, triagem_decisao, triagem_data_decisao, " +
+<<<<<<< HEAD
           "an_criterios, an_pessoas_impactadas, dfd_dados",
+=======
+          "an_criterios, an_pessoas_impactadas",
+>>>>>>> 31e12a949969606ce6b60a569bbedfdf7dd20e86
         )
         .order("created_at", { ascending: true });
       if (error) throw error;
