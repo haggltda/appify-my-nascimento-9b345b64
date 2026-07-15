@@ -268,12 +268,15 @@ export default function SolicitacoesErp() {
           "triagem_sem_desenvolvimento_como, triagem_encaminhamento_para, triagem_encaminhamento_responsavel, " +
           "triagem_parecer, triagem_decisao, triagem_data_decisao, " +
           "an_criterios, an_pessoas_impactadas, dfd_dados",
+<<<<<<< HEAD
 =======
           "an_criterios, an_pessoas_impactadas",
  31e12a949969606ce6b60a569bbedfdf7dd20e86
 =======
           "an_criterios, an_pessoas_impactadas",
  main
+=======
+>>>>>>> 5ed6f24 (Resolve conflito de merge no SELECT do SolicitacoesErp)
         )
         .order("created_at", { ascending: true });
       if (error) throw error;
