@@ -90,6 +90,8 @@ import IntegracaoBancariaBuilder from "./pages/financeiro/IntegracaoBancariaBuil
 import ProgramacaoPagamentos from "./pages/financeiro/ProgramacaoPagamentos";
 import ValidacaoPosPagamento from "./pages/financeiro/ValidacaoPosPagamento";
 import ConciliacaoBancaria from "./pages/financeiro/ConciliacaoBancaria";
+import CadastroOrcamentos from "./pages/financeiro/orcamento/CadastroOrcamentos";
+import ClassificacoesOrcamento from "./pages/financeiro/orcamento/ClassificacoesOrcamento";
 import Lancamentos from "./pages/contabil/Lancamentos";
 import PlanoContas from "./pages/contabil/PlanoContas";
 import AprovacaoContas from "./pages/contabil/AprovacaoContas";
@@ -266,6 +268,8 @@ const App = () => (
             <Route path="financeiro/programacao-pagamentos" element={<ProgramacaoPagamentos />} />
             <Route path="financeiro/validacao-pos-pagamento" element={<ValidacaoPosPagamento />} />
             <Route path="financeiro/conciliacao-bancaria" element={<ConciliacaoBancaria />} />
+            <Route path="financeiro/planejamento-orcamentario/cadastro" element={<CadastroOrcamentos />} />
+            <Route path="financeiro/planejamento-orcamentario/classificacoes" element={<ClassificacoesOrcamento />} />
             {/* Fiscal */}
             <Route path="fiscal" element={<Fiscal />} />
             {/* Contábil */}

@@ -269,6 +269,13 @@ const financeiroModule: ModuleDef = {
       ],
     },
     {
+      label: "Orçamento",
+      defaultOpen: true,
+      items: [
+        { label: "Cadastro de Orçamentos", to: "/app/financeiro/planejamento-orcamentario/cadastro", icon: ClipboardList },
+      ],
+    },
+    {
       label: "Ferramentas",
       defaultOpen: true,
       items: [
