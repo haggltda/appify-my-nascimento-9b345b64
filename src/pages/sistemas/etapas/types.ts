@@ -76,6 +76,79 @@ export interface Solicitacao {
   // Análise de Necessidade — critérios de prioridade e pessoas impactadas
   an_criterios:          string[] | null;
   an_pessoas_impactadas: string   | null;
+  // Documentação Funcional — formulário DFD completo (JSONB)
+  dfd_dados: DfdDados | null;
+}
+
+export interface DfdEtapa {
+  codigo: string;
+  descricao: string;
+}
+
+export interface DfdDados {
+  // Cabeçalho
+  usuario_chave?: string;
+  objetivo?: string;
+  justificativa?: string;
+  // 1. Escopo Funcional
+  tipo_solucao?: string[];
+  modulos_impactados?: string[];
+  contemplar?: string[];
+  entrega_principal?: string;
+  tipo_info_controlada?: string[];
+  escopo_negativo?: string[];
+  item_excluido?: string;
+  item_excluido_tipos?: string[];
+  // 2. Mapa das Etapas
+  etapas?: DfdEtapa[];
+  quem_inicia?: string[];
+  como_inicia?: string[];
+  tem_retorno?: string;
+  retorno_motivos?: string[];
+  encerramento?: string[];
+  // 3. Matriz Funcional (Record<codigo, booleans>)
+  matriz?: Record<string, {
+    registrar?: boolean; validar?: boolean; aprovar?: boolean; notificar?: boolean;
+    gerar_doc?: boolean; integrar?: boolean; encerrar?: boolean;
+    gera_historico?: boolean; gera_notificacao?: boolean;
+    bloqueia_avanco?: boolean; bloqueia_outro?: boolean;
+  }>;
+  // 4. Regras de Negócio
+  regras_negocio?: Array<{ etapa?: string; tipo?: string; regra?: string; responsavel?: string; acoes?: string[]; }>;
+  regras_sobre?: string[];
+  tem_prazo?: string;
+  prazo_definido_por?: string[];
+  prazos_controlados?: string[];
+  alertar_quando?: string[];
+  prazo_vence?: string[];
+  // 5. Funcionalidades
+  funcionalidades?: string[];
+  acoes?: Array<{ acao?: string; etapa_vinculada?: string; executores?: string[]; precisa_aprovacao?: boolean | null; gera_historico?: boolean | null; }>;
+  resultado_automatico?: string[];
+  condicoes?: string[];
+  // 6. Interface
+  estrutura_interface?: string[];
+  navegacao?: string[];
+  elementos_visuais?: string[];
+  referencia_outro_sistema?: string;
+  // 7. Perfis e Permissões
+  perfis?: string[];
+  permissoes?: Array<{ perfil?: string; etapa_vinculada?: string; visualizar?: boolean; incluir?: boolean; alterar?: boolean; aprovar?: boolean; reprovar?: boolean; cancelar?: boolean; anexar?: boolean; exportar?: boolean; indicadores?: boolean; }>;
+  restricoes_acesso?: string[];
+  // 8. Integrações
+  tem_integracao?: string;
+  integracoes?: Array<{ etapa_vinculada?: string; sistema?: string; tipo?: string[]; dados?: string; frequencia?: string; tratamento_falha?: string; }>;
+  // 9. Documentos e Indicadores
+  documentos?: Array<{ etapa_vinculada?: string; documento?: string; finalidade?: string; formato?: string[]; gerado_auto?: boolean | null; quem_acessa?: string; }>;
+  indicadores?: Array<{ etapa_vinculada?: string; indicador?: string; objetivo?: string; fonte?: string; frequencia?: string; responsavel?: string; }>;
+  // 10. Premissas, Restrições, Dependências e Riscos
+  premissas?: Array<{ tipos?: string[]; etapa_vinculada?: string; responsavel?: string; impacto?: string; tratamento?: string; }>;
+  // 11. Critérios de Homologação
+  criterios_etapa?: Array<{ etapa_vinculada?: string; criterio?: string; resultado?: string; }>;
+  itens_homologacao?: string[];
+  // 12. Validação do DFD
+  situacao?: string;
+  observacoes_finais?: string;
 }
 
 export interface Anexo {
