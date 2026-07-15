@@ -14,7 +14,7 @@ import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 
 export type FormCap =
   | "editar_criar" | "responder" | "encerrar_excluir"
-  | "ver_tudo" | "ver_proprias";
+  | "ver_tudo" | "ver_proprias" | "ver_setor";
 
 const VIEW_CAPS: FormCap[] = ["ver_tudo", "ver_proprias"];
 
@@ -25,13 +25,19 @@ export function useFormPerms() {
   const setor = empregado?.setor || null;  // usado por Formularios (setores_acesso), nao por permissao
   const isAdmin = roles.includes("admin");
   const [caps, setCaps] = useState<Set<string>>(new Set());
+  // Setores cujas respostas o usuario pode ver (papel 'ver_setor'), normalizados.
+  const [setoresVer, setSetoresVer] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   const carregar = useCallback(async () => {
-    if (!user) { setCaps(new Set()); setLoading(false); return; }
+    if (!user) { setCaps(new Set()); setSetoresVer(new Set()); setLoading(false); return; }
     const uRes = await (supabase as any).from("CS_FORM_ACESSOS")
-      .select("papel").eq("user_id", user.id).neq("papel", "dashboard");
-    setCaps(new Set<string>((uRes.data ?? []).map((r: any) => r.papel)));
+      .select("papel, setor").eq("user_id", user.id).neq("papel", "dashboard");
+    const linhas = uRes.data ?? [];
+    setCaps(new Set<string>(linhas.map((r: any) => r.papel)));
+    setSetoresVer(new Set<string>(linhas
+      .filter((r: any) => r.papel === "ver_setor" && r.setor)
+      .map((r: any) => String(r.setor).trim().toUpperCase())));
     setLoading(false);
   }, [user]);
   useEffect(() => { carregar(); }, [carregar]);
@@ -39,6 +45,10 @@ export function useFormPerms() {
   // Formularios e governado 100% pelos grants POR USUARIO - inclusive admin.
   // 'responder' segue liberado por padrao a todo autenticado (Abrir/responder).
   const can = (c: FormCap) => c === "responder" || caps.has(c);
-  const canVerAlguma = VIEW_CAPS.some((c) => caps.has(c));
-  return { isAdmin, can, canVerAlguma, setor, loading, reload: carregar };
+  // Ve alguma resposta? ver_tudo, ver_proprias OU pelo menos 1 setor liberado.
+  const canVerAlguma = VIEW_CAPS.some((c) => caps.has(c)) || setoresVer.size > 0;
+  // Espelha public.cs_form_cap_setor (a autoridade e a RLS).
+  const canVerSetor = (s?: string | null) =>
+    !!s && setoresVer.has(String(s).trim().toUpperCase());
+  return { isAdmin, can, canVerAlguma, canVerSetor, setoresVer, setor, loading, reload: carregar };
 }

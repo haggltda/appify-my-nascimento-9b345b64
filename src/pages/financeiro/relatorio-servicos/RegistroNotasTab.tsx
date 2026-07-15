@@ -29,9 +29,9 @@ interface NotaRegistro {
 
 interface ContratoOpcao {
   id: string;
-  numero: string | null;
-  orgao: string | null;
+  nome: string;
   empresa_id: string;
+  status: string;
 }
 
 export default function RegistroNotasTab() {
@@ -55,11 +55,13 @@ export default function RegistroNotasTab() {
   const { data: contratos = [] } = useQuery<ContratoOpcao[]>({
     queryKey: ["contratos-para-vinculo"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("contrato").select("id, numero, orgao, empresa_id");
+      const { data, error } = await (supabase as any).from("contratos").select("id, nome, empresa_id, status");
       if (error) throw error;
       return data ?? [];
     },
   });
+
+  const contratoPorId = useMemo(() => new Map(contratos.map((c) => [c.id, c])), [contratos]);
 
   const invalidar = () => {
     qc.invalidateQueries({ queryKey: ["cobranca-relatorio-nota-registro"] });
@@ -112,7 +114,7 @@ export default function RegistroNotasTab() {
   const opcoesContratoPara = (empresaId: string | null): SearchableOption[] =>
     contratos
       .filter((c) => !empresaId || c.empresa_id === empresaId)
-      .map((c) => ({ value: c.id, label: `${c.orgao ?? ""} ${c.numero ?? ""}`.trim() || c.id }));
+      .map((c) => ({ value: c.id, label: c.nome, hint: c.status !== "ativo" ? c.status : undefined }));
 
   return (
     <div className="space-y-4">
@@ -171,43 +173,53 @@ export default function RegistroNotasTab() {
                 {!isLoading && notasFiltradas.length === 0 && (
                   <tr><td colSpan={8} className="px-2 py-6 text-center text-muted-foreground">Nenhuma nota encontrada.</td></tr>
                 )}
-                {notasFiltradas.map((n) => (
-                  <tr key={n.id} className="border-t">
-                    <td className="px-2 py-1">{n.empresa_codigo}</td>
-                    <td className="px-2 py-1 max-w-[220px] truncate" title={n.cliente_contrato}>{n.cliente_contrato}</td>
-                    <td className="px-2 py-1">{n.nota}</td>
-                    <td className="px-2 py-1">{n.competencia || "—"}</td>
-                    <td className="px-2 py-1">{fmtData(n.data_referencia)}</td>
-                    <td className="px-2 py-1 text-right">{fmtMoney(Number(n.valor))}</td>
-                    <td className="px-2 py-1 text-right">{n.dias_atraso}</td>
-                    <td className="px-2 py-1 min-w-[280px]">
-                      {n.contrato_id ? (
-                        <Badge variant="secondary" className="text-[10px]">vinculado</Badge>
-                      ) : n.contrato_descontinuado ? (
-                        <Badge variant="outline" className="text-[10px] text-muted-foreground">contrato descontinuado</Badge>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <SearchableSelect
-                            value={null}
-                            onChange={(contratoId) => vincular.mutate({ clienteContrato: n.cliente_contrato, contratoId })}
-                            options={opcoesContratoPara(n.empresa_id)}
-                            placeholder="Vincular contrato..."
-                            searchPlaceholder="Buscar contrato..."
-                            triggerClassName="h-7 text-xs"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 shrink-0 px-2 text-[10px] text-muted-foreground"
-                            onClick={() => marcarDescontinuado.mutate(n.cliente_contrato)}
-                          >
-                            Descontinuado
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {notasFiltradas.map((n) => {
+                  const contrato = n.contrato_id ? contratoPorId.get(n.contrato_id) : null;
+                  return (
+                    <tr key={n.id} className="border-t">
+                      <td className="px-2 py-1">{n.empresa_codigo}</td>
+                      <td className="px-2 py-1 max-w-[220px] truncate" title={n.cliente_contrato}>{n.cliente_contrato}</td>
+                      <td className="px-2 py-1">{n.nota}</td>
+                      <td className="px-2 py-1">{n.competencia || "—"}</td>
+                      <td className="px-2 py-1">{fmtData(n.data_referencia)}</td>
+                      <td className="px-2 py-1 text-right">{fmtMoney(Number(n.valor))}</td>
+                      <td className="px-2 py-1 text-right">{n.dias_atraso}</td>
+                      <td className="px-2 py-1 min-w-[280px]">
+                        {n.contrato_id ? (
+                          <div className="flex items-center gap-1">
+                            <Badge variant="secondary" className="text-[10px]">vinculado</Badge>
+                            {contrato && contrato.status !== "ativo" && (
+                              <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                                contrato {contrato.status}
+                              </Badge>
+                            )}
+                          </div>
+                        ) : n.contrato_descontinuado ? (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">contrato descontinuado</Badge>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <SearchableSelect
+                              value={null}
+                              onChange={(contratoId) => vincular.mutate({ clienteContrato: n.cliente_contrato, contratoId })}
+                              options={opcoesContratoPara(n.empresa_id)}
+                              placeholder="Vincular contrato..."
+                              searchPlaceholder="Buscar contrato..."
+                              triggerClassName="h-7 text-xs"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 shrink-0 px-2 text-[10px] text-muted-foreground"
+                              onClick={() => marcarDescontinuado.mutate(n.cliente_contrato)}
+                            >
+                              Descontinuado
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

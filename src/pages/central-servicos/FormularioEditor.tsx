@@ -26,6 +26,17 @@ export const TIPOS: { valor: string; rotulo: string; temOpcoes: boolean }[] = [
   { valor: "numero",           rotulo: "Número",                   temOpcoes: false },
 ];
 
+// Cores predefinidas para o texto informativo (o valor "" = cor padrão).
+export const CORES_TEXTO: { nome: string; valor: string }[] = [
+  { nome: "Padrão",   valor: "" },
+  { nome: "Vermelho", valor: "#dc2626" },
+  { nome: "Laranja",  valor: "#ea580c" },
+  { nome: "Amarelo",  valor: "#ca8a04" },
+  { nome: "Verde",    valor: "#16a34a" },
+  { nome: "Azul",     valor: "#0f3171" },
+  { nome: "Roxo",     valor: "#7c3aed" },
+];
+
 const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
   ({ padding: "6px 12px", borderRadius: 9, border, background: bg, color: c, fontSize: 12, fontWeight: 700, cursor: "pointer" });
 const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 9, padding: "8px 10px", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff" };
@@ -47,6 +58,124 @@ function AutoTextarea({ value, onChange, placeholder, style, minRows = 2 }: { va
     style={{ ...style, overflow: "hidden", resize: "none" }} />;
 }
 
+// ── Segurança do formulário ─────────────────────────────────────────────
+// Liberado = URL pública sem login. Restrito = exige login; responde a UNIÃO
+// de (setores) + (pessoas a dedo); vazio dos dois = qualquer usuário logado.
+// Senha é uma camada a mais dentro de restrito.
+export interface UsuarioErp { id: string; display_name: string | null; email: string | null }
+
+function Seguranca({ form, mudaForm, setoresErp, usuarios, alvo, setAlvo, senha, setSenha, querSenha, setQuerSenha }: {
+  form: Formulario; mudaForm: (p: Partial<Formulario>) => void; setoresErp: string[];
+  usuarios: UsuarioErp[];
+  alvo: string[]; setAlvo: (v: string[]) => void;
+  senha: string | null; setSenha: (v: string | null) => void;
+  querSenha: boolean; setQuerSenha: (v: boolean) => void;
+}) {
+  const [busca, setBusca] = useState("");
+  const restrito = (form.seguranca ?? "liberado") === "restrito";
+
+  const porId = Object.fromEntries(usuarios.map(u => [u.id, u]));
+  const termo = busca.trim().toLowerCase();
+  const achados = termo.length < 2 ? [] : usuarios
+    .filter(u => !alvo.includes(u.id))
+    .filter(u => `${u.display_name ?? ""} ${u.email ?? ""}`.toLowerCase().includes(termo))
+    .slice(0, 8);
+
+  const opcao = (val: "liberado" | "restrito", titulo: string, desc: string) => {
+    const on = restrito === (val === "restrito");
+    return (
+      <div onClick={() => mudaForm({ seguranca: val })} style={{ flex: 1, minWidth: 210, cursor: "pointer", display: "flex", gap: 9, padding: "10px 12px", borderRadius: 11, border: on ? "1.5px solid #0f3171" : "1px solid #e2e8f0", background: on ? "rgba(15,49,113,.04)" : "#fff" }}>
+        <div style={{ width: 15, height: 15, borderRadius: "50%", flexShrink: 0, marginTop: 2, border: on ? "4.5px solid #0f3171" : "1.5px solid #cbd5e1", background: "#fff" }} />
+        <div>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: on ? "#0f3171" : "#0f172a" }}>{titulo}</div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>{desc}</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <label style={lbl}>Segurança - quem pode responder</label>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {opcao("liberado", "🌐 Liberado", "Qualquer um com o link. Sem login.")}
+        {opcao("restrito", "🔒 Restrito", "Exige entrar no ERP p/ responder.")}
+      </div>
+
+      {restrito && (
+        <div style={{ marginTop: 10, border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, background: "#f8fafc", display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Setores */}
+          <div>
+            <label style={lbl}>Setores liberados</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {setoresErp.length === 0 && <span style={{ fontSize: 12, color: "#94a3b8" }}>Carregando setores…</span>}
+              {setoresErp.map(s => {
+                const on = (form.setores_acesso ?? []).includes(s);
+                return (
+                  <span key={s} onClick={() => { const set = new Set(form.setores_acesso ?? []); on ? set.delete(s) : set.add(s); mudaForm({ setores_acesso: set.size ? [...set] : null }); }}
+                    style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, cursor: "pointer", border: on ? "1px solid #0f3171" : "1px solid #e2e8f0", background: on ? "#0f3171" : "#fff", color: on ? "#fff" : "#64748b" }}>{s}</span>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Pessoas específicas (usuários do ERP) */}
+          <div>
+            <label style={lbl}>Pessoas liberadas (além dos setores)</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: alvo.length ? 6 : 0 }}>
+              {alvo.map(uid => (
+                <span key={uid} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 6px 4px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, background: "#0f3171", color: "#fff" }}>
+                  {porId[uid]?.display_name || porId[uid]?.email || "Usuário removido"}
+                  <button onClick={() => setAlvo(alvo.filter(x => x !== uid))} title="Tirar"
+                    style={{ border: "none", background: "rgba(255,255,255,.2)", color: "#fff", borderRadius: "50%", width: 16, height: 16, lineHeight: "14px", cursor: "pointer", fontSize: 11 }}>×</button>
+                </span>
+              ))}
+            </div>
+            <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar usuário do ERP por nome ou e-mail…" style={{ ...inp, width: "100%" }} />
+            {achados.length > 0 && (
+              <div style={{ marginTop: 5, border: "1px solid #e2e8f0", borderRadius: 9, background: "#fff", overflow: "hidden" }}>
+                {achados.map(u => (
+                  <div key={u.id} onClick={() => { setAlvo([...alvo, u.id]); setBusca(""); }}
+                    style={{ padding: "7px 10px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{u.display_name || "(sem nome)"}</div>
+                    <div style={{ fontSize: 11, color: "#94a3b8" }}>{u.email}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Senha. senha===null = "não mexeu" (mantém a do banco); "" = remover. */}
+          <div>
+            <label style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", marginBottom: querSenha ? 6 : 0 }}>
+              <input type="checkbox" checked={querSenha}
+                onChange={e => { const on = e.target.checked; setQuerSenha(on); setSenha(on && form.exige_senha ? null : ""); }}
+                style={{ width: 15, height: 15, accentColor: "#0f3171" }} />
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>🔑 Exigir também uma senha do formulário</span>
+            </label>
+            {querSenha && (
+              <>
+                <input type="text" value={senha ?? ""} onChange={e => setSenha(e.target.value)}
+                  placeholder={form.exige_senha && senha === null ? "Senha já definida — digite p/ trocar" : "Digite a senha do formulário"}
+                  style={{ ...inp, width: "100%", maxWidth: 320 }} />
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                  Guardada com hash — nunca volta pra tela.{form.exige_senha && senha === null ? " Deixe como está p/ manter a senha atual." : ""}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div style={{ fontSize: 11, color: "#64748b", background: "#eef6ff", border: "1px solid #dbeafe", borderRadius: 9, padding: "7px 10px" }}>
+            {(form.setores_acesso?.length || alvo.length)
+              ? <>Responde quem for <b>de um dos setores</b> acima <b>ou</b> estiver na lista de pessoas{querSenha ? <> — e souber a <b>senha</b></> : null}.</>
+              : <>Sem setor nem pessoa marcada: responde <b>qualquer usuário logado</b> do ERP{querSenha ? <> que saiba a <b>senha</b></> : null}.</>}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function FormularioEditor() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -58,10 +187,16 @@ export default function FormularioEditor() {
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
   const capaRef = useRef<HTMLInputElement>(null);
   const [setoresErp, setSetoresErp] = useState<string[]>([]);   // setores distintos de EMPREGADOS
+  const [usuarios, setUsuarios] = useState<UsuarioErp[]>([]);   // usuarios do ERP (profiles) p/ acesso por pessoa
   const [mostrarEncerra, setMostrarEncerra] = useState(false);
   const [maisOpcoes, setMaisOpcoes] = useState(false);
   const [massaOpen, setMassaOpen] = useState(false);   // adicionar perguntas em massa
   const [massaTexto, setMassaTexto] = useState("");
+  // Segurança: pessoas liberadas (user_id do ERP) e senha. senha === null =>
+  // "não mexeu" (não toca no que está no banco); "" => remover a senha.
+  const [alvo, setAlvo] = useState<string[]>([]);
+  const [senha, setSenha] = useState<string | null>(null);
+  const [querSenha, setQuerSenha] = useState(false);
   const toast = (msg: string, t = "info") => { const tid = Date.now() + Math.random(); setToasts(x => [...x, { id: tid, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== tid)), 4200); };
 
   const load = useCallback(async () => {
@@ -72,6 +207,13 @@ export default function FormularioEditor() {
     setForm(fRes.data);
     setPergs(normalizaPerguntas(fRes.data.perguntas));
     if (fRes.data.encerra_em) setMostrarEncerra(true);
+    // Pessoas liberadas a dedo. Best-effort: banco sem a tabela nova não trava o editor.
+    try {
+      const { data } = await (supabase as any).from("CS_FORM_ALVO_USUARIOS").select("user_id").eq("formulario_id", id);
+      setAlvo((data ?? []).map((r: any) => r.user_id));
+    } catch { setAlvo([]); }
+    setSenha(null);  // a senha nunca volta do banco (só o hash existe lá)
+    setQuerSenha(!!fRes.data.exige_senha);
     setSujo(false);
   }, [id, nav]);
   useEffect(() => { load(); }, [load]);
@@ -81,6 +223,15 @@ export default function FormularioEditor() {
     (async () => {
       const { data } = await (supabase as any).from("EMPREGADOS").select('"Setor_ERP"').limit(20000);
       setSetoresErp([...new Set((data ?? []).map((r: any) => String(r["Setor_ERP"] ?? "").trim()).filter(Boolean))].sort() as string[]);
+    })();
+  }, []);
+
+  // Usuários do ERP: acesso por pessoa (no formulário e por pergunta). Uma
+  // carga só, compartilhada com todos os cards de pergunta.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("profiles").select("id, display_name, email").order("display_name");
+      setUsuarios((data ?? []) as any);
     })();
   }, []);
 
@@ -113,6 +264,11 @@ export default function FormularioEditor() {
     if (!form) return;
     if (!form.titulo.trim()) { toast("O formulário precisa de um título.", "err"); return; }
     if (novoStatus === "publicado" && pergs.filter(p => p.titulo.trim()).length === 0) { toast("Adicione ao menos 1 pergunta antes de publicar.", "err"); return; }
+    // Pediu senha mas não tem nenhuma definida e não digitou: barra, senão o
+    // "exigir senha" ficaria marcado na tela sem senha nenhuma no banco.
+    if ((form.seguranca ?? "liberado") === "restrito" && querSenha && !form.exige_senha && !senha?.trim()) {
+      toast("Digite a senha do formulário ou desmarque a opção.", "err"); return;
+    }
     setSalvando(true);
     // Colunas garantidas (base) x colunas novas de setor/acesso (extra). Se o
     // banco ainda não tem as novas, reenvia só a base - o save não trava.
@@ -128,10 +284,32 @@ export default function FormularioEditor() {
       })),
       ...(novoStatus ? { status: novoStatus } : {}),
     };
-    const extra = { pergunta_setor_id: form.pergunta_setor_id || null, setores_acesso: form.setores_acesso ?? null };
+    const restrito = (form.seguranca ?? "liberado") === "restrito";
+    const extra = {
+      pergunta_setor_id: form.pergunta_setor_id || null,
+      seguranca: form.seguranca ?? "liberado",
+      // Liberado zera os filtros: não deixa restrição órfã no banco.
+      setores_acesso: restrito ? (form.setores_acesso?.length ? form.setores_acesso : null) : null,
+    };
     let { error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update({ ...base, ...extra }).eq("id", form.id);
     if (e1 && /column|schema cache/i.test(e1.message)) ({ error: e1 } = await (supabase as any).from("CS_FORMULARIOS").update(base).eq("id", form.id));
     if (e1) { setSalvando(false); toast("Erro ao salvar: " + e1.message, "err"); return; }
+
+    // Pessoas liberadas: troca o conjunto inteiro (liberado = ninguém a dedo).
+    const alvoFinal = restrito ? alvo : [];
+    const { error: e2 } = await (supabase as any).from("CS_FORM_ALVO_USUARIOS").delete().eq("formulario_id", form.id);
+    if (!e2 && alvoFinal.length) {
+      await (supabase as any).from("CS_FORM_ALVO_USUARIOS")
+        .insert(alvoFinal.map(u => ({ formulario_id: form.id, user_id: u })));
+    }
+
+    // Senha: só chama a RPC se mexeram nela (senha !== null). A RPC hasheia e
+    // acerta o exige_senha. Virou liberado com senha antiga => remove.
+    const senhaNova = restrito ? senha : (form.exige_senha ? "" : null);
+    if (senhaNova !== null) {
+      const { error: e3 } = await (supabase as any).rpc("cs_form_definir_senha", { _form_id: form.id, _senha: senhaNova || null });
+      if (e3) { setSalvando(false); toast("Salvou o formulário, mas a senha falhou: " + e3.message, "err"); load(); return; }
+    }
     setSalvando(false);
     toast(novoStatus === "publicado" ? "Publicado! URL ativa - copie na lista." : "Salvo.", "ok");
     load();
@@ -185,17 +363,10 @@ export default function FormularioEditor() {
                 )}
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={lbl}>Acesso - quais setores podem ver/responder (vazio = todos)</label>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {setoresErp.length === 0 && <span style={{ fontSize: 12, color: "#94a3b8" }}>Carregando setores…</span>}
-                  {setoresErp.map(s => {
-                    const on = (form.setores_acesso ?? []).includes(s);
-                    return (
-                      <span key={s} onClick={() => { const set = new Set(form.setores_acesso ?? []); on ? set.delete(s) : set.add(s); mudaForm({ setores_acesso: set.size ? [...set] : null }); }}
-                        style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11.5, fontWeight: 700, cursor: "pointer", border: on ? "1px solid #0f3171" : "1px solid #e2e8f0", background: on ? "#0f3171" : "#fff", color: on ? "#fff" : "#64748b" }}>{s}</span>
-                    );
-                  })}
-                </div>
+                <Seguranca form={form} mudaForm={mudaForm} setoresErp={setoresErp} usuarios={usuarios}
+                  alvo={alvo} setAlvo={vs => { setAlvo(vs); setSujo(true); }}
+                  senha={senha} setSenha={v => { setSenha(v); setSujo(true); }}
+                  querSenha={querSenha} setQuerSenha={setQuerSenha} />
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={lbl}>Imagem de capa (opcional)</label>
@@ -249,7 +420,7 @@ export default function FormularioEditor() {
           {/* Perguntas */}
           {pergs.map((p, i) => (
             <div key={p.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <PerguntaCard p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} setores={setoresErp} />
+              <PerguntaCard p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} setores={setoresErp} usuarios={usuarios} />
               <div style={{ display: "flex", justifyContent: "center" }}>
                 <button onClick={() => insertPergunta(i)} title="Inserir pergunta abaixo"
                   style={{ width: 28, height: 28, borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", color: "#0f3171", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1, boxShadow: "0 2px 6px rgba(15,23,42,.08)" }}>+</button>
@@ -285,7 +456,7 @@ export default function FormularioEditor() {
   );
 }
 
-function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
+function PerguntaCard({ p, i, total, muda, move, remove, upload, setores, usuarios }: {
   p: Pergunta; i: number; total: number;
   muda: (i: number, patch: Partial<Pergunta>) => void;
   move: (i: number, dir: -1 | 1) => void;
@@ -295,23 +466,50 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
 }) {
   const imgRef = useRef<HTMLInputElement>(null);
   const [mostrarSetor, setMostrarSetor] = useState(false);
+  const [buscaP, setBuscaP] = useState("");
   const tipo = TIPOS.find(t => t.valor === p.tipo);
+  // Visibilidade da pergunta: UNIÃO de config.setores + config.pessoas (user_id
+  // do ERP). Vazio nos dois = todos veem/respondem.
   const setoresVis: string[] = Array.isArray(p.config.setores) ? p.config.setores : [];
+  const pessoasVis: string[] = Array.isArray(p.config.pessoas) ? p.config.pessoas : [];
+  const restrita = setoresVis.length > 0 || pessoasVis.length > 0;
+  const verbo = p.tipo === "texto_info" ? "veem" : "respondem";
+  const setPessoas = (v: string[]) => muda(i, { config: { ...p.config, pessoas: v.length ? v : undefined } });
+  const termoP = buscaP.trim().toLowerCase();
+  const achadosP = termoP.length < 2 ? [] : usuarios
+    .filter(u => !pessoasVis.includes(u.id))
+    .filter(u => `${u.display_name ?? ""} ${u.email ?? ""}`.toLowerCase().includes(termoP))
+    .slice(0, 6);
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
-        <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", flexShrink: 0 }}>#{i + 1}</span>
-        <input value={p.titulo} onChange={e => muda(i, { titulo: e.target.value })} placeholder="Escreva a pergunta..."
-          style={{ border: "none", borderBottom: "2px solid #e2e8f0", padding: "6px 2px", fontSize: 14.5, fontWeight: 700, color: "#0f172a", outline: "none", flex: 1, background: "transparent" }} />
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", flexShrink: 0, paddingTop: 8 }}>#{i + 1}</span>
+        <AutoTextarea value={p.titulo} onChange={v => muda(i, { titulo: v })} minRows={1} placeholder="Escreva a pergunta..."
+          style={{ border: "none", borderBottom: "2px solid #e2e8f0", padding: "6px 2px", fontSize: 14.5, fontWeight: 700, color: "#0f172a", outline: "none", flex: 1, background: "transparent", lineHeight: 1.4 }} />
         <select value={p.tipo} onChange={e => muda(i, { tipo: e.target.value, opcoes: TIPOS.find(t => t.valor === e.target.value)?.temOpcoes && p.opcoes.length === 0 ? ["Opção 1"] : p.opcoes })}
-          style={{ border: "1px solid #e2e8f0", borderRadius: 9, padding: "7px 8px", fontSize: 12, outline: "none", background: "#fff", fontWeight: 600 }}>
+          style={{ border: "1px solid #e2e8f0", borderRadius: 9, padding: "7px 8px", fontSize: 12, outline: "none", background: "#fff", fontWeight: 600, flexShrink: 0, marginTop: 2 }}>
           {TIPOS.map(t => <option key={t.valor} value={t.valor}>{t.rotulo}</option>)}
         </select>
       </div>
 
       {p.tipo === "texto_info" ? (
-        <AutoTextarea value={p.descricao ?? ""} onChange={v => muda(i, { descricao: v })} minRows={3} placeholder="Texto que o colaborador vai ler (o título fica em destaque acima)"
-          style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "#334155", outline: "none", width: "100%", marginBottom: 10, background: "#fff", fontFamily: "inherit" }} />
+        <div style={{ marginBottom: 10 }}>
+          <AutoTextarea value={p.descricao ?? ""} onChange={v => muda(i, { descricao: v })} minRows={3} placeholder="Texto que o colaborador vai ler (o título fica em destaque acima)"
+            style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: p.config.cor || "#334155", fontWeight: p.config.cor ? 600 : 400, outline: "none", width: "100%", background: "#fff", fontFamily: "inherit" }} />
+          <div style={{ display: "flex", gap: 7, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px" }}>Cor do texto</span>
+            {CORES_TEXTO.map(c => {
+              const on = (p.config.cor || "") === c.valor;
+              return (
+                <button key={c.nome} title={c.nome} onClick={() => muda(i, { config: { ...p.config, cor: c.valor || undefined } })}
+                  style={{ width: 22, height: 22, borderRadius: "50%", cursor: "pointer", padding: 0,
+                    background: c.valor || "#64748b",
+                    border: on ? "2px solid #0f172a" : "2px solid #fff",
+                    boxShadow: on ? "0 0 0 2px #0f172a" : "0 0 0 1px #e2e8f0" }} />
+              );
+            })}
+          </div>
+        </div>
       ) : (
         <input value={p.descricao ?? ""} onChange={e => muda(i, { descricao: e.target.value })} placeholder="Descrição / ajuda - aparece abaixo do título (opcional)"
           style={{ border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 9px", fontSize: 12, color: "#64748b", outline: "none", width: "100%", marginBottom: 10, background: "#fafbfc" }} />
@@ -358,19 +556,51 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores }: {
 
       {setores.length > 0 && (
         <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 8, marginBottom: 4 }}>
-          <button onClick={() => setMostrarSetor(v => !v)} style={{ background: "none", border: "none", color: setoresVis.length ? "#0f3171" : "#94a3b8", fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0 }}>
-            👁 {setoresVis.length
-              ? `Só ${setoresVis.length} setor(es) ${p.tipo === "texto_info" ? "veem" : "respondem"}`
-              : `Todos os setores ${p.tipo === "texto_info" ? "veem" : "respondem"}`} {mostrarSetor ? "▴" : "▾"}
+          <button onClick={() => setMostrarSetor(v => !v)} style={{ background: "none", border: "none", color: restrita ? "#0f3171" : "#94a3b8", fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0 }}>
+            👁 {restrita
+              ? `Só ${[setoresVis.length ? `${setoresVis.length} setor(es)` : "", pessoasVis.length ? `${pessoasVis.length} pessoa(s)` : ""].filter(Boolean).join(" + ")} ${verbo}`
+              : `Todos ${verbo}`} {mostrarSetor ? "▴" : "▾"}
           </button>
           {mostrarSetor && (
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-              <span style={{ width: "100%", fontSize: 11, color: "#94a3b8", marginBottom: 2 }}>{p.tipo === "texto_info" ? "Apenas esses setores veem este texto:" : "Apenas esses setores respondem esta pergunta:"}</span>
-              {setores.map(s => {
-                const on = setoresVis.includes(s);
-                return <span key={s} onClick={() => { const set = new Set(setoresVis); on ? set.delete(s) : set.add(s); muda(i, { config: { ...p.config, setores: set.size ? [...set] : undefined } }); }}
-                  style={{ padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: "pointer", border: on ? "1px solid #0f3171" : "1px solid #e2e8f0", background: on ? "#0f3171" : "#fff", color: on ? "#fff" : "#64748b" }}>{s}</span>;
-              })}
+            <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div>
+                <span style={{ display: "block", fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>
+                  {p.tipo === "texto_info" ? "Só quem estiver aqui vê este texto" : "Só quem estiver aqui responde esta pergunta"} — vazio dos dois = todos.
+                </span>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {setores.map(s => {
+                    const on = setoresVis.includes(s);
+                    return <span key={s} onClick={() => { const set = new Set(setoresVis); on ? set.delete(s) : set.add(s); muda(i, { config: { ...p.config, setores: set.size ? [...set] : undefined } }); }}
+                      style={{ padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: "pointer", border: on ? "1px solid #0f3171" : "1px solid #e2e8f0", background: on ? "#0f3171" : "#fff", color: on ? "#fff" : "#64748b" }}>{s}</span>;
+                  })}
+                </div>
+              </div>
+              {/* Pessoas específicas (usuários do ERP) — união com os setores acima */}
+              <div>
+                <span style={{ display: "block", fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>Pessoas específicas (além dos setores):</span>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: pessoasVis.length ? 5 : 0 }}>
+                  {pessoasVis.map(uid => (
+                    <span key={uid} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 5px 3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#0f3171", color: "#fff" }}>
+                      {usuarios.find(u => u.id === uid)?.display_name || usuarios.find(u => u.id === uid)?.email || "Usuário"}
+                      <button onClick={() => setPessoas(pessoasVis.filter(x => x !== uid))}
+                        style={{ border: "none", background: "rgba(255,255,255,.2)", color: "#fff", borderRadius: "50%", width: 15, height: 15, lineHeight: "13px", cursor: "pointer", fontSize: 10 }}>×</button>
+                    </span>
+                  ))}
+                </div>
+                <input value={buscaP} onChange={e => setBuscaP(e.target.value)} placeholder="Buscar usuário do ERP…"
+                  style={{ ...inp, width: "100%", maxWidth: 300, padding: "6px 8px", fontSize: 12 }} />
+                {achadosP.length > 0 && (
+                  <div style={{ marginTop: 4, border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff", maxWidth: 300, overflow: "hidden" }}>
+                    {achadosP.map(u => (
+                      <div key={u.id} onClick={() => { setPessoas([...pessoasVis, u.id]); setBuscaP(""); }}
+                        style={{ padding: "6px 9px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#0f172a" }}>{u.display_name || "(sem nome)"}</div>
+                        <div style={{ fontSize: 10.5, color: "#94a3b8" }}>{u.email}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

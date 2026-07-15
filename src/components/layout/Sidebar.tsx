@@ -52,7 +52,7 @@ import { useGradeAtivaCount } from "@/hooks/useGradeAtivaCount";
 import { EmpresaAtivaContext } from "@/context/EmpresaAtivaContext";
 import { Inbox } from "lucide-react";
 import { Target } from "lucide-react";
-import { GitBranch } from "lucide-react";
+import { GitBranch, GitMerge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState, useContext } from "react";
 
@@ -266,6 +266,13 @@ const financeiroModule: ModuleDef = {
         { label: "Análise de Capital de Giro", to: "/app/financeiro/capital-giro", icon: TrendingUp },
         { label: "Movimentos Bancários", to: "/app/financeiro/movimentos", icon: Wallet },
         { label: "Integração Bancária", to: "/app/financeiro/integracao-bancaria", icon: Wallet },
+      ],
+    },
+    {
+      label: "Ferramentas",
+      defaultOpen: true,
+      items: [
+        { label: "Conciliação Bancária", to: "/app/financeiro/conciliacao-bancaria", icon: GitMerge },
       ],
     },
   ],

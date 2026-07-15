@@ -29,7 +29,26 @@ export interface Formulario {
   criado_por?: string | null; visibilidade?: "todos" | "restrita";
   perguntas?: Pergunta[];  // jsonb - ordem = posição no array
   pergunta_setor_id?: string | null;  // qual pergunta classifica a resposta (Admin/Operac.)
-  setores_acesso?: string[] | null;   // setores (Setor_ERP) que podem ver/responder; null/vazio = todos
+  // --- Segurança do formulário (quem pode RESPONDER; vale no banco) ---
+  // 'liberado' = URL pública sem login. 'restrito' = exige login, e o público
+  // é a UNIÃO de setores_acesso + CS_FORM_ALVO_USUARIOS (vazio+vazio = qualquer
+  // usuário logado). exige_senha = camada extra dentro de restrito.
+  seguranca?: "liberado" | "restrito";
+  exige_senha?: boolean;
+  setores_acesso?: string[] | null;   // setores (Setor_ERP) liberados quando restrito
+}
+
+/** Rótulo/cor da segurança, p/ badge na lista e no editor. */
+export function seguranca(f: Formulario) {
+  if ((f.seguranca ?? "liberado") === "liberado") return { rotulo: "Liberado - sem login", bg: "#dcfce7", c: "#15803d", icone: "🌐" };
+  const partes: string[] = [];
+  const st = f.setores_acesso ?? [];
+  if (st.length) partes.push(st.length === 1 ? st[0] : `${st.length} setores`);
+  if (f.exige_senha) partes.push("senha");
+  return {
+    rotulo: `Restrito${partes.length ? " - " + partes.join(" + ") : " - login"}`,
+    bg: "#fef9c3", c: "#a16207", icone: f.exige_senha ? "🔑" : "🔒",
+  };
 }
 
 export const normalizaPerguntas = (v: any): Pergunta[] =>
@@ -250,6 +269,7 @@ export default function Formularios() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: 14, alignItems: "start" }}>
             {filtrados.map(f => {
               const sit = situacao(f, contagens[f.id] || 0);
+              const seg = seguranca(f);
               const n = contagens[f.id] || 0;
               return (
                 <div key={f.id} className="nf-card" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
@@ -267,6 +287,9 @@ export default function Formularios() {
                     {f.descricao && <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>{f.descricao}</div>}
                     <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 8, display: "flex", flexDirection: "column", gap: 2 }}>
                       <span>📬 <b style={{ color: "#0f172a" }}>{n}</b> resposta(s){f.max_respostas != null ? ` · limite ${f.max_respostas}` : ""}</span>
+                      <span title="Quem pode responder este formulário">
+                        {seg.icone} <b style={{ color: seg.c }}>{seg.rotulo}</b>
+                      </span>
                       <span>🗓 {f.inicia_em || f.encerra_em ? `${f.inicia_em ? "de " + fmtDt(f.inicia_em) : ""} ${f.encerra_em ? "até " + fmtDt(f.encerra_em) : ""}` : "sem prazo definido"}</span>
                       <span>por {f.criado_por_nome || "-"} · criado em {fmtDt(f.created_at)}</span>
                     </div>
