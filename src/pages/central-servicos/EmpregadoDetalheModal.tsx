@@ -19,13 +19,16 @@ import { supabase } from "@/integrations/supabase/client";
 export const normNome = (s: any) =>
   String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
 
-// Todos os apelidos já vinculados à mão (nome_norm). A tela de Respostas usa
-// p/ saber quais textos viram link de ficha.
-export const carregarVinculos = async (): Promise<Set<string>> => {
+// De-para dos apelidos vinculados à mão: nome_norm → nome completo do empregado.
+// A tela de Respostas usa p/ saber quais textos viram link de ficha e p/ exibir
+// o nome do cadastro no lugar do texto que veio na resposta.
+export const carregarVinculos = async (): Promise<Map<string, string>> => {
   try {
-    const { data } = await (supabase as any).from("CS_FORM_VINCULOS").select("nome_norm");
-    return new Set((data ?? []).map((v: any) => v.nome_norm).filter(Boolean));
-  } catch { return new Set(); }
+    const { data } = await (supabase as any).from("CS_FORM_VINCULOS").select("nome_norm,empregado_nome");
+    return new Map((data ?? [])
+      .filter((v: any) => v.nome_norm)
+      .map((v: any) => [v.nome_norm as string, String(v.empregado_nome ?? "").trim()]));
+  } catch { return new Map(); }
 };
 
 const parseData = (v: any): Date | null => {
