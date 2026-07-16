@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { PtvDados, Solicitacao } from "./types";
 import { CLASSIFICACAO_DEMANDA_OPCOES, GRAU_URGENCIA_LABEL, TIPO_SOLICITACAO_LABEL, fmtData, sdNumero } from "./types";
 
@@ -150,15 +150,91 @@ const PARECER_FINAL_OPCOES = [
 
 const S = {
   secao: "bg-[#153169] text-white px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide",
-  sub: "text-[11px] font-semibold text-[#153169] border-b border-gray-200 pb-0.5 mb-1.5 uppercase tracking-wide",
-  th: "border border-gray-300 bg-gray-50 px-1.5 py-1 text-[10px] font-semibold text-center text-gray-600",
+  sub: "flex items-center gap-1 bg-[#153169]/10 border-l-[3px] border-[#153169] pl-2 pr-1 py-0.5 text-[10px] font-bold text-[#153169] uppercase tracking-wide mb-1.5 rounded-r-sm",
+  th: "border border-gray-300 bg-[#153169]/8 px-1.5 py-1 text-[10px] font-semibold text-center text-[#153169]",
   td: "border border-gray-300 px-1.5 py-1 text-[10px] text-center align-middle",
   tdl: "border border-gray-300 px-1.5 py-1 text-[10px] align-middle",
   campo: "text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5",
-  auto: "flex items-center justify-between bg-gray-50 border border-dashed border-gray-300 rounded px-2 py-1 text-[10px]",
+  auto: "flex items-center justify-between bg-[#153169]/5 border border-[#153169]/20 rounded px-2 py-1 text-[10px]",
   badge: "ml-1 rounded bg-[#153169] px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white",
   info: "flex items-start gap-1.5 rounded border border-blue-200 bg-blue-50 p-2 text-[10px] text-blue-800 mt-1",
+  group: "rounded border border-gray-200 bg-gray-50/70 p-1.5",
 };
+
+// ── Contexto (evita redefinição de componentes a cada render → mantém foco) ───
+
+interface PtvCtxValue {
+  ro: boolean;
+  d: PtvDados;
+  patch: (p: Partial<PtvDados>) => void;
+  hasArr: (field: keyof PtvDados, key: string) => boolean;
+  toggleArr: (field: keyof PtvDados, key: string, checked: boolean) => void;
+}
+const PtvCtx = createContext<PtvCtxValue>(null!);
+
+// ── Primitivos (fora do componente principal para identidade estável) ─────────
+
+function Chk({ field, k, label }: { field: keyof PtvDados; k: string; label: string }) {
+  const { ro, hasArr, toggleArr } = useContext(PtvCtx);
+  const checked = hasArr(field, k);
+  if (ro) return (
+    <span className={`flex items-start gap-1 text-[11px] leading-tight px-0.5 py-px rounded ${checked ? "bg-[#153169]/10 text-[#153169] font-semibold" : "text-gray-500"}`}>
+      <span className="flex-shrink-0 mt-px">{checked ? "☑" : "☐"}</span>
+      <span>{label}</span>
+    </span>
+  );
+  return (
+    <label className={`flex items-start gap-1.5 text-[11px] leading-tight cursor-pointer select-none px-0.5 py-px rounded ${checked ? "bg-[#153169]/10 text-[#153169] font-semibold" : "hover:bg-gray-100"}`}>
+      <input type="checkbox" checked={checked} onChange={(e) => toggleArr(field, k, e.target.checked)}
+        className="mt-px h-3 w-3 flex-shrink-0 accent-[#153169]" />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function ChkGrp({ field, opcoes, cols = 1, grouped = true }: { field: keyof PtvDados; opcoes: { k: string; l: string }[]; cols?: number; grouped?: boolean }) {
+  return (
+    <div className={grouped ? "rounded border border-gray-200 bg-gray-50/70 p-1.5" : ""}>
+      <div className="grid gap-x-2 gap-y-0.5" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+        {opcoes.map(({ k, l }) => <Chk key={k} field={field} k={k} label={l} />)}
+      </div>
+    </div>
+  );
+}
+
+function RadioItem({ field, k, label }: { field: keyof PtvDados; k: string; label: string }) {
+  const { ro, d, patch } = useContext(PtvCtx);
+  const checked = (d[field] as string | undefined) === k;
+  if (ro) return (
+    <span className={`flex items-center gap-1 text-[11px] px-1 py-px rounded ${checked ? "bg-[#153169]/10 text-[#153169] font-semibold" : "text-gray-500"}`}>
+      <span>{checked ? "●" : "○"}</span> {label}
+    </span>
+  );
+  return (
+    <label className={`flex items-center gap-1.5 text-[11px] cursor-pointer select-none px-1 py-px rounded ${checked ? "bg-[#153169]/10 text-[#153169] font-semibold" : "hover:bg-gray-100"}`}>
+      <input type="radio" checked={checked}
+        onChange={() => patch({ [field]: (d[field] as string | undefined) === k ? undefined : k } as Partial<PtvDados>)}
+        className="h-3 w-3 flex-shrink-0 accent-[#153169]" />
+      {label}
+    </label>
+  );
+}
+
+function TxtArea({ value, onChange, placeholder, rows = 2 }: {
+  value: string; onChange?: (v: string) => void; placeholder?: string; rows?: number;
+}) {
+  const { ro } = useContext(PtvCtx);
+  if (ro) return (
+    <div className="text-[11px] min-h-[2rem] whitespace-pre-wrap break-words">
+      {value || <span className="text-gray-400">—</span>}
+    </div>
+  );
+  return (
+    <textarea value={value} rows={rows} placeholder={placeholder}
+      className="w-full rounded border border-gray-300 px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-[#153169] resize-none"
+      onChange={(e) => onChange?.(e.target.value)} />
+  );
+}
 
 // ── Interface ─────────────────────────────────────────────────────────────────
 
@@ -189,65 +265,6 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
     patch({ [field]: checked ? [...cur, key] : cur.filter((k) => k !== key) } as Partial<PtvDados>);
   }
 
-  // ── Primitivos ────────────────────────────────────────────────────────────
-
-  function Chk({ field, k, label }: { field: keyof PtvDados; k: string; label: string }) {
-    const checked = hasArr(field, k);
-    if (ro) return (
-      <span className="flex items-start gap-1 text-[11px] leading-tight">
-        <span className="flex-shrink-0 mt-px">{checked ? "☑" : "☐"}</span>
-        <span>{label}</span>
-      </span>
-    );
-    return (
-      <label className="flex items-start gap-1.5 text-[11px] leading-tight cursor-pointer select-none">
-        <input type="checkbox" checked={checked} onChange={(e) => toggleArr(field, k, e.target.checked)}
-          className="mt-px h-3 w-3 flex-shrink-0 accent-[#153169]" />
-        <span>{label}</span>
-      </label>
-    );
-  }
-
-  function ChkGrp({ field, opcoes, cols = 1 }: { field: keyof PtvDados; opcoes: { k: string; l: string }[]; cols?: number }) {
-    return (
-      <div className="grid gap-x-3 gap-y-0.5" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-        {opcoes.map(({ k, l }) => <Chk key={k} field={field} k={k} label={l} />)}
-      </div>
-    );
-  }
-
-  function RadioItem({ field, k, label }: { field: keyof PtvDados; k: string; label: string }) {
-    const checked = (d[field] as string | undefined) === k;
-    if (ro) return (
-      <span className="flex items-center gap-1 text-[11px]">
-        <span>{checked ? "●" : "○"}</span> {label}
-      </span>
-    );
-    return (
-      <label className="flex items-center gap-1.5 text-[11px] cursor-pointer select-none">
-        <input type="radio" checked={checked}
-          onChange={() => patch({ [field]: (d[field] as string | undefined) === k ? undefined : k } as Partial<PtvDados>)}
-          className="h-3 w-3 flex-shrink-0 accent-[#153169]" />
-        {label}
-      </label>
-    );
-  }
-
-  function TxtArea({ value, onChange, placeholder, rows = 2 }: {
-    value: string; onChange?: (v: string) => void; placeholder?: string; rows?: number;
-  }) {
-    if (ro) return (
-      <div className="text-[11px] min-h-[2rem] whitespace-pre-wrap break-words">
-        {value || <span className="text-gray-400">—</span>}
-      </div>
-    );
-    return (
-      <textarea value={value} rows={rows} placeholder={placeholder}
-        className="w-full rounded border border-gray-300 px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-[#153169] resize-none"
-        onChange={(e) => onChange?.(e.target.value)} />
-    );
-  }
-
   // ── Helpers de layout ─────────────────────────────────────────────────────
 
   function Secao({ num, title }: { num: number | string; title: string }) {
@@ -260,9 +277,10 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
 
   function Sub({ title, badge }: { title: string; badge?: boolean }) {
     return (
-      <p className={S.sub}>
-        {title}{badge && <span className={S.badge}>AUTOMÁTICO</span>}
-      </p>
+      <div className={S.sub}>
+        <span className="flex-1">{title}</span>
+        {badge && <span className={S.badge}>AUTO</span>}
+      </div>
     );
   }
 
@@ -338,6 +356,7 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
   // ── RENDER ─────────────────────────────────────────────────────────────────
 
   return (
+    <PtvCtx.Provider value={{ ro, d, patch, hasArr, toggleArr }}>
     <div className="text-[11px] font-[Arial,sans-serif] border border-gray-300 rounded">
 
       {/* ── CABEÇALHO ─────────────────────────────────────────────────────── */}
@@ -355,7 +374,7 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
       <Pagina num={1} />
 
       {/* ── PÁGINA 1: Seções 1, 2, 3 em 3 colunas ────────────────────────── */}
-      <div className="grid border-b border-gray-300" style={{ gridTemplateColumns: "1fr 1.2fr 1.5fr" }}>
+      <div className="grid border-b border-gray-300" style={{ gridTemplateColumns: "0.8fr 1fr 2fr" }}>
 
         {/* SEÇÃO 1 — IDENTIFICAÇÃO (sempre auto) */}
         <div className="border-r border-gray-300">
@@ -395,12 +414,12 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
             {(d.dfd_suficiente === "nao" || d.dfd_suficiente === "parcialmente" || (ro && d.dfd_pendencias && d.dfd_pendencias.length > 0)) && (
               <div>
                 <p className="text-[10px] text-gray-500 mb-1">Caso NÃO ou PARCIALMENTE, indicar a pendência:</p>
-                <ChkGrp field="dfd_pendencias" opcoes={DFD_PENDENCIAS} />
+                <ChkGrp field="dfd_pendencias" opcoes={DFD_PENDENCIAS} cols={2} />
               </div>
             )}
             <div>
               <Sub title="Encaminhamento:" />
-              <ChkGrp field="dfd_encaminhamento" opcoes={DFD_ENCAMINHAMENTO} />
+              <ChkGrp field="dfd_encaminhamento" opcoes={DFD_ENCAMINHAMENTO} cols={2} />
             </div>
           </div>
         </div>
@@ -409,7 +428,7 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
         <div>
           <div className={S.secao}>3. PARECER DE VIABILIDADE TÉCNICA</div>
           <div className="p-2">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid gap-2" style={{ gridTemplateColumns: "minmax(0,1fr) minmax(0,2fr) minmax(0,1.2fr)" }}>
               {/* Col A: tecnicamente viável */}
               <div>
                 <Sub title="A demanda é tecnicamente viável?" />
@@ -425,7 +444,7 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
               {/* Col B: forma técnica */}
               <div>
                 <Sub title="Forma técnica de atendimento:" />
-                <ChkGrp field="forma_atendimento" opcoes={FORMA_ATENDIMENTO} />
+                <ChkGrp field="forma_atendimento" opcoes={FORMA_ATENDIMENTO} cols={2} />
               </div>
               {/* Col C: impedimento */}
               <div>
@@ -531,7 +550,7 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
         <div className="border-r border-gray-200 p-2">
           <Sub title="4.4 Complexidade Técnica – Preenchimento pela TI" />
           <p className="text-[9px] text-gray-500 mb-1">A TI deverá marcar apenas os itens técnicos aplicáveis:</p>
-          <ChkGrp field="complexidade_itens" opcoes={COMPLEXIDADE_ITENS} />
+          <ChkGrp field="complexidade_itens" opcoes={COMPLEXIDADE_ITENS} cols={3} />
           <Info text="Este bloco é preenchido manualmente pela TI." />
         </div>
 
@@ -554,7 +573,9 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
             <Auto label="Itens técnicos marcados" value={`${(d.complexidade_itens ?? []).length}`} />
             <div className="flex flex-col gap-0.5 mt-1">
               {["Baixa", "Média", "Alta", "Crítica"].map((c) => (
-                <span key={c} className="text-[10px]">{complexidadeAuto === c ? "●" : "○"} {c}</span>
+                <span key={c} className={`text-[10px] px-1 py-px rounded ${complexidadeAuto === c ? "bg-[#153169] text-white font-bold" : "text-gray-400"}`}>
+                  {complexidadeAuto === c ? "●" : "○"} {c}
+                </span>
               ))}
             </div>
             <Auto label="Motivo técnico" value="Automático" />
@@ -767,7 +788,7 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
 
       {/* ── SEÇÃO 6 — PARECER TÉCNICO FINAL ──────────────────────────────── */}
       <div className={S.secao}>6. PARECER TÉCNICO FINAL</div>
-      <div className="grid border-b border-gray-300" style={{ gridTemplateColumns: "2fr 1fr 1fr" }}>
+      <div className="grid border-b border-gray-300" style={{ gridTemplateColumns: "2fr 1fr" }}>
 
         {/* Checkboxes parecer */}
         <div className="border-r border-gray-200 p-2">
@@ -776,28 +797,9 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
         </div>
 
         {/* Observações */}
-        <div className="border-r border-gray-200 p-2">
+        <div className="p-2">
           <Sub title="Observações / Justificativas:" />
           <TxtArea value={d.observacoes_justificativas ?? ""} onChange={(v) => patch({ observacoes_justificativas: v })} rows={4} placeholder="Observações e justificativas..." />
-        </div>
-
-        {/* Assinaturas */}
-        <div className="p-2">
-          <Sub title="Assinaturas – Tecnologia da Informação" />
-          <div className="space-y-3 text-[10px]">
-            <div>
-              <p className="text-gray-500">Responsável pela análise técnica:</p>
-              <div className="border-b border-gray-400 mt-3">&nbsp;</div>
-            </div>
-            <div>
-              <p className="text-gray-500">Assinatura:</p>
-              <div className="border-b border-gray-400 mt-3">&nbsp;</div>
-            </div>
-            <div>
-              <p className="text-gray-500">Data:</p>
-              <div className="border-b border-gray-400 mt-3">&nbsp;</div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -808,5 +810,6 @@ export function PtvDocumento({ dados, card, isReadOnly: ro, onPatch }: PtvDocume
       </div>
 
     </div>
+    </PtvCtx.Provider>
   );
 }
