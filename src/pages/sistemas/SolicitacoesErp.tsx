@@ -782,7 +782,7 @@ export default function SolicitacoesErp() {
       />
 
       <Dialog open={!!detalheId} onOpenChange={(open) => { if (!open) { setDetalheId(null); setNovoComentario(""); } }}>
-        <DialogContent className="max-w-4xl overflow-x-hidden overflow-y-auto sm:max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-[90vw] overflow-x-auto overflow-y-auto max-h-[90vh]">
           {cardDetalhe && PainelEtapa && (
             <div id="pdf-capture-target">
               {/* Cabeçalho padronizado do card */}

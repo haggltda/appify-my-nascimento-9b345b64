@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { DfdDados, DfdEtapa, Solicitacao } from "./types";
 import { CLASSIFICACAO_DEMANDA_OPCOES, TIPO_SOLICITACAO_LABEL, sdNumero } from "./types";
 
@@ -289,6 +289,130 @@ const S = {
   celBorder: "border-r border-gray-200 last:border-r-0 px-2 py-1.5",
 };
 
+// ── Contexto (evita redefinição de componentes a cada render → mantém foco) ───
+
+interface DfdCtxValue {
+  ro: boolean;
+  d: DfdDados;
+  patch: (p: Partial<DfdDados>) => void;
+  hasArr: (field: keyof DfdDados, key: string) => boolean;
+  toggleArr: (field: keyof DfdDados, key: string, checked: boolean) => void;
+}
+const DfdCtx = createContext<DfdCtxValue>(null!);
+
+// ── Primitivos (fora do componente principal para identidade estável) ─────────
+
+function Chk({ field, k, label }: { field: keyof DfdDados; k: string; label: string }) {
+  const { ro, hasArr, toggleArr } = useContext(DfdCtx);
+  const checked = hasArr(field, k);
+  if (ro) return (
+    <span className="flex items-start gap-1 text-[11px] leading-tight">
+      <span className="flex-shrink-0 mt-px">{checked ? "☑" : "☐"}</span>
+      <span>{label}</span>
+    </span>
+  );
+  return (
+    <label className="flex items-start gap-1.5 text-[11px] leading-tight cursor-pointer select-none">
+      <input type="checkbox" checked={checked} onChange={(e) => toggleArr(field, k, e.target.checked)}
+        className="mt-px h-3 w-3 flex-shrink-0 accent-[#153169]" />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function ChkGrp({ field, opcoes, cols = 1 }: { field: keyof DfdDados; opcoes: { k: string; l: string }[]; cols?: number }) {
+  return (
+    <div className="grid gap-x-3 gap-y-0.5" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+      {opcoes.map(({ k, l }) => <Chk key={k} field={field} k={k} label={l} />)}
+    </div>
+  );
+}
+
+function RadioItem({ field, k, label }: { field: keyof DfdDados; k: string; label: string }) {
+  const { ro, d, patch } = useContext(DfdCtx);
+  const checked = (d[field] as string | undefined) === k;
+  if (ro) return (
+    <span className="flex items-center gap-1 text-[11px]">
+      <span>{checked ? "●" : "○"}</span> {label}
+    </span>
+  );
+  return (
+    <label className="flex items-center gap-1.5 text-[11px] cursor-pointer select-none">
+      <input type="radio" checked={checked}
+        onChange={() => patch({ [field]: (d[field] as string | undefined) === k ? undefined : k } as Partial<DfdDados>)}
+        className="h-3 w-3 flex-shrink-0 accent-[#153169]" />
+      {label}
+    </label>
+  );
+}
+
+function TxtArea({ value, onChange, placeholder, rows = 2, className = "" }: {
+  value: string; onChange?: (v: string) => void; placeholder?: string; rows?: number; className?: string;
+}) {
+  const { ro } = useContext(DfdCtx);
+  if (ro) return (
+    <div className={`text-[11px] min-h-[2rem] whitespace-pre-wrap break-words ${className}`}>
+      {value || <span className="text-gray-400">—</span>}
+    </div>
+  );
+  return (
+    <textarea value={value} rows={rows} placeholder={placeholder}
+      className={`w-full rounded border border-gray-300 px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-[#153169] resize-none ${className}`}
+      onChange={(e) => onChange?.(e.target.value)} />
+  );
+}
+
+function TxtInline({ value, onChange, placeholder, className = "" }: {
+  value: string; onChange?: (v: string) => void; placeholder?: string; className?: string;
+}) {
+  const { ro } = useContext(DfdCtx);
+  if (ro) return <span className={`text-[11px] ${className}`}>{value || <span className="text-gray-400">—</span>}</span>;
+  return (
+    <input type="text" value={value} placeholder={placeholder}
+      className={`h-6 w-full rounded border border-gray-300 px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-[#153169] ${className}`}
+      onChange={(e) => onChange?.(e.target.value)} />
+  );
+}
+
+function MatChk({ checked, onChange }: { checked: boolean; onChange?: (v: boolean) => void }) {
+  const { ro } = useContext(DfdCtx);
+  if (ro) return <span className="text-[12px]">{checked ? "☑" : "☐"}</span>;
+  return <input type="checkbox" checked={checked} onChange={(e) => onChange?.(e.target.checked)}
+    className="h-3 w-3 accent-[#153169]" />;
+}
+
+function EtapaSelect({ value, onChange }: { value?: string; onChange?: (v: string) => void }) {
+  const { ro, d } = useContext(DfdCtx);
+  const label = (v: string | undefined) => {
+    const e = (d.etapas ?? []).find((x) => x.codigo === v);
+    return e ? `${e.codigo} – ${e.descricao}` : (v ?? "—");
+  };
+  if (ro) return <span className="text-[11px]">{label(value)}</span>;
+  return (
+    <select value={value ?? ""} onChange={(e) => onChange?.(e.target.value)}
+      className="h-6 w-full rounded border border-gray-300 bg-white px-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-[#153169]">
+      <option value="">—</option>
+      {(d.etapas ?? []).map((e) => <option key={e.codigo} value={e.codigo}>{e.codigo} – {e.descricao}</option>)}
+    </select>
+  );
+}
+
+function BoolRadio({ checked, onChange, sim = "Sim", nao = "Não" }: { checked: boolean | null | undefined; onChange?: (v: boolean) => void; sim?: string; nao?: string }) {
+  const { ro } = useContext(DfdCtx);
+  if (ro) return (
+    <div className="flex gap-3">
+      <span className="text-[11px]">{checked === true ? "●" : "○"} {sim}</span>
+      <span className="text-[11px]">{checked === false ? "●" : "○"} {nao}</span>
+    </div>
+  );
+  return (
+    <div className="flex gap-3">
+      <label className="flex items-center gap-1 text-[11px] cursor-pointer"><input type="radio" checked={checked === true} onChange={() => onChange?.(true)} className="h-3 w-3 accent-[#153169]" /> {sim}</label>
+      <label className="flex items-center gap-1 text-[11px] cursor-pointer"><input type="radio" checked={checked === false} onChange={() => onChange?.(false)} className="h-3 w-3 accent-[#153169]" /> {nao}</label>
+    </div>
+  );
+}
+
 // ── Interface ─────────────────────────────────────────────────────────────────
 
 export interface DfdDocumentoProps {
@@ -337,120 +461,6 @@ export function DfdDocumento({ dados, card, isReadOnly: ro, onPatch }: DfdDocume
     return (base[idx] as T | undefined) ?? ({ ...(defVal ?? {}) } as T);
   }
 
-  // ── Primitivos ────────────────────────────────────────────────────────────
-
-  function Chk({ field, k, label }: { field: keyof DfdDados; k: string; label: string }) {
-    const checked = hasArr(field, k);
-    if (ro) return (
-      <span className="flex items-start gap-1 text-[11px] leading-tight">
-        <span className="flex-shrink-0 mt-px">{checked ? "☑" : "☐"}</span>
-        <span>{label}</span>
-      </span>
-    );
-    return (
-      <label className="flex items-start gap-1.5 text-[11px] leading-tight cursor-pointer select-none">
-        <input type="checkbox" checked={checked} onChange={(e) => toggleArr(field, k, e.target.checked)}
-          className="mt-px h-3 w-3 flex-shrink-0 accent-[#153169]" />
-        <span>{label}</span>
-      </label>
-    );
-  }
-
-  function ChkGrp({ field, opcoes, cols = 1 }: { field: keyof DfdDados; opcoes: { k: string; l: string }[]; cols?: number }) {
-    return (
-      <div className="grid gap-x-3 gap-y-0.5" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-        {opcoes.map(({ k, l }) => <Chk key={k} field={field} k={k} label={l} />)}
-      </div>
-    );
-  }
-
-  function RadioItem({ field, k, label }: { field: keyof DfdDados; k: string; label: string }) {
-    const checked = (d[field] as string | undefined) === k;
-    if (ro) return (
-      <span className="flex items-center gap-1 text-[11px]">
-        <span>{checked ? "●" : "○"}</span> {label}
-      </span>
-    );
-    return (
-      <label className="flex items-center gap-1.5 text-[11px] cursor-pointer select-none">
-        <input type="radio" checked={checked}
-          onChange={() => patch({ [field]: (d[field] as string | undefined) === k ? undefined : k })}
-          className="h-3 w-3 flex-shrink-0 accent-[#153169]" />
-        {label}
-      </label>
-    );
-  }
-
-  function RadioGrp({ field, opcoes }: { field: keyof DfdDados; opcoes: { k: string; l: string }[] }) {
-    return (
-      <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-        {opcoes.map(({ k, l }) => <RadioItem key={k} field={field} k={k} label={l} />)}
-      </div>
-    );
-  }
-
-  function TxtArea({ value, onChange, placeholder, rows = 2, className = "" }: {
-    value: string; onChange?: (v: string) => void; placeholder?: string; rows?: number; className?: string;
-  }) {
-    if (ro) return (
-      <div className={`text-[11px] min-h-[2rem] whitespace-pre-wrap break-words ${className}`}>
-        {value || <span className="text-gray-400">—</span>}
-      </div>
-    );
-    return (
-      <textarea value={value} rows={rows} placeholder={placeholder}
-        className={`w-full rounded border border-gray-300 px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-[#153169] resize-none ${className}`}
-        onChange={(e) => onChange?.(e.target.value)} />
-    );
-  }
-
-  function TxtInline({ value, onChange, placeholder, className = "" }: {
-    value: string; onChange?: (v: string) => void; placeholder?: string; className?: string;
-  }) {
-    if (ro) return <span className={`text-[11px] ${className}`}>{value || <span className="text-gray-400">—</span>}</span>;
-    return (
-      <input type="text" value={value} placeholder={placeholder}
-        className={`h-6 w-full rounded border border-gray-300 px-1.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-[#153169] ${className}`}
-        onChange={(e) => onChange?.(e.target.value)} />
-    );
-  }
-
-  function MatChk({ checked, onChange }: { checked: boolean; onChange?: (v: boolean) => void }) {
-    if (ro) return <span className="text-[12px]">{checked ? "☑" : "☐"}</span>;
-    return <input type="checkbox" checked={checked} onChange={(e) => onChange?.(e.target.checked)}
-      className="h-3 w-3 accent-[#153169]" />;
-  }
-
-  function EtapaSelect({ value, onChange }: { value?: string; onChange?: (v: string) => void }) {
-    const label = (value: string | undefined) => {
-      const e = (d.etapas ?? []).find((x) => x.codigo === value);
-      return e ? `${e.codigo} – ${e.descricao}` : (value ?? "—");
-    };
-    if (ro) return <span className="text-[11px]">{label(value)}</span>;
-    return (
-      <select value={value ?? ""} onChange={(e) => onChange?.(e.target.value)}
-        className="h-6 w-full rounded border border-gray-300 bg-white px-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-[#153169]">
-        <option value="">—</option>
-        {(d.etapas ?? []).map((e) => <option key={e.codigo} value={e.codigo}>{e.codigo} – {e.descricao}</option>)}
-      </select>
-    );
-  }
-
-  function BoolRadio({ checked, onChange, sim = "Sim", nao = "Não" }: { checked: boolean | null | undefined; onChange?: (v: boolean) => void; sim?: string; nao?: string }) {
-    if (ro) return (
-      <div className="flex gap-3">
-        <span className="text-[11px]">{checked === true ? "●" : "○"} {sim}</span>
-        <span className="text-[11px]">{checked === false ? "●" : "○"} {nao}</span>
-      </div>
-    );
-    return (
-      <div className="flex gap-3">
-        <label className="flex items-center gap-1 text-[11px] cursor-pointer"><input type="radio" checked={checked === true} onChange={() => onChange?.(true)} className="h-3 w-3 accent-[#153169]" /> {sim}</label>
-        <label className="flex items-center gap-1 text-[11px] cursor-pointer"><input type="radio" checked={checked === false} onChange={() => onChange?.(false)} className="h-3 w-3 accent-[#153169]" /> {nao}</label>
-      </div>
-    );
-  }
-
   // ── Helpers de layout ────────────────────────────────────────────────────
 
   function Secao({ num, title }: { num?: number; title: string }) {
@@ -474,6 +484,7 @@ export function DfdDocumento({ dados, card, isReadOnly: ro, onPatch }: DfdDocume
   // ── RENDER ─────────────────────────────────────────────────────────────────
 
   return (
+    <DfdCtx.Provider value={{ ro, d, patch, hasArr, toggleArr }}>
     <div className="text-[11px] font-[Arial,sans-serif] border border-gray-300 rounded">
 
       {/* ── CABEÇALHO ─────────────────────────────────────────────────────── */}
@@ -1214,5 +1225,6 @@ export function DfdDocumento({ dados, card, isReadOnly: ro, onPatch }: DfdDocume
       </div>
 
     </div>
+    </DfdCtx.Provider>
   );
 }
