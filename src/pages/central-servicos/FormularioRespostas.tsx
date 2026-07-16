@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useFormPerms } from "@/hooks/useFormPerms";
 import { Formulario, Pergunta, fmtDt, situacao, normalizaPerguntas } from "./Formularios";
 import EmpregadoDetalheModal, { normNome, carregarVinculos } from "./EmpregadoDetalheModal";
 
@@ -15,7 +17,7 @@ interface Resposta {
   id: string; enviado_em: string;
   respondente_nome?: string | null; respondente_email?: string | null;
   setor?: string | null; respondente_cadastro?: Record<string, any> | null;
-  duracao_seg?: number | null;
+  duracao_seg?: number | null; criado_por?: string | null;
   itens: Record<string, any>;
 }
 
@@ -34,36 +36,70 @@ const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "15px 17px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" };
 const valorTexto = (v: any) => v == null || v === "" ? "-" : Array.isArray(v) ? v.join("; ") : String(v);
 
-// Toda resposta do Resumo usa a MESMA tipografia (itálico), seja ela um nome
-// vinculado ao cadastro ou um texto qualquer - quem é pessoa se distingue só
-// pelo 👤 e pelo sublinhado pontilhado, não por peso/cor.
+// Texto solto de resposta: itálico, peso normal.
 const valorFonte: React.CSSProperties = { fontSize: 12.5, fontStyle: "italic", fontWeight: 500, color: "#0f172a" };
+// Nome de gente casado com o cadastro: destaca do texto comum - reto, negrito
+// e caixa alta (é assim que o nome vive na EMPREGADOS).
+const nomeFonte: React.CSSProperties = { fontSize: 12.5, fontStyle: "normal", fontWeight: 800, color: "#0f172a", textTransform: "uppercase" };
 const btnMini = (bg: string, c: string, border: string): React.CSSProperties =>
   ({ padding: "3px 9px", borderRadius: 7, border, background: bg, color: c, fontSize: 10.5, fontWeight: 700, cursor: "pointer", flexShrink: 0 });
 const rotFiltro: React.CSSProperties = { display: "block", fontSize: 11.5, fontWeight: 600, color: "#94a3b8", marginBottom: 4 };
 const selFiltro: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 9, padding: "8px 10px", fontSize: 12.5, outline: "none", fontFamily: "inherit", background: "#fff", color: "#0f172a" };
 
+// Como um texto de resposta deve aparecer: se é pessoa (bate com o cadastro ou
+// foi vinculado à mão) e sob que nome. O vínculo manual troca o texto da
+// resposta pelo nome completo do empregado ("Gerência Sistemas" vira
+// "IURY DE JESUS SILVA"); `original` é sempre o que veio na resposta e é ele
+// que abre a ficha (a ficha resolve o vínculo pelo texto original).
+interface Pessoa { ehPessoa: boolean; exibir: string; original: string }
+type Resolver = (v: any) => Pessoa;
+
 // Nome de empregado citado numa resposta: vira link p/ a ficha (👤). Se não
 // bater com o cadastro, renderiza texto normal (mesma fonte).
-function NomeLink({ texto, ehPessoa, onPessoa }: { texto: string; ehPessoa: (v: any) => boolean; onPessoa: (n: string) => void }) {
-  if (!ehPessoa(texto)) return <span style={valorFonte}>{texto}</span>;
+function NomeLink({ texto, resolve, onPessoa }: { texto: string; resolve: Resolver; onPessoa: (n: string) => void }) {
+  const { ehPessoa, exibir, original } = resolve(texto);
+  if (!ehPessoa) return <span style={valorFonte}>{texto}</span>;
   return (
-    <button onClick={() => onPessoa(texto)} title="Ver ficha do colaborador"
-      style={{ ...valorFonte, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 2 }}>
-      👤 {texto}
+    <button onClick={() => onPessoa(original)}
+      title={exibir !== original ? `Respondeu "${original}" — vinculado a ${exibir}` : "Ver ficha do colaborador"}
+      style={{ ...nomeFonte, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", textDecoration: "underline", textDecorationStyle: "dotted", textUnderlineOffset: 2 }}>
+      👤 {exibir}
     </button>
+  );
+}
+
+// Bloco pergunta → resposta da aba Individuais. Enunciado em cima como rótulo
+// discreto, resposta embaixo com destaque: na mesma linha (o formato antigo),
+// pergunta e resposta viravam um parágrafo só - os enunciados daqui têm
+// parágrafos inteiros de instrução.
+function BlocoResposta({ titulo, valor, resolve, onPessoa }: {
+  titulo: string; valor: any; resolve: Resolver; onPessoa: (n: string) => void;
+}) {
+  const itens = Array.isArray(valor) ? valor.filter(v => v != null && v !== "") : [];
+  return (
+    <div style={{ background: "#f8fafc", border: "1px solid #eef2f7", borderRadius: 10, padding: "9px 12px" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", lineHeight: 1.45, marginBottom: 4 }}>{titulo}</div>
+      {itens.length > 1 ? (
+        // Caixas de seleção: um item por linha, senão vira uma parede de ";".
+        <ul style={{ margin: 0, paddingLeft: 15, display: "flex", flexDirection: "column", gap: 3 }}>
+          {itens.map((v, i) => <li key={i} style={{ color: "#cbd5e1" }}><NomeLink texto={valorTexto(v)} resolve={resolve} onPessoa={onPessoa} /></li>)}
+        </ul>
+      ) : (
+        <NomeLink texto={valorTexto(itens.length === 1 ? itens[0] : valor)} resolve={resolve} onPessoa={onPessoa} />
+      )}
+    </div>
   );
 }
 
 // Linha da lista de respostas abertas: valor + ação. "Detalhes" abre a ficha
 // de quem já casa com o cadastro; "Vincular" abre a mesma ficha no modo de
 // amarrar o texto a um empregado (nome incompleto, grafia diferente...).
-function LinhaValor({ texto, ehPessoa, onPessoa }: { texto: string; ehPessoa: (v: any) => boolean; onPessoa: (n: string) => void }) {
-  const pessoa = ehPessoa(texto);
+function LinhaValor({ texto, resolve, onPessoa }: { texto: string; resolve: Resolver; onPessoa: (n: string) => void }) {
+  const pessoa = resolve(texto).ehPessoa;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 10px" }}>
       <div style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>
-        <NomeLink texto={texto} ehPessoa={ehPessoa} onPessoa={onPessoa} />
+        <NomeLink texto={texto} resolve={resolve} onPessoa={onPessoa} />
       </div>
       <button onClick={() => onPessoa(texto)} title={pessoa ? "Ver ficha completa" : "Vincular este nome a um empregado"}
         style={pessoa
@@ -120,6 +156,8 @@ export function FiltrosRespostas({ fResp, setFResp, opcoesResp, fSetor, setFSeto
 export default function FormularioRespostas() {
   const { id } = useParams();
   const nav = useNavigate();
+  const { user } = useAuth();
+  const { soProprias } = useFormPerms();
   const [form, setForm] = useState<Formulario | null>(null);
   const [pergs, setPergs] = useState<Pergunta[]>([]);
   const [resps, setResps] = useState<Resposta[]>([]);
@@ -132,7 +170,7 @@ export default function FormularioRespostas() {
   const [detalhe, setDetalhe] = useState<Resposta | null>(null);  // modal "Detalhes" do cadastro
   const [pessoa, setPessoa] = useState<string | null>(null);      // modal ficha do empregado (nome citado)
   const [nomesEmp, setNomesEmp] = useState<Set<string>>(new Set()); // nomes do cadastro (normalizados) p/ tornar clicável
-  const [vinculos, setVinculos] = useState<Set<string>>(new Set()); // apelidos vinculados à mão (CS_FORM_VINCULOS)
+  const [vinculos, setVinculos] = useState<Map<string, string>>(new Map()); // apelido -> nome do empregado (CS_FORM_VINCULOS)
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -161,21 +199,33 @@ export default function FormularioRespostas() {
   useEffect(() => { carregarNomes(); }, [carregarNomes]);
 
   // Pessoa = bate com o cadastro OU foi vinculada à mão (nome incompleto etc.).
-  const ehPessoa = useCallback((v: any) => {
+  // O vínculo manual manda no nome exibido: quem vinculou "Gerência Sistemas" a
+  // IURY DE JESUS SILVA quer ver o nome dele, não o texto que veio na resposta.
+  const resolve = useCallback((v: any): Pessoa => {
+    const original = v == null ? "" : String(v);
     const n = normNome(v);
-    return !!n && (nomesEmp.has(n) || vinculos.has(n));
+    const vinculado = n ? vinculos.get(n) : undefined;
+    if (vinculado !== undefined) return { ehPessoa: true, exibir: vinculado || original, original };
+    return { ehPessoa: !!n && nomesEmp.has(n), exibir: original, original };
   }, [nomesEmp, vinculos]);
 
+  // Defesa em profundidade: quando o escopo do usuário é "só as próprias", a
+  // tela mostra apenas o que ele enviou (criado_por), mesmo que a RLS devolva
+  // mais por estar defasada. A RLS continua sendo a autoridade de segurança.
+  const respsEscopo = useMemo(
+    () => (soProprias && user ? resps.filter(r => r.criado_por === user.id) : resps),
+    [resps, soProprias, user]);
+
   // Opções dos filtros: saem das próprias respostas (só o que existe aparece).
-  const opcoesResp = useMemo(() => [...new Set(resps.map(r => (r.respondente_nome ?? "").trim()).filter(Boolean))].sort(), [resps]);
-  const opcoesSetor = useMemo(() => [...new Set(resps.map(r => (r.setor ?? "").trim()).filter(Boolean))].sort(), [resps]);
+  const opcoesResp = useMemo(() => [...new Set(respsEscopo.map(r => (r.respondente_nome ?? "").trim()).filter(Boolean))].sort(), [respsEscopo]);
+  const opcoesSetor = useMemo(() => [...new Set(respsEscopo.map(r => (r.setor ?? "").trim()).filter(Boolean))].sort(), [respsEscopo]);
   // Respostas filtradas alimentam AS DUAS abas (resumo e individuais) e o CSV.
   // Data: intervalo fechado nas duas pontas - "até 31/05" inclui o dia 31
   // inteiro (por isso o fim do dia, não 00:00).
   const respsFiltradas = useMemo(() => {
     const de = fDe ? new Date(`${fDe}T00:00:00`).getTime() : null;
     const ate = fAte ? new Date(`${fAte}T23:59:59.999`).getTime() : null;
-    return resps.filter(r => {
+    return respsEscopo.filter(r => {
       if (fResp && (r.respondente_nome ?? "").trim() !== fResp) return false;
       if (fSetor && (r.setor ?? "").trim() !== fSetor) return false;
       if (de != null || ate != null) {
@@ -186,7 +236,7 @@ export default function FormularioRespostas() {
       }
       return true;
     });
-  }, [resps, fResp, fSetor, fDe, fAte]);
+  }, [respsEscopo, fResp, fSetor, fDe, fAte]);
   const filtrando = !!(fResp || fSetor || fDe || fAte);
   const limparFiltros = () => { setFResp(""); setFSetor(""); setFDe(""); setFAte(""); };
 
@@ -221,7 +271,7 @@ export default function FormularioRespostas() {
         <button onClick={() => nav("/app/central-servicos/formularios")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>← Voltar</button>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "#0f3171" }}>📊 {form.titulo}</div>
-          <div style={{ fontSize: 11.5, color: "#94a3b8" }}><b style={{ color: "#0f172a" }}>{resps.length}</b> resposta(s){form.max_respostas != null ? ` · limite ${form.max_respostas}` : ""} · <span style={{ color: sit.c, fontWeight: 700 }}>{sit.rotulo}</span></div>
+          <div style={{ fontSize: 11.5, color: "#94a3b8" }}><b style={{ color: "#0f172a" }}>{respsEscopo.length}</b> resposta(s){form.max_respostas != null ? ` · limite ${form.max_respostas}` : ""} · <span style={{ color: sit.c, fontWeight: 700 }}>{sit.rotulo}</span></div>
         </div>
         <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 10, padding: 3 }}>
           {(["resumo", "individuais"] as const).map(a => (
@@ -233,7 +283,7 @@ export default function FormularioRespostas() {
         <button onClick={exportCsv} disabled={!respsFiltradas.length} style={btn(respsFiltradas.length ? "#16a34a" : "#94a3b8")}>⬇ Exportar CSV</button>
       </div>
 
-      {resps.length > 0 && (
+      {respsEscopo.length > 0 && (
         <FiltrosRespostas
           fResp={fResp} setFResp={setFResp} opcoesResp={opcoesResp}
           fSetor={fSetor} setFSetor={setFSetor} opcoesSetor={opcoesSetor}
@@ -243,21 +293,21 @@ export default function FormularioRespostas() {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "18px 24px 40px" }}>
         <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 }}>
-          {resps.length === 0 ? (
-            <div style={{ ...card, textAlign: "center", color: "#94a3b8", padding: 50 }}>Nenhuma resposta ainda. Compartilhe a URL pública do formulário.</div>
+          {respsEscopo.length === 0 ? (
+            <div style={{ ...card, textAlign: "center", color: "#94a3b8", padding: 50 }}>{soProprias ? "Você ainda não enviou nenhuma resposta a este formulário." : "Nenhuma resposta ainda. Compartilhe a URL pública do formulário."}</div>
           ) : respsFiltradas.length === 0 ? (
             <div style={{ ...card, textAlign: "center", color: "#94a3b8", padding: 40 }}>
               Nenhuma resposta bate com o filtro. <button onClick={limparFiltros} style={{ background: "none", border: "none", color: "#2563eb", fontWeight: 700, cursor: "pointer", fontSize: 12.5 }}>Limpar filtros</button>
             </div>
           ) : aba === "resumo" ? (
-            pergs.map((p, i) => <ResumoPergunta key={p.id} p={p} i={i} resps={respsFiltradas} ehPessoa={ehPessoa} onPessoa={setPessoa} />)
+            pergs.map((p, i) => <ResumoPergunta key={p.id} p={p} i={i} resps={respsFiltradas} resolve={resolve} onPessoa={setPessoa} />)
           ) : (
             respsFiltradas.map(r => (
               <div key={r.id} style={card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 12.5, fontWeight: 800, color: "#0f172a" }}>
-                    {r.respondente_nome && ehPessoa(r.respondente_nome)
-                      ? <NomeLink texto={r.respondente_nome} ehPessoa={ehPessoa} onPessoa={setPessoa} />
+                    {r.respondente_nome && resolve(r.respondente_nome).ehPessoa
+                      ? <NomeLink texto={r.respondente_nome} resolve={resolve} onPessoa={setPessoa} />
                       : (r.respondente_nome || "Anônimo")}
                   </span>
                   {r.respondente_email && <span style={{ fontSize: 11.5, color: "#64748b" }}>{r.respondente_email}</span>}
@@ -268,13 +318,18 @@ export default function FormularioRespostas() {
                   {r.respondente_cadastro && <button onClick={() => setDetalhe(r)} style={btn("rgba(15,49,113,.08)", "#0f3171", "1px solid rgba(15,49,113,.2)")}>👤 Detalhes</button>}
                   <button onClick={() => excluirResp(r)} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 11.5, fontWeight: 700 }}>Excluir</button>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                  {pergs.map(p => (
-                    <div key={p.id} style={{ fontSize: 12.5 }}>
-                      <span style={{ color: "#94a3b8", fontWeight: 700 }}>{p.titulo}: </span>
-                      <NomeLink texto={valorTexto(r.itens[p.id])} ehPessoa={ehPessoa} onPessoa={setPessoa} />
-                    </div>
-                  ))}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {pergs.map(p => {
+                    const anexo = r.itens[`${p.id}__anexo`];
+                    return (
+                      <div key={p.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <BlocoResposta titulo={p.titulo} valor={r.itens[p.id]} resolve={resolve} onPessoa={setPessoa} />
+                        {anexo && (
+                          <a href={anexo} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#0369a1", textDecoration: "none", background: "#f0f7ff", border: "1px solid #dbeafe", borderRadius: 8, padding: "5px 10px" }}>📎 Baixar anexo{r.itens[`${p.id}__anexo_nome`] ? ` — ${r.itens[`${p.id}__anexo_nome`]}` : ""}</a>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))
@@ -317,7 +372,7 @@ export default function FormularioRespostas() {
   );
 }
 
-function ResumoPergunta({ p, i, resps, ehPessoa, onPessoa }: { p: Pergunta; i: number; resps: Resposta[]; ehPessoa: (v: any) => boolean; onPessoa: (n: string) => void }) {
+function ResumoPergunta({ p, i, resps, resolve, onPessoa }: { p: Pergunta; i: number; resps: Resposta[]; resolve: Resolver; onPessoa: (n: string) => void }) {
   const valores = useMemo(() => resps.map(r => r.itens[p.id]).filter(v => v != null && v !== "" && !(Array.isArray(v) && v.length === 0)), [resps, p.id]);
 
   const conteudo = useMemo(() => {
@@ -341,7 +396,7 @@ function ResumoPergunta({ p, i, resps, ehPessoa, onPessoa }: { p: Pergunta; i: n
             return (
               <div key={k} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 12.5, color: "#0f172a", width: 180, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={k}>
-                  <NomeLink texto={k} ehPessoa={ehPessoa} onPessoa={onPessoa} />
+                  <NomeLink texto={k} resolve={resolve} onPessoa={onPessoa} />
                 </span>
                 <div style={{ flex: 1, height: 18, background: "#f1f5f9", borderRadius: 9, overflow: "hidden" }}>
                   <div style={{ width: `${pct}%`, height: "100%", background: "#0f3171", borderRadius: 9, transition: "width .3s" }} />
@@ -363,11 +418,11 @@ function ResumoPergunta({ p, i, resps, ehPessoa, onPessoa }: { p: Pergunta; i: n
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 240, overflowY: "auto" }}>
         {valores.map((v, vi) => (
-          <LinhaValor key={vi} texto={valorTexto(v)} ehPessoa={ehPessoa} onPessoa={onPessoa} />
+          <LinhaValor key={vi} texto={valorTexto(v)} resolve={resolve} onPessoa={onPessoa} />
         ))}
       </div>
     );
-  }, [p, valores, ehPessoa, onPessoa]);
+  }, [p, valores, resolve, onPessoa]);
 
   return (
     <div style={card}>

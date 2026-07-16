@@ -550,9 +550,13 @@ function CapToggles({ caps, onToggle }: { caps: Set<string>; onToggle: (papel: F
   );
 }
 
-// "Visualizar respostas por setor": switch mestre que abre um toggle por setor
-// do cadastro (EMPREGADOS.Setor_ERP). Desligar o mestre revoga todos.
-function SetorToggles({ setores, marcados, onToggle, onLimpar }: {
+// Bloco "por setor": switch mestre que abre um toggle por setor do cadastro
+// (EMPREGADOS.Setor_ERP). Desligar o mestre revoga todos. Reusado por
+// "Visualizar respostas por setor" (ver_setor) e "Criar formularios por setor"
+// (criar_setor) — muda so os rotulos e o icone.
+function SetorToggles({ titulo, descricao, icone, rotuloLinha, descLinha, ariaLinha, setores, marcados, onToggle, onLimpar }: {
+  titulo: string; descricao: string; icone: string;
+  rotuloLinha: (s: string) => string; descLinha: (s: string) => string; ariaLinha: (s: string) => string;
   setores: string[]; marcados: Set<string>;
   onToggle: (setor: string) => void; onLimpar: () => void;
 }) {
@@ -563,10 +567,10 @@ function SetorToggles({ setores, marcados, onToggle, onLimpar }: {
     <>
       <div className="flex items-center gap-3 py-2.5">
         <div className="flex-1">
-          <p className="text-sm">Visualizar respostas por setor</p>
-          <p className="text-[11px] text-muted-foreground">Ver respostas dos formularios filtradas por setor especifico</p>
+          <p className="text-sm">{titulo}</p>
+          <p className="text-[11px] text-muted-foreground">{descricao}</p>
         </div>
-        <Switch checked={aberto} aria-label="Visualizar respostas por setor"
+        <Switch checked={aberto} aria-label={titulo}
           onCheckedChange={(v) => { setAberto(v); if (!v && marcados.size) onLimpar(); }} />
       </div>
       {aberto && (
@@ -574,12 +578,12 @@ function SetorToggles({ setores, marcados, onToggle, onLimpar }: {
           {setores.length === 0 && <p className="py-2 text-[11px] text-muted-foreground">Carregando setores...</p>}
           {setores.map((s) => (
             <div key={s} className="flex items-center gap-3 rounded-md py-2 pl-2 pr-1 hover:bg-muted/40">
-              <span className="text-muted-foreground">👥</span>
+              <span className="text-muted-foreground">{icone}</span>
               <div className="flex-1">
-                <p className="text-[13px]">Visualizar respostas - {s}</p>
-                <p className="text-[11px] text-muted-foreground">Ver respostas do setor de {s}</p>
+                <p className="text-[13px]">{rotuloLinha(s)}</p>
+                <p className="text-[11px] text-muted-foreground">{descLinha(s)}</p>
               </div>
-              <Switch checked={marcados.has(s.toUpperCase())} onCheckedChange={() => onToggle(s)} aria-label={`Ver respostas de ${s}`} />
+              <Switch checked={marcados.has(s.toUpperCase())} onCheckedChange={() => onToggle(s)} aria-label={ariaLinha(s)} />
             </div>
           ))}
         </div>
@@ -591,7 +595,8 @@ function SetorToggles({ setores, marcados, onToggle, onLimpar }: {
 // Capacidades de UM usuário, na cascata de "Acesso por Usuário".
 function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: string, t?: string) => void }) {
   const [caps, setCaps] = useState<Set<string>>(new Set());
-  const [setoresVer, setSetoresVer] = useState<Set<string>>(new Set());  // normalizados (upper)
+  const [setoresVer, setSetoresVer] = useState<Set<string>>(new Set());    // ver_setor (upper)
+  const [setoresCriar, setSetoresCriar] = useState<Set<string>>(new Set()); // criar_setor (upper)
   const [setoresErp, setSetoresErp] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const erroPerm = (m: string) => /row-level|permission|policy/i.test(m) ? "So administradores alteram permissoes." : "Erro: " + m;
@@ -600,8 +605,10 @@ function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: st
     setLoading(true);
     const uRes = await (supabase as any).from("CS_FORM_ACESSOS").select("papel, setor").eq("user_id", userId).neq("papel", "dashboard");
     const linhas = uRes.data ?? [];
+    const setoresDe = (papel: string) => new Set<string>(linhas.filter((r: any) => r.papel === papel && r.setor).map((r: any) => String(r.setor).trim().toUpperCase()));
     setCaps(new Set<string>(linhas.map((r: any) => r.papel)));
-    setSetoresVer(new Set<string>(linhas.filter((r: any) => r.papel === "ver_setor" && r.setor).map((r: any) => String(r.setor).trim().toUpperCase())));
+    setSetoresVer(setoresDe("ver_setor"));
+    setSetoresCriar(setoresDe("criar_setor"));
     setLoading(false);
   }, [userId]);
   useEffect(() => { load(); }, [load]);
@@ -614,30 +621,49 @@ function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: st
     })();
   }, []);
 
+  // ver_tudo x ver_proprias sao contraditorios: ligar um desliga o outro (senao
+  // ver_tudo mascara o "so as proprias" e a pessoa acaba vendo tudo).
+  const OPOSTO: Partial<Record<FormCap, FormCap>> = { ver_tudo: "ver_proprias", ver_proprias: "ver_tudo" };
+
   const toggle = async (papel: FormCap) => {
     const tem = caps.has(papel);
-    const { error } = tem
-      ? await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", papel)
-      : await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel, user_id: userId });
-    if (error) { onToast(erroPerm(error.message), "err"); return; }
-    setCaps(c => { const n = new Set(c); tem ? n.delete(papel) : n.add(papel); return n; });
+    const oposto = !tem ? OPOSTO[papel] : undefined;  // ao LIGAR, remover o contrario
+    if (tem) {
+      const { error } = await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", papel);
+      if (error) { onToast(erroPerm(error.message), "err"); return; }
+    } else {
+      if (oposto && caps.has(oposto)) await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", oposto);
+      const { error } = await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel, user_id: userId });
+      if (error) { onToast(erroPerm(error.message), "err"); return; }
+    }
+    setCaps(c => {
+      const n = new Set(c);
+      if (tem) n.delete(papel);
+      else { n.add(papel); if (oposto) n.delete(oposto); }
+      return n;
+    });
   };
 
-  const toggleSetor = async (setor: string) => {
-    const chave = setor.trim().toUpperCase();
-    const tem = setoresVer.has(chave);
-    const { error } = tem
-      ? await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", "ver_setor").eq("setor", setor)
-      : await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel: "ver_setor", user_id: userId, setor });
-    if (error) { onToast(erroPerm(error.message), "err"); return; }
-    setSetoresVer(s => { const n = new Set(s); tem ? n.delete(chave) : n.add(chave); return n; });
-  };
-
-  const limparSetores = async () => {
-    const { error } = await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", "ver_setor");
-    if (error) { onToast(erroPerm(error.message), "err"); return; }
-    setSetoresVer(new Set());
-  };
+  // Fabrica de handlers p/ os dois blocos por setor (ver_setor / criar_setor):
+  // gravam/removem 1 linha por (usuario, setor) e refletem no estado local.
+  const fazSetorHandlers = (papel: "ver_setor" | "criar_setor", marcados: Set<string>, setMarcados: (f: (s: Set<string>) => Set<string>) => void) => ({
+    onToggle: async (setor: string) => {
+      const chave = setor.trim().toUpperCase();
+      const tem = marcados.has(chave);
+      const { error } = tem
+        ? await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", papel).eq("setor", setor)
+        : await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel, user_id: userId, setor });
+      if (error) { onToast(erroPerm(error.message), "err"); return; }
+      setMarcados(s => { const n = new Set(s); tem ? n.delete(chave) : n.add(chave); return n; });
+    },
+    onLimpar: async () => {
+      const { error } = await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", papel);
+      if (error) { onToast(erroPerm(error.message), "err"); return; }
+      setMarcados(() => new Set());
+    },
+  });
+  const verSetorH = fazSetorHandlers("ver_setor", setoresVer, setSetoresVer);
+  const criarSetorH = fazSetorHandlers("criar_setor", setoresCriar, setSetoresCriar);
 
   if (loading) return <div className="py-2 text-xs text-muted-foreground">Carregando permissoes...</div>;
 
@@ -648,7 +674,22 @@ function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: st
       </div>
       <div className="divide-y divide-border/60">
         <CapToggles caps={caps} onToggle={toggle} />
-        <SetorToggles setores={setoresErp} marcados={setoresVer} onToggle={toggleSetor} onLimpar={limparSetores} />
+        <SetorToggles
+          titulo="Visualizar respostas por setor"
+          descricao="Ver respostas dos formularios filtradas pelo setor de quem respondeu"
+          icone="👥"
+          rotuloLinha={(s) => `Visualizar respostas - ${s}`}
+          descLinha={(s) => `Ver respostas de quem e do setor de ${s}`}
+          ariaLinha={(s) => `Ver respostas de ${s}`}
+          setores={setoresErp} marcados={setoresVer} onToggle={verSetorH.onToggle} onLimpar={verSetorH.onLimpar} />
+        <SetorToggles
+          titulo="Criar formularios por setor"
+          descricao="Criar formularios de um setor e ver todas as respostas desses formularios"
+          icone="📝"
+          rotuloLinha={(s) => `Criar formularios - ${s}`}
+          descLinha={(s) => `So cria formularios do ${s} e ve todas as respostas deles`}
+          ariaLinha={(s) => `Criar formularios de ${s}`}
+          setores={setoresErp} marcados={setoresCriar} onToggle={criarSetorH.onToggle} onLimpar={criarSetorH.onLimpar} />
       </div>
     </div>
   );

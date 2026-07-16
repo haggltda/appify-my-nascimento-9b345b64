@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/integrations/supabase/client";
 import { Formulario, Pergunta, fmtDt, urlPublica, situacao, normalizaPerguntas, novoUuid } from "./Formularios";
+
+// Teto de upload de anexo (criador e respondente): 25MB.
+export const MAX_ANEXO = 25 * 1024 * 1024;
+// Tipos de arquivo aceitos como anexo (amplo — PDF, Office, imagens, zip…).
+export const ACCEPT_ANEXO = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,image/*";
 
 // =====================================================================
 // NASCIMENTO FORMULÁRIOS - Builder (editor de formulário)
@@ -252,6 +260,28 @@ export default function FormularioEditor() {
     setSujo(true);
   };
 
+  // Arrastar p/ reordenar (alça ⠿ no card). distance:6 = não vira drag num clique.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    setPergs(ps => {
+      const oldI = ps.findIndex(p => p.id === active.id);
+      const newI = ps.findIndex(p => p.id === over.id);
+      if (oldI < 0 || newI < 0) return ps;
+      return arrayMove(ps, oldI, newI);
+    });
+    setSujo(true);
+  };
+
+  // Marcar/desmarcar TODAS como obrigatórias (texto informativo não conta).
+  const respondiveis = pergs.filter(p => p.tipo !== "texto_info");
+  const todasObrig = respondiveis.length > 0 && respondiveis.every(p => p.obrigatoria);
+  const toggleTodasObrigatorias = () => {
+    setPergs(ps => ps.map(p => p.tipo === "texto_info" ? p : { ...p, obrigatoria: !todasObrig }));
+    setSujo(true);
+  };
+
   const upload = async (file: File, prefixo: string): Promise<string | null> => {
     const ext = (file.name.split(".").pop() || "png").toLowerCase();
     const path = `${form?.id ?? "geral"}/${prefixo}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
@@ -324,6 +354,7 @@ export default function FormularioEditor() {
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "#fff", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0, flexWrap: "wrap" }}>
         <button onClick={() => nav("/app/central-servicos/formularios")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>← Voltar</button>
         <div style={{ flex: 1, minWidth: 220, fontSize: 16, fontWeight: 800, color: form.titulo ? "#0f3171" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{form.titulo || "Sem título"}</div>
+        {form.setor && <span title="Setor-dono deste formulário (definido na criação)" style={{ fontSize: 10.5, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: "#eef2ff", color: "#4338ca" }}>🏷️ {form.setor}</span>}
         <span style={{ fontSize: 10.5, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: sit.bg, color: sit.c }}>{sit.rotulo}</span>
         {form.status === "publicado" && <a href={urlPublica(form.slug)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#0369a1", fontWeight: 700 }}>Abrir URL ↗</a>}
         <button onClick={() => salvar()} disabled={salvando} style={btn(sujo ? "#0f3171" : "#94a3b8")}>{salvando ? "Salvando..." : "💾 Salvar"}</button>
@@ -417,20 +448,34 @@ export default function FormularioEditor() {
             )}
           </div>
 
-          {/* Perguntas */}
-          {pergs.map((p, i) => (
-            <div key={p.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <PerguntaCard p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} setores={setoresErp} usuarios={usuarios} />
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <button onClick={() => insertPergunta(i)} title="Inserir pergunta abaixo"
-                  style={{ width: 28, height: 28, borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", color: "#0f3171", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1, boxShadow: "0 2px 6px rgba(15,23,42,.08)" }}>+</button>
-              </div>
-            </div>
-          ))}
+          {/* Perguntas — arrastáveis pela alça ⠿ */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={pergs.map(p => p.id)} strategy={verticalListSortingStrategy}>
+              {pergs.map((p, i) => (
+                <SortablePergunta key={p.id} id={p.id}>
+                  {(handleProps) => (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <PerguntaCard p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} setores={setoresErp} usuarios={usuarios} handleProps={handleProps} />
+                      <div style={{ display: "flex", justifyContent: "center" }}>
+                        <button onClick={() => insertPergunta(i)} title="Inserir pergunta abaixo"
+                          style={{ width: 28, height: 28, borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", color: "#0f3171", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1, boxShadow: "0 2px 6px rgba(15,23,42,.08)" }}>+</button>
+                      </div>
+                    </div>
+                  )}
+                </SortablePergunta>
+              ))}
+            </SortableContext>
+          </DndContext>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button onClick={addPergunta} style={{ ...btn("#fff", "#0f3171", "2px dashed #cbd5e1"), flex: 1, minWidth: 200, padding: "14px", fontSize: 13.5, borderRadius: 14 }}>+ Adicionar pergunta</button>
             <button onClick={() => setMassaOpen(v => !v)} style={{ ...btn(massaOpen ? "#0f3171" : "#fff", massaOpen ? "#fff" : "#0f3171", "2px dashed #cbd5e1"), padding: "14px", fontSize: 13.5, borderRadius: 14 }}>➕ Adicionar em massa</button>
+            {respondiveis.length > 0 && (
+              <button onClick={toggleTodasObrigatorias} title="Marca/desmarca todas as perguntas como obrigatórias"
+                style={{ ...btn(todasObrig ? "#dc2626" : "#fff", todasObrig ? "#fff" : "#dc2626", "2px dashed rgba(220,38,38,.4)"), padding: "14px", fontSize: 13.5, borderRadius: 14 }}>
+                {todasObrig ? "✖ Desmarcar todas obrigatórias" : "✔️ Marcar todas obrigatórias"}
+              </button>
+            )}
           </div>
 
           {massaOpen && (
@@ -456,15 +501,25 @@ export default function FormularioEditor() {
   );
 }
 
-function PerguntaCard({ p, i, total, muda, move, remove, upload, setores, usuarios }: {
+// Wrapper de arraste: dá a alça (handleProps) pro card e move o item no DnD.
+function SortablePergunta({ id, children }: { id: string; children: (handleProps: any) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, position: "relative", zIndex: isDragging ? 10 : undefined };
+  return <div ref={setNodeRef} style={style}>{children({ ...attributes, ...listeners })}</div>;
+}
+
+function PerguntaCard({ p, i, total, muda, move, remove, upload, setores, usuarios, handleProps }: {
   p: Pergunta; i: number; total: number;
   muda: (i: number, patch: Partial<Pergunta>) => void;
   move: (i: number, dir: -1 | 1) => void;
   remove: (i: number) => void;
   upload: (f: File, prefixo: string) => Promise<string | null>;
   setores: string[];
+  usuarios: UsuarioErp[];
+  handleProps?: any;
 }) {
   const imgRef = useRef<HTMLInputElement>(null);
+  const arqRef = useRef<HTMLInputElement>(null);
   const [mostrarSetor, setMostrarSetor] = useState(false);
   const [buscaP, setBuscaP] = useState("");
   const tipo = TIPOS.find(t => t.valor === p.tipo);
@@ -483,6 +538,8 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores, usuari
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.06)" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 10 }}>
+        <span {...(handleProps ?? {})} title="Arraste para reordenar" aria-label="Arraste para reordenar"
+          style={{ flexShrink: 0, paddingTop: 6, fontSize: 15, color: "#cbd5e1", cursor: "grab", touchAction: "none", userSelect: "none", lineHeight: 1 }}>⠿</span>
         <span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", flexShrink: 0, paddingTop: 8 }}>#{i + 1}</span>
         <AutoTextarea value={p.titulo} onChange={v => muda(i, { titulo: v })} minRows={1} placeholder="Escreva a pergunta..."
           style={{ border: "none", borderBottom: "2px solid #e2e8f0", padding: "6px 2px", fontSize: 14.5, fontWeight: 700, color: "#0f172a", outline: "none", flex: 1, background: "transparent", lineHeight: 1.4 }} />
@@ -519,6 +576,13 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores, usuari
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
           <img src={p.imagem_url} alt="" style={{ maxHeight: 110, borderRadius: 10, border: "1px solid #e2e8f0" }} />
           <button onClick={() => muda(i, { imagem_url: null })} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(220,38,38,.25)", background: "#fff", color: "#dc2626", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>Remover imagem</button>
+        </div>
+      )}
+
+      {p.config.arquivo_url && (
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10, background: "#f8fafc", border: "1px solid #eef2f7", borderRadius: 10, padding: "8px 11px" }}>
+          <a href={p.config.arquivo_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 700, color: "#0369a1", textDecoration: "none", flex: 1, wordBreak: "break-all" }}>📎 {p.config.arquivo_nome || "arquivo anexado"}</a>
+          <button onClick={() => muda(i, { config: { ...p.config, arquivo_url: undefined, arquivo_nome: undefined } })} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(220,38,38,.25)", background: "#fff", color: "#dc2626", fontSize: 11.5, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Remover</button>
         </div>
       )}
 
@@ -614,9 +678,18 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores, usuari
           </label>
         )}
         {p.tipo === "texto_info" && <span style={{ fontSize: 11.5, color: "#94a3b8", fontWeight: 700 }}>📄 Só leitura - o colaborador não responde</span>}
+        {p.tipo !== "texto_info" && (
+          <label style={{ fontSize: 12, color: "#0f172a", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 600 }} title="Deixa o respondente enviar um PDF/arquivo (até 25MB) junto da resposta">
+            <input type="checkbox" checked={!!p.config.anexo_resp} onChange={e => muda(i, { config: { ...p.config, anexo_resp: e.target.checked || undefined } })} style={{ width: 14, height: 14, accentColor: "#0f3171" }} />
+            📎 Permitir anexo do respondente
+          </label>
+        )}
         <button onClick={() => imgRef.current?.click()} style={{ background: "none", border: "none", color: "#0369a1", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🖼 {p.imagem_url ? "Trocar" : "Adicionar"} imagem</button>
         <input ref={imgRef} type="file" accept="image/*" style={{ display: "none" }}
           onChange={async e => { const f = e.target.files?.[0]; if (!f) return; const url = await upload(f, `perg-${i + 1}`); if (url) muda(i, { imagem_url: url }); e.target.value = ""; }} />
+        <button onClick={() => arqRef.current?.click()} style={{ background: "none", border: "none", color: "#0369a1", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>📎 {p.config.arquivo_url ? "Trocar" : "Anexar"} arquivo</button>
+        <input ref={arqRef} type="file" accept={ACCEPT_ANEXO} style={{ display: "none" }}
+          onChange={async e => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; if (f.size > MAX_ANEXO) { alert("Arquivo muito grande — limite de 25MB."); return; } const url = await upload(f, `arq-${i + 1}`); if (url) muda(i, { config: { ...p.config, arquivo_url: url, arquivo_nome: f.name } }); }} />
         <div style={{ flex: 1 }} />
         <button onClick={() => move(i, -1)} disabled={i === 0} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 7, width: 26, height: 26, cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "#e2e8f0" : "#475569" }}>↑</button>
         <button onClick={() => move(i, 1)} disabled={i === total - 1} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 7, width: 26, height: 26, cursor: i === total - 1 ? "default" : "pointer", color: i === total - 1 ? "#e2e8f0" : "#475569" }}>↓</button>

@@ -26,6 +26,8 @@ interface Perg {
 
 // Escalas de trabalho (enum posto_jornada do banco).
 const ESCALAS_TRABALHO = ["12x36", "8 horas", "6 horas", "4 horas", "Escala 5x2", "Escala 6x1", "Outra"];
+// Tipos aceitos como anexo do respondente (mesmo conjunto do editor).
+const ACCEPT_ANEXO = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,image/*";
 
 const fmtDt = (s?: string | null) => { if (!s) return ""; const d = new Date(s); return isNaN(+d) ? "" : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: "18px 20px", boxShadow: "0 10px 30px rgba(15,23,42,.07)" };
@@ -194,6 +196,25 @@ export default function FormularioPublico() {
   // "Outro": quando o respondente escolhe Outro, descreve num texto livre.
   const [outroOn, setOutroOn] = useState<Record<string, boolean>>({});
   const [outroTxt, setOutroTxt] = useState<Record<string, string>>({});
+  const [faltando, setFaltando] = useState<Set<string>>(new Set());  // obrigatórias vazias no envio
+  const [anexando, setAnexando] = useState<Record<string, boolean>>({});  // upload de anexo em curso
+
+  // Upload de anexo do respondente (bucket cs-formularios; anon liberado pela
+  // migration). Devolve a URL pública ou null (com aviso).
+  const MAX_ANEXO = 25 * 1024 * 1024;
+  const uploadResp = async (pid: string, file: File) => {
+    if (file.size > MAX_ANEXO) { setErro(`O anexo "${file.name}" passa de 25MB. Envie um arquivo menor.`); return; }
+    setAnexando(x => ({ ...x, [pid]: true }));
+    const ext = (file.name.split(".").pop() || "dat").toLowerCase();
+    const path = `${form?.id ?? "geral"}/resp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+    const { error } = await supabase.storage.from("cs-formularios").upload(path, file, { upsert: false });
+    setAnexando(x => ({ ...x, [pid]: false }));
+    if (error) { setErro("Não foi possível anexar o arquivo: " + error.message); return; }
+    const url = supabase.storage.from("cs-formularios").getPublicUrl(path).data.publicUrl;
+    setValores(x => ({ ...x, [`${pid}__anexo`]: url, [`${pid}__anexo_nome`]: file.name }));
+    setErro("");
+  };
+  const removerAnexo = (pid: string) => setValores(x => { const n = { ...x }; delete n[`${pid}__anexo`]; delete n[`${pid}__anexo_nome`]; return n; });
 
   const load = useCallback(async () => {
     if (authLoading) return;
@@ -292,7 +313,11 @@ export default function FormularioPublico() {
   }
   if (enviado) return <SuccessScreen />;
 
-  const setVal = (pid: string, v: any) => { setValores(x => ({ ...x, [pid]: v })); setErro(""); };
+  const setVal = (pid: string, v: any) => {
+    setValores(x => ({ ...x, [pid]: v }));
+    setErro("");
+    setFaltando(s => { if (!s.has(pid)) return s; const n = new Set(s); n.delete(pid); return n; });  // preencheu → tira o destaque
+  };
 
   // Perguntas visíveis ao respondente: uma pergunta pode ser limitada a setores
   // (config.setores) e/ou a pessoas (config.pessoas = user_id do ERP), em UNIÃO.
@@ -306,11 +331,17 @@ export default function FormularioPublico() {
   const pergsVisiveis = pergs.filter(perguntaVisivel);
 
   const enviar = async () => {
-    for (const p of pergsVisiveis) {
-      if (p.tipo === "texto_info" || !p.obrigatoria) continue;
+    // Junta TODAS as obrigatórias vazias p/ destacar de uma vez e levar à primeira.
+    const faltantes = pergsVisiveis.filter(p => {
+      if (p.tipo === "texto_info" || !p.obrigatoria) return false;
       const v = valores[p.id];
-      const vazio = v == null || v === "" || (Array.isArray(v) && v.length === 0);
-      if (vazio) { setErro(`Responda a pergunta obrigatória: "${p.titulo}"`); document.getElementById(`perg-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+      return v == null || v === "" || (Array.isArray(v) && v.length === 0);
+    });
+    if (faltantes.length) {
+      setFaltando(new Set(faltantes.map(p => p.id)));
+      setErro("Você precisa responder todas as perguntas obrigatórias para concluir.");
+      document.getElementById(`perg-${faltantes[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
     }
     if (form.coleta_identificacao && !empregado && !nome.trim()) { setErro("Informe seu nome."); return; }
     setEnviando(true);
@@ -410,13 +441,18 @@ export default function FormularioPublico() {
             </div>
           );
           nq++;
+          const falta = faltando.has(p.id);
           return (
-          <div key={p.id} id={`perg-${p.id}`} className="fp-in fp-card-h" style={{ ...card, animationDelay: delay }}>
+          <div key={p.id} id={`perg-${p.id}`} className="fp-in fp-card-h" style={{ ...card, animationDelay: delay, border: falta ? "1.5px solid #dc2626" : card.border, boxShadow: falta ? "0 0 0 3px rgba(220,38,38,.12)" : card.boxShadow }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
               {nq}. {p.titulo} {p.obrigatoria && <span style={{ color: "#dc2626" }}>*</span>}
             </div>
             {p.descricao && <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 3 }}>{p.descricao}</div>}
+            {falta && <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 6 }}>⚠️ Esta pergunta é obrigatória.</div>}
             {p.imagem_url && <img src={p.imagem_url} alt="" style={{ maxWidth: "100%", maxHeight: 280, borderRadius: 10, marginTop: 10, border: "1px solid #f1f5f9" }} />}
+            {p.config?.arquivo_url && (
+              <a href={p.config.arquivo_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 13, fontWeight: 700, color: "#0369a1", textDecoration: "none", background: "#f0f7ff", border: "1px solid #dbeafe", borderRadius: 9, padding: "7px 11px" }}>📎 Baixar {p.config.arquivo_nome || "arquivo"}</a>
+            )}
             <div style={{ marginTop: 12 }}>
               {p.tipo === "texto_curto" && <input value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} style={inp} placeholder="Sua resposta" />}
               {p.tipo === "texto_longo" && <textarea value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} rows={4} style={{ ...inp, resize: "vertical" }} placeholder="Sua resposta" />}
@@ -509,11 +545,36 @@ export default function FormularioPublico() {
                 );
               })()}
             </div>
+            {p.config?.anexo_resp && (() => {
+              const anexoUrl = valores[`${p.id}__anexo`];
+              const anexoNome = valores[`${p.id}__anexo_nome`];
+              const carregando = !!anexando[p.id];
+              return (
+                <div style={{ marginTop: 12, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
+                  {anexoUrl ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "8px 11px" }}>
+                      <a href={anexoUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 700, color: "#15803d", textDecoration: "none", flex: 1, wordBreak: "break-all" }}>📎 {anexoNome || "arquivo anexado"}</a>
+                      <button type="button" onClick={() => removerAnexo(p.id)} style={{ padding: "4px 9px", borderRadius: 8, border: "1px solid rgba(220,38,38,.25)", background: "#fff", color: "#dc2626", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Remover</button>
+                    </div>
+                  ) : (
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: carregando ? "default" : "pointer", fontSize: 13, fontWeight: 700, color: "#0f3171", background: "#f0f7ff", border: "1px dashed #93c5fd", borderRadius: 10, padding: "9px 13px" }}>
+                      {carregando ? "Enviando anexo…" : "📎 Anexar arquivo (PDF/arquivo até 25MB)"}
+                      <input type="file" accept={ACCEPT_ANEXO} disabled={carregando} style={{ display: "none" }}
+                        onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadResp(p.id, f); }} />
+                    </label>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           );
         }); })()}
 
-        {erro && <div className="fp-in" style={{ background: "#fee2e2", color: "#b91c1c", padding: "11px 15px", borderRadius: 12, fontSize: 13, fontWeight: 700 }}>{erro}</div>}
+        {erro && (
+          <div className="fp-in" style={{ display: "flex", alignItems: "center", gap: 10, background: "#fef2f2", color: "#b91c1c", border: "1.5px solid #fecaca", padding: "13px 16px", borderRadius: 13, fontSize: 13.5, fontWeight: 700, boxShadow: "0 8px 22px rgba(220,38,38,.12)" }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span> {erro}
+          </div>
+        )}
 
         <button onClick={enviar} disabled={enviando} className="fp-submit"
           style={{ padding: "14px", borderRadius: 13, border: "none", background: enviando ? "#94a3b8" : "linear-gradient(135deg,#0f3171 0%,#1e4fa3 100%)", color: "#fff", fontSize: 15, fontWeight: 800, cursor: enviando ? "default" : "pointer", boxShadow: "0 10px 26px rgba(15,49,113,.32)", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}>
