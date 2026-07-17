@@ -29,6 +29,7 @@ export interface Formulario {
   criado_por?: string | null; visibilidade?: "todos" | "restrita";
   perguntas?: Pergunta[];  // jsonb - ordem = posição no array
   pergunta_setor_id?: string | null;  // qual pergunta classifica a resposta (Admin/Operac.)
+  pergunta_nome_id?: string | null;   // qual pergunta diz QUEM respondeu (respostas sem respondente_nome)
   setor?: string | null;   // setor-DONO do formulário (criar_setor); null = geral
   // --- Segurança do formulário (quem pode RESPONDER; vale no banco) ---
   // 'liberado' = URL pública sem login. 'restrito' = exige login, e o público

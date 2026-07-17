@@ -317,6 +317,7 @@ export default function FormularioEditor() {
     const restrito = (form.seguranca ?? "liberado") === "restrito";
     const extra = {
       pergunta_setor_id: form.pergunta_setor_id || null,
+      pergunta_nome_id: form.pergunta_nome_id || null,
       seguranca: form.seguranca ?? "liberado",
       // Liberado zera os filtros: não deixa restrição órfã no banco.
       setores_acesso: restrito ? (form.setores_acesso?.length ? form.setores_acesso : null) : null,
@@ -438,6 +439,14 @@ export default function FormularioEditor() {
                     <option value="">- Nenhuma (usa o setor do cadastro do respondente) -</option>
                     {pergs.filter(p => p.titulo.trim()).map(p => <option key={p.id} value={p.id}>{p.titulo.length > 60 ? p.titulo.slice(0, 60) + "…" : p.titulo}</option>)}
                   </select>
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={lbl}>Pergunta que identifica o respondente (quem respondeu)</label>
+                  <select value={form.pergunta_nome_id ?? ""} onChange={e => mudaForm({ pergunta_nome_id: e.target.value || null })} style={{ ...inp, width: "100%", maxWidth: 420, textOverflow: "ellipsis" }}>
+                    <option value="">- Nenhuma (usa o cadastro / identificação do respondente) -</option>
+                    {pergs.filter(p => p.titulo.trim()).map(p => <option key={p.id} value={p.id}>{p.titulo.length > 60 ? p.titulo.slice(0, 60) + "…" : p.titulo}</option>)}
+                  </select>
+                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Usada quando a resposta não tem nome (ex.: importadas) — vira o nome em Respostas e no filtro.</div>
                 </div>
               </>}
             </div>
