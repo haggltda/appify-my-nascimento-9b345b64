@@ -111,6 +111,59 @@ function LinhaValor({ texto, resolve, onPessoa }: { texto: string; resolve: Reso
   );
 }
 
+// Um valor do resumo já agrupado: o mesmo nome citado por N respostas vira uma
+// linha só com "(N respostas)". "Ver todos" abre as ocorrências mostrando QUEM
+// respondeu e quando - o texto é igual, o que muda é a origem.
+function GrupoValor({ texto, itens, resolve, onPessoa, quem, onVerRespostas }: {
+  texto: string; itens: { v: any; r: Resposta }[];
+  resolve: Resolver; onPessoa: (n: string) => void; quem: (r: Resposta) => string;
+  onVerRespostas: (nome: string) => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const n = itens.length;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 10px" }}>
+        <div style={{ flex: 1, minWidth: 0, wordBreak: "break-word", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+          <NomeLink texto={texto} resolve={resolve} onPessoa={onPessoa} />
+          {n > 1 && <span style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: "#eef2ff", color: "#4338ca", flexShrink: 0 }}>{n} respostas</span>}
+        </div>
+        {n > 1 && (
+          <button onClick={() => setAberto(v => !v)} style={btnMini("#fff", "#0f3171", "1px solid rgba(15,49,113,.25)")}>
+            {aberto ? "Ocultar" : "Ver todos"}
+          </button>
+        )}
+        <button onClick={() => onPessoa(texto)} title={resolve(texto).ehPessoa ? "Ver ficha completa" : "Vincular este nome a um empregado"}
+          style={resolve(texto).ehPessoa
+            ? btnMini("rgba(15,49,113,.08)", "#0f3171", "1px solid rgba(15,49,113,.2)")
+            : btnMini("#fff", "#94a3b8", "1px solid #e2e8f0")}>
+          {resolve(texto).ehPessoa ? "Detalhes" : "Vincular"}
+        </button>
+      </div>
+      {aberto && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 3, paddingLeft: 12 }}>
+          {itens.map((o, oi) => {
+            const nomeQuem = quem(o.r);
+            return (
+              <div key={oi} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "#64748b", background: "#fff", border: "1px solid #f1f5f9", borderRadius: 7, padding: "4px 9px" }}>
+                {/* resolve: apelido vinculado ("Gerência X") vira o nome da pessoa e o link da ficha */}
+                <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <NomeLink texto={nomeQuem} resolve={resolve} onPessoa={onPessoa} />
+                  <span style={{ color: "#94a3b8" }}>{fmtDt(o.r.enviado_em)}</span>
+                </div>
+                {nomeQuem !== "Anônimo" && (
+                  <button onClick={() => onVerRespostas(nomeQuem)} title="Abrir a aba Individuais filtrada neste participante"
+                    style={btnMini("#fff", "#0f3171", "1px solid rgba(15,49,113,.25)")}>Ver respostas</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Barra de filtros - larga, alinhada com o cabeçalho (não com os cards, que
 // são estreitos). Filtra Resumo, Individuais e o CSV de uma vez só.
 export function FiltrosRespostas({ fResp, setFResp, opcoesResp, fSetor, setFSetor, opcoesSetor, fDe, setFDe, fAte, setFAte, filtrando, onLimpar }: {
@@ -189,9 +242,11 @@ export default function FormularioRespostas() {
   // Nomes do cadastro (EMPREGADOS) só para saber quais valores de resposta são
   // pessoas de verdade (viram link p/ a ficha). Best-effort: se falhar, ninguém
   // fica clicável. Só a coluna "Nome" p/ não pesar.
+  // limit alto de propósito: sem ele o PostgREST corta em 1000 linhas e metade
+  // do cadastro fica de fora — quem sobrava aparecia como "Vincular".
   const carregarNomes = useCallback(async () => {
     try {
-      const { data } = await (supabase as any).from("EMPREGADOS").select('"Nome"');
+      const { data } = await (supabase as any).from("EMPREGADOS").select('"Nome"').limit(20000);
       setNomesEmp(new Set((data ?? []).map((e: any) => normNome(e["Nome"])).filter(Boolean)));
     } catch { /* ignore */ }
     setVinculos(await carregarVinculos());
@@ -216,8 +271,33 @@ export default function FormularioRespostas() {
     () => (soProprias && user ? resps.filter(r => r.criado_por === user.id) : resps),
     [resps, soProprias, user]);
 
+  // Qual pergunta diz QUEM respondeu. A config do formulário manda; sem ela,
+  // deduz pelo TÍTULO primeiro e só depois pelo tipo: um formulário costuma ter
+  // várias perguntas do tipo "colaborador" (no Feedback Guiado, a #1 é a
+  // liderança que conduz e a #2 é quem respondeu) — indo pelo tipo pegaríamos a
+  // liderança. "Identificação..." é o sinal forte de quem respondeu.
+  const perguntaNomeId = useMemo(() => {
+    if (form?.pergunta_nome_id) return form.pergunta_nome_id;
+    const porTitulo = pergs.find(p => /identifica[çc]|nome complet|^\s*nome\s*$/i.test(p.titulo || ""));
+    if (porTitulo) return porTitulo.id;
+    const porTipo = pergs.find(p => p.tipo === "colaborador");
+    return porTipo?.id ?? null;
+  }, [form?.pergunta_nome_id, pergs]);
+
+  // Quem respondeu: o nome gravado na resposta ou, quando ela veio sem nome
+  // (importada), o valor da pergunta que identifica o respondente.
+  const nomeRespondente = useCallback((r: Resposta): string => {
+    const gravado = (r.respondente_nome ?? "").trim();
+    if (gravado) return gravado;
+    const v = perguntaNomeId ? r.itens[perguntaNomeId] : null;
+    const txt = Array.isArray(v) ? (v[0] != null ? String(v[0]) : "") : (v != null ? String(v) : "");
+    return txt.trim() || "Anônimo";
+  }, [perguntaNomeId]);
+
   // Opções dos filtros: saem das próprias respostas (só o que existe aparece).
-  const opcoesResp = useMemo(() => [...new Set(respsEscopo.map(r => (r.respondente_nome ?? "").trim()).filter(Boolean))].sort(), [respsEscopo]);
+  const opcoesResp = useMemo(
+    () => [...new Set(respsEscopo.map(r => nomeRespondente(r)).filter(n => n && n !== "Anônimo"))].sort(),
+    [respsEscopo, nomeRespondente]);
   const opcoesSetor = useMemo(() => [...new Set(respsEscopo.map(r => (r.setor ?? "").trim()).filter(Boolean))].sort(), [respsEscopo]);
   // Respostas filtradas alimentam AS DUAS abas (resumo e individuais) e o CSV.
   // Data: intervalo fechado nas duas pontas - "até 31/05" inclui o dia 31
@@ -226,7 +306,7 @@ export default function FormularioRespostas() {
     const de = fDe ? new Date(`${fDe}T00:00:00`).getTime() : null;
     const ate = fAte ? new Date(`${fAte}T23:59:59.999`).getTime() : null;
     return respsEscopo.filter(r => {
-      if (fResp && (r.respondente_nome ?? "").trim() !== fResp) return false;
+      if (fResp && nomeRespondente(r) !== fResp) return false;
       if (fSetor && (r.setor ?? "").trim() !== fSetor) return false;
       if (de != null || ate != null) {
         const t = new Date(r.enviado_em).getTime();
@@ -236,7 +316,7 @@ export default function FormularioRespostas() {
       }
       return true;
     });
-  }, [respsEscopo, fResp, fSetor, fDe, fAte]);
+  }, [respsEscopo, fResp, fSetor, fDe, fAte, nomeRespondente]);
   const filtrando = !!(fResp || fSetor || fDe || fAte);
   const limparFiltros = () => { setFResp(""); setFSetor(""); setFDe(""); setFAte(""); };
 
@@ -245,7 +325,7 @@ export default function FormularioRespostas() {
     const esc = (s: any) => `"${String(s ?? "").replace(/"/g, '""')}"`;
     const cab = ["Enviado em", "Nome", "E-mail", ...pergs.map(p => p.titulo)];
     const linhas = respsFiltradas.map(r => [
-      fmtDt(r.enviado_em), r.respondente_nome ?? "", r.respondente_email ?? "",
+      fmtDt(r.enviado_em), nomeRespondente(r), r.respondente_email ?? "",
       ...pergs.map(p => valorTexto(r.itens[p.id])),
     ]);
     const csv = "﻿" + [cab, ...linhas].map(l => l.map(esc).join(";")).join("\r\n");
@@ -300,15 +380,18 @@ export default function FormularioRespostas() {
               Nenhuma resposta bate com o filtro. <button onClick={limparFiltros} style={{ background: "none", border: "none", color: "#2563eb", fontWeight: 700, cursor: "pointer", fontSize: 12.5 }}>Limpar filtros</button>
             </div>
           ) : aba === "resumo" ? (
-            pergs.map((p, i) => <ResumoPergunta key={p.id} p={p} i={i} resps={respsFiltradas} resolve={resolve} onPessoa={setPessoa} />)
+            pergs.map((p, i) => <ResumoPergunta key={p.id} p={p} i={i} resps={respsFiltradas} resolve={resolve} onPessoa={setPessoa} quem={nomeRespondente}
+              onVerRespostas={(n) => { setFResp(n); setAba("individuais"); }} />)
           ) : (
-            respsFiltradas.map(r => (
+            respsFiltradas.map(r => {
+              const quem = nomeRespondente(r);
+              return (
               <div key={r.id} style={card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 12.5, fontWeight: 800, color: "#0f172a" }}>
-                    {r.respondente_nome && resolve(r.respondente_nome).ehPessoa
-                      ? <NomeLink texto={r.respondente_nome} resolve={resolve} onPessoa={setPessoa} />
-                      : (r.respondente_nome || "Anônimo")}
+                    {quem !== "Anônimo" && resolve(quem).ehPessoa
+                      ? <NomeLink texto={quem} resolve={resolve} onPessoa={setPessoa} />
+                      : quem}
                   </span>
                   {r.respondente_email && <span style={{ fontSize: 11.5, color: "#64748b" }}>{r.respondente_email}</span>}
                   <span style={{ fontSize: 11, color: "#94a3b8" }}>{fmtDt(r.enviado_em)}</span>
@@ -332,7 +415,8 @@ export default function FormularioRespostas() {
                   })}
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -372,8 +456,32 @@ export default function FormularioRespostas() {
   );
 }
 
-function ResumoPergunta({ p, i, resps, resolve, onPessoa }: { p: Pergunta; i: number; resps: Resposta[]; resolve: Resolver; onPessoa: (n: string) => void }) {
+function ResumoPergunta({ p, i, resps, resolve, onPessoa, quem, onVerRespostas }: { p: Pergunta; i: number; resps: Resposta[]; resolve: Resolver; onPessoa: (n: string) => void; quem: (r: Resposta) => string; onVerRespostas: (nome: string) => void }) {
   const valores = useMemo(() => resps.map(r => r.itens[p.id]).filter(v => v != null && v !== "" && !(Array.isArray(v) && v.length === 0)), [resps, p.id]);
+
+  // Ocorrências com a resposta de origem (o valor sozinho perde "quem disse").
+  // Arrays (caixas de seleção) viram uma ocorrência por item.
+  const ocorrencias = useMemo(() => {
+    const out: { v: any; r: Resposta }[] = [];
+    resps.forEach(r => {
+      const v = r.itens[p.id];
+      if (v == null || v === "") return;
+      (Array.isArray(v) ? v : [v]).forEach(x => { if (x != null && x !== "") out.push({ v: x, r }); });
+    });
+    return out;
+  }, [resps, p.id]);
+
+  // Agrupa valores iguais (nomes repetidos) preservando a ordem de aparição.
+  const grupos = useMemo(() => {
+    const m = new Map<string, { texto: string; itens: { v: any; r: Resposta }[] }>();
+    ocorrencias.forEach(o => {
+      const texto = valorTexto(o.v);
+      const chave = normNome(texto) || texto;
+      const g = m.get(chave);
+      if (g) g.itens.push(o); else m.set(chave, { texto, itens: [o] });
+    });
+    return [...m.values()];
+  }, [ocorrencias]);
 
   const conteudo = useMemo(() => {
     if (["multipla_escolha", "caixas_selecao", "lista_suspensa", "escala"].includes(p.tipo)) {
@@ -414,15 +522,15 @@ function ResumoPergunta({ p, i, resps, resolve, onPessoa }: { p: Pergunta; i: nu
       const soma = ns.reduce((s, n) => s + n, 0);
       return <div style={{ fontSize: 13, color: "#0f172a" }}>Média <b>{(soma / ns.length).toFixed(2)}</b> · Mín <b>{Math.min(...ns)}</b> · Máx <b>{Math.max(...ns)}</b> · Soma <b>{soma}</b></div>;
     }
-    // texto/data: lista
+    // texto/data: lista agrupada (nome repetido vira 1 linha + contagem)
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 240, overflowY: "auto" }}>
-        {valores.map((v, vi) => (
-          <LinhaValor key={vi} texto={valorTexto(v)} resolve={resolve} onPessoa={onPessoa} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 300, overflowY: "auto" }}>
+        {grupos.map((g, gi) => (
+          <GrupoValor key={gi} texto={g.texto} itens={g.itens} resolve={resolve} onPessoa={onPessoa} quem={quem} onVerRespostas={onVerRespostas} />
         ))}
       </div>
     );
-  }, [p, valores, resolve, onPessoa]);
+  }, [p, valores, grupos, resolve, onPessoa, quem, onVerRespostas]);
 
   return (
     <div style={card}>

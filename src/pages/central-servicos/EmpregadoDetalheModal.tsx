@@ -57,11 +57,19 @@ const resumoDe = (e: any) => `${nomeCargoDe(e)}${e?.["Setor_ERP"] ? " · " + e["
 const ehAtivo = (e: any) => String(e?.["Situação"] ?? "").trim().toUpperCase().startsWith("TRABALH");
 
 // Busca 1 empregado pelo nome (ilike exato pega diferença de caixa; fallback por trecho).
+// Homônimo é comum no cadastro (a mesma pessoa readmitida vira 2+ linhas, uma
+// Demitida): entre os candidatos, ATIVO ganha, e depois a admissão mais recente
+// — senão a ficha abre no cadastro velho/demitido.
 const buscaEmpregado = async (n: string) => {
-  let { data } = await (supabase as any).from("EMPREGADOS").select("*").ilike("Nome", n).limit(8);
-  if (!data?.length) ({ data } = await (supabase as any).from("EMPREGADOS").select("*").ilike("Nome", "%" + n + "%").limit(20));
-  const arr = data ?? [];
-  return arr.find((e: any) => normNome(e["Nome"]) === normNome(n)) ?? arr[0] ?? null;
+  let { data } = await (supabase as any).from("EMPREGADOS").select("*").ilike("Nome", n).limit(50);
+  if (!data?.length) ({ data } = await (supabase as any).from("EMPREGADOS").select("*").ilike("Nome", "%" + n + "%").limit(50));
+  const arr: any[] = data ?? [];
+  if (!arr.length) return null;
+  const exatos = arr.filter((e) => normNome(e["Nome"]) === normNome(n));
+  const pool = exatos.length ? exatos : arr;
+  const admissao = (e: any) => { const d = parseData(e?.["Admissão"]); return d ? d.getTime() : 0; };
+  return [...pool].sort((a, b) =>
+    (ehAtivo(b) ? 1 : 0) - (ehAtivo(a) ? 1 : 0) || admissao(b) - admissao(a))[0] ?? null;
 };
 
 interface Participacao {
@@ -268,18 +276,24 @@ export default function EmpregadoDetalheModal({ nome, onClose, onVinculado }: {
   const definirLider = async (escolhido: any) => {
     if (!emp) return;
     setSalvando(true); setErro(null);
-    const { error } = await (supabase as any).from("EMPREGADOS").update({ LIDER: escolhido["Nome"] }).eq("ID", emp["ID"]);
+    // .select() devolve as linhas afetadas: sem privilégio/RLS o update não
+    // levanta erro, só não casa nada — sem isso a tela "não fazia nada".
+    const { data, error } = await (supabase as any).from("EMPREGADOS")
+      .update({ LIDER: escolhido["Nome"] }).eq("ID", emp["ID"]).select('"ID"');
     setSalvando(false);
     if (error) { setErro(`Não deu p/ salvar o líder: ${error.message}`); return; }
+    if (!data?.length) { setErro("Sem permissão para alterar o cadastro (EMPREGADOS). Avise o RH/TI."); return; }
     setModo(null); carregar();
   };
 
   const removerLider = async () => {
     if (!emp || !confirm(`Remover ${emp["LIDER"]} como líder de ${emp["Nome"]}?`)) return;
     setSalvando(true); setErro(null);
-    const { error } = await (supabase as any).from("EMPREGADOS").update({ LIDER: null }).eq("ID", emp["ID"]);
+    const { data, error } = await (supabase as any).from("EMPREGADOS")
+      .update({ LIDER: null }).eq("ID", emp["ID"]).select('"ID"');
     setSalvando(false);
     if (error) { setErro(`Não deu p/ remover o líder: ${error.message}`); return; }
+    if (!data?.length) { setErro("Sem permissão para alterar o cadastro (EMPREGADOS). Avise o RH/TI."); return; }
     carregar();
   };
 

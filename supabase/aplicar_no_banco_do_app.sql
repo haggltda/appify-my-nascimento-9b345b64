@@ -4123,3 +4123,25 @@ REVOKE ALL ON FUNCTION public.admin_desvincular_empregado(uuid) FROM PUBLIC, ano
 GRANT EXECUTE ON FUNCTION public.admin_desvincular_empregado(uuid) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260716000005_formularios_pergunta_nome_e_empregados_update =====
+-- =========================================================================
+-- 1) CS_FORMULARIOS.pergunta_nome_id — qual pergunta identifica o respondente
+--    (irmã de pergunta_setor_id). Respostas importadas vêm com
+--    respondente_nome nulo ("Anônimo" + filtro de Respondente vazio).
+-- 2) EMPREGADOS: a migration 20260622000025 criou a POLICY de UPDATE mas nunca
+--    deu o GRANT de tabela (só havia GRANT INSERT) — por isso "Trocar líder"
+--    não gravava. GRANT e RLS são checagens separadas no Postgres.
+-- Idempotente.
+-- =========================================================================
+ALTER TABLE public."CS_FORMULARIOS"
+  ADD COLUMN IF NOT EXISTS pergunta_nome_id text;
+
+ALTER TABLE public."EMPREGADOS" ENABLE ROW LEVEL SECURITY;
+GRANT UPDATE ON public."EMPREGADOS" TO authenticated;
+
+DROP POLICY IF EXISTS empregados_update_rh ON public."EMPREGADOS";
+CREATE POLICY empregados_update_rh ON public."EMPREGADOS"
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';

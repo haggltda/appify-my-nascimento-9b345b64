@@ -16,7 +16,7 @@ interface Form {
   id: string; titulo: string; descricao?: string | null; slug: string;
   status: string; inicia_em?: string | null; encerra_em?: string | null;
   coleta_identificacao: boolean; imagem_capa_url?: string | null;
-  pergunta_setor_id?: string | null; setores_acesso?: string[] | null;
+  pergunta_setor_id?: string | null; pergunta_nome_id?: string | null; setores_acesso?: string[] | null;
   seguranca?: "liberado" | "restrito"; exige_senha?: boolean;
 }
 interface Perg {
@@ -358,7 +358,11 @@ export default function FormularioPublico() {
     const setorRaw = form.pergunta_setor_id ? valores[form.pergunta_setor_id] : null;
     const setorPergunta = Array.isArray(setorRaw) ? (setorRaw[0] ? String(setorRaw[0]).trim() : null) : (setorRaw != null && setorRaw !== "" ? String(setorRaw).trim() : null);
     const setor = (cadastro?.setor?.trim() || setorPergunta) || null;
-    const nomeResp = cadastro?.nome?.trim() || (form.coleta_identificacao ? nome.trim() : "") || null;
+    // Nome de quem respondeu: cadastro > campo de identificação > pergunta que
+    // identifica o respondente (pergunta_nome_id) — senão fica anônimo.
+    const nomeRaw = form.pergunta_nome_id ? valores[form.pergunta_nome_id] : null;
+    const nomePergunta = Array.isArray(nomeRaw) ? (nomeRaw[0] ? String(nomeRaw[0]).trim() : "") : (nomeRaw != null ? String(nomeRaw).trim() : "");
+    const nomeResp = cadastro?.nome?.trim() || (form.coleta_identificacao ? nome.trim() : "") || nomePergunta || null;
     const emailResp = cadastro?.email?.trim() || (form.coleta_identificacao ? email.trim() : "") || null;
     // criado_por é preenchido pelo default (auth.uid()) quando logado; anônimo sem dono.
     const duracao_seg = Math.max(0, Math.round((Date.now() - abertoEm.current) / 1000));  // tempo de conclusão
