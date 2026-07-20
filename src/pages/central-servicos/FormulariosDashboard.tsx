@@ -53,6 +53,10 @@ export default function FormulariosDashboard() {
   const [loading, setLoading] = useState(true);
   const [sujo, setSujo] = useState(false);
   const [editando, setEditando] = useState<Widget | null>(null);
+  const [modo, setModo] = useState<"auto" | "custom">("auto");   // painel automático (default) x meu painel
+  const [formSel, setFormSel] = useState<string>("");            // formulário do painel automático
+  const [periodo, setPeriodo] = useState<"todos" | "7" | "30" | "90" | "365">("todos");
+  const [buscaResp, setBuscaResp] = useState("");
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
   const toast = (msg: string, t = "info") => { const id = Date.now() + Math.random(); setToasts(x => [...x, { id, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== id)), 4200); };
 
@@ -64,6 +68,7 @@ export default function FormulariosDashboard() {
       (supabase as any).from("CS_FORM_ACESSOS").select("config").eq("papel", "dashboard").maybeSingle(),  // RLS: só a linha do próprio usuário
     ]);
     setForms(fRes.data ?? []);
+    setFormSel(prev => prev || (fRes.data?.[0]?.id ?? ""));  // 1º formulário como padrão do painel auto
     setResps((rRes.data ?? []).map((r: any) => ({ ...r, itens: r.itens ?? {} })));
     const cfg = dRes.data?.config;
     setWidgets(Array.isArray(cfg) && cfg.length ? cfg : WIDGETS_PADRAO);
@@ -72,6 +77,18 @@ export default function FormulariosDashboard() {
   useEffect(() => { load(); }, [load]);
 
   const pergs = useMemo<Perg[]>(() => forms.flatMap(f => normalizaPerguntas(f.perguntas).map(p => ({ ...p, formulario_id: f.id }))), [forms]);
+
+  // ── Painel automático: recortes do formulário selecionado ────────────
+  const formAtual = useMemo(() => forms.find(f => f.id === formSel) ?? null, [forms, formSel]);
+  const respsForm = useMemo(() => formSel ? resps.filter(r => r.formulario_id === formSel) : [], [resps, formSel]);
+  const respsPeriodo = useMemo(() => {
+    let rs = respsForm;
+    const dias = periodo === "todos" ? 0 : Number(periodo);
+    if (dias) { const corte = Date.now() - dias * 86400000; rs = rs.filter(r => +new Date(r.enviado_em) >= corte); }
+    const q = buscaResp.trim().toLowerCase();
+    if (q) rs = rs.filter(r => (r.respondente_nome ?? "").toLowerCase().includes(q));
+    return rs;
+  }, [respsForm, periodo, buscaResp]);
 
   const salvar = async () => {
     const { data: u } = await supabase.auth.getUser();
@@ -104,16 +121,57 @@ export default function FormulariosDashboard() {
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 22px", margin: "18px 24px 0", border: "1px solid #e2e8f0", borderRadius: 18, background: "#fff", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0, flexWrap: "wrap" }}>
         <button onClick={() => nav("/app/central-servicos/formularios")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>← Voltar</button>
-        <div style={{ flex: 1, minWidth: 180 }}>
+        <div style={{ flex: 1, minWidth: 160 }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "#0f3171" }}>📊 Dashboard - Nascimento Formulários</div>
-          <div style={{ fontSize: 11.5, color: "#94a3b8" }}>Monte seu painel: adicione, configure, reordene e redimensione os widgets. O layout é seu.</div>
+          <div style={{ fontSize: 11.5, color: "#94a3b8" }}>{modo === "auto" ? "Painel automático do formulário: KPIs, gráficos por pergunta e filtros." : "Monte seu painel: adicione, configure, reordene e redimensione os widgets."}</div>
         </div>
-        <button onClick={() => setEditando({ id: novoId(), tipo: "kpi", metrica: "total", formulario_id: "todos", largura: 1 })} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>+ Widget</button>
-        <button onClick={salvar} style={btn(sujo ? "#0f3171" : "#94a3b8")}>💾 Salvar layout</button>
+        <div style={{ display: "flex", border: "1px solid #e2e8f0", borderRadius: 9, overflow: "hidden", flexShrink: 0 }}>
+          {(["auto", "custom"] as const).map(mo => (
+            <button key={mo} onClick={() => setModo(mo)} style={{ padding: "7px 12px", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: modo === mo ? "#0f3171" : "#fff", color: modo === mo ? "#fff" : "#64748b" }}>
+              {mo === "auto" ? "Painel automático" : "Meu painel"}
+            </button>
+          ))}
+        </div>
+        {modo === "custom" && <>
+          <button onClick={() => setEditando({ id: novoId(), tipo: "kpi", metrica: "total", formulario_id: "todos", largura: 1 })} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>+ Widget</button>
+          <button onClick={salvar} style={btn(sujo ? "#0f3171" : "#94a3b8")}>💾 Salvar layout</button>
+        </>}
       </div>
 
+      {modo === "auto" && (
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 10, padding: "12px 22px", margin: "12px 24px 0", border: "1px solid #e2e8f0", borderRadius: 14, background: "#fff", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <label style={lbl}>Formulário</label>
+            <select value={formSel} onChange={e => setFormSel(e.target.value)} style={inp}>
+              {forms.length === 0 && <option value="">Nenhum formulário</option>}
+              {forms.map(f => <option key={f.id} value={f.id}>{f.titulo}</option>)}
+            </select>
+          </div>
+          <div style={{ minWidth: 150 }}>
+            <label style={lbl}>Período</label>
+            <select value={periodo} onChange={e => setPeriodo(e.target.value as any)} style={inp}>
+              <option value="todos">Todo o período</option>
+              <option value="7">Últimos 7 dias</option>
+              <option value="30">Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
+              <option value="365">Último ano</option>
+            </select>
+          </div>
+          <div style={{ minWidth: 180, flex: 1 }}>
+            <label style={lbl}>Respondente</label>
+            <input value={buscaResp} onChange={e => setBuscaResp(e.target.value)} placeholder="Filtrar por nome…" style={inp} />
+          </div>
+        </div>
+      )}
+
       <div style={{ flex: 1, overflowY: "auto", padding: "18px 24px 40px" }}>
-        {widgets.length === 0 ? (
+        {modo === "auto" ? (
+          !formAtual ? (
+            <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Selecione um formulário para ver o painel.</div>
+          ) : (
+            <PainelAuto form={formAtual} respsForm={respsForm} respsPeriodo={respsPeriodo} />
+          )
+        ) : widgets.length === 0 ? (
           <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Painel vazio - clique em <b>+ Widget</b> para começar.</div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
@@ -340,5 +398,128 @@ function ModalWidget({ w, forms, pergs, onClose, onOk }: { w: Widget; forms: For
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Painel automático de UM formulário: KPIs + 1 gráfico por pergunta ──────
+const CHART_TIPOS = ["multipla_escolha", "caixas_selecao", "lista_suspensa", "escala", "escala_trabalho"];
+
+function distrib(p: Pergunta, resps: Resp[]) {
+  const cont: Record<string, number> = {};
+  resps.forEach(r => { const v = r.itens[p.id]; if (v == null || v === "") return; (Array.isArray(v) ? v : [v]).forEach(x => { cont[String(x)] = (cont[String(x)] || 0) + 1; }); });
+  let chaves: string[];
+  if (p.tipo === "escala") { chaves = []; for (let n = p.config?.min ?? 1; n <= (p.config?.max ?? 5); n++) chaves.push(String(n)); }
+  else chaves = p.opcoes.length ? p.opcoes : Object.keys(cont);
+  return chaves.map(k => ({ nome: k.length > 22 ? k.slice(0, 22) + "…" : k, completo: k, n: cont[k] || 0 }));
+}
+
+function PainelAuto({ form, respsForm, respsPeriodo }: { form: Formulario; respsForm: Resp[]; respsPeriodo: Resp[] }) {
+  const pergs = normalizaPerguntas(form.perguntas);
+  const chartPergs = pergs.filter(p => CHART_TIPOS.includes(p.tipo));
+  const textPergs = pergs.filter(p => ["texto_curto", "texto_longo"].includes(p.tipo));
+  const total = respsForm.length;
+  const respondentes = new Set(respsPeriodo.map(r => (r.respondente_nome ?? "").trim()).filter(Boolean)).size;
+  const ultimaTs = respsForm.reduce((m, r) => Math.max(m, +new Date(r.enviado_em)), 0);
+  const kpis: { t: string; v: string; c: string; i: string }[] = [
+    { t: "Total de respostas", v: String(total), c: "#0f3171", i: "📬" },
+    { t: "No período", v: String(respsPeriodo.length), c: "#2563eb", i: "🗓" },
+    { t: "Respondentes", v: String(respondentes), c: "#16a34a", i: "👤" },
+    { t: "Perguntas", v: String(pergs.length), c: "#7c3aed", i: "❓" },
+    { t: "Última resposta", v: ultimaTs ? fmtDt(new Date(ultimaTs).toISOString()) : "—", c: "#0891b2", i: "🕑" },
+  ];
+  if (form.max_respostas) kpis.push({ t: "Do limite", v: `${Math.round((total / form.max_respostas) * 100)}%`, c: "#ea580c", i: "🎯" });
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 16 }}>
+        {kpis.map(k => (
+          <div key={k.t} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px" }}>{k.i} {k.t}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: k.c, marginTop: 4 }}>{k.v}</div>
+          </div>
+        ))}
+      </div>
+      {respsPeriodo.length === 0 ? (
+        <div style={{ padding: 50, textAlign: "center", color: "#94a3b8", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14 }}>Sem respostas no período selecionado.</div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: 14, alignItems: "start" }}>
+          {chartPergs.map(p => {
+            const dados = distrib(p, respsPeriodo);
+            const respondidas = dados.reduce((s, d) => s + d.n, 0);
+            const top = [...dados].filter(d => d.n).sort((a, b) => b.n - a.n)[0];
+            const media = p.tipo === "escala" && respondidas ? (dados.reduce((s, d) => s + Number(d.completo) * d.n, 0) / respondidas) : null;
+            return (
+              <div key={p.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", marginBottom: 2 }}>{p.titulo || "Pergunta"}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10 }}>{respondidas} resposta(s){media != null ? ` · média ${media.toFixed(2)}` : ""}</div>
+                <GraficoPergunta dados={dados} tipo={((p.config?.grafico as any) ?? "barras")} />
+                {top && respondidas > 0 && <div style={{ fontSize: 11.5, color: "#475569", marginTop: 8 }}>🏆 Mais escolhida: <b>{top.completo}</b> ({Math.round((top.n / respondidas) * 100)}%)</div>}
+              </div>
+            );
+          })}
+          {textPergs.map(p => {
+            const respostas = respsPeriodo.map(r => r.itens[p.id]).filter(v => v != null && String(v).trim() !== "").map(String);
+            return (
+              <div key={p.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", marginBottom: 2 }}>{p.titulo || "Pergunta"}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10 }}>{respostas.length} resposta(s) de texto</div>
+                {respostas.length === 0 ? <div style={{ fontSize: 12, color: "#94a3b8" }}>Sem respostas.</div> : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 210, overflowY: "auto" }}>
+                    {respostas.slice(0, 12).map((t, idx) => (
+                      <div key={idx} style={{ fontSize: 12.5, color: "#334155", background: "#f8fafc", border: "1px solid #eef2f7", borderRadius: 8, padding: "6px 9px" }}>{t.length > 220 ? t.slice(0, 220) + "…" : t}</div>
+                    ))}
+                    {respostas.length > 12 && <div style={{ fontSize: 11, color: "#94a3b8" }}>+{respostas.length - 12} outra(s)…</div>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GraficoPergunta({ dados, tipo }: { dados: { nome: string; completo: string; n: number }[]; tipo: "barras" | "colunas" | "pizza" | "rosca" }) {
+  const comDados = dados.filter(d => d.n);
+  if (!comDados.length) return <div style={{ fontSize: 12, color: "#94a3b8" }}>Sem respostas.</div>;
+  if (tipo === "pizza" || tipo === "rosca") {
+    return (
+      <ResponsiveContainer width="100%" height={210}>
+        <PieChart>
+          <Pie data={comDados} dataKey="n" nameKey="nome" cx="50%" cy="50%" innerRadius={tipo === "rosca" ? 48 : 0} outerRadius={78} label={(e: any) => e.nome}>
+            {comDados.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
+          </Pie>
+          <Tooltip formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
+        </PieChart>
+      </ResponsiveContainer>
+    );
+  }
+  if (tipo === "colunas") {
+    return (
+      <ResponsiveContainer width="100%" height={210}>
+        <BarChart data={dados} margin={{ top: 6, right: 6, left: -20, bottom: 0 }}>
+          <XAxis dataKey="nome" tick={{ fontSize: 10 }} interval={0} angle={dados.length > 5 ? -25 : 0} textAnchor={dados.length > 5 ? "end" : "middle"} height={dados.length > 5 ? 48 : 24} />
+          <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+          <Tooltip formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
+          <Bar dataKey="n" radius={[4, 4, 0, 0]}>
+            {dados.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+  // barras (horizontal) — default
+  return (
+    <ResponsiveContainer width="100%" height={Math.max(150, dados.length * 30)}>
+      <BarChart data={dados} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
+        <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+        <YAxis type="category" dataKey="nome" width={130} tick={{ fontSize: 10.5 }} />
+        <Tooltip formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
+        <Bar dataKey="n" radius={[0, 4, 4, 0]}>
+          {dados.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
