@@ -54,6 +54,10 @@ function AnimStyles() {
     .fp-in { opacity:0; animation: fpFadeUp .6s cubic-bezier(.22,1,.36,1) forwards; }
     .fp-card-h { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
     .fp-card-h:hover { transform: translateY(-3px); box-shadow: 0 18px 40px rgba(15,23,42,.12); border-color: #c7d2fe; }
+    /* Card com autocomplete aberto sobe acima dos vizinhos e não faz o hover-lift
+       (senão a lista de sugestões fica atrás do card seguinte). */
+    .fp-card-h:has(.fp-open) { position: relative; z-index: 40; }
+    .fp-card-h:has(.fp-open):hover { transform: none; }
     .fp-scope input:not([type=radio]):not([type=checkbox]):focus, .fp-scope textarea:focus, .fp-scope select:focus { border-color:#0f3171 !important; box-shadow: 0 0 0 4px rgba(15,49,113,.13); }
     .fp-scope input, .fp-scope textarea, .fp-scope select { transition: border-color .18s ease, box-shadow .18s ease; }
     .fp-submit { position: relative; overflow: hidden; transition: transform .2s ease, box-shadow .2s ease, filter .2s ease; }
@@ -145,7 +149,12 @@ function ColaboradorSelect({ value, onChange }: { value: string; onChange: (v: s
     let query = (supabase as any).from("EMPREGADOS")
       .select('"ID","Nome","Setor_ERP","Título do Cargo","Situação"')
       .order('"Nome"').limit(40);
-    if (termo.length >= 2) query = query.ilike("Nome", `%${termo}%`);
+    // Busca por PALAVRA: cada palavra (≥2 letras) precisa aparecer no nome, em
+    // qualquer ordem — "helena nasciment" acha "HELENA SILVA NASCIMENTO".
+    if (termo.length >= 2) {
+      const palavras = termo.split(/\s+/).map(w => w.replace(/[%_\\]/g, "")).filter(w => w.length >= 2);
+      for (const w of palavras) query = query.ilike("Nome", `%${w}%`);
+    }
     const { data } = await query;
     setResultados((data ?? [])
       .filter((r: any) => !/demitid/i.test(String(r["Situação"] ?? "")))  // só demitido fica de fora
@@ -153,11 +162,11 @@ function ColaboradorSelect({ value, onChange }: { value: string; onChange: (v: s
       .filter((x: any) => x.nome));
   };
   return (
-    <div style={{ position: "relative", maxWidth: 420 }}>
+    <div className={aberto ? "fp-open" : undefined} style={{ position: "relative", maxWidth: 420, zIndex: aberto ? 40 : "auto" }}>
       <input value={aberto ? busca : (value || "")} onFocus={() => buscar("")} onBlur={() => setTimeout(() => setAberto(false), 150)} onChange={e => buscar(e.target.value)}
         placeholder="Digite o nome do colaborador..." style={inp} />
       {aberto && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 20, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 40, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
           {resultados.length === 0 && <div style={{ padding: "8px 11px", fontSize: 12, color: "#94a3b8" }}>{busca.trim().length < 2 ? "Digite ao menos 2 letras..." : "Nenhum colaborador encontrado."}</div>}
           {resultados.map(r => (
             <div key={r.id} onMouseDown={() => { onChange(r.nome); setAberto(false); }} style={{ padding: "8px 11px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>

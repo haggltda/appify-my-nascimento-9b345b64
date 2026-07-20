@@ -38,6 +38,7 @@ export interface Formulario {
   seguranca?: "liberado" | "restrito";
   exige_senha?: boolean;
   setores_acesso?: string[] | null;   // setores (Setor_ERP) liberados quando restrito
+  deleted_at?: string | null;         // soft-delete: na lixeira quando != null
 }
 
 /** Rótulo/cor da segurança, p/ badge na lista e no editor. */
@@ -97,6 +98,11 @@ export default function Formularios() {
   const [importPreview, setImportPreview] = useState<ImportResultado | null>(null);
   const [importTitulo, setImportTitulo] = useState("");
   const [importando, setImportando] = useState(false);
+  const [excluindo, setExcluindo] = useState<Formulario | null>(null);  // modal "digite CONFIRMAR"
+  const [confirmTxt, setConfirmTxt] = useState("");
+  const [lixeiraAberta, setLixeiraAberta] = useState(false);
+  const [lixeira, setLixeira] = useState<Formulario[]>([]);
+  const [lixeiraLoading, setLixeiraLoading] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
   const toast = (msg: string, t = "info") => { const id = Date.now() + Math.random(); setToasts(x => [...x, { id, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== id)), 4200); };
@@ -104,7 +110,7 @@ export default function Formularios() {
   const load = useCallback(async () => {
     setLoading(true);
     const [fRes, rRes] = await Promise.all([
-      (supabase as any).from("CS_FORMULARIOS").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("CS_FORMULARIOS").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
       (supabase as any).from("CS_FORM_RESPOSTAS").select("formulario_id"),
     ]);
     setLoading(false);
@@ -224,13 +230,39 @@ export default function Formularios() {
     load();
   };
 
-  const excluir = async (f: Formulario) => {
-    const n = contagens[f.id] || 0;
-    if (!confirm(`Excluir "${f.titulo}"?${n ? ` As ${n} resposta(s) também serão excluídas.` : ""} Essa ação não tem volta.`)) return;
-    const { error } = await (supabase as any).from("CS_FORMULARIOS").delete().eq("id", f.id);
+  // Excluir = soft-delete (vai p/ lixeira 30 dias). Exige digitar CONFIRMAR.
+  const confirmarExcluir = async () => {
+    if (!excluindo) return;
+    if (confirmTxt.trim().toUpperCase() !== "CONFIRMAR") { toast('Digite CONFIRMAR para excluir.', "err"); return; }
+    const { error } = await (supabase as any).from("CS_FORMULARIOS").update({ deleted_at: new Date().toISOString() }).eq("id", excluindo.id);
     if (error) { toast("Erro ao excluir: " + error.message, "err"); return; }
-    toast("Formulário excluído.", "ok");
+    toast("Formulário movido para a lixeira (30 dias para restaurar).", "ok");
+    setExcluindo(null); setConfirmTxt("");
     load();
+  };
+
+  // ── Lixeira ──────────────────────────────────────────────────────────
+  const abrirLixeira = async () => {
+    setLixeiraAberta(true); setLixeiraLoading(true);
+    await (supabase as any).rpc("cs_form_purgar_lixeira");  // purga os > 30 dias (best-effort)
+    const { data, error } = await (supabase as any).from("CS_FORMULARIOS")
+      .select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false });
+    setLixeiraLoading(false);
+    if (error) { toast("Erro ao abrir lixeira: " + error.message, "err"); return; }
+    setLixeira(data ?? []);
+  };
+  const restaurar = async (f: Formulario) => {
+    const { error } = await (supabase as any).from("CS_FORMULARIOS").update({ deleted_at: null }).eq("id", f.id);
+    if (error) { toast("Erro ao restaurar: " + error.message, "err"); return; }
+    toast("Formulário restaurado.", "ok");
+    setLixeira(xs => xs.filter(x => x.id !== f.id));
+    load();
+  };
+  // dias que faltam p/ o apagado ser removido de vez (30 dias após deleted_at).
+  const diasRestantes = (f: Formulario) => {
+    const d = f.deleted_at ? new Date(f.deleted_at) : null;
+    if (!d) return 0;
+    return Math.max(0, 30 - Math.floor((Date.now() - d.getTime()) / 86400000));
   };
 
   // Formulário restrito a setores (setores_acesso) só aparece para esse setor;
@@ -265,6 +297,7 @@ export default function Formularios() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canVerAlguma && <button onClick={() => nav("/app/central-servicos/formularios/dashboard")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>📊 Dashboard</button>}
+          {can("ver_lixeira") && <button onClick={abrirLixeira} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>🗑 Lixeira</button>}
           {podeCriar && <>
             {can("editar_criar") && <>
               <button onClick={() => importRef.current?.click()} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬆ Importar SurveyMonkey</button>
@@ -324,7 +357,7 @@ export default function Formularios() {
                       </>}
                       {podeEncerrar(f) && f.status === "encerrado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Reabrir</button>}
                       {podeEditar(f) && <button onClick={() => duplicar(f)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Duplicar</button>}
-                      {podeEncerrar(f) && <button onClick={() => excluir(f)} style={btn("transparent", "#94a3b8")}>Excluir</button>}
+                      {podeEncerrar(f) && <button onClick={() => { setExcluindo(f); setConfirmTxt(""); }} style={btn("transparent", "#94a3b8")}>Excluir</button>}
                     </div>
                   </div>
                 </div>
@@ -396,6 +429,65 @@ export default function Formularios() {
               <button onClick={importar} disabled={importando} style={btn(importando ? "#94a3b8" : "#16a34a")}>
                 {importando ? "Importando..." : `✓ Importar${importPreview.respostas.length ? ` (${importPreview.respostas.length} respostas)` : ""}`}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: excluir formulário (digitar CONFIRMAR) */}
+      {excluindo && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900, padding: 16 }} onClick={() => { setExcluindo(null); setConfirmTxt(""); }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 22, width: 460, maxWidth: "92vw", position: "relative" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4, color: "#b91c1c" }}>Excluir formulário</div>
+            <div style={{ fontSize: 13, color: "#334155", marginBottom: 6 }}>
+              Você vai excluir <b>"{excluindo.titulo}"</b>{(contagens[excluindo.id] || 0) > 0 ? <> — que tem <b>{contagens[excluindo.id]}</b> resposta(s)</> : null}.
+            </div>
+            <div style={{ fontSize: 12.5, color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 11px", marginBottom: 12 }}>
+              Ele vai para a <b>lixeira por 30 dias</b> e pode ser restaurado. Depois disso é apagado de vez.
+            </div>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Digite <b style={{ color: "#b91c1c" }}>CONFIRMAR</b> para excluir</label>
+            <input autoFocus value={confirmTxt} onChange={e => setConfirmTxt(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && confirmarExcluir()} placeholder="CONFIRMAR"
+              style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 13.5, outline: "none", textTransform: "uppercase" }} />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => { setExcluindo(null); setConfirmTxt(""); }} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Cancelar</button>
+              <button onClick={confirmarExcluir} disabled={confirmTxt.trim().toUpperCase() !== "CONFIRMAR"}
+                style={{ ...btn(confirmTxt.trim().toUpperCase() === "CONFIRMAR" ? "#dc2626" : "#fca5a5"), cursor: confirmTxt.trim().toUpperCase() === "CONFIRMAR" ? "pointer" : "not-allowed" }}>
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: lixeira (formulários apagados, restauráveis 30 dias) */}
+      {lixeiraAberta && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900, padding: 16 }} onClick={() => setLixeiraAberta(false)}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 22, width: 620, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>🗑 Lixeira</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>Formulários apagados ficam aqui por 30 dias e podem ser restaurados. Depois disso são removidos automaticamente.</div>
+            {lixeiraLoading ? (
+              <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8" }}>Carregando…</div>
+            ) : lixeira.length === 0 ? (
+              <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8" }}>A lixeira está vazia.</div>
+            ) : (
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+                {lixeira.map(f => (
+                  <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderBottom: "1px solid #f1f5f9" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titulo}</div>
+                      <div style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                        Apagado em {fmtDt(f.deleted_at)} · restam <b style={{ color: diasRestantes(f) <= 5 ? "#dc2626" : "#475569" }}>{diasRestantes(f)} dia(s)</b>
+                        {f.setor ? ` · setor ${f.setor}` : ""}
+                      </div>
+                    </div>
+                    <button onClick={() => restaurar(f)} style={btn("#16a34a")}>↩ Restaurar</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => setLixeiraAberta(false)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Fechar</button>
             </div>
           </div>
         </div>

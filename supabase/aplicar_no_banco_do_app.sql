@@ -4145,3 +4145,312 @@ CREATE POLICY empregados_update_rh ON public."EMPREGADOS"
   FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
 NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260716000006_remover_admin_usuarios_acessos =====
+-- =========================================================================
+-- Reverte a delegação: Vincular/Ver detalhes voltam a ser SÓ de admin. As
+-- RPCs voltam a checar has_role(admin); helper pode_acao_usuario e tabela
+-- ADMIN_USUARIOS_ACESSOS saem. Idempotente.
+-- =========================================================================
+CREATE OR REPLACE FUNCTION public.admin_vincular_empregado(
+  p_user_id     uuid,
+  p_empregado_id bigint
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_emp  public."EMPREGADOS"%ROWTYPE;
+  v_bloq text[] := ARRAY['DEMITIDO','DEMITIDA','RESCISÃO','DESLIGADO','DESLIGADA'];
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Apenas administradores podem vincular.');
+  END IF;
+  IF p_user_id IS NULL OR p_empregado_id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Usuário e colaborador são obrigatórios.');
+  END IF;
+
+  SELECT * INTO v_emp FROM public."EMPREGADOS" WHERE "ID" = p_empregado_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Cadastro não encontrado.');
+  END IF;
+
+  IF upper(coalesce(v_emp."Situação",'')) = ANY (v_bloq) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Colaborador desligado — não pode ser vinculado.');
+  END IF;
+
+  IF v_emp.auth_user_id IS NOT NULL AND v_emp.auth_user_id <> p_user_id THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Este cadastro já está vinculado a outro usuário.');
+  END IF;
+
+  UPDATE public."EMPREGADOS"
+     SET auth_user_id = NULL
+   WHERE auth_user_id = p_user_id AND "ID" <> p_empregado_id;
+
+  UPDATE public."EMPREGADOS"
+     SET auth_user_id = p_user_id,
+         "email" = CASE
+                     WHEN coalesce(btrim("email"), '') = ''
+                     THEN (SELECT u.email FROM auth.users u WHERE u.id = p_user_id)
+                     ELSE "email"
+                   END
+   WHERE "ID" = p_empregado_id;
+
+  UPDATE public.profiles SET display_name = v_emp."Nome" WHERE id = p_user_id;
+
+  RETURN jsonb_build_object('ok', true, 'empregado', jsonb_build_object(
+    'id', v_emp."ID", 'nome', coalesce(v_emp."Nome",''), 'cargo', coalesce(v_emp."Título do Cargo",''),
+    'setor', coalesce(v_emp."Setor_ERP",''), 'situacao', coalesce(v_emp."Situação",'')));
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Conflito de vínculo — recarregue e tente de novo.');
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_vincular_empregado(uuid, bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_vincular_empregado(uuid, bigint) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_desvincular_empregado(p_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Apenas administradores podem desvincular.');
+  END IF;
+  UPDATE public."EMPREGADOS" SET auth_user_id = NULL WHERE auth_user_id = p_user_id;
+  RETURN jsonb_build_object('ok', true);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_desvincular_empregado(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_desvincular_empregado(uuid) TO authenticated;
+
+DROP FUNCTION IF EXISTS public.pode_acao_usuario(text);
+DROP TABLE IF EXISTS public."ADMIN_USUARIOS_ACESSOS";
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260720000001_empregados_cpf_formato_pontuado =====
+-- =========================================================================
+-- EMPREGADOS — Padronizar CPF no formato pontuado (XXX.XXX.XXX-XX)
+--
+-- Alguns CPFs estão só com dígitos (05566199003), outros pontuados
+-- (055.661.990-03). É o MESMO valor — muda só a formatação. Normaliza tudo
+-- para o formato com pontuação. Completa zero à esquerda até 11 dígitos (cobre
+-- CPFs que perderam o zero por já terem sido salvos como número). Idempotente:
+-- só toca em linhas com 8..11 dígitos e que ainda não estejam no formato certo.
+-- =========================================================================
+
+DO $$
+DECLARE
+  v_norm int;
+  v_fora int;
+BEGIN
+  WITH atualizadas AS (
+    UPDATE public."EMPREGADOS" e
+       SET "CPF" = regexp_replace(
+             lpad(regexp_replace(e."CPF", '\D', '', 'g'), 11, '0'),
+             '(\d{3})(\d{3})(\d{3})(\d{2})', '\1.\2.\3-\4'
+           )
+     WHERE e."CPF" IS NOT NULL
+       AND length(regexp_replace(e."CPF", '\D', '', 'g')) BETWEEN 8 AND 11
+       AND e."CPF" IS DISTINCT FROM regexp_replace(
+             lpad(regexp_replace(e."CPF", '\D', '', 'g'), 11, '0'),
+             '(\d{3})(\d{3})(\d{3})(\d{2})', '\1.\2.\3-\4'
+           )
+    RETURNING 1
+  )
+  SELECT count(*) INTO v_norm FROM atualizadas;
+
+  SELECT count(*) INTO v_fora
+  FROM public."EMPREGADOS" e
+  WHERE coalesce(btrim(e."CPF"), '') <> ''
+    AND length(regexp_replace(e."CPF", '\D', '', 'g')) NOT BETWEEN 8 AND 11;
+
+  RAISE NOTICE 'CPFs normalizados: %; fora do padrao (revisar manualmente): %', v_norm, v_fora;
+END $$;
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260720000002_admin_buscar_empregados =====
+-- =========================================================================
+-- ADMIN — Busca de colaboradores para o "Vincular colaborador"
+--
+-- A tela fazia SELECT direto na EMPREGADOS com .or(ilike), que dependia de RLS
+-- e não ignorava acento / não quebrava em palavras / não casava CPF por dígitos
+-- → buscas corretas não achavam ninguém. Esta RPC SECURITY DEFINER (padrão dos
+-- outros fluxos de vínculo) faz a busca no servidor: só admin; ignora acento e
+-- caixa; por NOME cada palavra precisa aparecer (qualquer ordem); por CPF casa
+-- pelos dígitos; exclui desligados. Idempotente.
+-- =========================================================================
+
+CREATE OR REPLACE FUNCTION public.admin_buscar_empregados(p_termo text)
+RETURNS TABLE (
+  "ID"               bigint,
+  "Nome"             text,
+  "CPF"              text,
+  "Título do Cargo"  text,
+  "Setor_ERP"        text,
+  "Situação"         text,
+  auth_user_id       uuid
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_q      text   := btrim(coalesce(p_termo, ''));
+  v_digits text   := regexp_replace(v_q, '\D', '', 'g');
+  v_tokens text[];
+  v_bloq   text[] := ARRAY['DEMITIDO','DEMITIDA','RESCISÃO','DESLIGADO','DESLIGADA'];
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN
+    RETURN;
+  END IF;
+  IF length(v_q) < 2 THEN
+    RETURN;
+  END IF;
+
+  v_tokens := ARRAY(
+    SELECT regexp_replace(lower(unaccent_safe(w)), '[^a-z0-9]+', '', 'g')
+    FROM regexp_split_to_table(v_q, '\s+') AS w
+  );
+
+  RETURN QUERY
+  SELECT e."ID", e."Nome", e."CPF", e."Título do Cargo", e."Setor_ERP", e."Situação", e.auth_user_id
+  FROM public."EMPREGADOS" e
+  WHERE upper(coalesce(e."Situação", '')) <> ALL (v_bloq)
+    AND (
+      ( EXISTS (SELECT 1 FROM unnest(v_tokens) t WHERE t <> '')
+        AND NOT EXISTS (
+          SELECT 1 FROM unnest(v_tokens) t
+          WHERE t <> ''
+            AND regexp_replace(lower(unaccent_safe(coalesce(e."Nome", ''))), '[^a-z0-9]+', '', 'g')
+                NOT LIKE '%' || t || '%'
+        )
+      )
+      OR
+      ( length(v_digits) >= 3
+        AND regexp_replace(coalesce(e."CPF", ''), '\D', '', 'g') LIKE '%' || v_digits || '%'
+      )
+    )
+  ORDER BY e."Nome"
+  LIMIT 30;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.admin_buscar_empregados(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_buscar_empregados(text) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260720000003_formularios_lixeira =====
+ALTER TABLE public."CS_FORMULARIOS" ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+CREATE INDEX IF NOT EXISTS cs_forms_deleted_idx ON public."CS_FORMULARIOS"(deleted_at);
+
+-- 2) Novo papel 'ver_lixeira' (global, sem setor — coberto pelo unq_global)
+ALTER TABLE public."CS_FORM_ACESSOS" DROP CONSTRAINT IF EXISTS cs_form_acessos_papel_check;
+ALTER TABLE public."CS_FORM_ACESSOS" ADD  CONSTRAINT cs_form_acessos_papel_check CHECK (papel IN (
+  'editar_criar', 'responder', 'encerrar_excluir', 'ver_tudo', 'ver_proprias',
+  'ver_setor', 'criar_setor', 'ver_lixeira', 'dashboard'));
+
+-- 3) Leitura do formulário: ativos como antes; apagados só p/ quem tem ver_lixeira
+DROP POLICY IF EXISTS cs_forms_select ON public."CS_FORMULARIOS";
+CREATE POLICY cs_forms_select ON public."CS_FORMULARIOS"
+  FOR SELECT TO authenticated USING (
+    (deleted_at IS NULL AND (
+      visibilidade = 'todos'
+      OR criado_por = auth.uid()
+      OR EXISTS (SELECT 1 FROM public."CS_FORM_VISIBILIDADE" v
+                  WHERE v.formulario_id = "CS_FORMULARIOS".id AND v.user_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM public."CS_FORM_GESTORES" g WHERE g.user_id = auth.uid())
+    ))
+    OR (deleted_at IS NOT NULL AND public.cs_form_cap('ver_lixeira'))
+  );
+
+-- anon nunca vê apagado
+DROP POLICY IF EXISTS cs_forms_public_read ON public."CS_FORMULARIOS";
+CREATE POLICY cs_forms_public_read ON public."CS_FORMULARIOS"
+  FOR SELECT TO anon USING (status = 'publicado' AND seguranca = 'liberado' AND deleted_at IS NULL);
+
+-- 4) Update: criador/gestor OU quem tem ver_lixeira (p/ restaurar apagado)
+DROP POLICY IF EXISTS cs_forms_update ON public."CS_FORMULARIOS";
+CREATE POLICY cs_forms_update ON public."CS_FORMULARIOS"
+  FOR UPDATE TO authenticated
+  USING (criado_por = auth.uid() OR public.cs_form_pode_criar() OR public.cs_form_cap('ver_lixeira'))
+  WITH CHECK (criado_por = auth.uid() OR public.cs_form_pode_criar() OR public.cs_form_cap('ver_lixeira'));
+
+-- 5) Formulário na lixeira não está "aberto" (não recebe resposta)
+CREATE OR REPLACE FUNCTION public.cs_form_aberto(_form_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public."CS_FORMULARIOS" f
+     WHERE f.id = _form_id
+       AND f.deleted_at IS NULL
+       AND f.status = 'publicado'
+       AND (f.inicia_em  IS NULL OR now() >= f.inicia_em)
+       AND (f.encerra_em IS NULL OR now() <= f.encerra_em)
+       AND (f.max_respostas IS NULL OR
+            (SELECT count(*) FROM public."CS_FORM_RESPOSTAS" r WHERE r.formulario_id = f.id) < f.max_respostas));
+$$;
+
+-- 6) Porta pública: formulário apagado responde "não existe"
+CREATE OR REPLACE FUNCTION public.cs_form_porta(_slug text)
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT COALESCE(
+    (SELECT jsonb_build_object(
+              'existe', true,
+              'seguranca', f.seguranca,
+              'exige_senha', f.exige_senha,
+              'publicado', f.status = 'publicado')
+       FROM public."CS_FORMULARIOS" f WHERE f.slug = _slug AND f.deleted_at IS NULL),
+    jsonb_build_object('existe', false));
+$$;
+
+-- 7) Purga: apaga de vez o que passou de 30 dias na lixeira (só ver_lixeira).
+CREATE OR REPLACE FUNCTION public.cs_form_purgar_lixeira()
+RETURNS integer LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_n integer;
+BEGIN
+  IF NOT public.cs_form_cap('ver_lixeira') THEN
+    RETURN 0;
+  END IF;
+  -- respostas primeiro (caso não haja cascade), depois o formulário.
+  DELETE FROM public."CS_FORM_RESPOSTAS" r
+   USING public."CS_FORMULARIOS" f
+   WHERE r.formulario_id = f.id
+     AND f.deleted_at IS NOT NULL
+     AND f.deleted_at < now() - interval '30 days';
+  WITH del AS (
+    DELETE FROM public."CS_FORMULARIOS"
+     WHERE deleted_at IS NOT NULL AND deleted_at < now() - interval '30 days'
+    RETURNING 1
+  )
+  SELECT count(*) INTO v_n FROM del;
+  RETURN v_n;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.cs_form_purgar_lixeira() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.cs_form_purgar_lixeira() TO authenticated;
+
+-- 8) Quantas respostas já usam uma pergunta (aviso ao excluir pergunta no editor).
+CREATE OR REPLACE FUNCTION public.cs_form_pergunta_respostas(_form_id uuid, _perg text)
+RETURNS integer LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT count(*)::integer
+    FROM public."CS_FORM_RESPOSTAS" r
+   WHERE r.formulario_id = _form_id
+     AND r.itens ? _perg
+     AND COALESCE(btrim(r.itens ->> _perg), '') <> '';
+$$;
+REVOKE ALL ON FUNCTION public.cs_form_pergunta_respostas(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.cs_form_pergunta_respostas(uuid, text) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

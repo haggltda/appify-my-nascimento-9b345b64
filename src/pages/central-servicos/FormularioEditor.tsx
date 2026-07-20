@@ -255,6 +255,16 @@ export default function FormularioEditor() {
   };
   const insertPergunta = (i: number) => { setPergs(ps => { const a = [...ps]; a.splice(i + 1, 0, { id: novoUuid(), tipo: "texto_curto", titulo: "", obrigatoria: false, opcoes: [], config: {} }); return a; }); setSujo(true); };
   const removePergunta = (i: number) => { setPergs(ps => ps.filter((_, j) => j !== i)); setSujo(true); };
+  // Excluir pergunta com confirmação; avisa se ela já tem respostas gravadas.
+  const [apagarPerg, setApagarPerg] = useState<{ i: number; p: Pergunta } | null>(null);
+  const [apagarPergN, setApagarPergN] = useState<number | null>(null);  // null = contando
+  const pedirRemoverPergunta = async (i: number) => {
+    const p = pergs[i];
+    setApagarPerg({ i, p }); setApagarPergN(null);
+    const { data } = await (supabase as any).rpc("cs_form_pergunta_respostas", { _form_id: id, _perg: p.id });
+    setApagarPergN(typeof data === "number" ? data : 0);
+  };
+  const confirmarRemoverPergunta = () => { if (apagarPerg) removePergunta(apagarPerg.i); setApagarPerg(null); setApagarPergN(null); };
   const move = (i: number, dir: -1 | 1) => {
     setPergs(ps => { const a = [...ps]; const j = i + dir; if (j < 0 || j >= a.length) return ps; [a[i], a[j]] = [a[j], a[i]]; return a; });
     setSujo(true);
@@ -464,7 +474,7 @@ export default function FormularioEditor() {
                 <SortablePergunta key={p.id} id={p.id}>
                   {(handleProps) => (
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <PerguntaCard p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={removePergunta} upload={upload} setores={setoresErp} usuarios={usuarios} handleProps={handleProps} />
+                      <PerguntaCard p={p} i={i} total={pergs.length} muda={mudaPerg} move={move} remove={pedirRemoverPergunta} upload={upload} setores={setoresErp} usuarios={usuarios} handleProps={handleProps} />
                       <div style={{ display: "flex", justifyContent: "center" }}>
                         <button onClick={() => insertPergunta(i)} title="Inserir pergunta abaixo"
                           style={{ width: 28, height: 28, borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", color: "#0f3171", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1, boxShadow: "0 2px 6px rgba(15,23,42,.08)" }}>+</button>
@@ -500,6 +510,32 @@ export default function FormularioEditor() {
           )}
         </div>
       </div>
+
+      {/* Confirmar exclusão de pergunta (avisa se já tem respostas) */}
+      {apagarPerg && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 950, padding: 16 }} onClick={() => { setApagarPerg(null); setApagarPergN(null); }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 22, width: 440, maxWidth: "92vw" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6, color: "#b91c1c" }}>Excluir pergunta</div>
+            <div style={{ fontSize: 13.5, color: "#334155" }}>
+              Tem certeza que deseja apagar esta pergunta{apagarPerg.p.titulo ? <> — <b>"{apagarPerg.p.titulo}"</b></> : null}?
+            </div>
+            {apagarPergN === null ? (
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 10 }}>Verificando respostas…</div>
+            ) : apagarPergN > 0 ? (
+              <div style={{ fontSize: 12.5, color: "#a16207", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "9px 11px", marginTop: 10 }}>
+                ⚠️ Essa pergunta já tem <b>{apagarPergN}</b> resposta(s). Apagá-la esconde essas respostas dos relatórios.
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 10 }}>Esta pergunta ainda não tem respostas.</div>
+            )}
+            <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 8 }}>A exclusão só é gravada quando você salvar o formulário.</div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => { setApagarPerg(null); setApagarPergN(null); }} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Cancelar</button>
+              <button onClick={confirmarRemoverPergunta} style={btn("#dc2626")}>Apagar pergunta</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ position: "fixed", bottom: 18, right: 18, display: "flex", flexDirection: "column", gap: 8, zIndex: 999 }}>
         {toasts.map(t => (

@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes, type Role } from "@/context/PermissoesContext";
-import { useUsuariosPerms } from "@/hooks/useUsuariosPerms";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +75,6 @@ export function UsuariosReal() {
   const { user } = useAuth();
   const { roles: myRoles } = usePermissoes();
   const podeEditar = (myRoles ?? []).includes("admin");
-  const { podeVincular, podeVerDetalhe } = useUsuariosPerms();
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
   const perfis = usePerfisDisponiveis();
@@ -261,9 +259,9 @@ export function UsuariosReal() {
                   {(() => {
                     // Compõe por capacidade: Detalhes/Vincular delegáveis; Editar só admin.
                     const acoes = [
-                      vinc
-                        ? (podeVerDetalhe && <ColaboradorDetalheDialog key="det" empregadoId={vinc.ID} userId={u.id} podeDesvincular={podeVincular} onChanged={invalidarVinculo} />)
-                        : (podeVincular && <VincularColaboradorDialog key="vin" userId={u.id} nomeUsuario={u.display_name ?? u.email ?? ""} onLinked={invalidarVinculo} />),
+                      podeEditar && (vinc
+                        ? <ColaboradorDetalheDialog key="det" empregadoId={vinc.ID} userId={u.id} podeDesvincular={podeEditar} onChanged={invalidarVinculo} />
+                        : <VincularColaboradorDialog key="vin" userId={u.id} nomeUsuario={u.display_name ?? u.email ?? ""} onLinked={invalidarVinculo} />),
                       podeEditar && (
                         <EditarUsuarioDialog
                           key="edit"
@@ -1157,21 +1155,18 @@ function VincularColaboradorDialog({ userId, nomeUsuario, onLinked }: { userId: 
     if (!open) { setTermo(""); setResultados([]); setSel(null); return; }
   }, [open]);
 
-  // Busca por nome/CPF; exclui desligados no client (regra dos demitidos).
+  // Busca por nome/CPF via RPC (ignora acento, quebra em palavras, casa CPF por
+  // dígitos e já exclui desligados no servidor).
   useEffect(() => {
     const q = termo.trim();
     if (q.length < 2) { setResultados([]); return; }
     let cancel = false;
     setBuscando(true);
     const t = setTimeout(async () => {
-      const escaped = q.replace(/[%,]/g, " ");
-      const { data } = await (supabase as any)
-        .from("EMPREGADOS")
-        .select('"ID","Nome","CPF","Título do Cargo","Setor_ERP","Situação",auth_user_id')
-        .or(`"Nome".ilike.%${escaped}%,"CPF".ilike.%${escaped}%`)
-        .limit(30);
+      const { data, error } = await (supabase as any).rpc("admin_buscar_empregados", { p_termo: q });
       if (cancel) return;
-      setResultados(((data ?? []) as EmpBusca[]).filter((e) => !ehDesligado(e["Situação"])));
+      if (error) { console.error("admin_buscar_empregados", error); setResultados([]); }
+      else setResultados((data ?? []) as EmpBusca[]);
       setBuscando(false);
     }, 300);
     return () => { cancel = true; clearTimeout(t); };
