@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { FormCap } from "@/hooks/useFormPerms";
 
 const FORM_MENU_CODIGO = "central_servicos_formularios";
-const ADMIN_MENU_CODIGO = "administracao";  // Configurações do ERP (/app/administracao)
 
 interface Modulo { id: string; codigo: string; nome: string; ordem: number; ativo: boolean; icone: string | null }
 interface Menu { id: string; modulo_id: string; codigo: string; nome: string; rota: string | null; ordem: number; ativo: boolean }
@@ -477,14 +476,12 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
                       const menuAccess = hasAccess(mn.codigo);
                       const isPending = pending.has(mn.codigo);
                       const isForm = mn.codigo === FORM_MENU_CODIGO;
-                      const isAdminMenu = mn.codigo === ADMIN_MENU_CODIGO;
-                      const temPainel = isForm || isAdminMenu;  // menus com painel de capacidades
                       const capsOpen = expanded.has(mn.id);
                       return (
                         <div key={mn.id}>
                           <div className={cn("flex items-center gap-2 px-12 py-2.5 hover:bg-muted/40", isPending && "bg-amber-50/50 dark:bg-amber-950/20")}>
-                            {temPainel && isAdmin ? (
-                              <button onClick={() => toggleExpand(mn.id)} className="text-muted-foreground" title="Permissões do usuário nesta tela">
+                            {isForm && isAdmin ? (
+                              <button onClick={() => toggleExpand(mn.id)} className="text-muted-foreground" title="Permissões do usuário nos formulários">
                                 {capsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                               </button>
                             ) : (
@@ -501,10 +498,9 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
                               aria-label={`Acesso ao menu ${mn.nome}`}
                             />
                           </div>
-                          {temPainel && isAdmin && capsOpen && (
+                          {isForm && isAdmin && capsOpen && (
                             <div className="border-t border-border/60 bg-background px-12 py-2">
-                              {isForm && <FormPermsUsuario userId={selectedUserId} onToast={(m, t) => toast({ title: m, variant: t === "err" ? "destructive" : "default" })} />}
-                              {isAdminMenu && <UsuariosPermsUsuario userId={selectedUserId} onToast={(m, t) => toast({ title: m, variant: t === "err" ? "destructive" : "default" })} />}
+                              <FormPermsUsuario userId={selectedUserId} onToast={(m, t) => toast({ title: m, variant: t === "err" ? "destructive" : "default" })} />
                             </div>
                           )}
                         </div>
@@ -535,6 +531,7 @@ const CAPS: { papel: FormCap; rotulo: string; desc: string }[] = [
   { papel: "encerrar_excluir", rotulo: "Encerrar / Excluir",       desc: "Publicar, encerrar, reabrir e excluir" },
   { papel: "ver_tudo",         rotulo: "Visualizar tudo",          desc: "Ver todas as respostas" },
   { papel: "ver_proprias",     rotulo: "So as proprias respostas", desc: "So o que a propria pessoa enviou" },
+  { papel: "ver_lixeira",      rotulo: "Lixeira de formularios",   desc: "Ver e restaurar formularios apagados (30 dias)" },
 ];
 
 // Lista de capacidades como linhas com Switch à direita (mesmo padrão dos menus).
@@ -694,57 +691,6 @@ function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: st
           descLinha={(s) => `So cria formularios do ${s} e ve todas as respostas deles`}
           ariaLinha={(s) => `Criar formularios de ${s}`}
           setores={setoresErp} marcados={setoresCriar} onToggle={criarSetorH.onToggle} onLimpar={criarSetorH.onLimpar} />
-      </div>
-    </div>
-  );
-}
-
-// ─── Capacidades da tela de Usuários (Configurações do ERP) por usuário ─────
-// Espelha ADMIN_USUARIOS_ACESSOS (papel = vincular_usuario / ver_detalhe_usuario).
-const USUARIO_CAPS: { papel: "vincular_usuario" | "ver_detalhe_usuario"; rotulo: string; desc: string }[] = [
-  { papel: "ver_detalhe_usuario", rotulo: "Ver detalhes de usuários", desc: "Abrir a ficha do colaborador vinculado a um login" },
-  { papel: "vincular_usuario",    rotulo: "Vincular usuários",        desc: "Ligar/desligar um login ao cadastro de um colaborador" },
-];
-
-function UsuariosPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: string, t?: string) => void }) {
-  const [caps, setCaps] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const erroPerm = (m: string) => /row-level|permission|policy/i.test(m) ? "So administradores alteram permissoes." : "Erro: " + m;
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data } = await (supabase as any).from("ADMIN_USUARIOS_ACESSOS").select("papel").eq("user_id", userId);
-    setCaps(new Set<string>((data ?? []).map((r: any) => r.papel)));
-    setLoading(false);
-  }, [userId]);
-  useEffect(() => { load(); }, [load]);
-
-  const toggle = async (papel: string) => {
-    const tem = caps.has(papel);
-    const { error } = tem
-      ? await (supabase as any).from("ADMIN_USUARIOS_ACESSOS").delete().eq("user_id", userId).eq("papel", papel)
-      : await (supabase as any).from("ADMIN_USUARIOS_ACESSOS").insert({ papel, user_id: userId });
-    if (error) { onToast(erroPerm(error.message), "err"); return; }
-    setCaps((c) => { const n = new Set(c); tem ? n.delete(papel) : n.add(papel); return n; });
-  };
-
-  if (loading) return <div className="py-2 text-xs text-muted-foreground">Carregando permissoes...</div>;
-
-  return (
-    <div className="py-1">
-      <div className="mb-1 text-[11.5px] text-muted-foreground">
-        O que <b>este usuario</b> pode fazer na tela de Usuários (além do que já vem do perfil admin).
-      </div>
-      <div className="divide-y divide-border/60">
-        {USUARIO_CAPS.map((c) => (
-          <div key={c.papel} className="flex items-center gap-3 py-2.5">
-            <div className="flex-1">
-              <p className="text-sm">{c.rotulo}</p>
-              <p className="text-[11px] text-muted-foreground">{c.desc}</p>
-            </div>
-            <Switch checked={caps.has(c.papel)} onCheckedChange={() => toggle(c.papel)} aria-label={c.rotulo} />
-          </div>
-        ))}
       </div>
     </div>
   );

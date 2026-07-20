@@ -39,6 +39,10 @@ const parseSalario = (v: any): number => {
 const money = (n: number) => "R$ " + (n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const moneyK = (n: number) => n >= 1000 ? "R$ " + (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + "k" : money(n);
 
+// Navegador de competência (mês).
+const MESES_ABREV = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
 // Datas: aceita "DD/MM/AAAA", ISO ou Date.
 const parseData = (v: any): Date | null => {
   if (!v) return null;
@@ -119,10 +123,12 @@ export default function Colaboradores() {
   const [busca, setBusca] = useState("");
   const [fEmpresa, setFEmpresa] = useState("");
   const [fContrato, setFContrato] = useState("");
-  const [fSituacao, setFSituacao] = useState("Trabalhando"); // padrão
+  const [fSituacao, setFSituacao] = useState(""); // Situação = status atual; no quadro do mês começa em "Todas"
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(50); // 50 (padrão) ou 100
   const [sitIdx, setSitIdx] = useState(0); // card rotativo de situação
+  const hoje = new Date();
+  const [mesRef, setMesRef] = useState<{ ano: number; mes: number }>({ ano: hoje.getFullYear(), mes: hoje.getMonth() }); // competência
 
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -169,9 +175,30 @@ export default function Colaboradores() {
     setRows(res.data || []); setLoading(false);
   };
   useEffect(() => { load(); }, []);
-  useEffect(() => { setPagina(1); }, [busca, fEmpresa, fContrato, fSituacao, porPagina]);
+  useEffect(() => { setPagina(1); }, [busca, fEmpresa, fContrato, fSituacao, porPagina, mesRef]);
 
   const contratoDe = (e: any): string => contratoPorFilial[String(e?.["Filial"] ?? "")] || String(e?.["Contrato"] ?? "").trim() || "—";
+
+  // ── Competência (quadro do mês) ──────────────────────────────────────
+  // "Estava na empresa no mês": admitido até o fim do mês. A "Data Afastamento"
+  // NÃO é só demissão (a folha a preenche em férias/atestado/licença e até em
+  // quem segue Trabalhando), então ela só serve de corte para quem REALMENTE
+  // saiu (Situação = Demitido/Desligado/Rescisão/Aposentadoria): aí a pessoa
+  // aparece só nos meses até a saída. Sem data não exclui (não perde cadastro).
+  const inicioMes = useMemo(() => new Date(mesRef.ano, mesRef.mes, 1), [mesRef]);
+  const fimMes = useMemo(() => new Date(mesRef.ano, mesRef.mes + 1, 0, 23, 59, 59, 999), [mesRef]);
+  const ehSaida = (e: any) => /DEMIT|DESLIG|RESCIS|APOSENT/i.test(String(e?.["Situação"] ?? ""));
+  const noQuadroMes = (e: any): boolean => {
+    const adm = parseData(e["Admissão"]);
+    if (adm && adm.getTime() > fimMes.getTime()) return false; // ainda não admitido no mês
+    if (ehSaida(e)) {
+      const afa = parseData(e["Data Afastamento"]);
+      if (afa && afa.getTime() < inicioMes.getTime()) return false; // já tinha saído antes do mês
+    }
+    return true;
+  };
+  const irMes = (delta: number) => setMesRef(m => { const d = new Date(m.ano, m.mes + delta, 1); return { ano: d.getFullYear(), mes: d.getMonth() }; });
+  const ehMesAtual = mesRef.ano === hoje.getFullYear() && mesRef.mes === hoje.getMonth();
 
   // listas de filtro (a partir dos dados reais)
   const empresas = useMemo(() => [...new Set(rows.map(empresaDe))].filter(x => x && x !== "—").sort(), [rows]);
@@ -184,6 +211,7 @@ export default function Colaboradores() {
   }, [rows, setoresTabela]);
 
   const filtrados = useMemo(() => rows.filter(e => {
+    if (!noQuadroMes(e)) return false;
     if (fEmpresa && empresaDe(e) !== fEmpresa) return false;
     if (fContrato && contratoDe(e) !== fContrato) return false;
     if (fSituacao && String(e["Situação"] ?? "").trim() !== fSituacao) return false;
@@ -192,28 +220,36 @@ export default function Colaboradores() {
       return [e["Nome"], e["CPF"], e["Título do Cargo"], e["Nome do Cargo"], e["Nome Filial"], e["Setor_ERP"]].some(x => String(x ?? "").toLowerCase().includes(q));
     }
     return true;
-  }), [rows, busca, fEmpresa, fContrato, fSituacao, contratoPorFilial]);
+  }), [rows, busca, fEmpresa, fContrato, fSituacao, contratoPorFilial, inicioMes, fimMes]);
 
-  // recorte p/ timelines e "por situação": ignora a situação (senão férias/afastados/demitidos somem).
+  // recorte histórico (todos os anos): NÃO aplica competência — alimenta o gráfico
+  // "Admissões × Desligamentos por ano" e a contagem de admitidos/desligados do mês.
   const recorteTempo = useMemo(() => rows.filter(e => {
     if (fEmpresa && empresaDe(e) !== fEmpresa) return false;
     if (fContrato && contratoDe(e) !== fContrato) return false;
     return true;
   }), [rows, fEmpresa, fContrato, contratoPorFilial]);
+  // recorte do quadro do mês, ignorando a situação (senão férias/afastados somem).
   const recorteSemSituacao = useMemo(() => rows.filter(e => {
+    if (!noQuadroMes(e)) return false;
     if (fEmpresa && empresaDe(e) !== fEmpresa) return false;
     if (fContrato && contratoDe(e) !== fContrato) return false;
     if (busca) { const q = busca.toLowerCase(); return [e["Nome"], e["CPF"], e["Título do Cargo"], e["Nome do Cargo"], e["Nome Filial"], e["Setor_ERP"]].some(x => String(x ?? "").toLowerCase().includes(q)); }
     return true;
-  }), [rows, fEmpresa, fContrato, busca, contratoPorFilial]);
+  }), [rows, fEmpresa, fContrato, busca, contratoPorFilial, inicioMes, fimMes]);
 
   // ── Dashboard (ao vivo) ──────────────────────────────────────────────
   const folhaTotal = useMemo(() => filtrados.reduce((s, e) => s + parseSalario(e["Valor Salário"]), 0), [filtrados]);
   const salarioMedio = filtrados.length ? folhaTotal / filtrados.length : 0;
-  const trabalhandoN = useMemo(() => filtrados.filter(ehTrabalhando).length, [filtrados]);
+  // "Ativos no mês" = presença pelas datas (não depende da Situação atual, que só
+  // reflete o status de hoje). É o número que se mantém estável mês a mês.
+  const ativosNoMes = useMemo(() => recorteSemSituacao.length, [recorteSemSituacao]);
   const anoAtual = new Date().getFullYear();
-  const admitidosAno = useMemo(() => recorteTempo.filter(e => anoDe(e["Admissão"]) === anoAtual).length, [recorteTempo]);
-  const desligadosAno = useMemo(() => recorteTempo.filter(e => anoDe(e["Data Afastamento"]) === anoAtual).length, [recorteTempo]);
+  const noMes = (v: any) => { const d = parseData(v); return !!d && d.getTime() >= inicioMes.getTime() && d.getTime() <= fimMes.getTime(); };
+  const admitidosMes = useMemo(() => recorteTempo.filter(e => noMes(e["Admissão"])).length, [recorteTempo, inicioMes, fimMes]);
+  // desligados = saída de verdade (Situação) com Data Afastamento no mês (a data
+  // sozinha não vale: também marca férias/atestado/licença).
+  const desligadosMes = useMemo(() => recorteTempo.filter(e => ehSaida(e) && noMes(e["Data Afastamento"])).length, [recorteTempo, inicioMes, fimMes]);
 
   const agrupar = (arr: any[], keyFn: (e: any) => string, valFn?: (e: any) => number) => {
     const m = new Map<string, number>();
@@ -232,14 +268,14 @@ export default function Colaboradores() {
   const sitAtual = porSituacao.length ? porSituacao[sitIdx % porSituacao.length] : null;
   const corSituacao = (s: string) => { const u = (s || "").toUpperCase(); return u.startsWith("TRABALH") ? "#15803d" : u.includes("FÉRIAS") || u.includes("FERIAS") ? "#2563eb" : u.includes("AFAST") || u.includes("LICEN") ? "#d97706" : u.includes("DEMIT") || u.includes("DESLIG") ? "#dc2626" : "#7c3aed"; };
   const folhaPorEmpresa = useMemo(() => agrupar(filtrados, empresaDe, e => parseSalario(e["Valor Salário"])), [filtrados]);
-  // "ativos" = Trabalhando, sempre — independe do filtro de situação (como as timelines).
-  const ativosPorCargo = useMemo(() => agrupar(recorteSemSituacao.filter(ehTrabalhando), nomeCargoDe), [recorteSemSituacao]);
+  // presença no mês por cargo (não usa Situação atual, que só vale para hoje).
+  const ativosPorCargo = useMemo(() => agrupar(recorteSemSituacao, nomeCargoDe), [recorteSemSituacao]);
   const porFaixa = useMemo(() => FAIXAS.map(f => ({ label: f.label, n: filtrados.filter(e => { const a = anosDeCasa(e["Admissão"]); return a != null && a >= f.min && a < f.max; }).length })), [filtrados]);
   const timeline = useMemo(() => {
     const anos: Record<number, { adm: number; desl: number }> = {};
     for (const e of recorteTempo) {
       const a = anoDe(e["Admissão"]); if (a) (anos[a] ??= { adm: 0, desl: 0 }).adm++;
-      const d = anoDe(e["Data Afastamento"]); if (d) (anos[d] ??= { adm: 0, desl: 0 }).desl++;
+      const d = ehSaida(e) ? anoDe(e["Data Afastamento"]) : null; if (d) (anos[d] ??= { adm: 0, desl: 0 }).desl++;
     }
     return Object.entries(anos).map(([ano, v]) => ({ ano: +ano, ...v })).filter(x => x.ano >= anoAtual - 6 && x.ano <= anoAtual).sort((a, b) => a.ano - b.ano);
   }, [recorteTempo]);
@@ -310,9 +346,20 @@ export default function Colaboradores() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>👥 Colaboradores</div>
-          <div style={{ fontSize: 13, color: "#64748b" }}>Workforce real (tabela EMPREGADOS) · filtros e dashboard ao vivo.</div>
+          <div style={{ fontSize: 13, color: "#64748b" }}>Quadro de {MESES_ABREV[mesRef.mes]}/{mesRef.ano} (quem esteve na empresa no mês) · dashboard ao vivo.</div>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          {/* Navegador de competência (mês) */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "6px 8px 6px 12px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+            <span style={{ fontSize: 15 }}>📅</span>
+            <div style={{ lineHeight: 1.15, minWidth: 92 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#0f766e" }}>{MESES_ABREV[mesRef.mes]} {mesRef.ano}</div>
+              <div style={{ fontSize: 11, color: "#64748b" }}>01/{pad2(mesRef.mes + 1)} a {pad2(fimMes.getDate())}/{pad2(mesRef.mes + 1)}</div>
+            </div>
+            {!ehMesAtual && <button className="col-btn" onClick={() => setMesRef({ ano: hoje.getFullYear(), mes: hoje.getMonth() })} title="Voltar ao mês atual" style={{ height: 30, padding: "0 8px", fontSize: 11, background: "#f1f5f9" }}>Hoje</button>}
+            <button className="col-btn" onClick={() => irMes(-1)} title="Mês anterior" style={{ height: 30, width: 30, padding: 0, fontSize: 16, lineHeight: 1 }}>‹</button>
+            <button className="col-btn" onClick={() => irMes(1)} disabled={ehMesAtual} title="Próximo mês" style={{ height: 30, width: 30, padding: 0, fontSize: 16, lineHeight: 1, opacity: ehMesAtual ? .4 : 1, cursor: ehMesAtual ? "not-allowed" : "pointer" }}>›</button>
+          </div>
           <ImportarColaboradores rows={rows} onImported={load} />
           <IntegrarCargos rows={rows} onImported={load} />
           <button className="col-btn" onClick={load} style={{ background: "#eef4ff", color: "#0f3171", borderColor: "#dbe4f0" }}>↻ Atualizar</button>
@@ -321,12 +368,12 @@ export default function Colaboradores() {
 
       {/* KPIs */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+        {card("Ativos no mês", String(ativosNoMes), "#15803d", `${MESES_ABREV[mesRef.mes]}/${mesRef.ano} · presença`)}
         {card("No recorte", String(filtrados.length), "#0f3171", `${rows.length} no total`)}
-        {card("Trabalhando", String(trabalhandoN), "#15803d")}
         {card("Folha (recorte)", moneyK(folhaTotal), "#0f766e", money(folhaTotal))}
         {card("Salário médio", money(salarioMedio), "#7c3aed")}
-        {card(`Admitidos ${anoAtual}`, String(admitidosAno), "#2563eb")}
-        {card(`Desligados ${anoAtual}`, String(desligadosAno), "#dc2626")}
+        {card("Admitidos no mês", String(admitidosMes), "#2563eb", `${MESES_ABREV[mesRef.mes]}/${mesRef.ano}`)}
+        {card("Desligados no mês", String(desligadosMes), "#dc2626", `${MESES_ABREV[mesRef.mes]}/${mesRef.ano}`)}
       </div>
 
       {/* Filtros */}
@@ -351,6 +398,11 @@ export default function Colaboradores() {
         {painel("Headcount por empresa", porEmpresa.length === 0 ? <Vazio /> : porEmpresa.map(x => <div key={x.k}>{barRow(x.k, x.v, porEmpresa[0].v, "#0f3171", String(x.v))}</div>))}
         {painel("Por situação (todas)", (
           <>
+            {!ehMesAtual && (
+              <div style={{ fontSize: 11, color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "6px 9px", marginBottom: 10 }}>
+                ⚠ Situação = status <b>atual</b> (a folha não guarda histórico por mês). Para o quadro do mês use "Ativos no mês".
+              </div>
+            )}
             {sitAtual && (
               <div key={sitAtual.k} onClick={() => setFSituacao(sitAtual.k === fSituacao ? "" : sitAtual.k)}
                 style={{ cursor: "pointer", marginBottom: 14, padding: "12px 14px", borderRadius: 12, background: corSituacao(sitAtual.k) + "12", border: "1px solid " + corSituacao(sitAtual.k) + "33", animation: "col-fade .5s ease, col-float 4.5s ease-in-out infinite" }}>
