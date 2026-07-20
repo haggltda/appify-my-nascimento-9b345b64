@@ -304,6 +304,7 @@ export default function Formularios() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canVerAlguma && <button onClick={() => nav("/app/central-servicos/formularios/dashboard")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>📊 Dashboard</button>}
+          {canVerAlguma && <button onClick={() => nav("/app/central-servicos/formularios/painel")} style={btn("#0f3171")}>📈 Painel Gerencial</button>}
           {can("ver_lixeira") && <button onClick={abrirLixeira} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>🗑 Lixeira</button>}
           {podeCriar && <>
             {can("editar_criar") && <>
