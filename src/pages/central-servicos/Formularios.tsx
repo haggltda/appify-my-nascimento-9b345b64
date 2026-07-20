@@ -39,6 +39,7 @@ export interface Formulario {
   exige_senha?: boolean;
   setores_acesso?: string[] | null;   // setores (Setor_ERP) liberados quando restrito
   deleted_at?: string | null;         // soft-delete: na lixeira quando != null
+  deleted_por_nome?: string | null;   // quem moveu para a lixeira
 }
 
 /** Rótulo/cor da segurança, p/ badge na lista e no editor. */
@@ -234,7 +235,13 @@ export default function Formularios() {
   const confirmarExcluir = async () => {
     if (!excluindo) return;
     if (confirmTxt.trim().toUpperCase() !== "CONFIRMAR") { toast('Digite CONFIRMAR para excluir.', "err"); return; }
-    const { error } = await (supabase as any).from("CS_FORMULARIOS").update({ deleted_at: new Date().toISOString() }).eq("id", excluindo.id);
+    const nome = user?.user_metadata?.nome ?? user?.email ?? "";
+    const quando = new Date().toISOString();
+    // grava quem apagou; se a coluna ainda não existir no banco, reenvia só a data.
+    let { error } = await (supabase as any).from("CS_FORMULARIOS").update({ deleted_at: quando, deleted_por_nome: nome }).eq("id", excluindo.id);
+    if (error && /deleted_por_nome|column|schema cache/i.test(error.message || "")) {
+      ({ error } = await (supabase as any).from("CS_FORMULARIOS").update({ deleted_at: quando }).eq("id", excluindo.id));
+    }
     if (error) { toast("Erro ao excluir: " + error.message, "err"); return; }
     toast("Formulário movido para a lixeira (30 dias para restaurar).", "ok");
     setExcluindo(null); setConfirmTxt("");
@@ -477,7 +484,7 @@ export default function Formularios() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titulo}</div>
                       <div style={{ fontSize: 11.5, color: "#94a3b8" }}>
-                        Apagado em {fmtDt(f.deleted_at)} · restam <b style={{ color: diasRestantes(f) <= 5 ? "#dc2626" : "#475569" }}>{diasRestantes(f)} dia(s)</b>
+                        Apagado em {fmtDt(f.deleted_at)}{f.deleted_por_nome ? ` por ${f.deleted_por_nome}` : ""} · restam <b style={{ color: diasRestantes(f) <= 5 ? "#dc2626" : "#475569" }}>{diasRestantes(f)} dia(s)</b>
                         {f.setor ? ` · setor ${f.setor}` : ""}
                       </div>
                     </div>

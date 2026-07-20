@@ -14,6 +14,7 @@
 
 -- 1) Coluna de soft-delete (o front depende dela — roda isto primeiro)
 ALTER TABLE public."CS_FORMULARIOS" ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE public."CS_FORMULARIOS" ADD COLUMN IF NOT EXISTS deleted_por_nome text;  -- quem apagou (exibido na lixeira)
 CREATE INDEX IF NOT EXISTS cs_forms_deleted_idx ON public."CS_FORMULARIOS"(deleted_at);
 
 -- 2) Novo papel 'ver_lixeira': só remove a checagem de papel (evita qualquer
