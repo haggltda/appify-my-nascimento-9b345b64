@@ -5,9 +5,12 @@ import { Upload, FileSpreadsheet, UserPlus, RefreshCw, CheckCircle2, AlertTriang
 // =========================================================================
 // RH — Colaboradores: importar EMPREGADOS por planilha (export do sistema de
 // folha). Regras pedidas:
-//   • CPF que já existe → atualiza SOMENTE a coluna "Situação"
-//     (Demitido / Afastado / Férias etc.).
 //   • CPF novo → INSERT de linha nova.
+//   • CPF que já existe e está com vínculo ABERTO → atualiza a "Situação".
+//   • CPF que já existe, está ABERTO e a planilha diz TRABALHANDO → além da
+//     situação, atualiza os dados cadastrais (salário, cargo, admissão,
+//     lotação, PIS…) quando houver diferença. Planilha vazia num campo nunca
+//     apaga o que já está no banco.
 // Casamento por CPF normalizado (só dígitos, 11 casas). A planilha traz o
 // mesmo CPF em várias linhas (postos diferentes); consolidamos por CPF
 // mantendo a situação "mais ativa" (Trabalhando > Férias > Afastado >
@@ -60,16 +63,63 @@ const ehTerminal = (s: string): boolean => {
 const soDigitos = (v: any) => String(v ?? "").replace(/\D/g, "");
 const normCpf = (v: any) => { const d = soDigitos(v); return d ? d.padStart(11, "0") : ""; };
 
+// "Trabalhando" (a única situação que dispara atualização cadastral).
+const ehTrabalhandoSitu = (s: string): boolean => (s || "").trim().toUpperCase().startsWith("TRABALH");
+
+// Salário pt-BR ("1.605,33"), "1605.33" ou número → Number (NaN se não der).
+const numSal = (v: any): number => {
+  if (v == null || v === "") return NaN;
+  if (typeof v === "number") return v;
+  let s = String(v).trim().replace(/[^\d.,-]/g, "");
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(s); return isNaN(n) ? NaN : n;
+};
+// "DD/MM/AAAA", ISO ou "AAAA-MM-DD" → "AAAA-MM-DD" (ou null).
+const dataISO = (v: any): string | null => {
+  if (v == null || v === "") return null;
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/); if (m && m[3] !== "0000") return `${m[3]}-${m[2]}-${m[1]}`;
+  return null;
+};
+// Há diferença real entre o valor da planilha (novo) e o do banco (atual)?
+const difere = (cmp: "num" | "data" | "txt", novo: any, atual: any): boolean => {
+  if (cmp === "num") { const a = numSal(novo); if (isNaN(a)) return false; const b = numSal(atual); return isNaN(b) || Math.abs(a - b) > 0.005; }
+  if (cmp === "data") { const a = dataISO(novo); if (!a) return false; return a !== dataISO(atual); }
+  return String(novo).trim().toUpperCase() !== String(atual ?? "").trim().toUpperCase();
+};
+
+// Campos cadastrais atualizados SÓ para quem está TRABALHANDO e já existe.
+// Alinhados aos campos que o INSERT (montarPayload) grava numa linha nova, para
+// que um update apenas traga a linha existente ao mesmo estado da planilha.
+// `val` devolve null quando a planilha não traz o dado → nesse caso não mexe.
+const CAMPOS_CAD: { col: string; label: string; cmp: "num" | "data" | "txt"; val: (r: any, iso: (v: any) => string | null) => any }[] = [
+  { col: "Valor Salário",      label: "Salário",         cmp: "num",  val: r => { const v = r[COL.salario]; return v != null && v !== "" ? v : null; } },
+  { col: "Título do Cargo",    label: "Cargo",           cmp: "txt",  val: r => { const c = r[COL.cargo] || r[COL.cargoAlt]; return c ? String(c).trim() : null; } },
+  { col: "Nome",               label: "Nome",            cmp: "txt",  val: r => { const v = r[COL.nome]; return v ? String(v).trim() : null; } },
+  { col: "Admissão",           label: "Admissão",        cmp: "data", val: (r, iso) => iso(r[COL.admissao]) },
+  { col: "Nome da Empresa",    label: "Empresa",         cmp: "txt",  val: r => { const v = r[COL.nomeEmpresa]; return v ? String(v).trim() : null; } },
+  { col: "Empresa",            label: "Cód. empresa",    cmp: "txt",  val: r => { const v = r[COL.empresa]; return v != null && v !== "" ? String(v).trim() : null; } },
+  { col: "Nome Filial",        label: "Filial",          cmp: "txt",  val: r => { const v = r[COL.apelidoFilial]; return v ? String(v).trim() : null; } },
+  { col: "Filial",             label: "Cód. filial",     cmp: "txt",  val: r => { const v = r[COL.filial]; return v != null && v !== "" ? String(v).trim() : null; } },
+  { col: "C.Custo",            label: "Centro de custo", cmp: "txt",  val: r => { const v = r[COL.ccusto]; return v != null && v !== "" ? String(v).trim() : null; } },
+  { col: "Descrição do Local", label: "Local",           cmp: "txt",  val: r => { const v = r[COL.local]; return v ? String(v).trim() : null; } },
+  { col: "PIS",                label: "PIS",             cmp: "txt",  val: r => { const v = r[COL.pis]; return v != null && v !== "" ? soDigitos(v) : null; } },
+];
+
 type Previa = {
   totalLinhas: number;
   totalCpfs: number;
   inserts: Record<string, any>[];
   novosCpf: number;
   readmissoes: number;
-  updates: { ids: any[]; para: string }[];
-  totalUpdates: number;
+  updates: { id: any; patch: Record<string, any> }[]; // um patch por registro (situação e/ou cadastro)
+  totalUpdates: number;                                // registros com qualquer mudança
+  totalSituacao: number;                               // registros com mudança de situação
+  totalCadastro: number;                               // registros com mudança cadastral
   semMudanca: number;
-  mudaResumo: Record<string, number>;
+  mudaResumo: Record<string, number>;                  // "de → para" (situação) → nº
+  cadastroResumo: Record<string, number>;              // campo cadastral → nº de registros alterados
   ignorados: number;
   mei: number;
 };
@@ -138,9 +188,10 @@ export default function ImportarColaboradores({ rows, onImported }: { rows: any[
       }
 
       const inserts: Record<string, any>[] = [];
-      const updates: { ids: any[]; para: string }[] = [];
+      const updates: { id: any; patch: Record<string, any> }[] = [];
       const mudaResumo: Record<string, number> = {};
-      let semMudanca = 0, novosCpf = 0, readmissoes = 0;
+      const cadastroResumo: Record<string, number> = {};
+      let semMudanca = 0, novosCpf = 0, readmissoes = 0, totalSituacao = 0, totalCadastro = 0;
 
       for (const [cpf, c] of porCpf) {
         const existentes = existByCpf.get(cpf);
@@ -156,17 +207,40 @@ export default function ImportarColaboradores({ rows, onImported }: { rows: any[
           inserts.push(montarPayload(c, serialISO)); readmissoes++; continue;
         }
 
-        const ids: any[] = [];
+        // Dados cadastrais só são atualizados quando a planilha diz TRABALHANDO.
+        const trabalhando = ehTrabalhandoSitu(c.situ);
+        let mexeu = false;
         for (const e of abertas) {
+          const patch: Record<string, any> = {};
+
+          // 1) Situação (sempre que abrir e divergir).
           const atual = String(e["Situação"] ?? "").trim();
           if (atual.toUpperCase() !== c.situ.toUpperCase()) {
-            ids.push(e["ID"]);
+            patch["Situação"] = c.situ;
             const k = `${atual || "(vazio)"}  →  ${c.situ}`;
             mudaResumo[k] = (mudaResumo[k] || 0) + 1;
+            totalSituacao++;
           }
+
+          // 2) Cadastro (só TRABALHANDO). Planilha vazia num campo não apaga.
+          let mexeuCad = false;
+          if (trabalhando) {
+            for (const campo of CAMPOS_CAD) {
+              if (!(campo.col in e)) continue; // coluna não carregada no recorte → não toca
+              const novo = campo.val(c.raw, serialISO);
+              if (novo == null || novo === "") continue;
+              if (difere(campo.cmp, novo, e[campo.col])) {
+                patch[campo.col] = novo;
+                cadastroResumo[campo.label] = (cadastroResumo[campo.label] || 0) + 1;
+                mexeuCad = true;
+              }
+            }
+          }
+          if (mexeuCad) totalCadastro++;
+
+          if (Object.keys(patch).length) { updates.push({ id: e["ID"], patch }); mexeu = true; }
         }
-        if (ids.length) updates.push({ ids, para: c.situ });
-        else semMudanca++;
+        if (!mexeu) semMudanca++;
       }
 
       setPrevia({
@@ -176,9 +250,12 @@ export default function ImportarColaboradores({ rows, onImported }: { rows: any[
         novosCpf,
         readmissoes,
         updates,
-        totalUpdates: updates.reduce((s, u) => s + u.ids.length, 0),
+        totalUpdates: updates.length,
+        totalSituacao,
+        totalCadastro,
         semMudanca,
         mudaResumo,
+        cadastroResumo,
         ignorados,
         mei: meiCpfs.size,
       });
@@ -230,20 +307,26 @@ export default function ImportarColaboradores({ rows, onImported }: { rows: any[
         insOk += chunk.length; setProg(`Inserindo colaboradores novos… ${insOk}/${previa.inserts.length}`);
       }
 
-      // Agrupa por situação-alvo para minimizar chamadas.
-      const porSit = new Map<string, any[]>();
-      for (const u of previa.updates) { const a = porSit.get(u.para) || []; a.push(...u.ids); porSit.set(u.para, a); }
+      // Agrupa registros que compartilham EXATAMENTE o mesmo patch (ex.: vários
+      // "Trabalhando → Demitido") para minimizar chamadas; patches únicos
+      // (salário individual etc.) caem em grupos de 1.
+      const grupos = new Map<string, { patch: Record<string, any>; ids: any[] }>();
+      for (const u of previa.updates) {
+        const key = JSON.stringify(u.patch);
+        const g = grupos.get(key) || { patch: u.patch, ids: [] };
+        g.ids.push(u.id); grupos.set(key, g);
+      }
       let upOk = 0;
-      for (const [situ, ids] of porSit) {
+      for (const { patch, ids } of grupos.values()) {
         for (let i = 0; i < ids.length; i += 300) {
           const chunk = ids.slice(i, i + 300);
-          const { error } = await (supabase as any).from("EMPREGADOS").update({ "Situação": situ }).in("ID", chunk);
-          if (error) throw new Error("Atualização de situação: " + error.message);
-          upOk += chunk.length; setProg(`Atualizando situação… ${upOk}/${previa.totalUpdates}`);
+          const { error } = await (supabase as any).from("EMPREGADOS").update(patch).in("ID", chunk);
+          if (error) throw new Error("Atualização de colaboradores: " + error.message);
+          upOk += chunk.length; setProg(`Atualizando colaboradores… ${upOk}/${previa.totalUpdates}`);
         }
       }
 
-      setProg(`${insOk} novo(s) inserido(s) · ${upOk} situação(ões) atualizada(s).`);
+      setProg(`${insOk} novo(s) inserido(s) · ${upOk} colaborador(es) atualizado(s).`);
       setFase("fim");
       onImported();
     } catch (e: any) {
@@ -271,7 +354,7 @@ export default function ImportarColaboradores({ rows, onImported }: { rows: any[
                 <FileSpreadsheet size={20} color="#0f3171" /> Importar colaboradores
               </div>
               <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 2 }}>
-                Vínculo ativo atualiza só a <b>Situação</b>. Quem está <b>demitido</b> não é reativado: se voltar ativo na planilha, entra como <b>linha nova</b> (readmissão).
+                Vínculo ativo atualiza a <b>Situação</b>; quem está <b>Trabalhando</b> também tem os <b>dados cadastrais</b> (salário, cargo, admissão, lotação…) atualizados quando mudam. Quem está <b>demitido</b> não é reativado: se voltar ativo na planilha, entra como <b>linha nova</b> (readmissão).
               </div>
             </div>
 
@@ -299,7 +382,8 @@ export default function ImportarColaboradores({ rows, onImported }: { rows: any[
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
                     <ResumoCard icon={<UserPlus size={16} />} cor="#15803d" n={previa.inserts.length} label="novos (insert)"
                       sub={previa.readmissoes > 0 ? `${previa.novosCpf} novo(s) + ${previa.readmissoes} readmissão(ões)` : undefined} />
-                    <ResumoCard icon={<RefreshCw size={16} />} cor="#2563eb" n={previa.totalUpdates} label="situações a atualizar" />
+                    <ResumoCard icon={<RefreshCw size={16} />} cor="#2563eb" n={previa.totalUpdates} label="a atualizar"
+                      sub={`${previa.totalSituacao} situação · ${previa.totalCadastro} cadastro`} />
                     <ResumoCard icon={<CheckCircle2 size={16} />} cor="#64748b" n={previa.semMudanca} label="sem mudança" />
                   </div>
                   <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 12 }}>
@@ -317,6 +401,21 @@ export default function ImportarColaboradores({ rows, onImported }: { rows: any[
                         {Object.entries(previa.mudaResumo).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
                           <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "8px 12px", fontSize: 12.5, borderTop: "1px solid #f1f5f9", color: "#334155" }}>
                             <span>{k}</span><span style={{ fontWeight: 800, color: "#0f172a" }}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {Object.keys(previa.cadastroResumo).length > 0 && (
+                    <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden", marginBottom: 6 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px", padding: "9px 12px", background: "#f8fafc", borderBottom: "1px solid #eef2f7" }}>
+                        Dados cadastrais a atualizar (só Trabalhando)
+                      </div>
+                      <div style={{ maxHeight: 210, overflowY: "auto" }}>
+                        {Object.entries(previa.cadastroResumo).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                          <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "8px 12px", fontSize: 12.5, borderTop: "1px solid #f1f5f9", color: "#334155" }}>
+                            <span>{k}</span><span style={{ fontWeight: 800, color: "#0f172a" }}>{v} colaborador(es)</span>
                           </div>
                         ))}
                       </div>

@@ -8,8 +8,10 @@ import IntegrarCargos from "@/components/rh/IntegrarCargos";
 // Filtros: empresa / contrato / situação (padrão "Trabalhando") + busca.
 // Dashboard ao vivo (refiltra junto): headcount, folha, admissões/desligamentos,
 // tempo de casa, ativos por cargo.
-// Cargo não é mais texto livre: seleciona da tabela CARGOS ("Cargo" código +
-// "Nome do Cargo"), com opção de criar um cargo novo (próximo código livre).
+// Cargo = "Título do Cargo" (texto oficial da folha, igual ao resto do sistema:
+// Recrutamento, Processos, Solicitações etc.). O antigo seletor por código da
+// tabela CARGOS foi removido do modal — ele deixava "Sem cargo"/"AMBÍGUO"
+// quando o código não estava casado.
 // =========================================================================
 
 // Empresas do grupo (código numérico da coluna "Empresa" → nome curto).
@@ -53,7 +55,10 @@ const anosDeCasa = (v: any): number | null => {
   return Math.max(0, (Date.now() - d.getTime()) / (365.25 * 864e5));
 };
 const ehTrabalhando = (e: any) => String(e?.["Situação"] ?? "").trim().toUpperCase().startsWith("TRABALH");
-const nomeCargoDe = (e: any): string => String(e?.["Nome do Cargo"] ?? "").trim() || String(e?.["Título do Cargo"] ?? "").trim() || "—";
+// O cargo exibido vem de "Título do Cargo" (texto oficial da folha, igual ao
+// resto do sistema). "Nome do Cargo" (mapeado por código na tabela CARGOS) é
+// só fallback — evita "Sem cargo"/"AMBÍGUO" quando o código não está casado.
+const nomeCargoDe = (e: any): string => String(e?.["Título do Cargo"] ?? "").trim() || String(e?.["Nome do Cargo"] ?? "").trim() || "—";
 
 // Cascata de fallback: "Empresa"/"Contrato" já eram conhecidos por falhar em
 // alguns ambientes (por isso o SAFE original não tem os dois). "Cargo" e
@@ -111,7 +116,6 @@ export default function Colaboradores() {
   const [erro, setErro] = useState<string | null>(null);
 
   const [setoresTabela, setSetoresTabela] = useState<string[]>([]);
-  const [cargosTabela, setCargosTabela] = useState<{ codigo: number; nome: string }[]>([]);
   const [busca, setBusca] = useState("");
   const [fEmpresa, setFEmpresa] = useState("");
   const [fContrato, setFContrato] = useState("");
@@ -122,7 +126,6 @@ export default function Colaboradores() {
 
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
-  const [novoCargo, setNovoCargo] = useState<string | null>(null); // null = fechado; string = digitando nome do cargo novo
   const [toast, setToast] = useState<{ msg: string; tipo: "ok" | "err" } | null>(null);
   const aviso = (msg: string, tipo: "ok" | "err" = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3200); };
 
@@ -144,13 +147,6 @@ export default function Colaboradores() {
         return "";
       };
       setSetoresTabela([...new Set(st.data.map(pick).filter(Boolean) as string[])]);
-    }
-    // Cargos oficiais (tabela CARGOS: "Cargo" código + "Nome do Cargo").
-    const cg = await (supabase as any).from("CARGOS").select('"Cargo","Nome do Cargo"').order("Nome do Cargo", { ascending: true });
-    if (!cg.error && Array.isArray(cg.data)) {
-      setCargosTabela(cg.data
-        .map((c: any) => ({ codigo: Number(c["Cargo"]), nome: String(c["Nome do Cargo"] ?? "").trim() }))
-        .filter((c: any) => Number.isFinite(c.codigo) && c.nome));
     }
     // EMPREGADOS em blocos (fallback de colunas p/ nunca dar tela vazia).
     const buscar = async (cols: string) => {
@@ -257,11 +253,10 @@ export default function Colaboradores() {
 
   // ── Edição de campos RH na EMPREGADOS ────────────────────────────────
   const abrirEdit = (e: any) => {
-    setEditing(e); setNovoCargo(null);
+    setEditing(e);
     const f: Record<string, string> = {};
     for (const [col] of MAIN_FIELDS) f[col] = e[col] ?? "";
-    f["Cargo"] = e["Cargo"] != null && e["Cargo"] !== "" ? String(e["Cargo"]) : "";
-    f["Nome do Cargo"] = String(e["Nome do Cargo"] ?? "").trim();
+    f["Título do Cargo"] = String(e["Título do Cargo"] ?? "").trim();
     f["Situação"] = e["Situação"] ?? "";
     f["Setor_ERP"] = String(e["Setor_ERP"] ?? "").trim() || "PADRAO";
     f["LIDER"] = String(e["Título do Cargo"] ?? "").trim() || String(e["LIDER"] ?? "").trim(); // Hierarquia puxa do cargo
@@ -273,8 +268,7 @@ export default function Colaboradores() {
     const patch: any = {};
     for (const k of Object.keys(form)) {
       if (!(k in editing)) continue;
-      const v = form[k] === "" ? null : form[k];
-      patch[k] = k === "Cargo" && v != null ? Number(v) : v; // "Cargo" é bigint no banco
+      patch[k] = form[k] === "" ? null : form[k];
     }
     const { error } = await (supabase as any).from("EMPREGADOS").update(patch).eq("ID", editing["ID"]);
     if (error) { aviso("Erro ao salvar: " + error.message, "err"); return; }
@@ -282,27 +276,6 @@ export default function Colaboradores() {
     setEditing(null); aviso("Colaborador atualizado.");
   };
   const setCampo = (col: string, v: string) => setForm(f => ({ ...f, [col]: v }));
-
-  // ── Cargo pela tabela CARGOS ─────────────────────────────────────────
-  const escolherCargo = (v: string) => {
-    if (v === "__novo__") { setNovoCargo(""); return; }
-    setNovoCargo(null);
-    const c = cargosTabela.find(x => String(x.codigo) === v);
-    setForm(f => ({ ...f, "Cargo": v, "Nome do Cargo": c ? c.nome : v === "" ? "" : f["Nome do Cargo"] }));
-  };
-  const criarCargo = async () => {
-    const nome = (novoCargo ?? "").trim().toUpperCase();
-    if (!nome) { aviso("Digite o nome do novo cargo.", "err"); return; }
-    const existente = cargosTabela.find(c => c.nome.toUpperCase() === nome);
-    if (existente) { escolherCargo(String(existente.codigo)); aviso("Esse cargo já existia — selecionado."); return; }
-    const codigo = Math.max(0, ...cargosTabela.map(c => c.codigo)) + 1;
-    const { error } = await (supabase as any).from("CARGOS").insert({ "Cargo": codigo, "Nome do Cargo": nome });
-    if (error) { aviso("Erro ao criar cargo: " + error.message, "err"); return; }
-    setCargosTabela(cs => [...cs, { codigo, nome }].sort((a, b) => a.nome.localeCompare(b.nome)));
-    setForm(f => ({ ...f, "Cargo": String(codigo), "Nome do Cargo": nome }));
-    setNovoCargo(null);
-    aviso(`Cargo "${nome}" criado (código ${codigo}).`);
-  };
 
   const card = (titulo: string, valor: string, cor: string, sub?: string) => (
     <div style={{ flex: 1, minWidth: 150, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
@@ -503,24 +476,7 @@ export default function Colaboradores() {
                 {MAIN_FIELDS.slice(0, 2).map(([col, label]) => (
                   <Campo key={col} label={label} value={form[col] ?? ""} onChange={v => setCampo(col, v)} />
                 ))}
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Cargo{form["Cargo"] && novoCargo == null ? ` · código ${form["Cargo"]}` : ""}</label>
-                  <select className="col-fi" style={{ width: "100%" }} value={novoCargo != null ? "__novo__" : form["Cargo"] ?? ""} onChange={e => escolherCargo(e.target.value)}>
-                    <option value="">— Sem cargo —</option>
-                    {form["Cargo"] && !cargosTabela.some(c => String(c.codigo) === form["Cargo"]) && (
-                      <option value={form["Cargo"]}>{(form["Nome do Cargo"] || `Código ${form["Cargo"]}`) + " (fora da tabela CARGOS)"}</option>
-                    )}
-                    {cargosTabela.map(c => <option key={c.codigo} value={String(c.codigo)}>{c.nome}</option>)}
-                    <option value="__novo__">＋ Criar novo cargo…</option>
-                  </select>
-                  {novoCargo != null && (
-                    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                      <input className="col-fi" style={{ flex: 1 }} placeholder="Nome do novo cargo" value={novoCargo} autoFocus
-                        onChange={e => setNovoCargo(e.target.value)} onKeyDown={e => { if (e.key === "Enter") criarCargo(); }} />
-                      <button className="col-btn" onClick={criarCargo} style={{ background: "#0f3171", color: "#fff", borderColor: "#0f3171" }}>Criar</button>
-                    </div>
-                  )}
-                </div>
+                <Campo label="Cargo" value={form["Título do Cargo"] ?? ""} onChange={v => setCampo("Título do Cargo", v)} />
                 {MAIN_FIELDS.slice(2).map(([col, label]) => (
                   <Campo key={col} label={label} value={form[col] ?? ""} onChange={v => setCampo(col, v)} />
                 ))}
