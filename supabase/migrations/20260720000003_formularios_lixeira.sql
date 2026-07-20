@@ -18,16 +18,22 @@ ALTER TABLE public."CS_FORM_ACESSOS" ADD  CONSTRAINT cs_form_acessos_papel_check
   'editar_criar', 'responder', 'encerrar_excluir', 'ver_tudo', 'ver_proprias',
   'ver_setor', 'criar_setor', 'ver_lixeira', 'dashboard'));
 
--- 3) Leitura do formulário: ativos como antes; apagados só p/ quem tem ver_lixeira
+-- 3) Leitura do formulário: ativos como antes; apagados só p/ quem tem ver_lixeira.
+--    Modelo consolidado (20260713000001): visibilidade via CS_FORM_ACESSOS
+--    (papel 'visualiza' por formulário / 'gestor' global) — as tabelas antigas
+--    CS_FORM_VISIBILIDADE e CS_FORM_GESTORES foram dropadas na consolidação.
 DROP POLICY IF EXISTS cs_forms_select ON public."CS_FORMULARIOS";
 CREATE POLICY cs_forms_select ON public."CS_FORMULARIOS"
   FOR SELECT TO authenticated USING (
     (deleted_at IS NULL AND (
       visibilidade = 'todos'
       OR criado_por = auth.uid()
-      OR EXISTS (SELECT 1 FROM public."CS_FORM_VISIBILIDADE" v
-                  WHERE v.formulario_id = "CS_FORMULARIOS".id AND v.user_id = auth.uid())
-      OR EXISTS (SELECT 1 FROM public."CS_FORM_GESTORES" g WHERE g.user_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM public."CS_FORM_ACESSOS" a
+                  WHERE a.papel = 'visualiza'
+                    AND a.formulario_id = "CS_FORMULARIOS".id
+                    AND a.user_id = auth.uid())
+      OR EXISTS (SELECT 1 FROM public."CS_FORM_ACESSOS" a
+                  WHERE a.papel = 'gestor' AND a.user_id = auth.uid())
     ))
     OR (deleted_at IS NOT NULL AND public.cs_form_cap('ver_lixeira'))
   );
