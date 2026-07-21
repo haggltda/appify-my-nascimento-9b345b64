@@ -577,7 +577,7 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
                 <SearchableMultiSelect
                   value={form.convidados}
                   onChange={(v) => setForm((f) => ({ ...f, convidados: v }))}
-                  options={opcoesUsuarios}
+                  options={opcoesUsuarios.filter((o) => !form.observadores.includes(o.value))}
                 />
               </div>
               <div className="space-y-1.5">
@@ -585,7 +585,7 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
                 <SearchableMultiSelect
                   value={form.observadores}
                   onChange={(v) => setForm((f) => ({ ...f, observadores: v }))}
-                  options={opcoesUsuarios}
+                  options={opcoesUsuarios.filter((o) => !form.convidados.includes(o.value))}
                 />
               </div>
             </div>
