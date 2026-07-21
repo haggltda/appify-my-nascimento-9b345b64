@@ -41,7 +41,7 @@ const IND: { key: string; label: string; kw: string[] }[] = [
   { key: "fortes", label: "Pontos fortes", kw: ["fazendo bem", "ponto forte", "faz bem", "pontos fortes"] },
   { key: "melhoria", label: "Pontos de melhoria", kw: ["precisa melhorar", "melhorar", "melhoria", "sente que precisa"] },
 ];
-type Mapa = Record<string, string | undefined>;
+type Mapa = Record<string, any>;  // singles = id da pergunta; dimensoes = string[]
 
 function autoMapa(pergs: Pergunta[]): Mapa {
   const m: Mapa = {};
@@ -50,8 +50,34 @@ function autoMapa(pergs: Pergunta[]): Mapa {
     const achou = chart.find(p => ind.kw.some(k => semAcento(p.titulo || "").includes(k)));
     if (achou) m[ind.key] = achou.id;
   }
+  // LIDERANÇA: quem é a liderança avaliada (pergunta do tipo colaborador) …
+  const lid = pergs.find(p => p.tipo === "colaborador" && /lideranc|lider/.test(semAcento(p.titulo || "")))
+    ?? pergs.find(p => p.tipo === "colaborador");
+  if (lid) m.lider = lid.id;
+  // … e as dimensões avaliadas: escalas (ideal) ou perguntas "o nível/como está".
+  const escalas = pergs.filter(p => p.tipo === "escala");
+  const ordinais = pergs.filter(p => ["multipla_escolha", "lista_suspensa"].includes(p.tipo)
+    && /nivel|como est|avalia|visao do liderado|comprometimento|entrega/.test(semAcento(p.titulo || "")));
+  const dims = (escalas.length ? escalas : ordinais).map(p => p.id);
+  if (dims.length) m.dimensoes = dims;
   return m;
 }
+
+// Converte a resposta de uma pergunta em nota 1..5.
+// Escala: normaliza min..max. Opções: assume ordenadas da MELHOR para a PIOR
+// (1ª opção = 5, última = 1) — é como os formulários de feedback são escritos.
+function nota(p: Pergunta, valor: string): number | null {
+  if (!valor) return null;
+  if (p.tipo === "escala") {
+    const n = Number(valor); if (isNaN(n)) return null;
+    const min = p.config?.min ?? 1, max = p.config?.max ?? 5;
+    return max === min ? null : 1 + ((n - min) / (max - min)) * 4;
+  }
+  const i = p.opcoes.indexOf(valor);
+  if (i < 0 || p.opcoes.length < 2) return null;
+  return 5 - (i / (p.opcoes.length - 1)) * 4;
+}
+const faixa = (n: number) => n >= 4 ? "destaque" : n >= 3 ? "atencao" : "critica";
 
 function distrib(p: Pergunta | undefined, resps: Resp[]) {
   if (!p) return [] as { nome: string; completo: string; n: number }[];
@@ -155,6 +181,66 @@ export default function PainelGerencial() {
     return Object.entries(porSetor).map(([setor, cont]) => { const top = Object.entries(cont).sort((a, b) => b[1] - a[1])[0]; return { setor, nec: top?.[0] ?? "—", n: top?.[1] ?? 0 }; }).sort((a, b) => b.n - a.n).slice(0, 6);
   }, [pergs, mapa, filtradas]);
 
+  // ── LIDERANÇA ────────────────────────────────────────────────────────
+  const dimsPergs = useMemo(() => ((mapa.dimensoes ?? []) as string[])
+    .map(id => pergs.find(p => p.id === id)).filter(Boolean) as Pergunta[], [pergs, mapa]);
+  // nota de uma resposta = média das dimensões que ela respondeu (1..5)
+  const notaResp = useCallback((r: Resp) => {
+    const ns = dimsPergs.map(p => nota(p, respValor(r, p.id))).filter((x): x is number => x != null);
+    return ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : null;
+  }, [dimsPergs]);
+
+  const indiceGeral = useMemo(() => {
+    const ns = filtradas.map(notaResp).filter((x): x is number => x != null);
+    return ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : null;
+  }, [filtradas, notaResp]);
+
+  const porDimensao = useMemo(() => dimsPergs.map(p => {
+    const ns = filtradas.map(r => nota(p, respValor(r, p.id))).filter((x): x is number => x != null);
+    const t = p.titulo || "—";
+    return { nome: t.length > 34 ? t.slice(0, 34) + "…" : t, completo: t, valor: ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : 0, n: ns.length };
+  }).sort((a, b) => b.valor - a.valor), [dimsPergs, filtradas]);
+
+  const porLideranca = useMemo(() => {
+    const lp = pq("lider"); if (!lp) return [] as { lider: string; indice: number; n: number; evol: number | null }[];
+    const grupos: Record<string, { soma: number; n: number }> = {};
+    const tris: Record<string, Record<string, { soma: number; n: number }>> = {};
+    filtradas.forEach(r => {
+      const quem = respValor(r, lp.id); if (!quem) return;
+      const nt = notaResp(r); if (nt == null) return;
+      (grupos[quem] ??= { soma: 0, n: 0 }); grupos[quem].soma += nt; grupos[quem].n++;
+      const t = trimestre(r.enviado_em);
+      ((tris[quem] ??= {})[t] ??= { soma: 0, n: 0 }); tris[quem][t].soma += nt; tris[quem][t].n++;
+    });
+    const ordemTri = [...new Set(filtradas.map(r => ({ t: trimestre(r.enviado_em), o: +new Date(r.enviado_em) }))
+      .sort((a, b) => a.o - b.o).map(x => x.t))];
+    return Object.entries(grupos).map(([lider, g]) => {
+      const ts = tris[lider] ?? {};
+      const pres = ordemTri.filter(t => ts[t]);
+      const ult = pres[pres.length - 1], ant = pres[pres.length - 2];
+      const evol = ult && ant ? (ts[ult].soma / ts[ult].n) - (ts[ant].soma / ts[ant].n) : null;
+      return { lider, indice: g.soma / g.n, n: g.n, evol };
+    }).sort((a, b) => b.indice - a.indice);
+  }, [pergs, mapa, filtradas, notaResp]);
+
+  const distLideranca = useMemo(() => {
+    const c = { destaque: 0, atencao: 0, critica: 0 };
+    porLideranca.forEach(l => { c[faixa(l.indice) as keyof typeof c]++; });
+    return [
+      { nome: "Acima de 4,0", completo: "Acima de 4,0", n: c.destaque },
+      { nome: "Entre 3,0 e 4,0", completo: "Entre 3,0 e 4,0", n: c.atencao },
+      { nome: "Abaixo de 3,0", completo: "Abaixo de 3,0", n: c.critica },
+    ];
+  }, [porLideranca]);
+
+  const evolIndice = useMemo(() => {
+    const porTri: Record<string, { soma: number; n: number; o: number }> = {};
+    filtradas.forEach(r => { const nt = notaResp(r); if (nt == null) return; const t = trimestre(r.enviado_em); (porTri[t] ??= { soma: 0, n: 0, o: +new Date(r.enviado_em) }); porTri[t].soma += nt; porTri[t].n++; });
+    return Object.entries(porTri).map(([t, v]) => ({ tri: t, indice: +(v.soma / v.n).toFixed(2), _o: v.o })).sort((a, b) => a._o - b._o).slice(-6);
+  }, [filtradas, notaResp]);
+  const deltaIndice = evolIndice.length > 1 ? evolIndice[evolIndice.length - 1].indice - evolIndice[evolIndice.length - 2].indice : null;
+  const avaliados = useMemo(() => filtradas.filter(r => notaResp(r) != null).length, [filtradas, notaResp]);
+
   const ultimaAtualizacao = useMemo(() => {
     const ts = respsForm.reduce((m, r) => Math.max(m, +new Date(r.enviado_em)), 0);
     return ts ? new Date(ts).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
@@ -191,6 +277,20 @@ export default function PainelGerencial() {
     a.click(); URL.revokeObjectURL(a.href);
   };
 
+  const exportarCsvLid = () => {
+    const linhas: string[][] = [["Bloco", "Item", "Valor"]];
+    linhas.push(["Índice geral", "Média (1-5)", indiceGeral != null ? indiceGeral.toFixed(2) : "—"]);
+    porDimensao.forEach(d => linhas.push(["Índice por dimensão", d.completo, d.valor.toFixed(2)]));
+    distLideranca.forEach(d => linhas.push(["Distribuição", d.completo, String(d.n)]));
+    porLideranca.forEach(l => linhas.push(["Liderança", l.lider, `${l.indice.toFixed(2)} (${l.n} avaliações)`]));
+    const csv = linhas.map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `lideranca-${(form?.titulo ?? "painel").replace(/[^\w-]+/g, "_")}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
   if (loading) return <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Carregando…</div>;
 
   const mudaViz = (k: string, v: Viz) => setViz(x => ({ ...x, [k]: v }));
@@ -215,7 +315,7 @@ export default function PainelGerencial() {
         <div style={{ display: "flex", gap: 4, padding: "0 12px", borderTop: "1px solid #f1f5f9", overflowX: "auto" }}>
           {TABS.map(t => {
             const on = t === tab;
-            const pronto = t === "Desenvolvimento";
+            const pronto = t === "Desenvolvimento" || t === "Liderança";
             return (
               <button key={t} onClick={() => setTab(t)} style={{ padding: "11px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 12.5, fontWeight: on ? 800 : 600, color: on ? "#0f3171" : "#94a3b8", borderBottom: on ? "3px solid #0f3171" : "3px solid transparent", whiteSpace: "nowrap" }}>
                 {t}{!pronto && <span style={{ fontSize: 9, marginLeft: 5, color: "#cbd5e1" }}>em breve</span>}
@@ -250,7 +350,36 @@ export default function PainelGerencial() {
         </div>
         {mostrarMapa && (
           <div style={{ marginTop: 10, borderTop: "1px dashed #e2e8f0", paddingTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
-            {IND.map(ind => (
+            {tab === "Liderança" ? (
+              <>
+                <div><label style={lbl}>Quem é a liderança avaliada</label>
+                  <select value={mapa.lider ?? ""} onChange={e => salvarMapa({ ...mapa, lider: e.target.value || undefined })} style={inp}>
+                    <option value="">— nenhuma —</option>
+                    {pergs.map(p => <option key={p.id} value={p.id}>{p.titulo || "(sem título)"}</option>)}
+                  </select>
+                </div>
+                <div style={{ gridColumn: "1/-1" }}>
+                  <label style={lbl}>Dimensões avaliadas (viram o índice 1–5)</label>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {pergs.filter(p => ["escala", "multipla_escolha", "lista_suspensa"].includes(p.tipo)).map(p => {
+                      const on = ((mapa.dimensoes ?? []) as string[]).includes(p.id);
+                      return (
+                        <span key={p.id} onClick={() => {
+                          const atual = (mapa.dimensoes ?? []) as string[];
+                          salvarMapa({ ...mapa, dimensoes: on ? atual.filter(x => x !== p.id) : [...atual, p.id] });
+                        }} title={p.titulo}
+                          style={{ padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: "pointer", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: on ? "1px solid #0f3171" : "1px solid #e2e8f0", background: on ? "#0f3171" : "#fff", color: on ? "#fff" : "#64748b" }}>
+                          {p.titulo || "(sem título)"}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
+                    Escalas viram nota direto. Em perguntas de opção, assume-se a <b>1ª opção como a melhor</b> (5) e a última como a pior (1).
+                  </div>
+                </div>
+              </>
+            ) : IND.map(ind => (
               <div key={ind.key}><label style={lbl}>{ind.label}</label>
                 <select value={mapa[ind.key] ?? ""} onChange={e => salvarMapa({ ...mapa, [ind.key]: e.target.value || undefined })} style={inp}>
                   <option value="">— nenhuma —</option>
@@ -265,12 +394,19 @@ export default function PainelGerencial() {
 
       {/* Conteúdo */}
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 40px" }}>
-        {tab !== "Desenvolvimento" ? (
-          <div style={{ padding: 70, textAlign: "center", color: "#94a3b8", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14 }}>
-            A aba <b>{tab}</b> entra em breve. Estamos começando por <b>Desenvolvimento</b>.
-          </div>
-        ) : !form ? (
+        {!form ? (
           <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Selecione um formulário.</div>
+        ) : tab === "Liderança" ? (
+          <PainelLideranca
+            indice={indiceGeral} dist={distLideranca} porDim={porDimensao} evol={evolIndice}
+            delta={deltaIndice} avaliados={avaliados} lideres={porLideranca}
+            temMapa={!!pq("lider") && dimsPergs.length > 0}
+            ultima={ultimaAtualizacao} onExport={exportarCsvLid}
+            viz={viz} onViz={mudaViz} onAbrirMapa={() => setMostrarMapa(true)} />
+        ) : tab !== "Desenvolvimento" ? (
+          <div style={{ padding: 70, textAlign: "center", color: "#94a3b8", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14 }}>
+            A aba <b>{tab}</b> entra em breve.
+          </div>
         ) : (
           <>
             {/* Título da seção + exportar */}
@@ -392,7 +528,7 @@ function FiltroFuturo({ label }: { label: string }) {
   return <div><label style={lbl}>{label}</label><select disabled style={{ ...inp, background: "#f8fafc", color: "#94a3b8", cursor: "not-allowed" }}><option>Todas (em breve)</option></select></div>;
 }
 
-function Kpi({ titulo, valor, cor, sub, icone }: { titulo: string; valor: number; cor: string; sub?: string; icone?: string }) {
+function Kpi({ titulo, valor, cor, sub, icone }: { titulo: string; valor: number | string; cor: string; sub?: string; icone?: string }) {
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)", display: "flex", gap: 12, alignItems: "flex-start" }}>
       {icone && (
@@ -407,7 +543,7 @@ function Kpi({ titulo, valor, cor, sub, icone }: { titulo: string; valor: number
   );
 }
 
-function Painel({ titulo, children, viz, onViz, vizOpts, semViz, perg }: { titulo: string; children: React.ReactNode; viz?: Viz; onViz?: (v: Viz) => void; vizOpts?: Viz[]; semViz?: boolean; perg?: Pergunta }) {
+function Painel({ titulo, children, viz, onViz, vizOpts, semViz, semPerg, perg }: { titulo: string; children: React.ReactNode; viz?: Viz; onViz?: (v: Viz) => void; vizOpts?: Viz[]; semViz?: boolean; semPerg?: boolean; perg?: Pergunta }) {
   const opts = VIZ_OPCOES.filter(o => !vizOpts || vizOpts.includes(o.v));
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)", minWidth: 0 }}>
@@ -419,7 +555,7 @@ function Painel({ titulo, children, viz, onViz, vizOpts, semViz, perg }: { titul
           </select>
         )}
       </div>
-      {!semViz && perg === undefined
+      {!semViz && !semPerg && perg === undefined
         ? <div style={{ fontSize: 11.5, color: "#a16207", marginTop: 8 }}>Defina a pergunta em ⚙ Mapeamento.</div>
         : <div style={{ marginTop: 8 }}>{children}</div>}
     </div>
@@ -435,14 +571,30 @@ function Chart({ dados, viz, cor }: { dados: { nome: string; completo: string; n
     wrapperStyle={{ zIndex: 60 }}
     formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />;
   if (viz === "pizza" || viz === "rosca") {
+    // Sem rótulo em volta (estourava o card com opções longas): rosca + legenda.
+    const totP = comDados.reduce((s, d) => s + d.n, 0);
     return (
-      <ResponsiveContainer width="100%" height={220}>
-        <PieChart>
-          <Pie data={comDados} dataKey="n" nameKey="nome" cx="50%" cy="50%" innerRadius={viz === "rosca" ? 50 : 0} outerRadius={80} label={(e: any) => e.nome}>
-            {comDados.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
-          </Pie>{tip}
-        </PieChart>
-      </ResponsiveContainer>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ width: 168, height: 190, flexShrink: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={comDados} dataKey="n" nameKey="nome" cx="50%" cy="50%" innerRadius={viz === "rosca" ? 46 : 0} outerRadius={72} paddingAngle={1}>
+                {comDados.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
+              </Pie>{tip}
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 5, maxHeight: 200, overflowY: "auto" }}>
+          {comDados.map((d, i) => (
+            <div key={d.completo} style={{ display: "flex", gap: 7, alignItems: "center", fontSize: 11.5 }}>
+              <span style={{ width: 9, height: 9, borderRadius: 3, background: CORES[i % CORES.length], flexShrink: 0 }} />
+              <span style={{ flex: 1, color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.completo}>{d.completo}</span>
+              <b style={{ color: "#0f172a" }}>{d.n}</b>
+              <span style={{ color: "#94a3b8", width: 38, textAlign: "right" }}>{pct(d.n, totP)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     );
   }
   if (viz === "colunas") {
@@ -513,6 +665,211 @@ function EvolucaoChart({ data, cats, viz }: { data: any[]; cats: string[]; viz: 
         {cats.map((c, i) => <Serie key={c} type="monotone" dataKey={c} stroke={CAT_CORES[i % CAT_CORES.length]} fill={CAT_CORES[i % CAT_CORES.length]} fillOpacity={0.15} strokeWidth={2} />)}
       </Cmp>
     </ResponsiveContainer>
+  );
+}
+
+// ── Aba LIDERANÇA ─────────────────────────────────────────────────────────
+type Lider = { lider: string; indice: number; n: number; evol: number | null };
+const nf = (n: number) => n.toFixed(2).replace(".", ",");
+const evolTxt = (e: number | null) => e == null ? "—" : `${e >= 0 ? "▲" : "▼"} ${Math.abs(e).toFixed(2).replace(".", ",")}`;
+const evolCor = (e: number | null) => e == null ? "#94a3b8" : e >= 0 ? "#16a34a" : "#dc2626";
+
+function TabelaLideres({ titulo, lista, cor }: { titulo: string; lista: Lider[]; cor: string }) {
+  return (
+    <Painel titulo={titulo} semViz>
+      {lista.length === 0 ? <Vazio /> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <div style={{ display: "flex", gap: 8, fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".4px" }}>
+            <span style={{ width: 14 }}>#</span><span style={{ flex: 1 }}>Liderança</span><span style={{ width: 46, textAlign: "right" }}>Índice</span><span style={{ width: 58, textAlign: "right" }}>Evolução</span>
+          </div>
+          {lista.map((l, i) => (
+            <div key={l.lider} style={{ display: "flex", gap: 8, fontSize: 12.5, alignItems: "baseline", borderTop: "1px solid #f1f5f9", paddingTop: 5 }}>
+              <span style={{ width: 14, fontWeight: 800, color: "#94a3b8" }}>{i + 1}</span>
+              <span style={{ flex: 1, color: "#0f172a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${l.lider} · ${l.n} avaliação(ões)`}>{l.lider}</span>
+              <span style={{ width: 46, textAlign: "right", fontWeight: 800, color: cor }}>{nf(l.indice)}</span>
+              <span style={{ width: 58, textAlign: "right", fontSize: 11.5, fontWeight: 700, color: evolCor(l.evol) }}>{evolTxt(l.evol)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Painel>
+  );
+}
+
+function PainelLideranca({ indice, dist, porDim, evol, delta, avaliados, lideres, temMapa, ultima, onExport, viz, onViz, onAbrirMapa }: {
+  indice: number | null; dist: { nome: string; completo: string; n: number }[];
+  porDim: { nome: string; completo: string; valor: number; n: number }[];
+  evol: { tri: string; indice: number }[]; delta: number | null; avaliados: number; lideres: Lider[];
+  temMapa: boolean; ultima: string; onExport: () => void;
+  viz: Record<string, Viz>; onViz: (k: string, v: Viz) => void; onAbrirMapa: () => void;
+}) {
+  if (!temMapa) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 6 }}>Falta configurar a Liderança</div>
+        <div style={{ fontSize: 12.5, color: "#64748b", maxWidth: 520, margin: "0 auto 14px" }}>
+          Para calcular o índice eu preciso saber <b>qual pergunta identifica a liderança</b> avaliada e <b>quais perguntas são as dimensões</b> (viram nota de 1 a 5).
+        </div>
+        <button onClick={onAbrirMapa} style={btn("#0f3171")}>⚙ Abrir mapeamento</button>
+      </div>
+    );
+  }
+  const destaque = lideres.filter(l => l.indice >= 4);
+  const atencao = lideres.filter(l => l.indice >= 3 && l.indice < 4);
+  const critica = lideres.filter(l => l.indice < 3);
+  const maxDim = Math.max(5, ...porDim.map(d => d.valor));
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 21, fontWeight: 800, color: "#0f172a" }}>LIDERANÇA</div>
+          <div style={{ fontSize: 12.5, color: "#64748b" }}>Avaliação da liderança percebida pela equipe.</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontSize: 10.5, color: "#94a3b8", textAlign: "right", lineHeight: 1.4 }}>Última atualização<br /><b style={{ color: "#475569" }}>{ultima}</b></div>
+          <button onClick={onExport} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬇ Exportar relatório</button>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
+        <Kpi titulo="Índice geral de liderança" valor={indice != null ? `${nf(indice)} / 5` : "—"} cor="#7c3aed" icone="⭐" sub="Média no período (1–5)" />
+        <Kpi titulo="Lideranças em destaque" valor={destaque.length} cor="#16a34a" icone="📈" sub="Acima de 4,0" />
+        <Kpi titulo="Lideranças em atenção" valor={atencao.length} cor="#f59e0b" icone="🙂" sub="Entre 3,0 e 4,0" />
+        <Kpi titulo="Lideranças críticas" valor={critica.length} cor="#dc2626" icone="⚠️" sub="Abaixo de 3,0" />
+        <Kpi titulo="Profissionais avaliados" valor={avaliados} cor="#2563eb" icone="👥" sub="Com avaliação de liderança" />
+        <Kpi titulo="Evolução do índice" valor={delta != null ? `${delta >= 0 ? "+" : "−"}${Math.abs(delta).toFixed(2).replace(".", ",")}` : "—"} cor={delta != null && delta < 0 ? "#dc2626" : "#0891b2"} icone="📊" sub="vs. período anterior" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 14, marginBottom: 14 }}>
+        <Painel titulo="Evolução do índice geral de liderança" viz={viz.lidEvol ?? "linha"} onViz={v => onViz("lidEvol", v)} vizOpts={["linha", "area", "colunas"]} semPerg>
+          {evol.length === 0 ? <Vazio /> : (
+            <ResponsiveContainer width="100%" height={230}>
+              {(viz.lidEvol ?? "linha") === "colunas" ? (
+                <BarChart data={evol} margin={{ top: 6, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="tri" tick={{ fontSize: 10 }} /><YAxis domain={[1, 5]} tick={{ fontSize: 10 }} /><Tooltip />
+                  <Bar dataKey="indice" fill="#7c3aed" radius={[4, 4, 0, 0]}><LabelList dataKey="indice" position="top" style={{ fontSize: 10, fill: "#475569" }} /></Bar>
+                </BarChart>
+              ) : (viz.lidEvol ?? "linha") === "area" ? (
+                <AreaChart data={evol} margin={{ top: 6, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="tri" tick={{ fontSize: 10 }} /><YAxis domain={[1, 5]} tick={{ fontSize: 10 }} /><Tooltip />
+                  <Area type="monotone" dataKey="indice" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.18} strokeWidth={2} />
+                </AreaChart>
+              ) : (
+                <LineChart data={evol} margin={{ top: 6, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="tri" tick={{ fontSize: 10 }} /><YAxis domain={[1, 5]} tick={{ fontSize: 10 }} /><Tooltip />
+                  <Line type="monotone" dataKey="indice" stroke="#7c3aed" strokeWidth={2.5} dot={{ r: 4 }}>
+                    <LabelList dataKey="indice" position="top" style={{ fontSize: 10, fill: "#475569" }} />
+                  </Line>
+                </LineChart>
+              )}
+            </ResponsiveContainer>
+          )}
+        </Painel>
+
+        <Painel titulo="Distribuição do índice de liderança" viz={viz.lidDist ?? "rosca"} onViz={v => onViz("lidDist", v)} semPerg>
+          <ChartFaixas dados={dist} viz={viz.lidDist ?? "rosca"} />
+        </Painel>
+
+        <Painel titulo="Índice por dimensão de liderança" semViz>
+          {porDim.length === 0 ? <Vazio /> : (
+            <div>
+              {porDim.map(d => (
+                <div key={d.completo} style={{ marginBottom: 9 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 3, gap: 8 }}>
+                    <span style={{ color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.completo}>{d.nome}</span>
+                    <b style={{ color: "#0f172a" }}>{nf(d.valor)}</b>
+                  </div>
+                  <div style={{ height: 8, background: "#eef2f7", borderRadius: 20, overflow: "hidden" }}>
+                    <div style={{ width: `${(d.valor / maxDim) * 100}%`, height: "100%", background: "#7c3aed", borderRadius: 20 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Painel>
+
+        <Painel titulo="Insights principais" semViz>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5, color: "#334155" }}>
+            {porDim.length > 0 && <div>✅ Ponto mais forte: <b>{porDim[0].completo}</b> ({nf(porDim[0].valor)}).</div>}
+            {porDim.length > 1 && <div>📈 Maior oportunidade: <b>{porDim[porDim.length - 1].completo}</b> ({nf(porDim[porDim.length - 1].valor)}).</div>}
+            {critica.length > 0 && <div>⚠️ <b>{critica.length}</b> liderança(s) abaixo de 3,0 — apoio imediato.</div>}
+            {delta != null && <div>{delta >= 0 ? "🟢" : "🔴"} O índice {delta >= 0 ? "subiu" : "caiu"} <b>{Math.abs(delta).toFixed(2).replace(".", ",")}</b> vs. o período anterior.</div>}
+          </div>
+        </Painel>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14, marginBottom: 14 }}>
+        <TabelaLideres titulo="Top 5 – Lideranças melhor avaliadas" lista={destaque.slice(0, 5)} cor="#16a34a" />
+        <TabelaLideres titulo="Top 5 – Lideranças em atenção" lista={atencao.slice(0, 5)} cor="#f59e0b" />
+        <TabelaLideres titulo="Top 5 – Lideranças críticas" lista={critica.slice(-5).reverse()} cor="#dc2626" />
+        <Painel titulo="Alertas de liderança" semViz>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9, fontSize: 12.5 }}>
+            <Alerta cor="#dc2626" titulo={`${critica.length} liderança(s) com índice abaixo de 3,0`} sub="Ação imediata recomendada" />
+            <Alerta cor="#f59e0b" titulo={`${atencao.length} liderança(s) em atenção (3,0 a 4,0)`} sub="Acompanhar e apoiar desenvolvimento" />
+            <Alerta cor="#2563eb" titulo={`${lideres.filter(l => l.evol != null && l.evol < 0).length} liderança(s) em queda`} sub="Comparado ao período anterior" />
+          </div>
+        </Painel>
+      </div>
+    </>
+  );
+}
+
+function Alerta({ cor, titulo, sub }: { cor: string; titulo: string; sub: string }) {
+  return (
+    <div style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+      <span style={{ width: 26, height: 26, borderRadius: 8, background: cor + "1a", color: cor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>●</span>
+      <div><div style={{ fontWeight: 700, color: "#0f172a" }}>{titulo}</div><div style={{ fontSize: 11, color: "#94a3b8" }}>{sub}</div></div>
+    </div>
+  );
+}
+
+// Distribuição por faixa (verde/amarelo/vermelho) — rosca com legenda ou barras.
+function ChartFaixas({ dados, viz }: { dados: { nome: string; completo: string; n: number }[]; viz: Viz }) {
+  const cores = ["#16a34a", "#f59e0b", "#dc2626"];
+  const tot = dados.reduce((s, d) => s + d.n, 0);
+  if (!tot) return <Vazio />;
+  if (viz === "barras" || viz === "colunas" || viz === "linha" || viz === "area") {
+    return (
+      <ResponsiveContainer width="100%" height={210}>
+        <BarChart data={dados} margin={{ top: 6, right: 10, left: -20, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+          <XAxis dataKey="nome" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} allowDecimals={false} /><Tooltip />
+          <Bar dataKey="n" radius={[4, 4, 0, 0]}>{dados.map((_, i) => <Cell key={i} fill={cores[i % cores.length]} />)}</Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+  return (
+    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div style={{ width: 168, height: 190, flexShrink: 0, position: "relative" }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={dados.filter(d => d.n)} dataKey="n" nameKey="nome" cx="50%" cy="50%" innerRadius={viz === "rosca" ? 46 : 0} outerRadius={72} paddingAngle={1}>
+              {dados.filter(d => d.n).map((d, i) => <Cell key={i} fill={cores[dados.indexOf(d) % cores.length]} />)}
+            </Pie><Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+        {viz === "rosca" && (
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a" }}>{tot}</div>
+            <div style={{ fontSize: 10, color: "#94a3b8" }}>lideranças</div>
+          </div>
+        )}
+      </div>
+      <div style={{ flex: 1, minWidth: 150, display: "flex", flexDirection: "column", gap: 7 }}>
+        {dados.map((d, i) => (
+          <div key={d.completo} style={{ display: "flex", gap: 7, alignItems: "center", fontSize: 12 }}>
+            <span style={{ width: 9, height: 9, borderRadius: 3, background: cores[i % cores.length], flexShrink: 0 }} />
+            <span style={{ flex: 1, color: "#334155" }}>{d.completo}</span>
+            <b style={{ color: "#0f172a" }}>{d.n}</b>
+            <span style={{ color: "#94a3b8", width: 38, textAlign: "right" }}>{pct(d.n, tot)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
