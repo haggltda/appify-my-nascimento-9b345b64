@@ -62,7 +62,7 @@ export function PautaConducao({
   }) => Promise<boolean>;
   onCriarAcaoPlanoAcao: (dados: {
     pauta_id: string; titulo: string; tipo_acao?: string; problema?: string | null; acao?: string | null; comite?: string | null;
-    area?: string | null; prioridade_normalizada?: string; status_normalizado?: string;
+    tipo_reuniao?: string | null; area?: string | null; prioridade_normalizada?: string; status_normalizado?: string;
     data_inicio_planejado?: string | null; data_fim_planejado?: string | null;
     responsavel_profile_id?: string | null; lider_comite_profile_id?: string | null;
     visibilidade?: string; comentarios?: string | null;

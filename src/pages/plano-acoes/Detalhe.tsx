@@ -18,14 +18,16 @@ import { ForbiddenCard } from "./Lista";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Paperclip, Download } from "lucide-react";
 import { useComitesMap } from "@/hooks/useComitesMap";
+import { useSetoresEmpresa } from "@/hooks/useSetoresEmpresa";
+import { acharUsuarioPorNome } from "@/lib/acharUsuarioPorNome";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
 
-// "Reunião Extraordinária"/"Reunião Ordinária" são linhas da mesma tabela
-// comite (mesma coluna plano_acao.comite por baixo), mas exibidas num campo
-// separado de "Tipo de Reunião" para não misturar com os comitês de verdade.
+// Tipo de Reunião é campo independente de Comitê (não compartilha coluna).
 const TIPOS_REUNIAO = ["Reunião Extraordinária", "Reunião Ordinária"];
+// Opções sintéticas de Comitê que não vêm da tabela comite — líder é fixo por nome.
+const COMITE_LIDER_FIXO: Record<string, string> = { Gestor: "helena nascimento", Sistemas: "iury de jesus silva" };
 
 export default function PlanoAcaoDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -43,7 +45,7 @@ export default function PlanoAcaoDetalhe() {
 
   const [form, setForm] = useState<any>({
     tipo_acao: "acao",
-    titulo: "", problema: "", acao: "", comite: "", area: "", setor: "",
+    titulo: "", problema: "", acao: "", comite: "", tipo_reuniao: "", area: "", setor: "",
     prioridade_normalizada: "media", status_normalizado: "a_definir",
     responsavel_profile_id: null,
     responsavel_nome_origem: "", lider_comite_nome_origem: "", lider_comite_profile_id: null,
@@ -137,54 +139,31 @@ export default function PlanoAcaoDetalhe() {
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
   const { data: comitesMap = {} } = useComitesMap();
-  const comitesList = useMemo(() => Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR")), [comitesMap]);
-  const comitesReais = useMemo(() => comitesList.filter(c => !TIPOS_REUNIAO.includes(c)), [comitesList]);
-  const tiposReuniaoDisponiveis = useMemo(() => comitesList.filter(c => TIPOS_REUNIAO.includes(c)), [comitesList]);
-  const areasDoComite = useMemo(
-    () => (form.comite && comitesMap[form.comite]?.areas) || [],
-    [form.comite, comitesMap]
-  );
-  const areaAtual = useMemo(
-    () => areasDoComite.find((a: any) => a.nome === form.area) || null,
-    [areasDoComite, form.area]
-  );
-
-  // Reset de área/setor quando o mapa de comitês termina de carregar depois
-  // do registro (form.comite não muda, só comitesMap fica disponível depois).
-  // O líder NÃO é sincronizado aqui de propósito — ver handleComiteChange,
-  // que só roda quando o usuário efetivamente troca o comitê (nunca ao
-  // carregar uma ação já salva, para não apagar um líder salvo manualmente).
-  useEffect(() => {
-    if (!form.comite) return;
-    const info = comitesMap[form.comite];
-    if (!info) return;
-    setForm((f: any) => {
-      if (!f.area || info.areasNomes.includes(f.area)) return f;
-      return { ...f, area: "", setor: "" };
-    });
-  }, [form.comite, comitesMap]);
+  const comitesReais = useMemo(() => Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR")), [comitesMap]);
+  const { data: setoresDisponiveis = [] } = useSetoresEmpresa();
 
   // Só roda a partir de interação real do usuário com o dropdown de Comitê —
   // por isso a lógica fica no onValueChange, não num useEffect que também
-  // dispararia ao carregar uma ação existente.
+  // dispararia ao carregar uma ação existente. Preenche o líder automático
+  // (fixo por nome pras opções "Gestor"/"Sistemas", vindo do cadastro do
+  // comitê pros demais) — Setor é campo independente, não reseta mais aqui.
   const handleComiteChange = (v: string) => {
     const novoComite = v === "__none" ? "" : v;
-    const info = novoComite ? comitesMap[novoComite] : undefined;
     setForm((f: any) => {
       const next = { ...f, comite: novoComite };
-      next.lider_comite_profile_id = info?.liderProfileId ?? null;
-      next.lider_comite_nome_origem = info?.lider ?? null;
-      if (!info || (f.area && !info.areasNomes.includes(f.area))) { next.area = ""; next.setor = ""; }
+      const nomeLiderFixo = COMITE_LIDER_FIXO[novoComite];
+      if (nomeLiderFixo) {
+        const achado = acharUsuarioPorNome(usuariosOptions, nomeLiderFixo);
+        next.lider_comite_profile_id = achado?.value ?? null;
+        next.lider_comite_nome_origem = achado?.label ?? null;
+      } else {
+        const info = novoComite ? comitesMap[novoComite] : undefined;
+        next.lider_comite_profile_id = info?.liderProfileId ?? null;
+        next.lider_comite_nome_origem = info?.lider ?? null;
+      }
       return next;
     });
   };
-
-  useEffect(() => {
-    if (!form.area) return;
-    if (areaAtual?.gestor) {
-      setForm((f: any) => ({ ...f, responsavel_nome_origem: areaAtual.gestor || f.responsavel_nome_origem }));
-    }
-  }, [form.area, areaAtual]);
 
   const _podeEditPre = isNew ? can("criar") : can("editar");
   const { data: usuarios = [], error: errUsuarios } = useUsuariosEmpresa({
@@ -265,6 +244,7 @@ export default function PlanoAcaoDetalhe() {
         _problema: form.problema || null,
         _acao: form.acao || null,
         _comite: form.comite || null,
+        _tipo_reuniao: form.tipo_reuniao || null,
         _area: form.area || null,
         _setor: form.setor || null,
         _prioridade_normalizada: form.prioridade_normalizada,
@@ -293,7 +273,7 @@ export default function PlanoAcaoDetalhe() {
       const { error } = await supabase.from("plano_acao").update({
         tipo_acao: form.tipo_acao ?? "acao",
         titulo: form.titulo, problema: form.problema, acao: form.acao,
-        comite: form.comite, area: form.area, setor: form.setor || null,
+        comite: form.comite, tipo_reuniao: form.tipo_reuniao || null, area: form.area, setor: form.setor || null,
         prioridade_normalizada: form.prioridade_normalizada,
         status_normalizado: form.status_normalizado,
         responsavel_profile_id: form.responsavel_profile_id ?? null,
@@ -418,53 +398,39 @@ export default function PlanoAcaoDetalhe() {
             </div>
             <div>
               <Label>Comitê</Label>
-              {comitesList.length > 0 ? (
-                <Select
-                  value={!TIPOS_REUNIAO.includes(form.comite) ? (form.comite || "__none") : "__none"}
-                  disabled={!podeEdit}
-                  onValueChange={handleComiteChange}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione o comitê" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
-                    {comitesReais.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    {form.comite && !comitesReais.includes(form.comite) && !TIPOS_REUNIAO.includes(form.comite) && (
-                      <SelectItem value={form.comite}>{form.comite}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input value={form.comite ?? ""} disabled={!podeEdit} onChange={e => set("comite", e.target.value)} />
-              )}
+              <Select value={form.comite || "__none"} disabled={!podeEdit} onValueChange={handleComiteChange}>
+                <SelectTrigger><SelectValue placeholder="Selecione o comitê" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">—</SelectItem>
+                  <SelectItem value="Gestor">Gestor</SelectItem>
+                  <SelectItem value="Sistemas">Sistemas</SelectItem>
+                  {comitesReais.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {form.comite && !comitesReais.includes(form.comite) && !["Gestor", "Sistemas"].includes(form.comite) && (
+                    <SelectItem value={form.comite}>{form.comite}</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Tipo de Reunião</Label>
-              <Select
-                value={TIPOS_REUNIAO.includes(form.comite) ? form.comite : "__none"}
-                disabled={!podeEdit}
-                onValueChange={handleComiteChange}
-              >
+              <Select value={form.tipo_reuniao || "__none"} disabled={!podeEdit} onValueChange={v => set("tipo_reuniao", v === "__none" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="Selecione o tipo de reunião" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">—</SelectItem>
-                  {tiposReuniaoDisponiveis.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {TIPOS_REUNIAO.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label>Setor</Label>
-              {areasDoComite.length > 0 ? (
-                <Select value={form.area || "__none"} disabled={!podeEdit || !form.comite} onValueChange={v => set("area", v === "__none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder={form.comite ? "Selecione o setor" : "Escolha o comitê primeiro"} /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">—</SelectItem>
-                    {areasDoComite.map((a: any) => <SelectItem key={a.nome} value={a.nome}>{a.nome}</SelectItem>)}
-                    {form.area && !areasDoComite.some((a: any) => a.nome === form.area) && <SelectItem value={form.area}>{form.area}</SelectItem>}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input value={form.area ?? ""} disabled={!podeEdit} onChange={e => set("area", e.target.value)} placeholder={form.comite ? "Digite o setor" : "Escolha o comitê primeiro"} />
-              )}
+              <Select value={form.area || "__none"} disabled={!podeEdit} onValueChange={v => set("area", v === "__none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">—</SelectItem>
+                  {setoresDisponiveis.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {form.area && !setoresDisponiveis.includes(form.area) && <SelectItem value={form.area}>{form.area}</SelectItem>}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Status</Label>

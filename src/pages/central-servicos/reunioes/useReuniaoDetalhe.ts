@@ -544,6 +544,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
     problema?: string | null;
     acao?: string | null;
     comite?: string | null;
+    tipo_reuniao?: string | null;
     area?: string | null;
     prioridade_normalizada?: string;
     status_normalizado?: string;
@@ -563,6 +564,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
       _problema: dados.problema ?? null,
       _acao: dados.acao ?? null,
       _comite: dados.comite ?? null,
+      _tipo_reuniao: dados.tipo_reuniao ?? null,
       _area: dados.area ?? null,
       _prioridade_normalizada: dados.prioridade_normalizada ?? "media",
       _status_normalizado: dados.status_normalizado ?? "a_definir",

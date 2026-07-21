@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Paperclip, Info } from "lucide-react";
 import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
+import { useSetoresEmpresa } from "@/hooks/useSetoresEmpresa";
 import { useCriarReuniao, useCriarReunioesRecorrentes, useUsuariosAtivos, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
 import {
   ETAPA_COR, ETAPA_LABEL, FINALIDADE_LABEL, NOTIFICAR_POR_LABEL, RESULTADO_ESPERADO_LABEL, SALAS_PRESENCIAIS,
@@ -95,42 +95,9 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
   const { empregado } = useVinculoEmpregado();
   const criar = useCriarReuniao();
   const criarRecorrentes = useCriarReunioesRecorrentes();
-  const [setoresDisponiveis, setSetoresDisponiveis] = useState<string[]>([]);
+  const { data: setoresDisponiveis = [] } = useSetoresEmpresa();
 
   const opcoesUsuarios = usuarios.map((u) => ({ value: u.id, label: u.display_name }));
-
-  // Lista de setores da empresa pro dropdown — união da tabela SETORES
-  // (catálogo oficial) com os valores reais em uso na EMPREGADOS (mesma
-  // lógica de src/pages/rh/Colaboradores.tsx), pra nunca faltar um setor
-  // que só existe como texto livre no cadastro de alguém.
-  useEffect(() => {
-    (async () => {
-      const doCatalogo: string[] = [];
-      const st = await (supabase as any).from("SETORES").select("*").limit(2000);
-      if (!st.error && Array.isArray(st.data)) {
-        const pick = (row: any) => {
-          for (const k of Object.keys(row)) if (/setor|nome|descri/i.test(k) && typeof row[k] === "string" && row[k].trim()) return row[k].trim();
-          return "";
-        };
-        doCatalogo.push(...st.data.map(pick).filter(Boolean));
-      }
-
-      const doEmpregados: string[] = [];
-      let from = 0;
-      const chunk = 1000;
-      for (;;) {
-        const { data, error } = await (supabase as any).from("EMPREGADOS").select('"Setor_ERP"').range(from, from + chunk - 1);
-        if (error || !data) break;
-        doEmpregados.push(...data.map((r: any) => String(r["Setor_ERP"] ?? "").trim()).filter(Boolean));
-        if (data.length < chunk || from > 60000) break;
-        from += chunk;
-      }
-
-      setSetoresDisponiveis(
-        [...new Set(["PADRAO", ...doCatalogo, ...doEmpregados])].sort((a, b) => a.localeCompare(b, "pt-BR")),
-      );
-    })();
-  }, []);
 
   // Pré-seleciona o setor do usuário logado quando carrega, mas continua editável.
   useEffect(() => {
