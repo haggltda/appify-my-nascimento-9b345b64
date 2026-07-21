@@ -190,9 +190,12 @@ async function criarUmaReuniao(nova: NovaReuniao): Promise<string> {
     if (pautaErr) throw pautaErr;
   }
 
+  // reuniao_convidado é único por (reuniao_id, user_id) — se a mesma pessoa
+  // vier em convidados e observadores, convidado prevalece.
+  const observadoresSemDuplicata = nova.observadores.filter((userId) => !nova.convidados.includes(userId));
   const participantes = [
     ...nova.convidados.map((userId) => ({ reuniao_id: reuniaoId, user_id: userId, papel: "convidado" })),
-    ...nova.observadores.map((userId) => ({ reuniao_id: reuniaoId, user_id: userId, papel: "observador" })),
+    ...observadoresSemDuplicata.map((userId) => ({ reuniao_id: reuniaoId, user_id: userId, papel: "observador" })),
   ];
   if (participantes.length > 0) {
     const { error: convidadosErr } = await (supabase as any).from("reuniao_convidado").insert(participantes);
