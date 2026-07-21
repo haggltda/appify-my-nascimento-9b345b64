@@ -1,14 +1,37 @@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PerguntaChecklist } from "../types";
 
 export function ChecklistPerguntas({
-  perguntas, respostas, onChange,
+  perguntas, respostas, onChange, modo = "botoes",
 }: {
   perguntas: PerguntaChecklist[];
   respostas: Record<string, string>;
   onChange: (id: string, value: string) => void;
+  /** "dropdown" evita os botões sobrepondo/quebrando em colunas estreitas (ex: sidebar de Encerramento). */
+  modo?: "botoes" | "dropdown";
 }) {
+  if (modo === "dropdown") {
+    return (
+      <div className="space-y-3">
+        {perguntas.map((p) => (
+          <div key={p.id} className="space-y-1">
+            <Label className="text-sm font-normal">{p.pergunta}</Label>
+            <Select value={respostas[p.id] ?? ""} onValueChange={(v) => onChange(p.id, v)}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                {p.opcoes.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       {perguntas.map((p) => (

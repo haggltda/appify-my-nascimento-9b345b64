@@ -206,6 +206,24 @@ export function useReuniaoDetalhe(id: string | undefined) {
     );
   };
 
+  /** Exclusão de verdade (sem volta) — diferente de cancelar. As tabelas filhas cascateiam sozinhas (FK ON DELETE CASCADE); só os arquivos do Storage precisam ser removidos manualmente antes. */
+  const excluirReuniao = async (): Promise<boolean> => {
+    if (!id) return false;
+    const paths = [...anexos.map((a) => a.storage_path), ...pautaAnexos.map((a) => a.storage_path)];
+    if (paths.length > 0) {
+      await supabase.storage.from(BUCKET).remove(paths);
+    }
+    const { error } = await (supabase as any).from("reuniao").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao excluir reunião", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["reuniao-calendario"] });
+    qc.invalidateQueries({ queryKey: ["reuniao-minhas"] });
+    toast({ title: "Reunião excluída" });
+    return true;
+  };
+
   const iniciarReuniao = async (checklistInicio?: Record<string, string>): Promise<boolean> =>
     mudarEtapa(
       "em_andamento",
@@ -675,7 +693,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
   return {
     reuniao, isLoading, pauta, respostas, convidados, anexos, pautaAnexos, comentarios, assinaturas, logs,
     decisoesAcoes, assuntosForaPauta,
-    mudarEtapa, cancelarReuniao, iniciarReuniao, encerrarReuniao, atualizarCampos,
+    mudarEtapa, cancelarReuniao, excluirReuniao, iniciarReuniao, encerrarReuniao, atualizarCampos,
     salvarPautaItem, atualizarPautaItem, reordenarPauta, removerPautaItem, salvarResposta, salvarChecklistConducaoItem,
     uploadAnexo, removerAnexo, downloadAnexo, uploadPautaAnexo, removerPautaAnexo,
     adicionarConvidado, removerConvidado, marcarPresenca, adicionarComentario, removerComentario, salvarAssinatura,
