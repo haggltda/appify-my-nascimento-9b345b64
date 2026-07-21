@@ -47,7 +47,7 @@ export function salaResumo(r: { tipo_local: TipoLocalReuniao; local_ou_link: str
   return SALAS_FIXAS.includes(r.local_ou_link) ? r.local_ou_link : "Outro";
 }
 
-export type TipoReuniao = "comunicacao" | "alinhamento" | "operacional" | "comite" | "gerencial" | "diretoria" | "equipe" | "acompanhamento" | "outro";
+export type TipoReuniao = "comunicacao" | "alinhamento" | "operacional" | "comite" | "gerencial" | "diretoria" | "equipe" | "acompanhamento" | "outro" | "treinamento";
 
 export const TIPO_REUNIAO_LABEL: Record<TipoReuniao, string> = {
   comunicacao: "Comunicação",
@@ -59,9 +59,10 @@ export const TIPO_REUNIAO_LABEL: Record<TipoReuniao, string> = {
   equipe: "Equipe",
   acompanhamento: "Acompanhamento",
   outro: "Outro",
+  treinamento: "Treinamento",
 };
 
-/** Duração padrão (minutos) por tipo de reunião — null pra "outro" (usuário informa). */
+/** Duração padrão (minutos) por tipo de reunião — null pra "outro"/"treinamento" (usuário informa; sem duração padrão definida ainda pro treinamento). */
 export const TIPO_REUNIAO_DURACAO_PADRAO: Record<TipoReuniao, number | null> = {
   comunicacao: 15,
   alinhamento: 30,
@@ -72,7 +73,19 @@ export const TIPO_REUNIAO_DURACAO_PADRAO: Record<TipoReuniao, number | null> = {
   equipe: 30,
   acompanhamento: 30,
   outro: null,
+  treinamento: null,
 };
+
+/**
+ * Pedido do chefe (2026-07-21): dropdown de CRIAÇÃO de reunião não deve
+ * mais oferecer Comunicação/Alinhamento/Acompanhamento, e ganhou
+ * Treinamento. Os valores continuam existindo em TIPO_REUNIAO_LABEL (e no
+ * CHECK do banco) pra reuniões antigas continuarem exibindo certo em
+ * badges/filtros — só o formulário de criação usa esta lista restrita.
+ */
+export const TIPO_REUNIAO_OPCOES_CRIACAO: TipoReuniao[] = [
+  "operacional", "comite", "gerencial", "diretoria", "equipe", "treinamento", "outro",
+];
 
 export type Finalidade = "comunicacao" | "alinhamento" | "decisao" | "acompanhamento_indicadores" | "resolver_problema" | "plano_acao";
 
