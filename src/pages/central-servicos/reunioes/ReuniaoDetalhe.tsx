@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   ArrowLeft, Bell, BellRing, CalendarDays, CalendarPlus, Download, FileDown, MapPin, Pencil, Play,
-  UserPlus, Users, Video, X,
+  Trash2, UserPlus, Users, Video, X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -171,6 +171,7 @@ function EditorOrganizador({ atual, opcoes, onSalvar }: { atual: string; opcoes:
 
 export default function ReuniaoDetalhe() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
   const push = usePushNotifications();
@@ -179,10 +180,11 @@ export default function ReuniaoDetalhe() {
   const [novoPapel, setNovoPapel] = useState<"convidado" | "observador">("convidado");
   const [motivoCancelamento, setMotivoCancelamento] = useState("");
   const [participantesOpen, setParticipantesOpen] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
 
   const {
     reuniao, isLoading, pauta, respostas, convidados, anexos, pautaAnexos, comentarios, assinaturas, logs,
-    cancelarReuniao, encerrarReuniao, atualizarCampos,
+    cancelarReuniao, excluirReuniao, encerrarReuniao, atualizarCampos,
     salvarPautaItem, atualizarPautaItem, reordenarPauta, removerPautaItem, salvarResposta,
     uploadAnexo, removerAnexo, downloadAnexo, uploadPautaAnexo, removerPautaAnexo,
     adicionarConvidado, removerConvidado, adicionarComentario, removerComentario, salvarAssinatura,
@@ -210,6 +212,13 @@ export default function ReuniaoDetalhe() {
   const cancelar = async () => {
     if (!motivoCancelamento.trim()) return;
     if (await cancelarReuniao(motivoCancelamento.trim())) setMotivoCancelamento("");
+  };
+
+  const excluir = async () => {
+    setExcluindo(true);
+    const ok = await excluirReuniao();
+    setExcluindo(false);
+    if (ok) navigate("/app/central-servicos/reunioes");
   };
 
   const convidar = async () => {
@@ -304,6 +313,25 @@ export default function ReuniaoDetalhe() {
               <AlertDialogFooter>
                 <AlertDialogCancel>Voltar</AlertDialogCancel>
                 <AlertDialogAction disabled={!motivoCancelamento.trim()} onClick={cancelar}>Confirmar cancelamento</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+        {podeGerenciar && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="ghost" className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir reunião</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir esta reunião?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Isso apaga a reunião, pauta, respostas, decisões e ações, anexos, convidados e histórico — tudo, sem volta. Ações já criadas no Plano de Ações não são apagadas de lá.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction disabled={excluindo} onClick={excluir}>{excluindo ? "Excluindo…" : "Confirmar exclusão"}</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
