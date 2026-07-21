@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Plus, Trash2, ExternalLink } from "lucide-react";
 import { useComitesMap } from "@/hooks/useComitesMap";
+import { useSetoresEmpresa } from "@/hooks/useSetoresEmpresa";
+import { acharUsuarioPorNome } from "@/lib/acharUsuarioPorNome";
 import {
   STATUS_LABELS, STATUS_ORDEM, PRIORIDADES, PRIORIDADE_LABEL, VISIBILIDADE_OPTIONS, VISIBILIDADE_LABEL,
   TIPO_ACAO_OPTIONS, TIPO_ACAO_LABEL,
@@ -17,10 +19,10 @@ import {
   type PrioridadeDecisaoAcao, type ReuniaoDecisaoAcao, type StatusDecisaoAcao, type TipoDecisaoAcao, type Usuario,
 } from "../types";
 
-// Mesma convenção do módulo Plano de Ações: "Reunião Extraordinária"/"Reunião
-// Ordinária" são linhas da própria tabela comitê (mesma coluna plano_acao.comite
-// por baixo), só exibidas num seletor "Tipo de Reunião" separado do de Comitê.
+// Tipo de Reunião é campo independente de Comitê (não compartilha coluna).
 const TIPOS_REUNIAO = ["Reunião Extraordinária", "Reunião Ordinária"];
+// Opções sintéticas de Comitê que não vêm da tabela comite — líder é fixo por nome.
+const COMITE_LIDER_FIXO: Record<string, string> = { Gestor: "helena nascimento", Sistemas: "iury de jesus silva" };
 
 interface NovaDecisao {
   pauta_id: string;
@@ -40,6 +42,7 @@ interface NovaAcaoPlanoAcao {
   problema?: string | null;
   acao?: string | null;
   comite?: string | null;
+  tipo_reuniao?: string | null;
   area?: string | null;
   prioridade_normalizada?: string;
   status_normalizado?: string;
@@ -83,6 +86,7 @@ export function DecisoesAcoesPainel({
   const [acaoProblema, setAcaoProblema] = useState("");
   const [acaoAcao, setAcaoAcao] = useState("");
   const [acaoComite, setAcaoComite] = useState("");
+  const [acaoTipoReuniao, setAcaoTipoReuniao] = useState("");
   const [acaoArea, setAcaoArea] = useState(setorPadrao ?? "");
   const [acaoPrioridade, setAcaoPrioridade] = useState<string>("media");
   const [acaoStatus, setAcaoStatus] = useState<string>("a_definir");
@@ -97,20 +101,22 @@ export function DecisoesAcoesPainel({
   const opcoesUsuarios = usuarios.map((u) => ({ value: u.id, label: u.display_name }));
 
   const { data: comitesMap = {} } = useComitesMap();
-  const comitesList = useMemo(() => Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR")), [comitesMap]);
-  const comitesReais = useMemo(() => comitesList.filter((c) => !TIPOS_REUNIAO.includes(c)), [comitesList]);
-  const tiposReuniaoDisponiveis = useMemo(() => comitesList.filter((c) => TIPOS_REUNIAO.includes(c)), [comitesList]);
-  const areasDoComite = useMemo(() => (acaoComite && comitesMap[acaoComite]?.areas) || [], [acaoComite, comitesMap]);
+  const comitesReais = useMemo(() => Object.keys(comitesMap).sort((a, b) => a.localeCompare(b, "pt-BR")), [comitesMap]);
+  const { data: setoresDisponiveis = [] } = useSetoresEmpresa();
 
   // Só roda a partir de interação real do usuário com o dropdown de Comitê
-  // (ou de Tipo de Reunião, que escreve na mesma coluna) — preenche o líder
-  // automaticamente, mas ele continua editável depois.
+  // — preenche o líder automaticamente (fixo pra "Gestor"/"Sistemas", vindo
+  // do cadastro do comitê pros demais), mas ele continua editável depois.
+  // Setor não depende mais de Comitê — são campos independentes.
   const handleComiteChange = (v: string) => {
     const novoComite = v === "__none" ? "" : v;
-    const info = novoComite ? comitesMap[novoComite] : undefined;
     setAcaoComite(novoComite);
-    setAcaoLider(info?.liderProfileId ?? "");
-    if (!info || (acaoArea && !info.areasNomes.includes(acaoArea))) setAcaoArea("");
+    const nomeLiderFixo = COMITE_LIDER_FIXO[novoComite];
+    if (nomeLiderFixo) {
+      setAcaoLider(acharUsuarioPorNome(opcoesUsuarios, nomeLiderFixo)?.value ?? "");
+    } else {
+      setAcaoLider(comitesMap[novoComite]?.liderProfileId ?? "");
+    }
   };
 
   useEffect(() => {
@@ -123,7 +129,7 @@ export function DecisoesAcoesPainel({
   const limpar = () => {
     setTexto(""); setResponsavel(""); setPrazo(""); setPrioridade("media");
     setNecessitaComprovacao(false); setSetorImpactado("");
-    setAcaoTipoAcao("acao"); setAcaoTitulo(""); setAcaoProblema(""); setAcaoAcao(""); setAcaoComite("");
+    setAcaoTipoAcao("acao"); setAcaoTitulo(""); setAcaoProblema(""); setAcaoAcao(""); setAcaoComite(""); setAcaoTipoReuniao("");
     setAcaoArea(setorPadrao ?? ""); setAcaoPrioridade("media"); setAcaoStatus("a_definir");
     setAcaoDataInicio(""); setAcaoDataFim(""); setAcaoResponsavel(""); setAcaoLider("");
     setAcaoVisibilidade("privado"); setAcaoComentarios("");
@@ -150,6 +156,7 @@ export function DecisoesAcoesPainel({
       problema: acaoProblema.trim() || null,
       acao: acaoAcao.trim() || null,
       comite: acaoComite || null,
+      tipo_reuniao: acaoTipoReuniao || null,
       area: acaoArea || null,
       prioridade_normalizada: acaoPrioridade,
       status_normalizado: acaoStatus,
@@ -287,31 +294,23 @@ export function DecisoesAcoesPainel({
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">Comitê</label>
-                  {comitesReais.length > 0 ? (
-                    <Select
-                      value={!TIPOS_REUNIAO.includes(acaoComite) ? (acaoComite || "__none") : "__none"}
-                      onValueChange={handleComiteChange}
-                    >
-                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o comitê" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none">—</SelectItem>
-                        {comitesReais.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input value={acaoComite} onChange={(e) => setAcaoComite(e.target.value)} placeholder="Comitê" />
-                  )}
+                  <Select value={acaoComite || "__none"} onValueChange={handleComiteChange}>
+                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o comitê" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">—</SelectItem>
+                      <SelectItem value="Gestor">Gestor</SelectItem>
+                      <SelectItem value="Sistemas">Sistemas</SelectItem>
+                      {comitesReais.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">Tipo de Reunião</label>
-                  <Select
-                    value={TIPOS_REUNIAO.includes(acaoComite) ? acaoComite : "__none"}
-                    onValueChange={handleComiteChange}
-                  >
+                  <Select value={acaoTipoReuniao || "__none"} onValueChange={(v) => setAcaoTipoReuniao(v === "__none" ? "" : v)}>
                     <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o tipo de reunião" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none">—</SelectItem>
-                      {tiposReuniaoDisponiveis.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      {TIPOS_REUNIAO.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -320,21 +319,13 @@ export function DecisoesAcoesPainel({
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">Setor</label>
-                  {areasDoComite.length > 0 ? (
-                    <Select value={acaoArea || "__none"} disabled={!acaoComite} onValueChange={(v) => setAcaoArea(v === "__none" ? "" : v)}>
-                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder={acaoComite ? "Selecione o setor" : "Escolha o comitê primeiro"} /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none">—</SelectItem>
-                        {areasDoComite.map((a) => <SelectItem key={a.nome} value={a.nome}>{a.nome}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input
-                      value={acaoArea}
-                      onChange={(e) => setAcaoArea(e.target.value)}
-                      placeholder={acaoComite ? "Digite o setor" : "Escolha o comitê primeiro"}
-                    />
-                  )}
+                  <Select value={acaoArea || "__none"} onValueChange={(v) => setAcaoArea(v === "__none" ? "" : v)}>
+                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">—</SelectItem>
+                      {setoresDisponiveis.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">Status</label>

@@ -104,7 +104,7 @@ export default function ConducaoReuniao() {
       )}
 
       {reuniao.etapa === "em_andamento" && (
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
           <Card className="min-w-0 space-y-6 p-4">
             <PautaConducao
               pauta={pauta}
