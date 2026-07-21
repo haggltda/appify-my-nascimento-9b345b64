@@ -34,7 +34,7 @@ import { HistoricoPainel } from "./componentes/HistoricoPainel";
 import { exportarConvocacaoPdf } from "./pdf/convocacaoPdf";
 import { exportarAtaFinalPdf } from "./pdf/ataFinalPdf";
 import { buildGoogleCalendarUrl, baixarIcs } from "@/lib/calendarExport";
-import { ETAPA_COR, ETAPA_LABEL, nomeUsuario, SALAS_PRESENCIAIS } from "./types";
+import { ETAPA_COR, ETAPA_LABEL, nomeUsuario, SALAS_PRESENCIAIS, TIPO_REUNIAO_LABEL, type TipoLocalReuniao } from "./types";
 
 function CampoEditavel({
   icon, label, valor, editavel, editor,
@@ -98,31 +98,38 @@ function EditorDataHora({ dataHoraAtual, onSalvar }: { dataHoraAtual: string; on
 }
 
 function EditorLocal({
-  tipoAtual, localAtual, onSalvar,
+  tipoAtual, localAtual, linkAtual, onSalvar,
 }: {
-  tipoAtual: "presencial" | "online";
+  tipoAtual: TipoLocalReuniao;
   localAtual: string;
-  onSalvar: (tipo: "presencial" | "online", local: string) => Promise<void>;
+  linkAtual: string | null;
+  onSalvar: (tipo: TipoLocalReuniao, local: string, linkOnline: string | null) => Promise<void>;
 }) {
   const [tipo, setTipo] = useState(tipoAtual);
-  const salaInicial = tipoAtual === "presencial" && (SALAS_PRESENCIAIS as readonly string[]).includes(localAtual) ? localAtual : (tipoAtual === "presencial" ? "Outro" : "");
+  const usaSalaInicial = tipoAtual === "presencial" || tipoAtual === "hibrido";
+  const salaInicial = usaSalaInicial && (SALAS_PRESENCIAIS as readonly string[]).includes(localAtual) ? localAtual : (usaSalaInicial ? "Outro" : "");
   const [sala, setSala] = useState(salaInicial);
-  const [outro, setOutro] = useState(tipoAtual === "presencial" && salaInicial === "Outro" ? localAtual : "");
-  const [link, setLink] = useState(tipoAtual === "online" ? localAtual : "");
+  const [outro, setOutro] = useState(usaSalaInicial && salaInicial === "Outro" ? localAtual : "");
+  const [link, setLink] = useState(tipoAtual === "online" ? localAtual : (tipoAtual === "hibrido" ? (linkAtual ?? "") : ""));
   const [salvando, setSalvando] = useState(false);
 
-  const localFinal = tipo === "presencial" ? (sala === "Outro" ? outro.trim() : sala) : link.trim();
+  const usaSala = tipo === "presencial" || tipo === "hibrido";
+  const usaLink = tipo === "online" || tipo === "hibrido";
+  const salaFinal = sala === "Outro" ? outro.trim() : sala;
+  const localFinal = usaSala ? salaFinal : link.trim();
+  const podeSalvar = (!usaSala || salaFinal) && (!usaLink || link.trim());
 
   return (
     <>
-      <Select value={tipo} onValueChange={(v) => { setTipo(v as "presencial" | "online"); setSala(""); setOutro(""); setLink(""); }}>
+      <Select value={tipo} onValueChange={(v) => { setTipo(v as TipoLocalReuniao); setSala(""); setOutro(""); setLink(""); }}>
         <SelectTrigger><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="presencial">Presencial</SelectItem>
           <SelectItem value="online">Online</SelectItem>
+          <SelectItem value="hibrido">Híbrido</SelectItem>
         </SelectContent>
       </Select>
-      {tipo === "presencial" ? (
+      {usaSala && (
         <>
           <Select value={sala} onValueChange={setSala}>
             <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
@@ -134,16 +141,15 @@ function EditorLocal({
           </Select>
           {sala === "Outro" && <Input value={outro} onChange={(e) => setOutro(e.target.value)} placeholder="Descreva" />}
         </>
-      ) : (
-        <Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Link da reunião" />
       )}
+      {usaLink && <Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Link da reunião" />}
       <Button
         size="sm"
         className="w-full"
-        disabled={!localFinal || salvando}
+        disabled={!podeSalvar || salvando}
         onClick={async () => {
           setSalvando(true);
-          await onSalvar(tipo, localFinal);
+          await onSalvar(tipo, localFinal, tipo === "hibrido" ? link.trim() : null);
           setSalvando(false);
         }}
       >
@@ -170,12 +176,13 @@ export default function ReuniaoDetalhe() {
   const push = usePushNotifications();
   const { data: usuarios = [] } = useUsuariosAtivos();
   const [novoConvidado, setNovoConvidado] = useState("");
+  const [novoPapel, setNovoPapel] = useState<"convidado" | "observador">("convidado");
   const [motivoCancelamento, setMotivoCancelamento] = useState("");
   const [participantesOpen, setParticipantesOpen] = useState(false);
 
   const {
     reuniao, isLoading, pauta, respostas, convidados, anexos, pautaAnexos, comentarios, assinaturas, logs,
-    cancelarReuniao, iniciarReuniao, encerrarReuniao, atualizarCampos,
+    cancelarReuniao, encerrarReuniao, atualizarCampos,
     salvarPautaItem, atualizarPautaItem, reordenarPauta, removerPautaItem, salvarResposta,
     uploadAnexo, removerAnexo, downloadAnexo, uploadPautaAnexo, removerPautaAnexo,
     adicionarConvidado, removerConvidado, adicionarComentario, removerComentario, salvarAssinatura,
@@ -193,7 +200,7 @@ export default function ReuniaoDetalhe() {
     );
   }
 
-  const podeGerenciar = user?.id === reuniao.criado_por || user?.id === reuniao.responsavel_preenchimento_user_id;
+  const podeGerenciar = user?.id === reuniao.criado_por || user?.id === reuniao.responsavel_preenchimento_user_id || user?.id === reuniao.organizador_user_id;
   const reuniaoEncerrada = reuniao.etapa === "concluida" || reuniao.etapa === "cancelada";
   const opcoesConvidaveis = usuarios
     .filter((u) => !convidados.some((c) => c.user_id === u.id))
@@ -215,10 +222,10 @@ export default function ReuniaoDetalhe() {
       reuniaoIdIgnorar: reuniao.id,
     });
     if (conflito) {
-      toast({ title: "Conflito de horário", description: `${nome ?? "Este participante"} já está convidado para outra reunião nesse horário (reunião "${conflito.titulo}").`, variant: "destructive" });
+      toast({ title: "Conflito de horário", description: `${nome ?? "Este participante"} já está em outra reunião nesse horário (reunião "${conflito.titulo}").`, variant: "destructive" });
       return;
     }
-    if (await adicionarConvidado(novoConvidado, nome)) setNovoConvidado("");
+    if (await adicionarConvidado(novoConvidado, nome, novoPapel)) { setNovoConvidado(""); setNovoPapel("convidado"); }
   };
 
   return (
@@ -226,7 +233,7 @@ export default function ReuniaoDetalhe() {
       <PageHeader
         title={reuniao.titulo}
         module="Central de Serviços"
-        breadcrumb={["Agenda de Reunião", "Detalhe"]}
+        breadcrumb={["Agenda de Reunião", reuniao.numero, "Detalhe"]}
         subtitle={reuniao.objetivo ?? undefined}
         actions={
           <>
@@ -253,8 +260,13 @@ export default function ReuniaoDetalhe() {
               </Button>
             )}
             {podeGerenciar && reuniao.etapa === "agendada" && (
-              <Button size="sm" className="gap-1.5" onClick={() => iniciarReuniao()}>
-                <Play className="h-3.5 w-3.5" /> Iniciar Reunião
+              <Button asChild size="sm" className="gap-1.5">
+                <Link to={`/app/central-servicos/reunioes/${reuniao.id}/conducao`}><Play className="h-3.5 w-3.5" /> Iniciar Reunião</Link>
+              </Button>
+            )}
+            {podeGerenciar && reuniao.etapa === "em_andamento" && (
+              <Button asChild size="sm" className="gap-1.5">
+                <Link to={`/app/central-servicos/reunioes/${reuniao.id}/conducao`}><Play className="h-3.5 w-3.5" /> Conduzir Reunião</Link>
               </Button>
             )}
             {podeGerenciar && reuniao.etapa === "em_andamento" && (
@@ -271,6 +283,7 @@ export default function ReuniaoDetalhe() {
 
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline" className={ETAPA_COR[reuniao.etapa]}>{ETAPA_LABEL[reuniao.etapa]}</Badge>
+        {reuniao.tipo_reuniao && <Badge variant="outline">{TIPO_REUNIAO_LABEL[reuniao.tipo_reuniao]}</Badge>}
         <Button size="sm" variant="outline" className="gap-1.5" onClick={() => window.open(buildGoogleCalendarUrl(reuniao), "_blank", "noopener,noreferrer")}>
           <CalendarPlus className="h-3.5 w-3.5" /> Adicionar ao Google Calendar
         </Button>
@@ -307,7 +320,7 @@ export default function ReuniaoDetalhe() {
             <EditorDataHora
               dataHoraAtual={reuniao.data_hora}
               onSalvar={async (iso, justificativa) => {
-                if (reuniao.tipo_local === "presencial") {
+                if (reuniao.tipo_local === "presencial" || reuniao.tipo_local === "hibrido") {
                   const conflito = await verificarConflitoSala({
                     local: reuniao.local_ou_link,
                     dataHoraIso: iso,
@@ -333,6 +346,27 @@ export default function ReuniaoDetalhe() {
         <CampoEditavel
           icon={<Users className="h-4 w-4" />}
           label="Organizador"
+          valor={nomeUsuario(usuarios, reuniao.organizador_user_id) ?? "—"}
+          editavel={podeGerenciar && !reuniaoEncerrada}
+          editor={(fechar) => (
+            <EditorOrganizador
+              atual={reuniao.organizador_user_id}
+              opcoes={opcoesUsuarios}
+              onSalvar={async (userId) => {
+                const de = nomeUsuario(usuarios, reuniao.organizador_user_id) ?? "—";
+                const para = nomeUsuario(usuarios, userId) ?? "—";
+                await atualizarCampos(
+                  { organizador_user_id: userId },
+                  { acao: "organizador_alterado", detalhe: `Organizador alterado de ${de} para ${para}` },
+                );
+                fechar();
+              }}
+            />
+          )}
+        />
+        <CampoEditavel
+          icon={<Users className="h-4 w-4" />}
+          label="Responsável pela ata"
           valor={nomeUsuario(usuarios, reuniao.responsavel_preenchimento_user_id) ?? "—"}
           editavel={podeGerenciar && !reuniaoEncerrada}
           editor={(fechar) => (
@@ -344,7 +378,7 @@ export default function ReuniaoDetalhe() {
                 const para = nomeUsuario(usuarios, userId) ?? "—";
                 await atualizarCampos(
                   { responsavel_preenchimento_user_id: userId },
-                  { acao: "organizador_alterado", detalhe: `Organizador alterado de ${de} para ${para}` },
+                  { acao: "responsavel_alterado", detalhe: `Responsável pela ata alterado de ${de} para ${para}` },
                 );
                 fechar();
               }}
@@ -360,16 +394,17 @@ export default function ReuniaoDetalhe() {
           <Button size="sm" variant="outline" className="shrink-0" onClick={() => setParticipantesOpen(true)}>Ver participantes</Button>
         </div>
         <CampoEditavel
-          icon={reuniao.tipo_local === "presencial" ? <MapPin className="h-4 w-4" /> : <Video className="h-4 w-4" />}
+          icon={reuniao.tipo_local === "online" ? <Video className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
           label="Local / Link"
-          valor={reuniao.local_ou_link}
+          valor={reuniao.tipo_local === "hibrido" ? `${reuniao.local_ou_link} · ${reuniao.link_online ?? "—"}` : reuniao.local_ou_link}
           editavel={podeGerenciar && !reuniaoEncerrada}
           editor={(fechar) => (
             <EditorLocal
               tipoAtual={reuniao.tipo_local}
               localAtual={reuniao.local_ou_link}
-              onSalvar={async (tipo, local) => {
-                if (tipo === "presencial") {
+              linkAtual={reuniao.link_online}
+              onSalvar={async (tipo, local, linkOnline) => {
+                if (tipo === "presencial" || tipo === "hibrido") {
                   const conflito = await verificarConflitoSala({
                     local,
                     dataHoraIso: reuniao.data_hora,
@@ -382,7 +417,7 @@ export default function ReuniaoDetalhe() {
                   }
                 }
                 await atualizarCampos(
-                  { tipo_local: tipo, local_ou_link: local },
+                  { tipo_local: tipo, local_ou_link: local, link_online: linkOnline },
                   { acao: "local_alterado", detalhe: `Local alterado de "${reuniao.local_ou_link}" para "${local}"` },
                 );
                 fechar();
@@ -477,7 +512,10 @@ export default function ReuniaoDetalhe() {
           <div className="space-y-1">
             {convidados.map((c) => (
               <div key={c.id} className="flex items-center justify-between rounded border border-border px-2 py-1 text-sm">
-                <span>{nomeUsuario(usuarios, c.user_id) ?? c.user_id}</span>
+                <span className="flex items-center gap-2">
+                  {nomeUsuario(usuarios, c.user_id) ?? c.user_id}
+                  <Badge variant="outline" className="text-[10px]">{c.papel === "observador" ? "Observador" : "Convidado"}</Badge>
+                </span>
                 {podeGerenciar && !reuniaoEncerrada && (
                   <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removerConvidado(c.id, nomeUsuario(usuarios, c.user_id) ?? undefined)}>
                     <X className="h-3.5 w-3.5" />
@@ -490,6 +528,13 @@ export default function ReuniaoDetalhe() {
           {podeGerenciar && !reuniaoEncerrada && (
             <div className="flex gap-2">
               <SearchableSelect value={novoConvidado} onChange={setNovoConvidado} options={opcoesConvidaveis} placeholder="Selecionar usuário" className="flex-1" />
+              <Select value={novoPapel} onValueChange={(v) => setNovoPapel(v as "convidado" | "observador")}>
+                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="convidado">Convidado</SelectItem>
+                  <SelectItem value="observador">Observador</SelectItem>
+                </SelectContent>
+              </Select>
               <Button size="sm" variant="outline" className="gap-1.5" onClick={convidar} disabled={!novoConvidado}>
                 <UserPlus className="h-3.5 w-3.5" /> Convidar
               </Button>

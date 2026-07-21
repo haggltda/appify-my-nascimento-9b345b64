@@ -1,17 +1,18 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { isSameDay, isSameMonth, isSameWeek, isToday } from "date-fns";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { AlertTriangle, CalendarDays, Clock, List, Plus } from "lucide-react";
+import { AlertTriangle, CalendarDays, Clock, LayoutDashboard, List, Lock, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAccessibleMenus } from "@/hooks/useAccessibleMenus";
 import { useReunioes, useUsuariosAtivos } from "./useReunioes";
 import { CalendarioMes } from "./componentes/CalendarioMes";
 import { ReuniaoFormCriar } from "./ReuniaoFormCriar";
+import { BloquearAgendaModal } from "./componentes/BloquearAgendaModal";
 import { ETAPA_COR, ETAPA_LABEL, nomeUsuario, salaResumo, SALAS_PRESENCIAIS } from "./types";
 
 function KpiTile({ icon, label, valor, sub, cor }: { icon: React.ReactNode; label: string; valor: number; sub: string; cor: string }) {
@@ -34,6 +35,7 @@ export default function Reunioes() {
   const { data: access } = useAccessibleMenus("visualizar");
   const podeCriar = access?.codes.has("central_servicos_criar_reuniao") ?? false;
   const [novoOpen, setNovoOpen] = useState(false);
+  const [bloquearOpen, setBloquearOpen] = useState(false);
   const [modo, setModo] = useState<"calendario" | "lista">("calendario");
   const [mesAtual, setMesAtual] = useState(() => new Date());
   const [diaSelecionado, setDiaSelecionado] = useState(() => new Date());
@@ -73,11 +75,19 @@ export default function Reunioes() {
         breadcrumb={["Agenda de Reunião"]}
         subtitle="Agende reuniões com pauta obrigatória, preencha a ata depois do encontro e colha assinaturas."
         actions={
-          podeCriar && (
-            <Button className="gap-1.5" onClick={() => setNovoOpen(true)}>
-              <Plus className="h-4 w-4" /> Agendar Reunião
+          <>
+            <Button asChild variant="outline" className="gap-1.5">
+              <Link to="/app/central-servicos/reunioes/painel-gerencial"><LayoutDashboard className="h-4 w-4" /> Painel gerencial</Link>
             </Button>
-          )
+            <Button variant="outline" className="gap-1.5" onClick={() => setBloquearOpen(true)}>
+              <Lock className="h-4 w-4" /> Bloquear Agenda
+            </Button>
+            {podeCriar && (
+              <Button className="gap-1.5" onClick={() => setNovoOpen(true)}>
+                <Plus className="h-4 w-4" /> Agendar Reunião
+              </Button>
+            )}
+          </>
         }
       />
 
@@ -145,6 +155,7 @@ export default function Reunioes() {
                   <p className="font-medium">
                     {new Date(r.data_hora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {r.titulo}
                   </p>
+                  <p className="text-[10px] text-muted-foreground">{r.numero}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {nomeUsuario(usuarios, r.responsavel_preenchimento_user_id) ?? "—"} · {r.local_ou_link}
                   </p>
@@ -173,8 +184,9 @@ export default function Reunioes() {
               <div className="min-w-0">
                 <p className="truncate font-semibold">{r.titulo}</p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(r.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-                  {" · "}{r.tipo_local === "presencial" ? "Presencial" : "Online"}
+                  {r.numero}
+                  {" · "}{new Date(r.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                  {" · "}{r.tipo_local === "presencial" ? "Presencial" : r.tipo_local === "hibrido" ? "Híbrido" : "Online"}
                 </p>
               </div>
               <Badge variant="outline" className={ETAPA_COR[r.etapa]}>{ETAPA_LABEL[r.etapa]}</Badge>
@@ -184,6 +196,7 @@ export default function Reunioes() {
       )}
 
       <ReuniaoFormCriar open={novoOpen} onOpenChange={setNovoOpen} />
+      <BloquearAgendaModal open={bloquearOpen} onOpenChange={setBloquearOpen} />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { addDays, isSameDay, isWithinInterval, subDays } from "date-fns";
 import { useMinhasReunioes, useOcultarReuniaoDaHome } from "../useReunioes";
-import { ETAPA_COR, ETAPA_LABEL } from "../types";
+import { ETAPA_COR, ETAPA_LABEL, salaResumo } from "../types";
 
 type FiltroPeriodo = "hoje" | "proximos_7" | "proximos_30" | "ultimos_7" | "ultimos_30" | "todo_periodo";
 
@@ -72,7 +72,7 @@ export function MinhasReunioesCard() {
                   <span className="ini-reuniao-meta">
                     {new Date(r.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                     {" · "}
-                    {r.tipo_local === "presencial" ? r.local_ou_link : "Online"}
+                    {salaResumo(r)}
                   </span>
                 </Link>
                 <span className={`ini-reuniao-badge ${ETAPA_COR[r.etapa]}`}>{ETAPA_LABEL[r.etapa]}</span>
