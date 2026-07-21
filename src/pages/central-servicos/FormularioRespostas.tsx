@@ -242,12 +242,19 @@ export default function FormularioRespostas() {
   // Nomes do cadastro (EMPREGADOS) só para saber quais valores de resposta são
   // pessoas de verdade (viram link p/ a ficha). Best-effort: se falhar, ninguém
   // fica clicável. Só a coluna "Nome" p/ não pesar.
-  // limit alto de propósito: sem ele o PostgREST corta em 1000 linhas e metade
-  // do cadastro fica de fora — quem sobrava aparecia como "Vincular".
+  // O PostgREST corta a resposta em 1000 linhas mesmo com .limit() alto — por
+  // isso lê em blocos de 1000 (mesmo padrão do RH/Colaboradores). Sem isso só o
+  // 1º milheiro do cadastro entrava e todo o resto aparecia como "Vincular".
   const carregarNomes = useCallback(async () => {
     try {
-      const { data } = await (supabase as any).from("EMPREGADOS").select('"Nome"').limit(20000);
-      setNomesEmp(new Set((data ?? []).map((e: any) => normNome(e["Nome"])).filter(Boolean)));
+      let todos: any[] = []; const bloco = 1000;
+      for (let de = 0; ; de += bloco) {
+        const { data, error } = await (supabase as any).from("EMPREGADOS").select('"Nome"').range(de, de + bloco - 1);
+        if (error) break;
+        todos = todos.concat(data || []);
+        if (!data || data.length < bloco || de > 60000) break;
+      }
+      setNomesEmp(new Set(todos.map((e: any) => normNome(e["Nome"])).filter(Boolean)));
     } catch { /* ignore */ }
     setVinculos(await carregarVinculos());
   }, []);
@@ -471,17 +478,21 @@ function ResumoPergunta({ p, i, resps, resolve, onPessoa, quem, onVerRespostas }
     return out;
   }, [resps, p.id]);
 
-  // Agrupa valores iguais (nomes repetidos) preservando a ordem de aparição.
+  // Agrupa pela IDENTIDADE resolvida, não pelo texto cru: grafias diferentes
+  // vinculadas à mesma pessoa ("Iury", "Gerência Sistemas") juntam-se ao nome
+  // canônico numa linha só — antes cada grafia virava uma linha duplicada.
   const grupos = useMemo(() => {
     const m = new Map<string, { texto: string; itens: { v: any; r: Resposta }[] }>();
     ocorrencias.forEach(o => {
       const texto = valorTexto(o.v);
-      const chave = normNome(texto) || texto;
+      const pess = resolve(texto);
+      const rotulo = pess.ehPessoa ? pess.exibir : texto;   // mostra o nome do cadastro
+      const chave = normNome(rotulo) || rotulo;
       const g = m.get(chave);
-      if (g) g.itens.push(o); else m.set(chave, { texto, itens: [o] });
+      if (g) g.itens.push(o); else m.set(chave, { texto: rotulo, itens: [o] });
     });
     return [...m.values()];
-  }, [ocorrencias]);
+  }, [ocorrencias, resolve]);
 
   const conteudo = useMemo(() => {
     if (["multipla_escolha", "caixas_selecao", "lista_suspensa", "escala"].includes(p.tipo)) {
