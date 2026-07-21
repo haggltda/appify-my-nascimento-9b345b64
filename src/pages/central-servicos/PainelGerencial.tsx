@@ -41,6 +41,15 @@ const IND: { key: string; label: string; kw: string[] }[] = [
   { key: "fortes", label: "Pontos fortes", kw: ["fazendo bem", "ponto forte", "faz bem", "pontos fortes"] },
   { key: "melhoria", label: "Pontos de melhoria", kw: ["precisa melhorar", "melhorar", "melhoria", "sente que precisa"] },
 ];
+// Indicadores da aba ALINHAMENTO E ENTREGA (todos viram nota 1..5).
+const IND_ALIN: { key: string; label: string; kw: string[]; opcional?: boolean }[] = [
+  { key: "alinhamento", label: "Alinhamento às metas", kw: ["alinhad", "alinhamento", "visao do liderado", "meta"] },
+  { key: "entrega", label: "Qualidade da entrega", kw: ["entrega", "nivel de entrega", "qualidade"] },
+  { key: "contribuicao", label: "Contribuição para resultados", kw: ["comprometimento", "contribui", "resultado"] },
+  { key: "metasConcluidas", label: "Metas concluídas (opcional)", kw: ["meta concluida", "metas concluidas", "concluiu"], opcional: true },
+  { key: "metasPrazo", label: "Metas no prazo (opcional)", kw: ["no prazo", "dentro do prazo", "prazo"], opcional: true },
+];
+
 type Mapa = Record<string, any>;  // singles = id da pergunta; dimensoes = string[]
 
 function autoMapa(pergs: Pergunta[]): Mapa {
@@ -60,6 +69,12 @@ function autoMapa(pergs: Pergunta[]): Mapa {
     && /nivel|como est|avalia|visao do liderado|comprometimento|entrega/.test(semAcento(p.titulo || "")));
   const dims = (escalas.length ? escalas : ordinais).map(p => p.id);
   if (dims.length) m.dimensoes = dims;
+  // ALINHAMENTO E ENTREGA: cada indicador é uma pergunta ordinal/escala.
+  const notaveis = pergs.filter(p => ["escala", "multipla_escolha", "lista_suspensa"].includes(p.tipo));
+  for (const ind of IND_ALIN) {
+    const achou = notaveis.find(p => ind.kw.some(k => semAcento(p.titulo || "").includes(k)));
+    if (achou) m[ind.key] = achou.id;
+  }
   return m;
 }
 
@@ -90,6 +105,50 @@ function distrib(p: Pergunta | undefined, resps: Resp[]) {
 }
 const trimestre = (iso: string) => { const d = new Date(iso); return `${Math.floor(d.getMonth() / 3) + 1}º Tri/${String(d.getFullYear()).slice(2)}`; };
 const respValor = (r: Resp, pid?: string) => { if (!pid) return ""; const v = r.itens[pid]; return v == null ? "" : String(Array.isArray(v) ? v[0] : v); };
+
+function mediaNota(p: Pergunta | undefined, resps: Resp[]): number | null {
+  if (!p) return null;
+  const ns = resps.map(r => nota(p, respValor(r, p.id))).filter((x): x is number => x != null);
+  return ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : null;
+}
+
+function serieTrimestre(resps: Resp[], valor: (r: Resp) => number | null) {
+  const porTri: Record<string, { soma: number; n: number; o: number }> = {};
+  resps.forEach(r => {
+    const v = valor(r); if (v == null) return;
+    const t = trimestre(r.enviado_em);
+    (porTri[t] ??= { soma: 0, n: 0, o: +new Date(r.enviado_em) }); porTri[t].soma += v; porTri[t].n++;
+  });
+  return Object.entries(porTri).map(([t, v]) => ({ tri: t, valor: +(v.soma / v.n).toFixed(2), _o: v.o }))
+    .sort((a, b) => a._o - b._o).slice(-6);
+}
+const deltaSerie = (s: { valor: number }[]) => s.length > 1 ? s[s.length - 1].valor - s[s.length - 2].valor : null;
+
+// Agrupa por chave (líder, setor…) com média e evolução vs. trimestre anterior.
+function agrupaMedia(resps: Resp[], chave: (r: Resp) => string, valor: (r: Resp) => number | null) {
+  const tot: Record<string, { soma: number; n: number }> = {};
+  const tris: Record<string, Record<string, { soma: number; n: number; o: number }>> = {};
+  resps.forEach(r => {
+    const k = (chave(r) || "").trim(); if (!k) return;
+    const v = valor(r); if (v == null) return;
+    (tot[k] ??= { soma: 0, n: 0 }); tot[k].soma += v; tot[k].n++;
+    const t = trimestre(r.enviado_em);
+    ((tris[k] ??= {})[t] ??= { soma: 0, n: 0, o: +new Date(r.enviado_em) }); tris[k][t].soma += v; tris[k][t].n++;
+  });
+  return Object.entries(tot).map(([k, g]) => {
+    const ts = Object.entries(tris[k] ?? {}).sort((a, b) => a[1].o - b[1].o);
+    const ult = ts[ts.length - 1], ant = ts[ts.length - 2];
+    const evol = ult && ant ? (ult[1].soma / ult[1].n) - (ant[1].soma / ant[1].n) : null;
+    return { chave: k, media: g.soma / g.n, n: g.n, evol };
+  }).sort((a, b) => b.media - a.media);
+}
+
+// % das respostas que marcaram a 1ª opção (ex.: "Sim" / "Concluída" / "No prazo").
+function pctPrimeiraOpcao(p: Pergunta | undefined, resps: Resp[]): number | null {
+  if (!p || !p.opcoes.length) return null;
+  const vals = resps.map(r => respValor(r, p.id)).filter(Boolean);
+  return vals.length ? (vals.filter(v => v === p.opcoes[0]).length / vals.length) * 100 : null;
+}
 
 export default function PainelGerencial() {
   const nav = useNavigate();
@@ -241,6 +300,61 @@ export default function PainelGerencial() {
   const deltaIndice = evolIndice.length > 1 ? evolIndice[evolIndice.length - 1].indice - evolIndice[evolIndice.length - 2].indice : null;
   const avaliados = useMemo(() => filtradas.filter(r => notaResp(r) != null).length, [filtradas, notaResp]);
 
+  // ── ALINHAMENTO E ENTREGA ────────────────────────────────────────────
+  const alinP = pq("alinhamento"), entP = pq("entrega"), contP = pq("contribuicao");
+  const indiceAlin = useCallback((r: Resp) => {
+    const ns = [alinP, entP, contP].map(p => p ? nota(p, respValor(r, p.id)) : null).filter((x): x is number => x != null);
+    return ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : null;
+  }, [alinP, entP, contP]);
+
+  const alinKpis = useMemo(() => {
+    const sAlin = serieTrimestre(filtradas, r => alinP ? nota(alinP, respValor(r, alinP.id)) : null);
+    const sEnt = serieTrimestre(filtradas, r => entP ? nota(entP, respValor(r, entP.id)) : null);
+    const sCon = serieTrimestre(filtradas, r => contP ? nota(contP, respValor(r, contP.id)) : null);
+    const sGer = serieTrimestre(filtradas, indiceAlin);
+    return {
+      alin: mediaNota(alinP, filtradas), dAlin: deltaSerie(sAlin),
+      ent: mediaNota(entP, filtradas), dEnt: deltaSerie(sEnt),
+      con: mediaNota(contP, filtradas), dCon: deltaSerie(sCon),
+      geral: (() => { const ns = filtradas.map(indiceAlin).filter((x): x is number => x != null); return ns.length ? ns.reduce((a, b) => a + b, 0) / ns.length : null; })(),
+      dGeral: deltaSerie(sGer), serieGeral: sGer,
+      metasConcl: pctPrimeiraOpcao(pq("metasConcluidas"), filtradas),
+      metasPrazo: pctPrimeiraOpcao(pq("metasPrazo"), filtradas),
+    };
+  }, [filtradas, alinP, entP, contP, indiceAlin, pergs, mapa]);
+
+  const distAlin = useMemo(() => {
+    const c = { alto: 0, medio: 0, baixo: 0 };
+    filtradas.forEach(r => { const v = indiceAlin(r); if (v == null) return; if (v >= 4) c.alto++; else if (v >= 3) c.medio++; else c.baixo++; });
+    return [
+      { nome: "Alto (4,0 a 5,0)", completo: "Alto (4,0 a 5,0)", n: c.alto },
+      { nome: "Médio (3,0 a 3,9)", completo: "Médio (3,0 a 3,9)", n: c.medio },
+      { nome: "Baixo (0 a 2,9)", completo: "Baixo (0 a 2,9)", n: c.baixo },
+    ];
+  }, [filtradas, indiceAlin]);
+
+  const alinPorSetor = useMemo(() => agrupaMedia(filtradas, r => r.setor ?? "—", indiceAlin), [filtradas, indiceAlin]);
+  const topLidAlin = useMemo(() => agrupaMedia(filtradas, r => respValor(r, mapa.lider), indiceAlin), [filtradas, mapa, indiceAlin]);
+  const topSetorEntrega = useMemo(() => agrupaMedia(filtradas, r => r.setor ?? "—", r => entP ? nota(entP, respValor(r, entP.id)) : null), [filtradas, entP]);
+  const topLidContrib = useMemo(() => agrupaMedia(filtradas, r => respValor(r, mapa.lider), r => contP ? nota(contP, respValor(r, contP.id)) : null), [filtradas, mapa, contP]);
+
+  const exportarCsvAlin = () => {
+    const l: string[][] = [["Bloco", "Item", "Valor"]];
+    l.push(["Índice", "Alinhamento às metas", alinKpis.alin != null ? alinKpis.alin.toFixed(2) : "—"]);
+    l.push(["Índice", "Qualidade da entrega", alinKpis.ent != null ? alinKpis.ent.toFixed(2) : "—"]);
+    l.push(["Índice", "Contribuição para resultados", alinKpis.con != null ? alinKpis.con.toFixed(2) : "—"]);
+    l.push(["Índice", "Geral de alinhamento", alinKpis.geral != null ? alinKpis.geral.toFixed(2) : "—"]);
+    distAlin.forEach(d => l.push(["Distribuição", d.completo, String(d.n)]));
+    alinPorSetor.forEach(s => l.push(["Alinhamento por setor", s.chave, s.media.toFixed(2)]));
+    topLidAlin.forEach(x => l.push(["Líder — alinhamento", x.chave, x.media.toFixed(2)]));
+    topSetorEntrega.forEach(x => l.push(["Setor — entrega", x.chave, x.media.toFixed(2)]));
+    const csv = l.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `alinhamento-entrega-${(form?.titulo ?? "painel").replace(/[^\w-]+/g, "_")}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
   const ultimaAtualizacao = useMemo(() => {
     const ts = respsForm.reduce((m, r) => Math.max(m, +new Date(r.enviado_em)), 0);
     return ts ? new Date(ts).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
@@ -315,7 +429,7 @@ export default function PainelGerencial() {
         <div style={{ display: "flex", gap: 4, padding: "0 12px", borderTop: "1px solid #f1f5f9", overflowX: "auto" }}>
           {TABS.map(t => {
             const on = t === tab;
-            const pronto = t === "Desenvolvimento" || t === "Liderança";
+            const pronto = ["Desenvolvimento", "Liderança", "Alinhamento e Entrega"].includes(t);
             return (
               <button key={t} onClick={() => setTab(t)} style={{ padding: "11px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 12.5, fontWeight: on ? 800 : 600, color: on ? "#0f3171" : "#94a3b8", borderBottom: on ? "3px solid #0f3171" : "3px solid transparent", whiteSpace: "nowrap" }}>
                 {t}{!pronto && <span style={{ fontSize: 9, marginLeft: 5, color: "#cbd5e1" }}>em breve</span>}
@@ -379,7 +493,14 @@ export default function PainelGerencial() {
                   </div>
                 </div>
               </>
-            ) : IND.map(ind => (
+            ) : tab === "Alinhamento e Entrega" ? IND_ALIN.map(ind => (
+              <div key={ind.key}><label style={lbl}>{ind.label}</label>
+                <select value={mapa[ind.key] ?? ""} onChange={e => salvarMapa({ ...mapa, [ind.key]: e.target.value || undefined })} style={inp}>
+                  <option value="">— nenhuma —</option>
+                  {pergs.filter(p => ["escala", "multipla_escolha", "lista_suspensa"].includes(p.tipo)).map(p => <option key={p.id} value={p.id}>{p.titulo || "(sem título)"}</option>)}
+                </select>
+              </div>
+            )) : IND.map(ind => (
               <div key={ind.key}><label style={lbl}>{ind.label}</label>
                 <select value={mapa[ind.key] ?? ""} onChange={e => salvarMapa({ ...mapa, [ind.key]: e.target.value || undefined })} style={inp}>
                   <option value="">— nenhuma —</option>
@@ -402,6 +523,12 @@ export default function PainelGerencial() {
             delta={deltaIndice} avaliados={avaliados} lideres={porLideranca}
             temMapa={!!pq("lider") && dimsPergs.length > 0}
             ultima={ultimaAtualizacao} onExport={exportarCsvLid}
+            viz={viz} onViz={mudaViz} onAbrirMapa={() => setMostrarMapa(true)} />
+        ) : tab === "Alinhamento e Entrega" ? (
+          <PainelAlinhamento
+            k={alinKpis} dist={distAlin} porSetor={alinPorSetor}
+            topLidAlin={topLidAlin} topSetorEntrega={topSetorEntrega} topLidContrib={topLidContrib}
+            temMapa={!!(alinP || entP || contP)} ultima={ultimaAtualizacao} onExport={exportarCsvAlin}
             viz={viz} onViz={mudaViz} onAbrirMapa={() => setMostrarMapa(true)} />
         ) : tab !== "Desenvolvimento" ? (
           <div style={{ padding: 70, textAlign: "center", color: "#94a3b8", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14 }}>
@@ -817,6 +944,187 @@ function PainelLideranca({ indice, dist, porDim, evol, delta, avaliados, lideres
   );
 }
 
+// ── Aba ALINHAMENTO E ENTREGA ─────────────────────────────────────────────
+type Grupo = { chave: string; media: number; n: number; evol: number | null };
+
+function TabelaGrupo({ titulo, lista, colChave, colValor, cor }: { titulo: string; lista: Grupo[]; colChave: string; colValor: string; cor: string }) {
+  return (
+    <Painel titulo={titulo} semViz>
+      {lista.length === 0 ? <Vazio /> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <div style={{ display: "flex", gap: 8, fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".4px" }}>
+            <span style={{ width: 14 }}>#</span><span style={{ flex: 1 }}>{colChave}</span>
+            <span style={{ width: 52, textAlign: "right" }}>{colValor}</span><span style={{ width: 58, textAlign: "right" }}>Evolução</span>
+          </div>
+          {lista.map((x, i) => (
+            <div key={x.chave} style={{ display: "flex", gap: 8, fontSize: 12.5, alignItems: "baseline", borderTop: "1px solid #f1f5f9", paddingTop: 5 }}>
+              <span style={{ width: 14, fontWeight: 800, color: "#94a3b8" }}>{i + 1}</span>
+              <span style={{ flex: 1, color: "#0f172a", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${x.chave} · ${x.n} avaliação(ões)`}>{x.chave}</span>
+              <span style={{ width: 52, textAlign: "right", fontWeight: 800, color: cor }}>{nf(x.media)}</span>
+              <span style={{ width: 58, textAlign: "right", fontSize: 11.5, fontWeight: 700, color: evolCor(x.evol) }}>{evolTxt(x.evol)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Painel>
+  );
+}
+
+function KpiIndice({ titulo, valor, delta, cor, icone, sub }: { titulo: string; valor: number | null; delta?: number | null; cor: string; icone: string; sub?: string }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)", display: "flex", gap: 12, alignItems: "flex-start" }}>
+      <div style={{ width: 38, height: 38, borderRadius: 11, background: cor + "1a", color: cor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{icone}</div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={titulo}>{titulo}</div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: cor, marginTop: 2 }}>
+          {valor != null ? nf(valor) : "—"}{valor != null && <span style={{ fontSize: 13, color: "#94a3b8", fontWeight: 700 }}> / 5</span>}
+        </div>
+        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{sub ?? "Média no período"}</div>
+        {delta != null && <div style={{ fontSize: 11, fontWeight: 700, color: evolCor(delta), marginTop: 2 }}>{evolTxt(delta)} vs. tri anterior</div>}
+      </div>
+    </div>
+  );
+}
+
+function PainelAlinhamento({ k, dist, porSetor, topLidAlin, topSetorEntrega, topLidContrib, temMapa, ultima, onExport, viz, onViz, onAbrirMapa }: {
+  k: { alin: number | null; dAlin: number | null; ent: number | null; dEnt: number | null; con: number | null; dCon: number | null; geral: number | null; dGeral: number | null; serieGeral: { tri: string; valor: number }[]; metasConcl: number | null; metasPrazo: number | null };
+  dist: { nome: string; completo: string; n: number }[]; porSetor: Grupo[];
+  topLidAlin: Grupo[]; topSetorEntrega: Grupo[]; topLidContrib: Grupo[];
+  temMapa: boolean; ultima: string; onExport: () => void;
+  viz: Record<string, Viz>; onViz: (k: string, v: Viz) => void; onAbrirMapa: () => void;
+}) {
+  if (!temMapa) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 6 }}>Falta configurar Alinhamento e Entrega</div>
+        <div style={{ fontSize: 12.5, color: "#64748b", maxWidth: 540, margin: "0 auto 14px" }}>
+          Preciso saber quais perguntas medem <b>alinhamento às metas</b>, <b>qualidade da entrega</b> e <b>contribuição para resultados</b>.
+        </div>
+        <button onClick={onAbrirMapa} style={btn("#0f3171")}>⚙ Abrir mapeamento</button>
+      </div>
+    );
+  }
+  const maxSetor = Math.max(5, ...porSetor.map(s => s.media));
+  const vEvol = viz.alinEvol ?? "linha";
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 21, fontWeight: 800, color: "#0f172a" }}>ALINHAMENTO E ENTREGA</div>
+          <div style={{ fontSize: 12.5, color: "#64748b" }}>Avaliação do alinhamento da equipe às metas, qualidade da entrega e contribuição para os resultados.</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontSize: 10.5, color: "#94a3b8", textAlign: "right", lineHeight: 1.4 }}>Última atualização<br /><b style={{ color: "#475569" }}>{ultima}</b></div>
+          <button onClick={onExport} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬇ Exportar relatório</button>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
+        <KpiIndice titulo="Alinhamento às metas" valor={k.alin} delta={k.dAlin} cor="#2563eb" icone="🎯" />
+        <KpiIndice titulo="Qualidade da entrega" valor={k.ent} delta={k.dEnt} cor="#16a34a" icone="✅" />
+        <KpiIndice titulo="Contribuição para resultados" valor={k.con} delta={k.dCon} cor="#f59e0b" icone="👥" />
+        <KpiIndice titulo="Índice geral de alinhamento" valor={k.geral} delta={k.dGeral} cor="#7c3aed" icone="⭐" />
+        <Kpi titulo="Metas concluídas no período" valor={k.metasConcl != null ? `${Math.round(k.metasConcl)}%` : "—"} cor="#0891b2" icone="🏁"
+          sub={k.metasConcl != null ? "Do total de metas" : "Mapeie a pergunta em ⚙"} />
+        <Kpi titulo="Metas até o prazo" valor={k.metasPrazo != null ? `${Math.round(k.metasPrazo)}%` : "—"} cor="#dc2626" icone="⏱"
+          sub={k.metasPrazo != null ? "No período" : "Mapeie a pergunta em ⚙"} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 14, marginBottom: 14 }}>
+        <Painel titulo="Evolução do índice geral de alinhamento" viz={vEvol} onViz={v => onViz("alinEvol", v)} vizOpts={["linha", "area", "colunas"]} semPerg>
+          {k.serieGeral.length === 0 ? <Vazio /> : (
+            <ResponsiveContainer width="100%" height={230}>
+              {vEvol === "colunas" ? (
+                <BarChart data={k.serieGeral} margin={{ top: 6, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="tri" tick={{ fontSize: 10 }} /><YAxis domain={[2, 5]} tick={{ fontSize: 10 }} /><Tooltip />
+                  <Bar dataKey="valor" fill="#2563eb" radius={[4, 4, 0, 0]}><LabelList dataKey="valor" position="top" style={{ fontSize: 10, fill: "#475569" }} /></Bar>
+                </BarChart>
+              ) : vEvol === "area" ? (
+                <AreaChart data={k.serieGeral} margin={{ top: 6, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="tri" tick={{ fontSize: 10 }} /><YAxis domain={[2, 5]} tick={{ fontSize: 10 }} /><Tooltip />
+                  <Area type="monotone" dataKey="valor" stroke="#2563eb" fill="#2563eb" fillOpacity={0.18} strokeWidth={2} />
+                </AreaChart>
+              ) : (
+                <LineChart data={k.serieGeral} margin={{ top: 6, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="tri" tick={{ fontSize: 10 }} /><YAxis domain={[2, 5]} tick={{ fontSize: 10 }} /><Tooltip />
+                  <Line type="monotone" dataKey="valor" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4 }}>
+                    <LabelList dataKey="valor" position="top" style={{ fontSize: 10, fill: "#475569" }} />
+                  </Line>
+                </LineChart>
+              )}
+            </ResponsiveContainer>
+          )}
+        </Painel>
+
+        <Painel titulo="Distribuição do alinhamento da equipe" viz={viz.alinDist ?? "rosca"} onViz={v => onViz("alinDist", v)} semPerg>
+          <ChartFaixas dados={dist} viz={viz.alinDist ?? "rosca"} rotulo="avaliações" />
+        </Painel>
+
+        <Painel titulo="Alinhamento por setor" semViz>
+          {porSetor.length === 0 ? <Vazio /> : (
+            <div>
+              {porSetor.slice(0, 8).map(s => (
+                <div key={s.chave} style={{ marginBottom: 9 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 3, gap: 8 }}>
+                    <span style={{ color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.chave}>{s.chave}</span>
+                    <b style={{ color: "#0f172a" }}>{nf(s.media)}</b>
+                  </div>
+                  <div style={{ height: 8, background: "#eef2f7", borderRadius: 20, overflow: "hidden" }}>
+                    <div style={{ width: `${(s.media / maxSetor) * 100}%`, height: "100%", background: "#4f46e5", borderRadius: 20 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Painel>
+
+        <Painel titulo="Insights principais" semViz>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5, color: "#334155" }}>
+            {porSetor.length > 0 && <div>📈 <b>{porSetor[0].chave}</b> lidera o alinhamento com média <b>{nf(porSetor[0].media)}</b>.</div>}
+            {k.dEnt != null && <div>🎯 A qualidade da entrega {k.dEnt >= 0 ? "cresceu" : "caiu"} <b>{Math.abs(k.dEnt).toFixed(2).replace(".", ",")}</b> ponto(s).</div>}
+            {k.metasPrazo != null && <div>⏱ <b>{Math.round(k.metasPrazo)}%</b> das metas foram concluídas dentro do prazo.</div>}
+            {porSetor.length > 1 && <div>⚠️ <b>{porSetor[porSetor.length - 1].chave}</b> possui o menor índice ({nf(porSetor[porSetor.length - 1].media)}).</div>}
+          </div>
+        </Painel>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14, marginBottom: 14 }}>
+        <TabelaGrupo titulo="Top 5 – Líderes com melhor alinhamento" lista={topLidAlin.slice(0, 5)} colChave="Liderança" colValor="Índice" cor="#2563eb" />
+        <TabelaGrupo titulo="Top 5 – Setores com melhor entrega" lista={topSetorEntrega.slice(0, 5)} colChave="Setor" colValor="Entrega" cor="#16a34a" />
+        <TabelaGrupo titulo="Top 5 – Maiores contribuições" lista={topLidContrib.slice(0, 5)} colChave="Liderança" colValor="Contrib." cor="#f59e0b" />
+        <Painel titulo="Alertas e atenções" semViz>
+          <div style={{ display: "flex", flexDirection: "column", gap: 9, fontSize: 12.5 }}>
+            <Alerta cor="#dc2626" titulo={`${dist[2]?.n ?? 0} avaliação(ões) com alinhamento baixo`} sub="Abaixo de 3,0 — acompanhar plano de ação" />
+            <Alerta cor="#f59e0b" titulo={`${dist[1]?.n ?? 0} em nível médio (3,0 a 3,9)`} sub="Ação corretiva recomendada" />
+            <Alerta cor="#2563eb" titulo={`${porSetor.filter(s => s.media < 3.5).length} setor(es) com índice abaixo de 3,5`} sub="Atenção da liderança" />
+          </div>
+        </Painel>
+      </div>
+
+      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 10 }}>Ações recomendadas</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 12 }}>
+          {[
+            { i: "🎯", t: `Reforçar alinhamento de metas${porSetor.length ? ` com ${porSetor[porSetor.length - 1].chave}` : ""}.` },
+            { i: "👏", t: "Reconhecer e compartilhar boas práticas das equipes com maior entrega." },
+            { i: "📈", t: "Acompanhar de perto as metas em risco de não conclusão." },
+            { i: "💬", t: "Fortalecer comunicação entre áreas para melhorar contribuições." },
+            { i: "✅", t: "Revisar metas do próximo ciclo com base nos gaps identificados." },
+          ].map((a, i) => (
+            <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+              <span style={{ width: 28, height: 28, borderRadius: 9, background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{a.i}</span>
+              <span style={{ fontSize: 12, color: "#475569", lineHeight: 1.45 }}>{a.t}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function Alerta({ cor, titulo, sub }: { cor: string; titulo: string; sub: string }) {
   return (
     <div style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
@@ -827,7 +1135,7 @@ function Alerta({ cor, titulo, sub }: { cor: string; titulo: string; sub: string
 }
 
 // Distribuição por faixa (verde/amarelo/vermelho) — rosca com legenda ou barras.
-function ChartFaixas({ dados, viz }: { dados: { nome: string; completo: string; n: number }[]; viz: Viz }) {
+function ChartFaixas({ dados, viz, rotulo = "lideranças" }: { dados: { nome: string; completo: string; n: number }[]; viz: Viz; rotulo?: string }) {
   const cores = ["#16a34a", "#f59e0b", "#dc2626"];
   const tot = dados.reduce((s, d) => s + d.n, 0);
   if (!tot) return <Vazio />;
@@ -855,7 +1163,7 @@ function ChartFaixas({ dados, viz }: { dados: { nome: string; completo: string; 
         {viz === "rosca" && (
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
             <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a" }}>{tot}</div>
-            <div style={{ fontSize: 10, color: "#94a3b8" }}>lideranças</div>
+            <div style={{ fontSize: 10, color: "#94a3b8" }}>{rotulo}</div>
           </div>
         )}
       </div>
