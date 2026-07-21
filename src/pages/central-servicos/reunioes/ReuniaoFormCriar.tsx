@@ -16,7 +16,7 @@ import { useSetoresEmpresa } from "@/hooks/useSetoresEmpresa";
 import { useCriarReuniao, useCriarReunioesRecorrentes, useUsuariosAtivos, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
 import {
   ETAPA_COR, ETAPA_LABEL, FINALIDADE_LABEL, NOTIFICAR_POR_LABEL, RESULTADO_ESPERADO_LABEL, SALAS_PRESENCIAIS,
-  TIPO_REUNIAO_DURACAO_PADRAO, TIPO_REUNIAO_LABEL, nomeUsuario,
+  TIPO_REUNIAO_DURACAO_PADRAO, TIPO_REUNIAO_LABEL, TIPO_REUNIAO_OPCOES_CRIACAO, nomeUsuario,
   type Finalidade, type NotificarPor, type ResultadoEsperado, type TipoLocalReuniao, type TipoReuniao,
 } from "./types";
 
@@ -305,7 +305,7 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
               >
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(TIPO_REUNIAO_LABEL) as TipoReuniao[]).map((t) => (
+                  {TIPO_REUNIAO_OPCOES_CRIACAO.map((t) => (
                     <SelectItem key={t} value={t}>{TIPO_REUNIAO_LABEL[t]}</SelectItem>
                   ))}
                 </SelectContent>
