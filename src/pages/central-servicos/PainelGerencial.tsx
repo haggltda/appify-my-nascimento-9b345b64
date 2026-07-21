@@ -105,6 +105,10 @@ function distrib(p: Pergunta | undefined, resps: Resp[]) {
 }
 const trimestre = (iso: string) => { const d = new Date(iso); return `${Math.floor(d.getMonth() / 3) + 1}º Tri/${String(d.getFullYear()).slice(2)}`; };
 const respValor = (r: Resp, pid?: string) => { if (!pid) return ""; const v = r.itens[pid]; return v == null ? "" : String(Array.isArray(v) ? v[0] : v); };
+// Resposta sem setor = respondente anônimo/sem vínculo E formulário sem pergunta
+// de setor. Não é um setor real: aparece rotulada, mas fica fora dos rankings.
+const SEM_SETOR = "Sem setor";
+const setorDe = (r: Resp) => (r.setor ?? "").trim() || SEM_SETOR;
 
 function mediaNota(p: Pergunta | undefined, resps: Resp[]): number | null {
   if (!p) return null;
@@ -236,7 +240,7 @@ export default function PainelGerencial() {
   const topNecessPorSetor = useMemo(() => {
     const nP = pq("necessidades"); if (!nP) return [] as { setor: string; nec: string; n: number }[];
     const porSetor: Record<string, Record<string, number>> = {};
-    filtradas.forEach(r => { const s = (r.setor ?? "—").trim() || "—"; const v = r.itens[nP.id]; (Array.isArray(v) ? v : [v]).forEach((x: any) => { if (x == null || x === "") return; (porSetor[s] ??= {}); porSetor[s][String(x)] = (porSetor[s][String(x)] || 0) + 1; }); });
+    filtradas.forEach(r => { const s = setorDe(r); const v = r.itens[nP.id]; (Array.isArray(v) ? v : [v]).forEach((x: any) => { if (x == null || x === "") return; (porSetor[s] ??= {}); porSetor[s][String(x)] = (porSetor[s][String(x)] || 0) + 1; }); });
     return Object.entries(porSetor).map(([setor, cont]) => { const top = Object.entries(cont).sort((a, b) => b[1] - a[1])[0]; return { setor, nec: top?.[0] ?? "—", n: top?.[1] ?? 0 }; }).sort((a, b) => b.n - a.n).slice(0, 6);
   }, [pergs, mapa, filtradas]);
 
@@ -333,9 +337,10 @@ export default function PainelGerencial() {
     ];
   }, [filtradas, indiceAlin]);
 
-  const alinPorSetor = useMemo(() => agrupaMedia(filtradas, r => r.setor ?? "—", indiceAlin), [filtradas, indiceAlin]);
+  const alinPorSetor = useMemo(() => agrupaMedia(filtradas, setorDe, indiceAlin), [filtradas, indiceAlin]);
   const topLidAlin = useMemo(() => agrupaMedia(filtradas, r => respValor(r, mapa.lider), indiceAlin), [filtradas, mapa, indiceAlin]);
-  const topSetorEntrega = useMemo(() => agrupaMedia(filtradas, r => r.setor ?? "—", r => entP ? nota(entP, respValor(r, entP.id)) : null), [filtradas, entP]);
+  // Rankings comparam times reais: "Sem setor" fica de fora.
+  const topSetorEntrega = useMemo(() => agrupaMedia(filtradas, setorDe, r => entP ? nota(entP, respValor(r, entP.id)) : null).filter(x => x.chave !== SEM_SETOR), [filtradas, entP]);
   const topLidContrib = useMemo(() => agrupaMedia(filtradas, r => respValor(r, mapa.lider), r => contP ? nota(contP, respValor(r, contP.id)) : null), [filtradas, mapa, contP]);
 
   const exportarCsvAlin = () => {
@@ -1006,6 +1011,8 @@ function PainelAlinhamento({ k, dist, porSetor, topLidAlin, topSetorEntrega, top
   }
   const maxSetor = Math.max(5, ...porSetor.map(s => s.media));
   const vEvol = viz.alinEvol ?? "linha";
+  const reais = porSetor.filter(s => s.chave !== SEM_SETOR);  // insights/alertas só com setor real
+  const semSetor = porSetor.find(s => s.chave === SEM_SETOR);
   return (
     <>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
@@ -1073,20 +1080,25 @@ function PainelAlinhamento({ k, dist, porSetor, topLidAlin, topSetorEntrega, top
                     <b style={{ color: "#0f172a" }}>{nf(s.media)}</b>
                   </div>
                   <div style={{ height: 8, background: "#eef2f7", borderRadius: 20, overflow: "hidden" }}>
-                    <div style={{ width: `${(s.media / maxSetor) * 100}%`, height: "100%", background: "#4f46e5", borderRadius: 20 }} />
+                    <div style={{ width: `${(s.media / maxSetor) * 100}%`, height: "100%", background: s.chave === SEM_SETOR ? "#cbd5e1" : "#4f46e5", borderRadius: 20 }} />
                   </div>
                 </div>
               ))}
+              {semSetor && (
+                <div style={{ fontSize: 10.5, color: "#94a3b8", borderTop: "1px dashed #e2e8f0", paddingTop: 7, marginTop: 2 }}>
+                  ⓘ <b>Sem setor</b> = {semSetor.n} resposta(s) de quem respondeu sem login/vínculo, num formulário sem pergunta de setor. Fica fora dos rankings.
+                </div>
+              )}
             </div>
           )}
         </Painel>
 
         <Painel titulo="Insights principais" semViz>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5, color: "#334155" }}>
-            {porSetor.length > 0 && <div>📈 <b>{porSetor[0].chave}</b> lidera o alinhamento com média <b>{nf(porSetor[0].media)}</b>.</div>}
+            {reais.length > 0 && <div>📈 <b>{reais[0].chave}</b> lidera o alinhamento com média <b>{nf(reais[0].media)}</b>.</div>}
             {k.dEnt != null && <div>🎯 A qualidade da entrega {k.dEnt >= 0 ? "cresceu" : "caiu"} <b>{Math.abs(k.dEnt).toFixed(2).replace(".", ",")}</b> ponto(s).</div>}
             {k.metasPrazo != null && <div>⏱ <b>{Math.round(k.metasPrazo)}%</b> das metas foram concluídas dentro do prazo.</div>}
-            {porSetor.length > 1 && <div>⚠️ <b>{porSetor[porSetor.length - 1].chave}</b> possui o menor índice ({nf(porSetor[porSetor.length - 1].media)}).</div>}
+            {reais.length > 1 && <div>⚠️ <b>{reais[reais.length - 1].chave}</b> possui o menor índice ({nf(reais[reais.length - 1].media)}).</div>}
           </div>
         </Painel>
       </div>
@@ -1099,7 +1111,7 @@ function PainelAlinhamento({ k, dist, porSetor, topLidAlin, topSetorEntrega, top
           <div style={{ display: "flex", flexDirection: "column", gap: 9, fontSize: 12.5 }}>
             <Alerta cor="#dc2626" titulo={`${dist[2]?.n ?? 0} avaliação(ões) com alinhamento baixo`} sub="Abaixo de 3,0 — acompanhar plano de ação" />
             <Alerta cor="#f59e0b" titulo={`${dist[1]?.n ?? 0} em nível médio (3,0 a 3,9)`} sub="Ação corretiva recomendada" />
-            <Alerta cor="#2563eb" titulo={`${porSetor.filter(s => s.media < 3.5).length} setor(es) com índice abaixo de 3,5`} sub="Atenção da liderança" />
+            <Alerta cor="#2563eb" titulo={`${reais.filter(s => s.media < 3.5).length} setor(es) com índice abaixo de 3,5`} sub="Atenção da liderança" />
           </div>
         </Painel>
       </div>
