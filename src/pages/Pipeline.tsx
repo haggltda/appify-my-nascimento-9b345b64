@@ -1,4 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
+
+const normName = (s: string) =>
+  s.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { usePermissoes } from "@/context/PermissoesContext";
@@ -113,9 +116,6 @@ export default function Pipeline() {
   const [soGanhos, setSoGanhos] = useState(false);
 
   // lista de responsáveis únicos para o filtro
-  const normName = (s: string) =>
-    s.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-
   const responsaveis = useMemo(() => {
     const seen = new Set<string>();
     for (const i of items) {
