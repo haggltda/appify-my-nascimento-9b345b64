@@ -3,8 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import type {
-  Reuniao, ReuniaoAnexo, ReuniaoAssinatura, ReuniaoComentario, ReuniaoConvidado, ReuniaoEtapa, ReuniaoLog,
-  ReuniaoPauta, ReuniaoPautaAnexo, ReuniaoResposta, Usuario,
+  Reuniao, ReuniaoAnexo, ReuniaoAssinatura, ReuniaoAssuntoForaPauta, ReuniaoComentario, ReuniaoConvidado, ReuniaoDecisaoAcao,
+  ReuniaoEtapa, ReuniaoLog, ReuniaoPauta, ReuniaoPautaAnexo, ReuniaoResposta, RespostaConducaoItem, Usuario,
 } from "./types";
 import { gerarAtaFinalPdfBlob } from "./pdf/ataFinalPdf";
 import { registrarLog } from "./registrarLog";
@@ -22,7 +22,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("reuniao")
-        .select("id, titulo, objetivo, data_hora, duracao_minutos, tipo_local, local_ou_link, etapa, criado_por, responsavel_preenchimento_user_id, motivo_cancelamento, created_at, updated_at")
+        .select("id, numero, titulo, objetivo, data_hora, duracao_minutos, tipo_local, local_ou_link, link_online, etapa, criado_por, organizador_user_id, responsavel_preenchimento_user_id, tipo_reuniao, finalidade, resultado_esperado, notificar_por, setor_responsavel, justificativa_alteracao_duracao, motivo_cancelamento, checklist_inicio, checklist_encerramento, hora_inicio_real, hora_termino_real, duracao_real_minutos, created_at, updated_at")
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;
@@ -36,7 +36,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("reuniao_pauta")
-        .select("id, reuniao_id, ordem, titulo_topico, descricao, responsavel_user_id, prazo, status, created_at")
+        .select("id, reuniao_id, ordem, titulo_topico, descricao, responsavel_user_id, prazo, tempo_previsto_minutos, status, natureza, created_at")
         .eq("reuniao_id", id)
         .order("ordem", { ascending: true });
       if (error) throw error;
@@ -50,7 +50,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("reuniao_resposta")
-        .select("id, pauta_id, texto_resposta, encaminhamento, respondido_por, created_at, updated_at")
+        .select("id, pauta_id, texto_resposta, encaminhamento, checklist_conducao, respondido_por, created_at, updated_at")
         .in("pauta_id", pauta.map((p) => p.id));
       if (error) throw error;
       return (data ?? []) as ReuniaoResposta[];
@@ -63,7 +63,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("reuniao_convidado")
-        .select("id, reuniao_id, user_id, created_at")
+        .select("id, reuniao_id, user_id, papel, presente, created_at")
         .eq("reuniao_id", id)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -141,6 +141,34 @@ export function useReuniaoDetalhe(id: string | undefined) {
     },
   });
 
+  const { data: decisoesAcoes = [] } = useQuery({
+    queryKey: ["reuniao_decisao_acao", id],
+    enabled: !!id && pauta.length > 0,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("reuniao_decisao_acao")
+        .select("id, pauta_id, tipo, texto, responsavel_user_id, prazo, prioridade, status, necessita_comprovacao, setor_impactado, anexo_storage_path, plano_acao_id, criado_por, created_at")
+        .in("pauta_id", pauta.map((p) => p.id))
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as ReuniaoDecisaoAcao[];
+    },
+  });
+
+  const { data: assuntosForaPauta = [] } = useQuery({
+    queryKey: ["reuniao_assunto_fora_pauta", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("reuniao_assunto_fora_pauta")
+        .select("id, reuniao_id, classificacao, tratativa, assunto_estacionado, responsavel_tratativa_user_id, data_prevista, reuniao_futura_necessaria, observacoes, concluido, criado_por, created_at")
+        .eq("reuniao_id", id)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as ReuniaoAssuntoForaPauta[];
+    },
+  });
+
   const invalidarReuniao = () => {
     qc.invalidateQueries({ queryKey: ["reuniao", id] });
     qc.invalidateQueries({ queryKey: ["reuniao-calendario"] });
@@ -178,14 +206,18 @@ export function useReuniaoDetalhe(id: string | undefined) {
     );
   };
 
-  const iniciarReuniao = async (): Promise<boolean> =>
-    mudarEtapa("em_andamento", undefined, { acao: "reuniao_iniciada", detalhe: "Reunião iniciada" });
+  const iniciarReuniao = async (checklistInicio?: Record<string, string>): Promise<boolean> =>
+    mudarEtapa(
+      "em_andamento",
+      { checklist_inicio: checklistInicio ?? null, hora_inicio_real: new Date().toISOString() },
+      { acao: "reuniao_iniciada", detalhe: "Reunião iniciada" },
+    );
 
   // Ao encerrar, gera o PDF final da ata (mesmo gerador usado no botão
   // manual) e sobe pro Storage — o worker externo (whatsapp-web.js +
   // Nodemailer) usa esse arquivo pra mandar por e-mail automaticamente,
   // sem precisar portar a geração de PDF pra fora do navegador.
-  const encerrarReuniao = async (usuarios: Usuario[]): Promise<boolean> => {
+  const encerrarReuniao = async (usuarios: Usuario[], checklistEncerramento?: Record<string, string>): Promise<boolean> => {
     if (!id || !reuniao) return false;
     try {
       const blob = gerarAtaFinalPdfBlob(reuniao, pauta, respostas, assinaturas, usuarios);
@@ -198,9 +230,18 @@ export function useReuniaoDetalhe(id: string | undefined) {
         toast({ title: "Erro ao gerar PDF final", description: up.error.message, variant: "destructive" });
         return false;
       }
+      const horaTermino = new Date();
+      const duracaoReal = reuniao.hora_inicio_real
+        ? Math.round((horaTermino.getTime() - new Date(reuniao.hora_inicio_real).getTime()) / 60_000)
+        : null;
       return mudarEtapa(
         "concluida",
-        { pdf_final_storage_path: path },
+        {
+          pdf_final_storage_path: path,
+          checklist_encerramento: checklistEncerramento ?? null,
+          hora_termino_real: horaTermino.toISOString(),
+          duracao_real_minutos: duracaoReal,
+        },
         { acao: "reuniao_encerrada", detalhe: "Reunião encerrada" },
       );
     } catch (e) {
@@ -254,7 +295,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
 
   const atualizarPautaItem = async (
     pautaId: string,
-    patch: Partial<Pick<ReuniaoPauta, "titulo_topico" | "descricao" | "responsavel_user_id" | "prazo" | "status">>,
+    patch: Partial<Pick<ReuniaoPauta, "titulo_topico" | "descricao" | "responsavel_user_id" | "prazo" | "status" | "natureza">>,
   ): Promise<boolean> => {
     const { error } = await (supabase as any).from("reuniao_pauta").update(patch).eq("id", pautaId);
     if (error) {
@@ -303,6 +344,19 @@ export function useReuniaoDetalhe(id: string | undefined) {
           .insert({ pauta_id: pautaId, texto_resposta: texto || null, encaminhamento: encaminhamento || null });
     if (error) {
       toast({ title: "Erro ao salvar resposta", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["reuniao_resposta", id] });
+    return true;
+  };
+
+  const salvarChecklistConducaoItem = async (pautaId: string, checklist: Record<string, RespostaConducaoItem>): Promise<boolean> => {
+    const existente = respostas.find((r) => r.pauta_id === pautaId);
+    const { error } = existente
+      ? await (supabase as any).from("reuniao_resposta").update({ checklist_conducao: checklist }).eq("id", existente.id)
+      : await (supabase as any).from("reuniao_resposta").insert({ pauta_id: pautaId, checklist_conducao: checklist });
+    if (error) {
+      toast({ title: "Erro ao salvar checklist do item", description: error.message, variant: "destructive" });
       return false;
     }
     qc.invalidateQueries({ queryKey: ["reuniao_resposta", id] });
@@ -401,16 +455,16 @@ export function useReuniaoDetalhe(id: string | undefined) {
     return true;
   };
 
-  const adicionarConvidado = async (userId: string, nomeDisplay?: string): Promise<boolean> => {
+  const adicionarConvidado = async (userId: string, nomeDisplay?: string, papel: "convidado" | "observador" = "convidado"): Promise<boolean> => {
     if (!id) return false;
-    const { error } = await (supabase as any).from("reuniao_convidado").insert({ reuniao_id: id, user_id: userId });
+    const { error } = await (supabase as any).from("reuniao_convidado").insert({ reuniao_id: id, user_id: userId, papel });
     if (error) {
-      toast({ title: "Erro ao adicionar convidado", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao adicionar participante", description: error.message, variant: "destructive" });
       return false;
     }
     qc.invalidateQueries({ queryKey: ["reuniao_convidado", id] });
     notificar("convidado");
-    registrarLog(id, "convidado_adicionado", `Adicionou ${nomeDisplay ?? "um participante"}`);
+    registrarLog(id, papel === "observador" ? "observador_adicionado" : "convidado_adicionado", `Adicionou ${nomeDisplay ?? "um participante"} como ${papel === "observador" ? "observador" : "convidado"}`);
     return true;
   };
 
@@ -422,6 +476,16 @@ export function useReuniaoDetalhe(id: string | undefined) {
     }
     qc.invalidateQueries({ queryKey: ["reuniao_convidado", id] });
     if (id) registrarLog(id, "convidado_removido", `Removeu ${nomeDisplay ?? "um participante"}`);
+    return true;
+  };
+
+  const marcarPresenca = async (convidadoId: string, presente: boolean): Promise<boolean> => {
+    const { error } = await (supabase as any).from("reuniao_convidado").update({ presente }).eq("id", convidadoId);
+    if (error) {
+      toast({ title: "Erro ao marcar presença", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["reuniao_convidado", id] });
     return true;
   };
 
@@ -448,6 +512,149 @@ export function useReuniaoDetalhe(id: string | undefined) {
     return true;
   };
 
+  const criarDecisaoAcao = async (dados: {
+    pauta_id: string; tipo: "decisao"; texto: string; responsavel_user_id?: string | null; prazo?: string | null;
+    prioridade?: "alta" | "media" | "baixa"; necessita_comprovacao?: boolean; setor_impactado?: string | null;
+  }): Promise<boolean> => {
+    const { error } = await (supabase as any).from("reuniao_decisao_acao").insert({
+      pauta_id: dados.pauta_id,
+      tipo: dados.tipo,
+      texto: dados.texto,
+      responsavel_user_id: dados.responsavel_user_id ?? null,
+      prazo: dados.prazo ?? null,
+      prioridade: dados.prioridade ?? "media",
+      necessita_comprovacao: dados.necessita_comprovacao ?? false,
+      setor_impactado: dados.setor_impactado ?? null,
+    });
+    if (error) {
+      toast({ title: "Erro ao registrar decisão", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["reuniao_decisao_acao", id] });
+    const topico = pauta.find((p) => p.id === dados.pauta_id)?.titulo_topico ?? "";
+    if (id) registrarLog(id, "decisao_registrada", `Decisão registrada no tópico "${topico}": "${dados.texto}"`);
+    return true;
+  };
+
+  /** "Ação" não fica só na tabela da reunião — vira um registro de verdade em plano_acao (RPC libera pela interação com a reunião, não pela permissão pode_criar do módulo). */
+  const criarAcaoPlanoAcao = async (dados: {
+    pauta_id: string;
+    titulo: string;
+    tipo_acao?: string;
+    problema?: string | null;
+    acao?: string | null;
+    comite?: string | null;
+    area?: string | null;
+    prioridade_normalizada?: string;
+    status_normalizado?: string;
+    data_inicio_planejado?: string | null;
+    data_fim_planejado?: string | null;
+    responsavel_profile_id?: string | null;
+    lider_comite_profile_id?: string | null;
+    visibilidade?: string;
+    comentarios?: string | null;
+  }): Promise<boolean> => {
+    if (!id) return false;
+    const { error } = await (supabase as any).rpc("criar_acao_reuniao_plano_acao", {
+      _reuniao_id: id,
+      _pauta_id: dados.pauta_id,
+      _titulo: dados.titulo,
+      _tipo_acao: dados.tipo_acao ?? "acao",
+      _problema: dados.problema ?? null,
+      _acao: dados.acao ?? null,
+      _comite: dados.comite ?? null,
+      _area: dados.area ?? null,
+      _prioridade_normalizada: dados.prioridade_normalizada ?? "media",
+      _status_normalizado: dados.status_normalizado ?? "a_definir",
+      _data_inicio_planejado: dados.data_inicio_planejado ?? null,
+      _data_fim_planejado: dados.data_fim_planejado ?? null,
+      _responsavel_profile_id: dados.responsavel_profile_id ?? null,
+      _lider_comite_profile_id: dados.lider_comite_profile_id ?? null,
+      _visibilidade: dados.visibilidade ?? "privado",
+      _comentarios: dados.comentarios ?? null,
+    });
+    if (error) {
+      toast({ title: "Erro ao criar ação no Plano de Ações", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["reuniao_decisao_acao", id] });
+    const topico = pauta.find((p) => p.id === dados.pauta_id)?.titulo_topico ?? "";
+    registrarLog(id, "acao_registrada", `Ação registrada no Plano de Ações a partir do tópico "${topico}": "${dados.titulo}"`);
+    return true;
+  };
+
+  const atualizarDecisaoAcao = async (
+    decisaoAcaoId: string,
+    patch: Partial<Pick<ReuniaoDecisaoAcao, "texto" | "responsavel_user_id" | "prazo" | "prioridade" | "status" | "necessita_comprovacao" | "setor_impactado">>,
+  ): Promise<boolean> => {
+    const { error } = await (supabase as any).from("reuniao_decisao_acao").update(patch).eq("id", decisaoAcaoId);
+    if (error) {
+      toast({ title: "Erro ao atualizar decisão/ação", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["reuniao_decisao_acao", id] });
+    return true;
+  };
+
+  const removerDecisaoAcao = async (decisaoAcaoId: string): Promise<boolean> => {
+    const { error } = await (supabase as any).from("reuniao_decisao_acao").delete().eq("id", decisaoAcaoId);
+    if (error) {
+      toast({ title: "Erro ao remover decisão/ação", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["reuniao_decisao_acao", id] });
+    return true;
+  };
+
+  const criarAssuntoForaPauta = async (dados: {
+    classificacao: "urgente_relevante" | "importante_nao_urgente" | "sem_relacao";
+    tratativa: "tratar_agora" | "estacionar" | "encerrar_retornar_pauta";
+    assunto_estacionado?: string | null;
+    responsavel_tratativa_user_id?: string | null;
+    data_prevista?: string | null;
+    reuniao_futura_necessaria?: boolean;
+    observacoes?: string | null;
+  }): Promise<boolean> => {
+    if (!id) return false;
+    const { error } = await (supabase as any).from("reuniao_assunto_fora_pauta").insert({
+      reuniao_id: id,
+      classificacao: dados.classificacao,
+      tratativa: dados.tratativa,
+      assunto_estacionado: dados.assunto_estacionado ?? null,
+      responsavel_tratativa_user_id: dados.responsavel_tratativa_user_id ?? null,
+      data_prevista: dados.data_prevista ?? null,
+      reuniao_futura_necessaria: dados.reuniao_futura_necessaria ?? false,
+      observacoes: dados.observacoes ?? null,
+    });
+    if (error) {
+      toast({ title: "Erro ao registrar assunto fora da pauta", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["reuniao_assunto_fora_pauta", id] });
+    registrarLog(id, "assunto_fora_pauta_registrado", "Registrou um assunto fora da pauta");
+    return true;
+  };
+
+  const marcarAssuntoForaPautaConcluido = async (assuntoId: string, concluido: boolean): Promise<boolean> => {
+    const { error } = await (supabase as any).from("reuniao_assunto_fora_pauta").update({ concluido }).eq("id", assuntoId);
+    if (error) {
+      toast({ title: "Erro ao atualizar assunto", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["reuniao_assunto_fora_pauta", id] });
+    return true;
+  };
+
+  const removerAssuntoForaPauta = async (assuntoId: string): Promise<boolean> => {
+    const { error } = await (supabase as any).from("reuniao_assunto_fora_pauta").delete().eq("id", assuntoId);
+    if (error) {
+      toast({ title: "Erro ao remover assunto", description: error.message, variant: "destructive" });
+      return false;
+    }
+    qc.invalidateQueries({ queryKey: ["reuniao_assunto_fora_pauta", id] });
+    return true;
+  };
+
   const salvarAssinatura = async (assinaturaPng: string): Promise<boolean> => {
     if (!id) return false;
     const { error } = await (supabase as any)
@@ -465,9 +672,12 @@ export function useReuniaoDetalhe(id: string | undefined) {
 
   return {
     reuniao, isLoading, pauta, respostas, convidados, anexos, pautaAnexos, comentarios, assinaturas, logs,
+    decisoesAcoes, assuntosForaPauta,
     mudarEtapa, cancelarReuniao, iniciarReuniao, encerrarReuniao, atualizarCampos,
-    salvarPautaItem, atualizarPautaItem, reordenarPauta, removerPautaItem, salvarResposta,
+    salvarPautaItem, atualizarPautaItem, reordenarPauta, removerPautaItem, salvarResposta, salvarChecklistConducaoItem,
     uploadAnexo, removerAnexo, downloadAnexo, uploadPautaAnexo, removerPautaAnexo,
-    adicionarConvidado, removerConvidado, adicionarComentario, removerComentario, salvarAssinatura,
+    adicionarConvidado, removerConvidado, marcarPresenca, adicionarComentario, removerComentario, salvarAssinatura,
+    criarDecisaoAcao, criarAcaoPlanoAcao, atualizarDecisaoAcao, removerDecisaoAcao, criarAssuntoForaPauta, removerAssuntoForaPauta,
+    marcarAssuntoForaPautaConcluido,
   };
 }

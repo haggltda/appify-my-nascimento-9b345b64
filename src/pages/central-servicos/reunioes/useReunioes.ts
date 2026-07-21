@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import type { Reuniao, ReuniaoCalendario, Usuario } from "./types";
+import type { Finalidade, NotificarPor, Reuniao, ReuniaoCalendario, ResultadoEsperado, TipoLocalReuniao, TipoReuniao, Usuario } from "./types";
 import { registrarLog } from "./registrarLog";
 
 const REUNIAO_COLUNAS =
-  "id, titulo, objetivo, data_hora, duracao_minutos, tipo_local, local_ou_link, etapa, criado_por, responsavel_preenchimento_user_id, motivo_cancelamento, created_at, updated_at";
+  "id, numero, titulo, objetivo, data_hora, duracao_minutos, tipo_local, local_ou_link, link_online, etapa, criado_por, organizador_user_id, responsavel_preenchimento_user_id, tipo_reuniao, finalidade, resultado_esperado, notificar_por, setor_responsavel, justificativa_alteracao_duracao, motivo_cancelamento, created_at, updated_at";
 
 /** Calendário geral: todas as reuniões da empresa (recorte mínimo) — abrir o card ainda exige interação, via RLS de "reuniao". */
 export function useReunioes() {
@@ -58,7 +58,7 @@ export async function verificarConflitoSala(params: {
   let query = (supabase as any)
     .from("reuniao")
     .select(REUNIAO_COLUNAS)
-    .eq("tipo_local", "presencial")
+    .in("tipo_local", ["presencial", "hibrido"])
     .eq("local_ou_link", params.local)
     .neq("etapa", "cancelada");
   if (params.reuniaoIdIgnorar) {
@@ -117,6 +117,8 @@ export function useUsuariosAtivos() {
 interface NovaPauta {
   titulo_topico: string;
   descricao: string;
+  responsavel_user_id?: string | null;
+  tempo_previsto_minutos?: number | null;
 }
 
 interface NovaReuniao {
@@ -124,14 +126,26 @@ interface NovaReuniao {
   objetivo: string;
   data_hora: string;
   duracao_minutos: number;
-  tipo_local: "presencial" | "online";
+  justificativa_alteracao_duracao?: string | null;
+  tipo_local: TipoLocalReuniao;
   local_ou_link: string;
+  link_online: string | null;
+  organizador_user_id: string;
   responsavel_preenchimento_user_id: string;
+  tipo_reuniao: TipoReuniao | null;
+  finalidade: Finalidade[];
+  resultado_esperado: ResultadoEsperado[];
+  notificar_por: NotificarPor[];
+  setor_responsavel: string | null;
   pauta: NovaPauta[];
   convidados: string[];
+  observadores: string[];
+  anexos?: File[];
 }
 
-/** Cria uma reunião (linha reuniao + pauta + convidados + notificação + log). Usado tanto pra criação avulsa quanto, em loop, pra recorrência. */
+const ANEXOS_BUCKET = "reunioes";
+
+/** Cria uma reunião (linha reuniao + pauta + convidados/observadores + notificação + log). Usado tanto pra criação avulsa quanto, em loop, pra recorrência. */
 async function criarUmaReuniao(nova: NovaReuniao): Promise<string> {
   const { data: reuniao, error } = await (supabase as any)
     .from("reuniao")
@@ -142,7 +156,15 @@ async function criarUmaReuniao(nova: NovaReuniao): Promise<string> {
       duracao_minutos: nova.duracao_minutos,
       tipo_local: nova.tipo_local,
       local_ou_link: nova.local_ou_link,
+      link_online: nova.link_online,
+      organizador_user_id: nova.organizador_user_id,
       responsavel_preenchimento_user_id: nova.responsavel_preenchimento_user_id,
+      tipo_reuniao: nova.tipo_reuniao,
+      finalidade: nova.finalidade,
+      resultado_esperado: nova.resultado_esperado,
+      notificar_por: nova.notificar_por,
+      setor_responsavel: nova.setor_responsavel,
+      justificativa_alteracao_duracao: nova.justificativa_alteracao_duracao || null,
     })
     .select("id")
     .single();
@@ -161,16 +183,38 @@ async function criarUmaReuniao(nova: NovaReuniao): Promise<string> {
         ordem: i,
         titulo_topico: p.titulo_topico,
         descricao: p.descricao || null,
+        responsavel_user_id: p.responsavel_user_id || null,
+        tempo_previsto_minutos: p.tempo_previsto_minutos || null,
       })),
     );
     if (pautaErr) throw pautaErr;
   }
 
-  if (nova.convidados.length > 0) {
-    const { error: convidadosErr } = await (supabase as any).from("reuniao_convidado").insert(
-      nova.convidados.map((userId) => ({ reuniao_id: reuniaoId, user_id: userId })),
-    );
+  const participantes = [
+    ...nova.convidados.map((userId) => ({ reuniao_id: reuniaoId, user_id: userId, papel: "convidado" })),
+    ...nova.observadores.map((userId) => ({ reuniao_id: reuniaoId, user_id: userId, papel: "observador" })),
+  ];
+  if (participantes.length > 0) {
+    const { error: convidadosErr } = await (supabase as any).from("reuniao_convidado").insert(participantes);
     if (convidadosErr) throw convidadosErr;
+  }
+
+  if (nova.anexos && nova.anexos.length > 0) {
+    for (const file of nova.anexos) {
+      const nomeSanitizado = file.name
+        .normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${reuniaoId}/${Date.now()}-${nomeSanitizado}`;
+      const up = await supabase.storage.from(ANEXOS_BUCKET).upload(path, file, { contentType: file.type });
+      if (up.error) continue;
+      await (supabase as any).from("reuniao_anexo").insert({
+        reuniao_id: reuniaoId,
+        storage_path: path,
+        nome_arquivo: file.name,
+        mime_type: file.type || null,
+        tamanho_bytes: file.size,
+      });
+    }
   }
 
   supabase.functions

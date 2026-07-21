@@ -1,18 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Trash2, Paperclip, Info } from "lucide-react";
+import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 import { useCriarReuniao, useCriarReunioesRecorrentes, useUsuariosAtivos, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
-import { SALAS_PRESENCIAIS } from "./types";
+import {
+  ETAPA_COR, ETAPA_LABEL, FINALIDADE_LABEL, NOTIFICAR_POR_LABEL, RESULTADO_ESPERADO_LABEL, SALAS_PRESENCIAIS,
+  TIPO_REUNIAO_DURACAO_PADRAO, TIPO_REUNIAO_LABEL, nomeUsuario,
+  type Finalidade, type NotificarPor, type ResultadoEsperado, type TipoLocalReuniao, type TipoReuniao,
+} from "./types";
 
 const MAX_OCORRENCIAS_RECORRENCIA = 60;
+const TITULO_MAX = 150;
+const OBJETIVO_MAX = 250;
+const JUSTIFICATIVA_MAX = 200;
+const ANEXO_MAX_BYTES = 25 * 1024 * 1024;
 
 /** Gera as datas ISO da recorrência semanal: mesma hora da primeira reunião, a cada 7 dias, até repetirAte (inclusive). */
 function gerarDatasRecorrencia(dataHoraInicialIso: string, repetirAte: string): string[] {
@@ -26,9 +38,21 @@ function gerarDatasRecorrencia(dataHoraInicialIso: string, repetirAte: string): 
   return datas;
 }
 
+function formatarBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 interface PautaRascunho {
   titulo_topico: string;
   descricao: string;
+  responsavel_user_id: string | null;
+  tempo_previsto_minutos: number | null;
+}
+
+function alternarNoArray<T>(lista: T[], valor: T): T[] {
+  return lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor];
 }
 
 const VAZIO = {
@@ -36,57 +60,176 @@ const VAZIO = {
   objetivo: "",
   data: "",
   hora: "",
+  tipo_reuniao: "" as TipoReuniao | "",
   duracao_minutos: 60,
-  tipo_local: "presencial" as "presencial" | "online",
+  finalidade: [] as Finalidade[],
+  resultado_esperado: [] as ResultadoEsperado[],
+  notificar_por: ["erp"] as NotificarPor[],
+  tipo_local: "presencial" as TipoLocalReuniao,
   sala: "",
   local_outro: "",
   local_ou_link: "",
+  link_hibrido: "",
+  organizador: "",
   responsavel: "",
+  setorResponsavel: "",
   convidados: [] as string[],
+  observadores: [] as string[],
   repetir: false,
   repetirAte: "",
+  alterarDuracao: false,
+  justificativaDuracao: "",
 };
 
 export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [form, setForm] = useState(VAZIO);
   const [pauta, setPauta] = useState<PautaRascunho[]>([]);
   const [novoTopico, setNovoTopico] = useState("");
+  const [novoTopicoResponsavel, setNovoTopicoResponsavel] = useState("");
+  const [novoTopicoTempo, setNovoTopicoTempo] = useState("");
+  const [anexos, setAnexos] = useState<File[]>([]);
   const [erroConflito, setErroConflito] = useState("");
   const [verificando, setVerificando] = useState(false);
+  const [dataCriacao] = useState(() => new Date());
   const { data: usuarios = [] } = useUsuariosAtivos();
+  const { empregado } = useVinculoEmpregado();
   const criar = useCriarReuniao();
   const criarRecorrentes = useCriarReunioesRecorrentes();
+  const [setoresDisponiveis, setSetoresDisponiveis] = useState<string[]>([]);
 
   const opcoesUsuarios = usuarios.map((u) => ({ value: u.id, label: u.display_name }));
 
+  // Lista de setores da empresa pro dropdown — união da tabela SETORES
+  // (catálogo oficial) com os valores reais em uso na EMPREGADOS (mesma
+  // lógica de src/pages/rh/Colaboradores.tsx), pra nunca faltar um setor
+  // que só existe como texto livre no cadastro de alguém.
+  useEffect(() => {
+    (async () => {
+      const doCatalogo: string[] = [];
+      const st = await (supabase as any).from("SETORES").select("*").limit(2000);
+      if (!st.error && Array.isArray(st.data)) {
+        const pick = (row: any) => {
+          for (const k of Object.keys(row)) if (/setor|nome|descri/i.test(k) && typeof row[k] === "string" && row[k].trim()) return row[k].trim();
+          return "";
+        };
+        doCatalogo.push(...st.data.map(pick).filter(Boolean));
+      }
+
+      const doEmpregados: string[] = [];
+      let from = 0;
+      const chunk = 1000;
+      for (;;) {
+        const { data, error } = await (supabase as any).from("EMPREGADOS").select('"Setor_ERP"').range(from, from + chunk - 1);
+        if (error || !data) break;
+        doEmpregados.push(...data.map((r: any) => String(r["Setor_ERP"] ?? "").trim()).filter(Boolean));
+        if (data.length < chunk || from > 60000) break;
+        from += chunk;
+      }
+
+      setSetoresDisponiveis(
+        [...new Set(["PADRAO", ...doCatalogo, ...doEmpregados])].sort((a, b) => a.localeCompare(b, "pt-BR")),
+      );
+    })();
+  }, []);
+
+  // Pré-seleciona o setor do usuário logado quando carrega, mas continua editável.
+  useEffect(() => {
+    if (empregado?.setor && !form.setorResponsavel) {
+      setForm((f) => (f.setorResponsavel ? f : { ...f, setorResponsavel: empregado.setor }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empregado?.setor]);
+
+  const opcoesSetores = [...new Set([...(empregado?.setor ? [empregado.setor] : []), ...setoresDisponiveis])];
+
   const adicionarTopico = () => {
     if (!novoTopico.trim()) return;
-    setPauta((p) => [...p, { titulo_topico: novoTopico.trim(), descricao: "" }]);
+    setPauta((p) => [...p, {
+      titulo_topico: novoTopico.trim(),
+      descricao: "",
+      responsavel_user_id: novoTopicoResponsavel || null,
+      tempo_previsto_minutos: novoTopicoTempo ? Number(novoTopicoTempo) : null,
+    }]);
     setNovoTopico("");
+    setNovoTopicoResponsavel("");
+    setNovoTopicoTempo("");
   };
 
-  const localFinal = form.tipo_local === "presencial"
-    ? (form.sala === "Outro" ? form.local_outro.trim() : form.sala)
-    : form.local_ou_link.trim();
+  const adicionarAnexos = (files: FileList | null) => {
+    if (!files) return;
+    const novos = Array.from(files).filter((f) => {
+      if (f.size > ANEXO_MAX_BYTES) {
+        setErroConflito(`"${f.name}" excede o tamanho máximo de 25 MB por arquivo.`);
+        return false;
+      }
+      return true;
+    });
+    if (novos.length > 0) setAnexos((a) => [...a, ...novos]);
+  };
+
+  const usaSala = form.tipo_local === "presencial" || form.tipo_local === "hibrido";
+  const usaLink = form.tipo_local === "online" || form.tipo_local === "hibrido";
+
+  const localFinal = usaSala ? (form.sala === "Outro" ? form.local_outro.trim() : form.sala) : "";
+  const linkFinal = form.tipo_local === "online" ? form.local_ou_link.trim() : form.tipo_local === "hibrido" ? form.link_hibrido.trim() : "";
+
+  const terminoPrevisto = form.data && form.hora && form.duracao_minutos > 0
+    ? new Date(new Date(`${form.data}T${form.hora}:00`).getTime() + form.duracao_minutos * 60_000)
+    : null;
 
   const valido =
     form.titulo.trim() &&
+    form.objetivo.trim() &&
     form.data &&
     form.hora &&
     form.duracao_minutos > 0 &&
-    localFinal &&
+    form.tipo_reuniao &&
+    (!usaSala || localFinal) &&
+    (!usaLink || linkFinal) &&
+    form.organizador &&
     form.responsavel &&
+    form.convidados.length > 0 &&
     pauta.length > 0 &&
+    (!form.alterarDuracao || form.justificativaDuracao.trim()) &&
     (!form.repetir || (form.repetirAte && form.repetirAte >= form.data));
 
   const qtdOcorrencias = form.repetir && form.data && form.hora && form.repetirAte && form.repetirAte >= form.data
     ? gerarDatasRecorrencia(new Date(`${form.data}T${form.hora}:00`).toISOString(), form.repetirAte).length
     : null;
 
+  const limpar = () => {
+    setForm(VAZIO);
+    setPauta([]);
+    setAnexos([]);
+  };
+
   const salvar = async () => {
     if (!valido) return;
     setErroConflito("");
     const dataHora = new Date(`${form.data}T${form.hora}:00`).toISOString();
+    // Presencial usa "local" como o nome da sala; híbrido também (ocupa sala física); online usa o link.
+    const localOuLink = usaSala ? localFinal : linkFinal;
+
+    const base = {
+      titulo: form.titulo.trim(),
+      objetivo: form.objetivo.trim(),
+      duracao_minutos: form.duracao_minutos,
+      justificativa_alteracao_duracao: form.alterarDuracao ? form.justificativaDuracao.trim() : null,
+      tipo_local: form.tipo_local,
+      local_ou_link: localOuLink,
+      link_online: form.tipo_local === "hibrido" ? linkFinal : null,
+      organizador_user_id: form.organizador,
+      responsavel_preenchimento_user_id: form.responsavel,
+      tipo_reuniao: form.tipo_reuniao || null,
+      finalidade: form.finalidade,
+      resultado_esperado: form.resultado_esperado,
+      notificar_por: form.notificar_por,
+      setor_responsavel: form.setorResponsavel || null,
+      pauta,
+      convidados: form.convidados,
+      observadores: form.observadores,
+      anexos,
+    };
 
     if (form.repetir) {
       const datas = gerarDatasRecorrencia(dataHora, form.repetirAte);
@@ -94,28 +237,15 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
         setErroConflito(`Essa recorrência geraria ${datas.length} reuniões — o limite é ${MAX_OCORRENCIAS_RECORRENCIA}. Escolha uma data final mais próxima.`);
         return;
       }
-      await criarRecorrentes.mutateAsync({
-        base: {
-          titulo: form.titulo.trim(),
-          objetivo: form.objetivo.trim(),
-          duracao_minutos: form.duracao_minutos,
-          tipo_local: form.tipo_local,
-          local_ou_link: localFinal,
-          responsavel_preenchimento_user_id: form.responsavel,
-          pauta,
-          convidados: form.convidados,
-        },
-        datas,
-      });
-      setForm(VAZIO);
-      setPauta([]);
+      await criarRecorrentes.mutateAsync({ base, datas });
+      limpar();
       onOpenChange(false);
       return;
     }
 
     setVerificando(true);
     try {
-      if (form.tipo_local === "presencial") {
+      if (usaSala) {
         const conflito = await verificarConflitoSala({
           local: localFinal,
           dataHoraIso: dataHora,
@@ -127,26 +257,20 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
         }
       }
 
-      const conflitoResponsavel = await verificarConflitoParticipante({
-        userId: form.responsavel,
-        dataHoraIso: dataHora,
-        duracaoMinutos: form.duracao_minutos,
-      });
-      if (conflitoResponsavel) {
-        const nome = opcoesUsuarios.find((o) => o.value === form.responsavel)?.label ?? "O responsável";
-        setErroConflito(`${nome} já está em outra reunião nesse horário (reunião "${conflitoResponsavel.titulo}").`);
-        return;
-      }
-
-      for (const convidadoId of form.convidados) {
+      const pessoasAChecar = [
+        { userId: form.organizador, rotulo: "O organizador" },
+        { userId: form.responsavel, rotulo: "O responsável" },
+        ...form.convidados.map((id) => ({ userId: id, rotulo: opcoesUsuarios.find((o) => o.value === id)?.label ?? "Um convidado" })),
+        ...form.observadores.map((id) => ({ userId: id, rotulo: opcoesUsuarios.find((o) => o.value === id)?.label ?? "Um observador" })),
+      ];
+      for (const pessoa of pessoasAChecar) {
         const conflito = await verificarConflitoParticipante({
-          userId: convidadoId,
+          userId: pessoa.userId,
           dataHoraIso: dataHora,
           duracaoMinutos: form.duracao_minutos,
         });
         if (conflito) {
-          const nome = opcoesUsuarios.find((o) => o.value === convidadoId)?.label ?? "Participante";
-          setErroConflito(`${nome} já está convidado para outra reunião nesse horário (reunião "${conflito.titulo}").`);
+          setErroConflito(`${pessoa.rotulo} já está em outra reunião nesse horário (reunião "${conflito.titulo}").`);
           return;
         }
       }
@@ -154,19 +278,8 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
       setVerificando(false);
     }
 
-    await criar.mutateAsync({
-      titulo: form.titulo.trim(),
-      objetivo: form.objetivo.trim(),
-      data_hora: dataHora,
-      duracao_minutos: form.duracao_minutos,
-      tipo_local: form.tipo_local,
-      local_ou_link: localFinal,
-      responsavel_preenchimento_user_id: form.responsavel,
-      pauta,
-      convidados: form.convidados,
-    });
-    setForm(VAZIO);
-    setPauta([]);
+    await criar.mutateAsync({ ...base, data_hora: dataHora });
+    limpar();
     onOpenChange(false);
   };
 
@@ -177,150 +290,413 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
           <DialogTitle>Agendar Reunião</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Título *</Label>
-            <Input value={form.titulo} onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))} placeholder="Ex: Reunião de alinhamento — Diretoria" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Objetivo</Label>
-            <Textarea value={form.objetivo} onChange={(e) => setForm((f) => ({ ...f, objetivo: e.target.value }))} className="min-h-16" />
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label>Data *</Label>
-              <Input type="date" value={form.data} onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Horário *</Label>
-              <Input type="time" value={form.hora} onChange={(e) => setForm((f) => ({ ...f, hora: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Duração (min) *</Label>
-              <Input
-                type="number"
-                min={5}
-                step={5}
-                value={form.duracao_minutos}
-                onChange={(e) => setForm((f) => ({ ...f, duracao_minutos: Number(e.target.value) || 0 }))}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-[140px_1fr] gap-4">
-            <div className="space-y-1.5">
-              <Label>Tipo *</Label>
-              <Select
-                value={form.tipo_local}
-                onValueChange={(v) => setForm((f) => ({ ...f, tipo_local: v as "presencial" | "online", sala: "", local_outro: "", local_ou_link: "" }))}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="presencial">Presencial</SelectItem>
-                  <SelectItem value="online">Online</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {form.tipo_local === "presencial" ? (
+        <div className="space-y-6">
+          {/* 1. Identificação */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">1. Identificação</p>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Local *</Label>
-                <Select value={form.sala} onValueChange={(v) => setForm((f) => ({ ...f, sala: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
+                <Label>Nº da reunião (automático)</Label>
+                <Input value="Gerado automaticamente ao salvar" disabled className="bg-muted text-muted-foreground" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Data de criação (automático)</Label>
+                <Input value={dataCriacao.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} disabled className="bg-muted text-muted-foreground" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Líder responsável *</Label>
+                <SearchableSelect
+                  value={form.organizador}
+                  onChange={(v) => setForm((f) => ({ ...f, organizador: v }))}
+                  options={opcoesUsuarios}
+                  placeholder="Selecione"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Setor responsável</Label>
+                <Select value={form.setorResponsavel} onValueChange={(v) => setForm((f) => ({ ...f, setorResponsavel: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
                   <SelectContent>
-                    {SALAS_PRESENCIAIS.map((s) => (
+                    {opcoesSetores.map((s) => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {form.sala === "Outro" && (
-                  <Input
-                    className="mt-1.5"
-                    value={form.local_outro}
-                    onChange={(e) => setForm((f) => ({ ...f, local_outro: e.target.value }))}
-                    placeholder="Descreva"
-                  />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tipo de reunião *</Label>
+              <Select
+                value={form.tipo_reuniao}
+                onValueChange={(v) => {
+                  const tipo = v as TipoReuniao;
+                  const duracaoPadrao = TIPO_REUNIAO_DURACAO_PADRAO[tipo];
+                  setForm((f) => ({ ...f, tipo_reuniao: tipo, duracao_minutos: duracaoPadrao ?? f.duracao_minutos, alterarDuracao: false, justificativaDuracao: "" }));
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(TIPO_REUNIAO_LABEL) as TipoReuniao[]).map((t) => (
+                    <SelectItem key={t} value={t}>{TIPO_REUNIAO_LABEL[t]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Finalidade *</Label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-md border border-border p-2.5">
+                {(Object.keys(FINALIDADE_LABEL) as Finalidade[]).map((f) => (
+                  <label key={f} className="flex items-center gap-1.5 text-sm">
+                    <Checkbox
+                      checked={form.finalidade.includes(f)}
+                      onCheckedChange={() => setForm((s) => ({ ...s, finalidade: alternarNoArray(s.finalidade, f) }))}
+                    />
+                    {FINALIDADE_LABEL[f]}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Informações */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">2. Informações</p>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Título da reunião *</Label>
+                <span className="text-xs text-muted-foreground">{form.titulo.length}/{TITULO_MAX}</span>
+              </div>
+              <Input
+                value={form.titulo}
+                maxLength={TITULO_MAX}
+                onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
+                placeholder="Ex: Reunião de alinhamento — Diretoria"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Objetivo da reunião *</Label>
+                <span className="text-xs text-muted-foreground">{form.objetivo.length}/{OBJETIVO_MAX}</span>
+              </div>
+              <Textarea
+                value={form.objetivo}
+                maxLength={OBJETIVO_MAX}
+                onChange={(e) => setForm((f) => ({ ...f, objetivo: e.target.value }))}
+                className="min-h-16"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Resultado esperado *</Label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-md border border-border p-2.5">
+                {(Object.keys(RESULTADO_ESPERADO_LABEL) as ResultadoEsperado[]).map((r) => (
+                  <label key={r} className="flex items-center gap-1.5 text-sm">
+                    <Checkbox
+                      checked={form.resultado_esperado.includes(r)}
+                      onCheckedChange={() => setForm((s) => ({ ...s, resultado_esperado: alternarNoArray(s.resultado_esperado, r) }))}
+                    />
+                    {RESULTADO_ESPERADO_LABEL[r]}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Agendamento */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">3. Agendamento</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>Data *</Label>
+                <Input type="date" value={form.data} onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Horário início *</Label>
+                <Input type="time" value={form.hora} onChange={(e) => setForm((f) => ({ ...f, hora: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <Label>Duração prevista *</Label>
+                  <Info className="h-3 w-3 text-muted-foreground" aria-label="Preenchido automaticamente de acordo com o tipo de reunião." />
+                </div>
+                <Input
+                  type="number"
+                  min={5}
+                  step={5}
+                  disabled={!form.alterarDuracao}
+                  value={form.duracao_minutos}
+                  onChange={(e) => setForm((f) => ({ ...f, duracao_minutos: Number(e.target.value) || 0 }))}
+                  className={!form.alterarDuracao ? "bg-muted" : undefined}
+                />
+                {!form.alterarDuracao && (
+                  <p className="text-xs text-muted-foreground">Preenchido automaticamente de acordo com o tipo de reunião.</p>
                 )}
               </div>
-            ) : (
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border border-border p-3">
+              <Label htmlFor="alterar-duracao">Alterar duração</Label>
+              <Switch
+                id="alterar-duracao"
+                checked={form.alterarDuracao}
+                onCheckedChange={(v) => setForm((f) => ({ ...f, alterarDuracao: v, justificativaDuracao: v ? f.justificativaDuracao : "" }))}
+              />
+            </div>
+
+            {form.alterarDuracao && (
               <div className="space-y-1.5">
-                <Label>Link da reunião *</Label>
-                <Input
-                  value={form.local_ou_link}
-                  onChange={(e) => setForm((f) => ({ ...f, local_ou_link: e.target.value }))}
-                  placeholder="Ex: https://meet.google.com/..."
+                <div className="flex items-center justify-between">
+                  <Label>Justificativa da alteração *</Label>
+                  <span className="text-xs text-muted-foreground">{form.justificativaDuracao.length}/{JUSTIFICATIVA_MAX}</span>
+                </div>
+                <Textarea
+                  value={form.justificativaDuracao}
+                  maxLength={JUSTIFICATIVA_MAX}
+                  onChange={(e) => setForm((f) => ({ ...f, justificativaDuracao: e.target.value }))}
+                  className="min-h-12"
+                  placeholder="Ex: Reunião estendida devido à inclusão de pauta adicional."
                 />
               </div>
             )}
-          </div>
 
-          <div className="space-y-1.5 rounded-md border border-border p-3">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="repetir-semanal">Repetir semanalmente</Label>
-              <Switch
-                id="repetir-semanal"
-                checked={form.repetir}
-                onCheckedChange={(v) => setForm((f) => ({ ...f, repetir: v }))}
+            <div className="space-y-1.5">
+              <Label>Término previsto</Label>
+              <Input
+                disabled
+                className="bg-muted text-muted-foreground"
+                value={terminoPrevisto ? terminoPrevisto.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
               />
             </div>
-            {form.repetir && (
-              <div className="space-y-1.5 pt-1.5">
-                <Label>Repetir até *</Label>
-                <Input type="date" value={form.repetirAte} min={form.data || undefined} onChange={(e) => setForm((f) => ({ ...f, repetirAte: e.target.value }))} />
-                <p className="text-xs text-muted-foreground">
-                  Cria uma reunião toda semana, no mesmo dia e horário, até essa data.
-                </p>
+
+            <div className="grid grid-cols-[160px_1fr] gap-4">
+              <div className="space-y-1.5">
+                <Label>Local / Modalidade *</Label>
+                <Select
+                  value={form.tipo_local}
+                  onValueChange={(v) => setForm((f) => ({ ...f, tipo_local: v as TipoLocalReuniao, sala: "", local_outro: "", local_ou_link: "", link_hibrido: "" }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="presencial">Presencial</SelectItem>
+                    <SelectItem value="online">Online</SelectItem>
+                    <SelectItem value="hibrido">Híbrido</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
+              <div className="space-y-1.5">
+                {usaSala && (
+                  <>
+                    <Label>Sala *</Label>
+                    <Select value={form.sala} onValueChange={(v) => setForm((f) => ({ ...f, sala: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Selecione a sala" /></SelectTrigger>
+                      <SelectContent>
+                        {SALAS_PRESENCIAIS.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.sala === "Outro" && (
+                      <Input
+                        className="mt-1.5"
+                        value={form.local_outro}
+                        onChange={(e) => setForm((f) => ({ ...f, local_outro: e.target.value }))}
+                        placeholder="Descreva"
+                      />
+                    )}
+                  </>
+                )}
+                {usaLink && (
+                  <>
+                    <Label>Link da reunião *</Label>
+                    <Input
+                      className={usaSala ? "mt-1.5" : undefined}
+                      value={form.tipo_local === "hibrido" ? form.link_hibrido : form.local_ou_link}
+                      onChange={(e) => setForm((f) => (
+                        f.tipo_local === "hibrido" ? { ...f, link_hibrido: e.target.value } : { ...f, local_ou_link: e.target.value }
+                      ))}
+                      placeholder="Ex: https://meet.google.com/..."
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1.5 rounded-md border border-border p-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="repetir-semanal">Repetição semanal</Label>
+                <Switch
+                  id="repetir-semanal"
+                  checked={form.repetir}
+                  onCheckedChange={(v) => setForm((f) => ({ ...f, repetir: v }))}
+                />
+              </div>
+              {form.repetir && (
+                <div className="space-y-1.5 pt-1.5">
+                  <Label>Repetir até *</Label>
+                  <Input type="date" value={form.repetirAte} min={form.data || undefined} onChange={(e) => setForm((f) => ({ ...f, repetirAte: e.target.value }))} />
+                  <p className="text-xs text-muted-foreground">
+                    Cria uma reunião toda semana, no mesmo dia e horário, até essa data.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {erroConflito && (
             <p className="rounded border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{erroConflito}</p>
           )}
 
-          <div className="space-y-1.5">
-            <Label>Responsável pelo preenchimento da ata *</Label>
-            <SearchableSelect
-              value={form.responsavel}
-              onChange={(v) => setForm((f) => ({ ...f, responsavel: v }))}
-              options={opcoesUsuarios}
-              placeholder="Quem vai preencher as respostas após a reunião"
-            />
+          {/* 4. Participantes */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">4. Participantes</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Responsável pela ata *</Label>
+                <SearchableSelect
+                  value={form.responsavel}
+                  onChange={(v) => setForm((f) => ({ ...f, responsavel: v }))}
+                  options={opcoesUsuarios}
+                  placeholder="Quem vai preencher as respostas após a reunião"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Organizador *</Label>
+                <SearchableSelect
+                  value={form.organizador}
+                  onChange={(v) => setForm((f) => ({ ...f, organizador: v }))}
+                  options={opcoesUsuarios}
+                  placeholder="Quem lidera a reunião"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Convidados *</Label>
+                <SearchableMultiSelect
+                  value={form.convidados}
+                  onChange={(v) => setForm((f) => ({ ...f, convidados: v }))}
+                  options={opcoesUsuarios}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Observadores (opcional)</Label>
+                <SearchableMultiSelect
+                  value={form.observadores}
+                  onChange={(v) => setForm((f) => ({ ...f, observadores: v }))}
+                  options={opcoesUsuarios}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Notificar por *</Label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-md border border-border p-2.5">
+                {(Object.keys(NOTIFICAR_POR_LABEL) as NotificarPor[]).map((n) => (
+                  <label key={n} className="flex items-center gap-1.5 text-sm">
+                    <Checkbox
+                      checked={form.notificar_por.includes(n)}
+                      onCheckedChange={() => setForm((s) => ({ ...s, notificar_por: alternarNoArray(s.notificar_por, n) }))}
+                    />
+                    {NOTIFICAR_POR_LABEL[n]}
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Convidados (recebem notificação)</Label>
-            <SearchableMultiSelect
-              value={form.convidados}
-              onChange={(v) => setForm((f) => ({ ...f, convidados: v }))}
-              options={opcoesUsuarios}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Pauta *</Label>
+          {/* 5. Pauta */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">5. Pauta *</p>
             <div className="space-y-2">
-              {pauta.map((p, i) => (
-                <div key={i} className="flex items-center justify-between rounded border border-border px-3 py-2 text-sm">
-                  <span>{i + 1}. {p.titulo_topico}</span>
-                  <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setPauta((arr) => arr.filter((_, idx) => idx !== i))}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+              {pauta.length > 0 && (
+                <div className="overflow-x-auto rounded-md border border-border">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/40 font-semibold uppercase tracking-wider text-muted-foreground">
+                        <th className="p-2">Ordem</th>
+                        <th className="p-2">Item de pauta</th>
+                        <th className="p-2">Responsável</th>
+                        <th className="p-2">Tempo previsto</th>
+                        <th className="w-8 p-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pauta.map((p, i) => (
+                        <tr key={i} className="border-b border-border last:border-b-0">
+                          <td className="p-2">{i + 1}</td>
+                          <td className="p-2">{p.titulo_topico}</td>
+                          <td className="p-2">{nomeUsuario(usuarios, p.responsavel_user_id) ?? "—"}</td>
+                          <td className="p-2">{p.tempo_previsto_minutos ? `${p.tempo_previsto_minutos} min` : "—"}</td>
+                          <td className="p-2">
+                            <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setPauta((arr) => arr.filter((_, idx) => idx !== i))}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-              <div className="flex gap-2">
+              )}
+              <div className="space-y-2 rounded-md border border-dashed border-border p-3">
                 <Input
-                  placeholder="Novo tópico de pauta"
+                  placeholder="Novo item de pauta"
                   value={novoTopico}
                   onChange={(e) => setNovoTopico(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), adicionarTopico())}
                 />
-                <Button type="button" variant="outline" className="gap-1" onClick={adicionarTopico}>
-                  <Plus className="h-4 w-4" /> Adicionar
+                <div className="grid grid-cols-2 gap-2">
+                  <SearchableSelect
+                    value={novoTopicoResponsavel}
+                    onChange={setNovoTopicoResponsavel}
+                    options={opcoesUsuarios}
+                    placeholder="Responsável (opcional)"
+                  />
+                  <Input
+                    type="number"
+                    min={5}
+                    step={5}
+                    placeholder="Tempo previsto (min)"
+                    value={novoTopicoTempo}
+                    onChange={(e) => setNovoTopicoTempo(e.target.value)}
+                  />
+                </div>
+                <Button type="button" variant="outline" className="w-full gap-1" onClick={adicionarTopico}>
+                  <Plus className="h-4 w-4" /> Adicionar item de pauta
                 </Button>
               </div>
             </div>
+          </div>
+
+          {/* 6. Anexos */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">6. Anexos</p>
+            <label className="flex cursor-pointer flex-col items-center gap-1 rounded-md border border-dashed border-border p-4 text-center hover:bg-accent/40">
+              <Paperclip className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm">Clique para selecionar arquivos</span>
+              <span className="text-xs text-muted-foreground">Tamanho máximo: 25 MB por arquivo</span>
+              <input type="file" multiple className="hidden" onChange={(e) => { adicionarAnexos(e.target.files); e.target.value = ""; }} />
+            </label>
+            {anexos.length > 0 && (
+              <div className="space-y-1">
+                {anexos.map((f, i) => (
+                  <div key={i} className="flex items-center justify-between rounded border border-border px-3 py-1.5 text-sm">
+                    <span className="truncate">{f.name} <span className="text-xs text-muted-foreground">({formatarBytes(f.size)})</span></span>
+                    <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={() => setAnexos((a) => a.filter((_, idx) => idx !== i))}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 7. Status */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">7. Status</p>
+            <Badge variant="outline" className={ETAPA_COR.agendada}>{ETAPA_LABEL.agendada}</Badge>
           </div>
         </div>
 
@@ -328,7 +704,7 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={salvar} disabled={!valido || criar.isPending || criarRecorrentes.isPending || verificando}>
             {verificando
-              ? "Verificando sala…"
+              ? "Verificando conflitos…"
               : criar.isPending || criarRecorrentes.isPending
               ? "Agendando…"
               : qtdOcorrencias !== null
