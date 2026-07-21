@@ -27,6 +27,7 @@ export function ChecklistEncerramento({
         perguntas={PERGUNTAS_CHECKLIST_ENCERRAMENTO}
         respostas={respostas}
         onChange={(id, v) => setRespostas((r) => ({ ...r, [id]: v }))}
+        modo="dropdown"
       />
       {duracaoPrevista !== null && (
         <p className="text-xs text-muted-foreground">Duração real (calculada automaticamente): {duracaoPrevista} min</p>
