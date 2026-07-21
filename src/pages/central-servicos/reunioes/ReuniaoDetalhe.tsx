@@ -452,6 +452,7 @@ export default function ReuniaoDetalhe() {
                 podeGerenciarGeral={podeGerenciar}
                 userId={user?.id}
                 reuniaoEncerrada={reuniaoEncerrada}
+                emAndamento={reuniao.etapa === "em_andamento"}
                 onAdicionarTopico={salvarPautaItem}
                 onAtualizarTopico={atualizarPautaItem}
                 onReordenar={reordenarPauta}
