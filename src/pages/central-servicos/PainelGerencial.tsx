@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, AreaChart, Area,
-  PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList,
 } from "recharts";
 import { Formulario, Pergunta, normalizaPerguntas } from "./Formularios";
 
@@ -155,6 +155,42 @@ export default function PainelGerencial() {
     return Object.entries(porSetor).map(([setor, cont]) => { const top = Object.entries(cont).sort((a, b) => b[1] - a[1])[0]; return { setor, nec: top?.[0] ?? "—", n: top?.[1] ?? 0 }; }).sort((a, b) => b.n - a.n).slice(0, 6);
   }, [pergs, mapa, filtradas]);
 
+  const ultimaAtualizacao = useMemo(() => {
+    const ts = respsForm.reduce((m, r) => Math.max(m, +new Date(r.enviado_em)), 0);
+    return ts ? new Date(ts).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
+  }, [respsForm]);
+
+  // categoria de "risco": a que parecer risco/ruim, senão a última opção da pergunta.
+  const catRisco = useMemo(() => {
+    const sitP = pq("situacao"); if (!sitP) return "";
+    const ops = sitP.opcoes ?? [];
+    return ops.find(o => /risco|ruim|insatisf|cr[íi]tic/i.test(o)) ?? ops[ops.length - 1] ?? "";
+  }, [pergs, mapa]);
+
+  const riscoPorNecessidade = useMemo(() => {
+    const nP = pq("necessidades"), sP = pq("situacao");
+    if (!nP || !sP || !catRisco) return [] as { nec: string; n: number }[];
+    const emRisco = filtradas.filter(r => respValor(r, sP.id) === catRisco);
+    const cont: Record<string, number> = {};
+    emRisco.forEach(r => { const v = r.itens[nP.id]; (Array.isArray(v) ? v : [v]).forEach((x: any) => { if (x == null || x === "") return; cont[String(x)] = (cont[String(x)] || 0) + 1; }); });
+    return Object.entries(cont).map(([nec, n]) => ({ nec, n })).sort((a, b) => b.n - a.n).slice(0, 6);
+  }, [pergs, mapa, filtradas, catRisco]);
+
+  const exportarCsv = () => {
+    const linhas: string[][] = [["Indicador", "Item", "Quantidade"]];
+    const push = (ind: string, d: { completo: string; n: number }[]) => d.forEach(x => linhas.push([ind, x.completo, String(x.n)]));
+    push("Situação profissional", distSituacao);
+    push("Necessidades de desenvolvimento", distNecess);
+    push("Pontos fortes", distFortes);
+    push("Pontos de melhoria", distMelhoria);
+    const csv = linhas.map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `desenvolvimento-${(form?.titulo ?? "painel").replace(/[^\w-]+/g, "_")}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
   if (loading) return <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Carregando…</div>;
 
   const mudaViz = (k: string, v: Viz) => setViz(x => ({ ...x, [k]: v }));
@@ -237,13 +273,27 @@ export default function PainelGerencial() {
           <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Selecione um formulário.</div>
         ) : (
           <>
+            {/* Título da seção + exportar */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 21, fontWeight: 800, color: "#0f172a" }}>DESENVOLVIMENTO</div>
+                <div style={{ fontSize: 12.5, color: "#64748b" }}>Entenda as necessidades de desenvolvimento da equipe e onde concentrar esforços.</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ fontSize: 10.5, color: "#94a3b8", textAlign: "right", lineHeight: 1.4 }}>
+                  Última atualização<br /><b style={{ color: "#475569" }}>{ultimaAtualizacao}</b>
+                </div>
+                <button onClick={exportarCsv} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬇ Exportar relatório</button>
+              </div>
+            </div>
+
             {/* KPIs */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginBottom: 16 }}>
               {distSituacao.slice(0, 4).map((d, i) => (
-                <Kpi key={d.completo} titulo={d.completo} valor={d.n} cor={CAT_CORES[i]} sub={`${pct(d.n, totalMenc(distSituacao))} do total`} />
+                <Kpi key={d.completo} titulo={d.completo} valor={d.n} cor={CAT_CORES[i]} icone={["🧭", "🚀", "🤝", "⚠️"][i] ?? "•"} sub={`${pct(d.n, totalMenc(distSituacao))} do total`} />
               ))}
-              <Kpi titulo="Pontos fortes citados" valor={totalMenc(distFortes)} cor="#7c3aed" sub="Menções no período" />
-              <Kpi titulo="Pontos de melhoria citados" valor={totalMenc(distMelhoria)} cor="#0891b2" sub="Menções no período" />
+              <Kpi titulo="Pontos fortes citados" valor={totalMenc(distFortes)} cor="#7c3aed" icone="⭐" sub="Menções no período" />
+              <Kpi titulo="Pontos de melhoria citados" valor={totalMenc(distMelhoria)} cor="#0891b2" icone="🎯" sub="Menções no período" />
             </div>
 
             {filtradas.length === 0 ? (
@@ -283,6 +333,22 @@ export default function PainelGerencial() {
                   <Painel titulo="Pontos de melhoria mais citados" viz={viz.melhoria} onViz={v => mudaViz("melhoria", v)} perg={pq("melhoria")}>
                     <Chart dados={distMelhoria} viz={viz.melhoria} cor="#dc2626" />
                   </Painel>
+                  <Painel titulo={`Em ${catRisco || "risco"} por principal necessidade`} semViz>
+                    {riscoPorNecessidade.length === 0 ? <Vazio /> : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {riscoPorNecessidade.map((x, i) => {
+                          const tot = riscoPorNecessidade.reduce((s, y) => s + y.n, 0);
+                          return (
+                            <div key={x.nec} style={{ display: "flex", gap: 8, fontSize: 12.5, alignItems: "baseline", borderTop: i ? "1px solid #f1f5f9" : "none", paddingTop: i ? 6 : 0 }}>
+                              <span style={{ flex: 1, color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={x.nec}>{x.nec}</span>
+                              <span style={{ fontWeight: 800, color: "#dc2626" }}>{x.n}</span>
+                              <span style={{ fontSize: 11, color: "#94a3b8", width: 42, textAlign: "right" }}>{pct(x.n, tot)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Painel>
                   <Painel titulo="Insights principais" semViz>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5, color: "#334155" }}>
                       {insightNec(distNecess)}
@@ -292,15 +358,21 @@ export default function PainelGerencial() {
                   </Painel>
                 </div>
 
-                {/* Detalhamento por situação */}
+                {/* Detalhamento por situação — clique filtra o painel inteiro */}
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".5px", margin: "4px 0 8px" }}>Detalhamento por situação</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
-                  {distSituacao.slice(0, 4).map((d, i) => (
-                    <div key={d.completo} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: CAT_CORES[i], textTransform: "uppercase", letterSpacing: ".4px" }}>{d.completo}</div>
-                      <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", marginTop: 4 }}>{d.n}</div>
-                      <div style={{ fontSize: 11, color: "#94a3b8" }}>colaborador(es) · {pct(d.n, totalMenc(distSituacao))}</div>
-                    </div>
-                  ))}
+                  {distSituacao.slice(0, 4).map((d, i) => {
+                    const ativo = fSituacao === d.completo;
+                    return (
+                      <button key={d.completo} onClick={() => setFSituacao(ativo ? "" : d.completo)} title="Clique para filtrar por esta situação"
+                        style={{ textAlign: "left", cursor: "pointer", background: "#fff", border: ativo ? `2px solid ${CAT_CORES[i]}` : "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: CAT_CORES[i], textTransform: "uppercase", letterSpacing: ".4px" }}>{d.completo}{ativo ? " ✓" : ""}</div>
+                        <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", marginTop: 4 }}>{d.n}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>colaborador(es) · {pct(d.n, totalMenc(distSituacao))}</div>
+                        <div style={{ fontSize: 10.5, color: "#cbd5e1", marginTop: 4 }}>{ativo ? "filtrando — clique p/ limpar" : "clique para filtrar"}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               </>
             )}
@@ -320,12 +392,17 @@ function FiltroFuturo({ label }: { label: string }) {
   return <div><label style={lbl}>{label}</label><select disabled style={{ ...inp, background: "#f8fafc", color: "#94a3b8", cursor: "not-allowed" }}><option>Todas (em breve)</option></select></div>;
 }
 
-function Kpi({ titulo, valor, cor, sub }: { titulo: string; valor: number; cor: string; sub?: string }) {
+function Kpi({ titulo, valor, cor, sub, icone }: { titulo: string; valor: number; cor: string; sub?: string; icone?: string }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
-      <div style={{ fontSize: 10.5, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{titulo}</div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: cor, marginTop: 4 }}>{valor}</div>
-      {sub && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{sub}</div>}
+    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "14px 16px", boxShadow: "0 8px 24px rgba(15,23,42,.05)", display: "flex", gap: 12, alignItems: "flex-start" }}>
+      {icone && (
+        <div style={{ width: 38, height: 38, borderRadius: 11, background: cor + "1a", color: cor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{icone}</div>
+      )}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={titulo}>{titulo}</div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: cor, marginTop: 2 }}>{valor}</div>
+        {sub && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{sub}</div>}
+      </div>
     </div>
   );
 }
@@ -352,7 +429,11 @@ function Painel({ titulo, children, viz, onViz, vizOpts, semViz, perg }: { titul
 function Chart({ dados, viz, cor }: { dados: { nome: string; completo: string; n: number }[]; viz: Viz; cor: string }) {
   const comDados = dados.filter(d => d.n);
   if (!comDados.length) return <Vazio />;
-  const tip = <Tooltip formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />;
+  // rótulos longos: limita o balão para não estourar o card e cobrir o vizinho.
+  const tip = <Tooltip
+    contentStyle={{ maxWidth: 260, whiteSpace: "normal", wordBreak: "break-word", fontSize: 12, lineHeight: 1.35, borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,.12)" }}
+    wrapperStyle={{ zIndex: 60 }}
+    formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />;
   if (viz === "pizza" || viz === "rosca") {
     return (
       <ResponsiveContainer width="100%" height={220}>
@@ -390,13 +471,18 @@ function Chart({ dados, viz, cor }: { dados: { nome: string; completo: string; n
       </ResponsiveContainer>
     );
   }
-  // barras (horizontal) — default
+  // barras (horizontal) — default; rótulo "n (x%)" na ponta, como no painel de referência.
+  const tot = dados.reduce((s, d) => s + d.n, 0);
   return (
-    <ResponsiveContainer width="100%" height={Math.max(160, dados.length * 30)}>
-      <BarChart data={dados} layout="vertical" margin={{ top: 0, right: 14, left: 8, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={Math.max(160, dados.length * 32)}>
+      <BarChart data={dados} layout="vertical" margin={{ top: 0, right: 62, left: 8, bottom: 0 }}>
         <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
         <YAxis type="category" dataKey="nome" width={140} tick={{ fontSize: 10 }} />{tip}
-        <Bar dataKey="n" radius={[0, 4, 4, 0]}>{dados.map((_, i) => <Cell key={i} fill={cor} />)}</Bar>
+        <Bar dataKey="n" radius={[0, 4, 4, 0]}>
+          {dados.map((_, i) => <Cell key={i} fill={cor} />)}
+          <LabelList dataKey="n" position="right" style={{ fontSize: 10, fill: "#475569", fontWeight: 700 }}
+            formatter={(v: any) => (tot ? `${v} (${Math.round((Number(v) / tot) * 100)}%)` : String(v))} />
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

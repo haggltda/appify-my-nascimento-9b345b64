@@ -33,6 +33,10 @@ type Perg = Pergunta & { formulario_id: string };
 interface Resp { id: string; formulario_id: string; enviado_em: string; respondente_nome?: string | null; itens: Record<string, any>; }
 
 const CORES = ["#0f3171", "#2563eb", "#0891b2", "#16a34a", "#eab308", "#ea580c", "#dc2626", "#9333ea", "#db2777", "#64748b"];
+// Rótulos de opção são longos: sem isto o balão do gráfico estoura o card e
+// cobre o gráfico vizinho.
+const TIP_CONTENT: React.CSSProperties = { maxWidth: 260, whiteSpace: "normal", wordBreak: "break-word", fontSize: 12, lineHeight: 1.35, borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,.12)" };
+const TIP_WRAP: React.CSSProperties = { zIndex: 60 };
 const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
   ({ padding: "6px 12px", borderRadius: 9, border, background: bg, color: c, fontSize: 12, fontWeight: 700, cursor: "pointer" });
 const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 9, padding: "8px 10px", fontSize: 13, outline: "none", background: "#fff", width: "100%" };
@@ -63,13 +67,16 @@ export default function FormulariosDashboard() {
   const load = useCallback(async () => {
     setLoading(true);
     const [fRes, rRes, dRes] = await Promise.all([
-      (supabase as any).from("CS_FORMULARIOS").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("CS_FORMULARIOS").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
       (supabase as any).from("CS_FORM_RESPOSTAS").select("id, formulario_id, enviado_em, respondente_nome, itens").order("enviado_em", { ascending: false }).limit(5000),
       (supabase as any).from("CS_FORM_ACESSOS").select("config").eq("papel", "dashboard").maybeSingle(),  // RLS: só a linha do próprio usuário
     ]);
-    setForms(fRes.data ?? []);
-    setFormSel(prev => prev || (fRes.data?.[0]?.id ?? ""));  // 1º formulário como padrão do painel auto
-    setResps((rRes.data ?? []).map((r: any) => ({ ...r, itens: r.itens ?? {} })));
+    const fs: Formulario[] = fRes.data ?? [];
+    setForms(fs);
+    setFormSel(prev => prev || (fs[0]?.id ?? ""));  // 1º formulário como padrão do painel auto
+    // respostas de formulário apagado (lixeira) não entram em nenhum indicador.
+    const vivos = new Set(fs.map(f => f.id));
+    setResps((rRes.data ?? []).filter((r: any) => vivos.has(r.formulario_id)).map((r: any) => ({ ...r, itens: r.itens ?? {} })));
     const cfg = dRes.data?.config;
     setWidgets(Array.isArray(cfg) && cfg.length ? cfg : WIDGETS_PADRAO);
     setLoading(false);
@@ -125,6 +132,7 @@ export default function FormulariosDashboard() {
           <div style={{ fontSize: 16, fontWeight: 800, color: "#0f3171" }}>📊 Dashboard - Nascimento Formulários</div>
           <div style={{ fontSize: 11.5, color: "#94a3b8" }}>{modo === "auto" ? "Painel automático do formulário: KPIs, gráficos por pergunta e filtros." : "Monte seu painel: adicione, configure, reordene e redimensione os widgets."}</div>
         </div>
+        <button onClick={() => nav("/app/central-servicos/formularios/painel")} style={btn("#0f3171")}>📈 Painel Gerencial</button>
         <div style={{ display: "flex", border: "1px solid #e2e8f0", borderRadius: 9, overflow: "hidden", flexShrink: 0 }}>
           {(["auto", "custom"] as const).map(mo => (
             <button key={mo} onClick={() => setModo(mo)} style={{ padding: "7px 12px", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", background: modo === mo ? "#0f3171" : "#fff", color: modo === mo ? "#fff" : "#64748b" }}>
@@ -290,7 +298,7 @@ function CorpoWidget({ w, resps, pergs, forms }: { w: Widget; resps: Resp[]; per
           <Pie data={dados.filter(d => d.n)} dataKey="n" nameKey="nome" cx="50%" cy="50%" outerRadius={70} label={(e: any) => e.nome}>
             {dados.filter(d => d.n).map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
           </Pie>
-          <Tooltip formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
+          <Tooltip contentStyle={TIP_CONTENT} wrapperStyle={TIP_WRAP} formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
         </PieChart>
       </ResponsiveContainer>
     );
@@ -300,7 +308,7 @@ function CorpoWidget({ w, resps, pergs, forms }: { w: Widget; resps: Resp[]; per
       <BarChart data={dados} layout="vertical" margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
         <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
         <YAxis type="category" dataKey="nome" width={140} tick={{ fontSize: 10.5 }} />
-        <Tooltip formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
+        <Tooltip contentStyle={TIP_CONTENT} wrapperStyle={TIP_WRAP} formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
         <Bar dataKey="n" fill="#0f3171" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -490,7 +498,7 @@ function GraficoPergunta({ dados, tipo }: { dados: { nome: string; completo: str
           <Pie data={comDados} dataKey="n" nameKey="nome" cx="50%" cy="50%" innerRadius={tipo === "rosca" ? 48 : 0} outerRadius={78} label={(e: any) => e.nome}>
             {comDados.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
           </Pie>
-          <Tooltip formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
+          <Tooltip contentStyle={TIP_CONTENT} wrapperStyle={TIP_WRAP} formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
         </PieChart>
       </ResponsiveContainer>
     );
@@ -501,7 +509,7 @@ function GraficoPergunta({ dados, tipo }: { dados: { nome: string; completo: str
         <BarChart data={dados} margin={{ top: 6, right: 6, left: -20, bottom: 0 }}>
           <XAxis dataKey="nome" tick={{ fontSize: 10 }} interval={0} angle={dados.length > 5 ? -25 : 0} textAnchor={dados.length > 5 ? "end" : "middle"} height={dados.length > 5 ? 48 : 24} />
           <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-          <Tooltip formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
+          <Tooltip contentStyle={TIP_CONTENT} wrapperStyle={TIP_WRAP} formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
           <Bar dataKey="n" radius={[4, 4, 0, 0]}>
             {dados.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
           </Bar>
@@ -515,7 +523,7 @@ function GraficoPergunta({ dados, tipo }: { dados: { nome: string; completo: str
       <BarChart data={dados} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
         <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
         <YAxis type="category" dataKey="nome" width={130} tick={{ fontSize: 10.5 }} />
-        <Tooltip formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
+        <Tooltip contentStyle={TIP_CONTENT} wrapperStyle={TIP_WRAP} formatter={(v: any, _n: any, e: any) => [v, e?.payload?.completo]} />
         <Bar dataKey="n" radius={[0, 4, 4, 0]}>
           {dados.map((_, i) => <Cell key={i} fill={CORES[i % CORES.length]} />)}
         </Bar>
