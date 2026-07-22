@@ -1,7 +1,11 @@
 // Arquivo: src/context/PermissoesContext.tsx
-// FASE 2 / FRONT-END
-// Substituir integralmente para que a UI também reconheça overrides individuais por ação.
-// O banco continua sendo a autoridade final via RLS/can_access.
+// FASE 2 / FRONT-END — redesenho do gerenciamento de acessos.
+// Cargo (role) é 100% descritivo agora — carregado só pra exibição, nunca
+// usado pra decidir acesso. `can()` resolve por: exceção individual
+// (screen_permission_user) > perfil de acesso atribuído (usuario_perfil_acesso
+// + perfil_acesso_permissao, com "concede_tudo" liberando tudo) > nega.
+// O banco continua sendo a autoridade final via RLS/can_access/has_screen_access
+// — isto aqui é só heurística de UI (esconder botão), nunca a proteção real.
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,20 +43,13 @@ export type Acao =
   | "exportar"
   | "executar_ia";
 
-interface RolePermission {
-  modulo: string;
-  acao: Acao;
-  menu: string | null;
-}
-
 interface UserOverride {
   menu: string;
   acao: Acao;
   allow: boolean;
-  empresaId: string | null;
 }
 
-interface ScreenProfilePermission {
+interface PerfilPermission {
   menu: string;
   acao: Acao;
   allow: boolean;
@@ -69,58 +66,14 @@ interface PermissoesCtx {
 
 const Ctx = createContext<PermissoesCtx | null>(null);
 
-function findOverride(overrides: UserOverride[], acao: Acao, menu?: string, empresaId?: string | null): UserOverride | null {
+function findOverride(overrides: UserOverride[], acao: Acao, menu?: string): UserOverride | null {
   if (!menu) return null;
-
-  const exactCompany = overrides.find(
-    (item) =>
-      item.menu === menu &&
-      item.acao === acao &&
-      empresaId !== null &&
-      empresaId !== undefined &&
-      item.empresaId === empresaId,
-  );
-
-  if (exactCompany) return exactCompany;
-
-  return overrides.find(
-    (item) =>
-      item.menu === menu &&
-      item.acao === acao &&
-      item.empresaId === null,
-  ) ?? null;
+  return overrides.find((item) => item.menu === menu && item.acao === acao) ?? null;
 }
 
-function hasRolePermission(permissoes: RolePermission[], acao: Acao, modulo?: string, menu?: string): boolean {
-  return permissoes.some((permission) => {
-    const actionMatches = permission.acao === acao;
-    const menuMatches = menu ? permission.menu === menu : permission.menu === null;
-    const moduleMatches =
-      permission.modulo === "*" ||
-      !modulo ||
-      permission.modulo === modulo;
-
-    if (!actionMatches) return false;
-
-    if (menu) {
-      return (
-        (permission.menu === menu && moduleMatches) ||
-        (permission.menu === null && moduleMatches)
-      );
-    }
-
-    return menuMatches && moduleMatches;
-  });
-}
-
-function hasScreenProfilePermission(permissoes: ScreenProfilePermission[], acao: Acao, menu?: string): boolean {
+function hasPerfilPermission(permissoes: PerfilPermission[], acao: Acao, menu?: string): boolean {
   if (!menu) return false;
-  return permissoes.some(
-    (permission) =>
-      permission.menu === menu &&
-      permission.acao === acao &&
-      permission.allow === true,
-  );
+  return permissoes.some((permission) => permission.menu === menu && permission.acao === acao && permission.allow === true);
 }
 
 export function PermissoesProvider({ children }: { children: ReactNode }) {
@@ -128,9 +81,9 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
   const { isDemo } = useDemoMode();
 
   const [roles, setRoles] = useState<Role[]>([]);
-  const [rolePermissoes, setRolePermissoes] = useState<RolePermission[]>([]);
   const [userOverrides, setUserOverrides] = useState<UserOverride[]>([]);
-  const [screenProfilePermissoes, setScreenProfilePermissoes] = useState<ScreenProfilePermission[]>([]);
+  const [perfilPermissoes, setPerfilPermissoes] = useState<PerfilPermission[]>([]);
+  const [concedeTudo, setConcedeTudo] = useState(false);
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [demoRole, setDemoRole] = useState<Role>(() => {
@@ -147,9 +100,9 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
       if (!user) {
         if (!cancelled) {
           setRoles(isDemo ? [demoRole] : []);
-          setRolePermissoes([]);
           setUserOverrides([]);
-          setScreenProfilePermissoes([]);
+          setPerfilPermissoes([]);
+          setConcedeTudo(false);
           setEmpresaId(null);
           setLoading(false);
         }
@@ -161,6 +114,7 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
         .select("role")
         .eq("user_id", user.id);
 
+      // Cargo é só exibição (badge no perfil, filtro de UI) — nunca gate de acesso.
       const userRoles = ((rolesData ?? []).map((item) => item.role)) as Role[];
 
       const { data: profile } = await supabase
@@ -170,44 +124,41 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       const activeEmpresaId = profile?.empresa_atual_id ?? profile?.empresa_id ?? null;
-      const fallbackRoles = userRoles.length ? userRoles : ["usuario" as Role];
 
-      const [rolePermsRes, overridesRes, screenProfileRes] = await Promise.all([
-        supabase
-          .from("role_permissions")
-          .select("modulo, acao, role, menu_codigo")
-          .in("role", fallbackRoles),
+      const [overridesRes, perfisRes] = await Promise.all([
         supabase
           .from("screen_permission_user")
-          .select("menu_codigo, acao, allow, empresa_id")
-          .eq("user_id", user.id)
-          .or(activeEmpresaId ? `empresa_id.is.null,empresa_id.eq.${activeEmpresaId}` : "empresa_id.is.null"),
-        supabase
-          .from("screen_permission_profile")
-          .select("menu_codigo, acao, allow, role")
-          .in("role", fallbackRoles),
+          .select("menu_codigo, acao, allow")
+          .eq("user_id", user.id),
+        (supabase as any)
+          .from("usuario_perfil_acesso")
+          .select("perfil_acesso(id, ativo, concede_tudo)")
+          .eq("user_id", user.id),
       ]);
 
+      const perfisAtivos = ((perfisRes.data ?? []) as any[])
+        .map((r) => r.perfil_acesso)
+        .filter((p) => p?.ativo);
+      const jaConcedeTudo = perfisAtivos.some((p) => p.concede_tudo);
+      const perfilIds = perfisAtivos.map((p) => p.id as string);
+
+      const permissaoRes = perfilIds.length
+        ? await (supabase as any).from("perfil_acesso_permissao").select("menu_codigo, acao, allow").in("perfil_id", perfilIds)
+        : { data: [] as any[] };
+
       if (!cancelled) {
-        setRoles(fallbackRoles);
+        setRoles(userRoles.length ? userRoles : ["usuario" as Role]);
         setEmpresaId(activeEmpresaId);
-        setRolePermissoes(
-          (rolePermsRes.data ?? []).map((permission: any) => ({
-            modulo: permission.modulo,
-            acao: permission.acao as Acao,
-            menu: permission.menu_codigo ?? null,
-          })),
-        );
         setUserOverrides(
           (overridesRes.data ?? []).map((permission: any) => ({
             menu: permission.menu_codigo,
             acao: permission.acao as Acao,
             allow: Boolean(permission.allow),
-            empresaId: permission.empresa_id ?? null,
           })),
         );
-        setScreenProfilePermissoes(
-          (screenProfileRes.data ?? []).map((permission: any) => ({
+        setConcedeTudo(jaConcedeTudo);
+        setPerfilPermissoes(
+          (permissaoRes.data ?? []).map((permission: any) => ({
             menu: permission.menu_codigo,
             acao: permission.acao as Acao,
             allow: Boolean(permission.allow),
@@ -238,22 +189,22 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
         return;
       }
     },
-    can: (acao, modulo, menu) => {
+    can: (acao, _modulo, menu) => {
       if (!user && isDemo) {
         if (demoRole === "admin") return true;
         if (demoRole === "usuario" || demoRole === "visitante") return acao === "visualizar";
         return acao === "visualizar" || acao === "exportar";
       }
 
-      const override = findOverride(userOverrides, acao, menu, empresaId);
+      const override = findOverride(userOverrides, acao, menu);
       if (override) return override.allow;
 
-      if (hasRolePermission(rolePermissoes, acao, modulo, menu)) return true;
-      if (hasScreenProfilePermission(screenProfilePermissoes, acao, menu)) return true;
+      if (concedeTudo) return true;
+      if (hasPerfilPermission(perfilPermissoes, acao, menu)) return true;
 
       return false;
     },
-  }), [demoRole, empresaId, isDemo, loading, rolePermissoes, roles, screenProfilePermissoes, user, userOverrides]);
+  }), [concedeTudo, demoRole, empresaId, isDemo, loading, perfilPermissoes, roles, user, userOverrides]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -263,4 +214,3 @@ export function usePermissoes() {
   if (!context) throw new Error("usePermissoes deve ser usado dentro de PermissoesProvider");
   return context;
 }
-

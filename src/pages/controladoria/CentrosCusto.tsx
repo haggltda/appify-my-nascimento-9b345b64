@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Building2, Plus, PowerOff, Loader2, FileBadge, AlertTriangle, UserCog, Building, Crown, Save, X } from "lucide-react";
-import { RoleGate } from "@/components/RoleGate";
+import { AcessoGate } from "@/components/auth/AcessoGate";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { TrocarEmpresaCCDialog } from "./TrocarEmpresaCCDialog";
@@ -210,7 +210,7 @@ export default function CentrosCusto() {
         </div>
       ) : (
         <>
-          <RoleGate acao="incluir" modulo="centros_custo">
+          <AcessoGate acao="incluir" menu="cc">
             <section className="card-elevated mb-6 p-4">
               <header className="mb-3 flex items-center gap-2">
                 <Plus className="h-4 w-4 text-primary" />
@@ -260,7 +260,7 @@ export default function CentrosCusto() {
                 </button>
               </div>
             </section>
-          </RoleGate>
+          </AcessoGate>
 
           <CCSection titulo={`Administrativos (${adm.length})`} icone={<FileBadge className="h-4 w-4 text-primary" />} lista={adm} empresas={empresas} edits={edits} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
           <CCSection titulo={`Operacionais (${op.length})`} icone={<Building2 className="h-4 w-4 text-accent" />} lista={op} empresas={empresas} edits={edits} onToggle={toggle} onSetVincular={setVincular} onSetTipo={setTipo} onReload={fetchAll} />
@@ -354,7 +354,7 @@ function CCSection({
                   <td className="px-4 py-2 font-mono text-xs">
                     <div className="flex items-center gap-2">
                       <span>{empresaCodigo(c.empresa_id)}</span>
-                      <RoleGate acao="alterar" modulo="centros_custo">
+                      <AcessoGate acao="alterar" menu="cc">
                         <button
                           data-write
                           onClick={() => setTrocaCC(c)}
@@ -363,7 +363,7 @@ function CCSection({
                         >
                           <Building className="h-3 w-3" />
                         </button>
-                      </RoleGate>
+                      </AcessoGate>
                     </div>
                   </td>
                   <td className="px-4 py-2">
@@ -384,7 +384,7 @@ function CCSection({
                     )}
                   </td>
                   <td className="px-4 py-2">
-                    <RoleGate acao="alterar" modulo="centros_custo">
+                    <AcessoGate acao="alterar" menu="cc">
                       <select
                         data-write
                         value={c.vincular_orcamento === null ? "herda" : c.vincular_orcamento ? "sim" : "nao"}
@@ -399,7 +399,7 @@ function CCSection({
                         <option value="sim">Sim</option>
                         <option value="nao">Não</option>
                       </select>
-                    </RoleGate>
+                    </AcessoGate>
                   </td>
                   <td className="px-4 py-2">
                     <span className={c.ativo ? "chip bg-success-soft text-success" : "chip bg-muted text-muted-foreground"}>
@@ -407,7 +407,7 @@ function CCSection({
                     </span>
                   </td>
                   <td className="px-4 py-2 text-right">
-                    <RoleGate acao="alterar" modulo="centros_custo">
+                    <AcessoGate acao="alterar" menu="cc">
                       <div className="flex items-center justify-end gap-1.5">
                         <select
                           data-write
@@ -431,7 +431,7 @@ function CCSection({
                           {c.ativo ? "Desativar" : "Reativar"}
                         </button>
                       </div>
-                    </RoleGate>
+                    </AcessoGate>
                   </td>
                 </tr>
               ))

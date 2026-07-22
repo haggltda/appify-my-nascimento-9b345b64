@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { usePermissoes } from "@/context/PermissoesContext";
-import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare, Save } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSquare, Save, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { FormCap } from "@/hooks/useFormPerms";
@@ -32,6 +32,8 @@ function slugify(text: string): string {
 }
 
 type View = "catalogo" | "acesso";
+
+interface PerfilAcesso { id: string; nome: string; descricao: string | null; concede_tudo: boolean; ativo: boolean }
 
 export function ModulosMenusTab() {
   const qc = useQueryClient();
@@ -419,6 +421,12 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
 
       {selectedUserId && !effectiveQ.isLoading && (
         <div className="divide-y divide-border">
+          <PerfisAtribuidosSection
+            userId={selectedUserId}
+            isAdmin={isAdmin}
+            expanded={expanded.has("__perfis__")}
+            onToggleExpand={() => toggleExpand("__perfis__")}
+          />
           {modulos.map((m) => {
             const modMenus = menus.filter((x) => x.modulo_id === m.id);
             const open = expanded.has(m.id);
@@ -653,3 +661,109 @@ function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: st
     </div>
   );
 }
+
+// ─── Perfis atribuídos (dentro de Acesso por Usuário) ───────────────────────────
+// Grupos reutilizáveis de permissão — em vez de ligar switch por switch pra
+// cada pessoa, o admin monta o perfil uma vez (aba "Perfis de Acesso") e só
+// atribui aqui. Renderizado como mais uma linha da mesma árvore de módulos
+// (mesmo padrão visual), só que cada "filho" é um perfil em vez de um menu.
+// Os switches dos módulos abaixo continuam mostrando o acesso EFETIVO
+// (perfil(is) + exceções) — mexer num switch individual de módulo/menu cria
+// uma exceção só pra esta pessoa, sem tirar ela do(s) perfil(is).
+function PerfisAtribuidosSection({ userId, isAdmin, expanded, onToggleExpand }: {
+  userId: string; isAdmin: boolean; expanded: boolean; onToggleExpand: () => void;
+}) {
+  const qc = useQueryClient();
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const perfisQ = useQuery({
+    queryKey: ["perfil_acesso_ativos"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("perfil_acesso").select("id,nome,descricao,concede_tudo,ativo").eq("ativo", true).order("nome");
+      if (error) throw error;
+      return (data ?? []) as PerfilAcesso[];
+    },
+  });
+
+  const atribuidosQ = useQuery({
+    queryKey: ["usuario_perfil_acesso", userId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("usuario_perfil_acesso").select("perfil_id").eq("user_id", userId);
+      if (error) throw error;
+      return new Set((data ?? []).map((r: any) => r.perfil_id as string));
+    },
+  });
+
+  const toggle = async (perfilId: string, atribuido: boolean) => {
+    if (!isAdmin) return;
+    setSaving(perfilId);
+    try {
+      if (atribuido) {
+        const { error } = await (supabase as any).from("usuario_perfil_acesso").delete().eq("user_id", userId).eq("perfil_id", perfilId);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any).from("usuario_perfil_acesso").insert({ user_id: userId, perfil_id: perfilId });
+        if (error) throw error;
+      }
+      await qc.invalidateQueries({ queryKey: ["usuario_perfil_acesso", userId] });
+      await qc.refetchQueries({ queryKey: ["effective-menus-for-user", userId] });
+      toast({ title: "Perfis atualizados" });
+    } catch (e: any) {
+      toast({ title: "Erro ao atualizar perfil", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const perfis = perfisQ.data ?? [];
+  const atribuidos = atribuidosQ.data ?? new Set<string>();
+  const liberados = perfis.filter((p) => atribuidos.has(p.id)).length;
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 px-5 py-3 hover:bg-muted/40">
+        {perfis.length > 0 ? (
+          <button onClick={onToggleExpand} className="text-muted-foreground">
+            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+        ) : (
+          <span className="h-4 w-4" />
+        )}
+        <div className="flex-1">
+          <p className="text-sm font-medium">Perfis Atribuídos</p>
+          <p className="text-[11px] font-mono text-muted-foreground">perfis_acesso</p>
+        </div>
+        <span className="text-xs text-muted-foreground">{liberados}/{perfis.length} perfis atribuídos</span>
+      </div>
+
+      {expanded && perfis.length > 0 && (
+        <div className="divide-y divide-border/60 bg-muted/20">
+          {perfis.length === 0 && (
+            <p className="px-12 py-3 text-xs text-muted-foreground">Nenhum perfil cadastrado ainda — crie um em "Perfis de Acesso".</p>
+          )}
+          {perfis.map((p) => {
+            const on = atribuidos.has(p.id);
+            return (
+              <div key={p.id} className="flex items-center gap-2 px-12 py-2.5 hover:bg-muted/40">
+                <div className="flex-1">
+                  <p className="flex items-center gap-1.5 text-sm">
+                    {p.concede_tudo && <Layers className="h-3.5 w-3.5 text-primary" />}
+                    {p.nome}
+                  </p>
+                  {p.descricao && <p className="text-[11px] text-muted-foreground">{p.descricao}</p>}
+                </div>
+                <Switch
+                  checked={on}
+                  disabled={!isAdmin || saving === p.id}
+                  onCheckedChange={() => toggle(p.id, on)}
+                  aria-label={`Perfil ${p.nome}`}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+

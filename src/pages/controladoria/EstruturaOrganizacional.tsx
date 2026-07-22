@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Network, Plus, PowerOff, Loader2, Users, Building2, Layers } from "lucide-react";
-import { RoleGate } from "@/components/RoleGate";
+import { AcessoGate } from "@/components/auth/AcessoGate";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -117,7 +117,7 @@ export default function EstruturaOrganizacional() {
           <div className="grid gap-4 lg:grid-cols-3">
             {/* COMITÊS */}
             <Coluna icon={<Network className="h-4 w-4 text-primary" />} titulo={`Comitês (${comitesEmp.length})`}>
-              <RoleGate acao="incluir" modulo="centros_custo">
+              <AcessoGate acao="incluir" menu="estrutura-organizacional">
                 <div className="mb-2 flex gap-1">
                   <input value={novoComite} onChange={(e) => setNovoComite(e.target.value)}
                     placeholder="Novo comitê" className="h-8 flex-1 rounded-md border border-border bg-card px-2 text-sm" />
@@ -126,7 +126,7 @@ export default function EstruturaOrganizacional() {
                     <Plus className="h-3 w-3" />
                   </button>
                 </div>
-              </RoleGate>
+              </AcessoGate>
               <Lista
                 itens={comitesEmp.map(c => ({ id: c.id, nome: c.nome, ativo: c.ativo, sub: null }))}
                 selecionado={comiteSel}
@@ -138,7 +138,7 @@ export default function EstruturaOrganizacional() {
             {/* ÁREAS */}
             <Coluna icon={<Building2 className="h-4 w-4 text-accent" />} titulo={`Áreas (${areasComite.length})`} subtitulo={comiteSel ? "" : "Selecione um comitê"}>
               {comiteSel && (
-                <RoleGate acao="incluir" modulo="centros_custo">
+                <AcessoGate acao="incluir" menu="estrutura-organizacional">
                   <div className="mb-2 grid gap-1">
                     <input value={novaArea} onChange={(e) => setNovaArea(e.target.value)}
                       placeholder="Nova área" className="h-8 rounded-md border border-border bg-card px-2 text-sm" />
@@ -154,7 +154,7 @@ export default function EstruturaOrganizacional() {
                       </button>
                     </div>
                   </div>
-                </RoleGate>
+                </AcessoGate>
               )}
               <Lista
                 itens={areasComite.map(a => ({ id: a.id, nome: a.nome, ativo: a.ativo, sub: ccLabel(a.centro_custo_id) }))}
@@ -167,7 +167,7 @@ export default function EstruturaOrganizacional() {
             {/* SETORES */}
             <Coluna icon={<Layers className="h-4 w-4 text-success" />} titulo={`Setores (${setoresArea.length})`} subtitulo={areaSel ? "" : "Selecione uma área"}>
               {areaSel && (
-                <RoleGate acao="incluir" modulo="centros_custo">
+                <AcessoGate acao="incluir" menu="estrutura-organizacional">
                   <div className="mb-2 grid gap-1">
                     <input value={novoSetor} onChange={(e) => setNovoSetor(e.target.value)}
                       placeholder="Novo setor" className="h-8 rounded-md border border-border bg-card px-2 text-sm" />
@@ -183,7 +183,7 @@ export default function EstruturaOrganizacional() {
                       </button>
                     </div>
                   </div>
-                </RoleGate>
+                </AcessoGate>
               )}
               <Lista
                 itens={setoresArea.map(s => ({ id: s.id, nome: s.nome, ativo: s.ativo, sub: ccLabel(s.centro_custo_id) }))}
@@ -231,13 +231,13 @@ function Lista({ itens, selecionado, onSelect, onToggle }:{
             <span className={i.ativo ? "" : "line-through text-muted-foreground"}>{i.nome}</span>
             {i.sub && <span className="ml-2 font-mono text-[10px] text-muted-foreground">{i.sub}</span>}
           </button>
-          <RoleGate acao="alterar" modulo="centros_custo">
+          <AcessoGate acao="alterar" menu="estrutura-organizacional">
             <button data-write onClick={() => onToggle(i.id, i.ativo)}
               className="ml-2 inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-secondary">
               <PowerOff className="h-2.5 w-2.5" />
               {i.ativo ? "off" : "on"}
             </button>
-          </RoleGate>
+          </AcessoGate>
         </li>
       ))}
     </ul>
