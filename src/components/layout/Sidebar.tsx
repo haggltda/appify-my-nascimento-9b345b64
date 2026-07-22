@@ -48,6 +48,8 @@ import {
 } from "lucide-react";
 import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
+import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
+import { ACESSO_ABERTO_SEM_PERMISSOES, MENUS_SEMPRE_RESTRITOS } from "@/lib/acesso";
 import { useGradeAtivaCount } from "@/hooks/useGradeAtivaCount";
 import { EmpresaAtivaContext } from "@/context/EmpresaAtivaContext";
 import { Inbox } from "lucide-react";
@@ -585,6 +587,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
   const location = useLocation();
   const { perms } = usePlanoAcaoPermissao();
   const { temAlcada, pendentes } = useTemAlcada();
+  const { data: access } = useAccessibleMenus("visualizar");
   const empresaCtx = useContext(EmpresaAtivaContext);
   const { data: gradeAtivaCount } = useGradeAtivaCount(empresaCtx?.empresa?.id ?? null);
 
@@ -594,15 +597,43 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
     integracaoModule,
   ];
 
-  // Sem regra de permissão no front: a sidebar mostra todos os módulos e telas.
+  // Sidebar filtra itens com base nos menus acessíveis do usuário (perfil de
+  // acesso, ver list_accessible_menus). Cargo/role não concede bypass.
+  // Plano de Ações fica de fora deste filtro: usa a ACL própria de
+  // usePlanoAcaoPermissao (plano_acao_can_access), não o sistema de menus.
   const visibleModules = useMemo(() => {
     const resolvedBadge = (badge: string | undefined) => {
       if (badge === "__grade_ativa__") return gradeAtivaCount != null ? String(gradeAtivaCount) : undefined;
       return badge;
     };
 
+    const canSee = (to: string) => {
+      if (ACESSO_ABERTO_SEM_PERMISSOES || !access) return true;
+      const code = matchMenuCode(to, access.routes);
+      // Rota sem entrada em app_menu: nunca foi migrada pro controle por
+      // perfil, então continua sempre visível (não é regressão esconder algo
+      // que nunca teve controle de acesso definido).
+      if (!code) return true;
+      // Menu existe, mas ninguém nunca configurou nada pra ele no
+      // gerenciamento de acesso (nenhuma linha em perfil_acesso_permissao
+      // ou screen_permission_user) — fica aberto até alguém decidir algo lá.
+      // Exceção: administracao/integracao nunca caem aqui, ver MENUS_SEMPRE_RESTRITOS.
+      if (!access.configuredCodes.has(code) && !MENUS_SEMPRE_RESTRITOS.has(code)) return true;
+      return access.codes.has(code);
+    };
+
+    const base = allModules
+      .map((mod) => {
+        if (mod.id === "plano-acoes" || !mod.groups) return mod;
+        const groups = mod.groups
+          .map((g) => ({ ...g, items: g.items.filter((item) => canSee(item.to)) }))
+          .filter((g) => g.items.length > 0);
+        return { ...mod, groups };
+      })
+      .filter((mod) => mod.id === "plano-acoes" || !mod.groups || mod.groups.length > 0);
+
     // Resolve sentinels de badge dinâmico
-    return allModules.map((mod) => ({
+    return base.map((mod) => ({
       ...mod,
       badge: resolvedBadge(mod.badge),
       groups: mod.groups?.map((g) => ({
@@ -610,7 +641,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
         items: g.items.map((item) => ({ ...item, badge: resolvedBadge(item.badge) })),
       })),
     }));
-  }, [allModules, gradeAtivaCount]);
+  }, [allModules, access, gradeAtivaCount]);
 
   // Módulo ativo = aquele cujo ITEM (link real) casa com a rota atual.
   // Detecção por basePath não serve porque o Licitações usa basePath "/app"
