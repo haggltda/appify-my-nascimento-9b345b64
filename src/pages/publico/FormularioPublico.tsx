@@ -146,7 +146,10 @@ function ColaboradorSelect({ value, onChange }: { value: string; onChange: (v: s
   const buscar = async (texto: string) => {
     setBusca(texto); setAberto(true);
     const termo = texto.trim();
-    let query = (supabase as any).from("EMPREGADOS")
+    // Rota pública (sem login) — usa a view sem colunas sensíveis (sem CPF/
+    // salário/PIS), já que a tabela EMPREGADOS completa agora exige acesso
+    // por menu (ver migration 20260717190010).
+    let query = (supabase as any).from("VW_EMPREGADOS_BASICO")
       .select('"ID","Nome","Setor_ERP","Título do Cargo","Situação"')
       .order('"Nome"').limit(40);
     // Busca por PALAVRA: cada palavra (≥2 letras) precisa aparecer no nome, em
