@@ -35,13 +35,6 @@ export function RouteGuard({ children }: { children: ReactNode }) {
     ? (phaseFlagged.flag === "triagemIA" ? triagemIAEnabled : false)
     : true;
 
-  // Plano de Ações usa a ACL própria dele (plano_acao_can_access /
-  // usePlanoAcaoPermissao, permissão por registro/comitê), não o sistema de
-  // menus/perfil_acesso — nunca bloqueado por aqui (ver Sidebar.tsx, mesma
-  // exclusão, e a memória do redesenho de acesso: "deixado de fora, de
-  // propósito").
-  const isPlanoAcoes = pathname === "/app/plano-acoes" || pathname.startsWith("/app/plano-acoes/");
-
   const menuCode = access ? matchMenuCode(pathname, access.routes) : null;
 
   // Acesso determinado pelo gerenciamento de acesso ("Acesso por Usuário"):
@@ -58,7 +51,6 @@ export function RouteGuard({ children }: { children: ReactNode }) {
     phaseFlagEnabled &&
     (ACESSO_ABERTO_SEM_PERMISSOES ||
       !access ||
-      isPlanoAcoes ||
       !menuCode ||
       (!access.configuredCodes.has(menuCode) && !MENUS_SEMPRE_RESTRITOS.has(menuCode)) ||
       access.codes.has(menuCode));
