@@ -190,11 +190,41 @@ Deno.serve(async (req) => {
 
     const rollbackCreatedUser = async () => {
       try {
+        // O trigger on_auth_user_created já criou profiles + user_roles('visitante')
+        // pra este id — como profiles.id não tem FK real pra auth.users, apagar só
+        // o auth user deixaria essas 2 linhas órfãs pra trás (foi exatamente assim
+        // que os perfis órfãos de teste apareceram). Limpa os 3 antes de apagar.
+        await admin.from("user_roles").delete().eq("user_id", newUserId);
+        await admin.from("user_empresa").delete().eq("user_id", newUserId);
+        await admin.from("profiles").delete().eq("id", newUserId);
         await admin.auth.admin.deleteUser(newUserId);
       } catch {
         console.error("Falha ao executar rollback do usuário criado", newUserId);
       }
     };
+
+    // IMPORTANTE: o vínculo em user_empresa precisa existir ANTES de gravar
+    // empresa_atual_id em profiles — o trigger trg_profiles_valida_empresa_atual
+    // (BEFORE UPDATE OF empresa_atual_id) exige user_pode_atuar_empresa(...), que
+    // olha pra user_empresa. Como on_auth_user_created já criou a linha de profiles
+    // (com empresa_atual_id NULL) no createUser acima, o upsert de profiles logo
+    // abaixo já é um UPDATE de verdade — se a ordem fosse invertida, o trigger
+    // sempre rejeitaria por "Usuário sem vínculo com a empresa selecionada".
+    if (empresa_id) {
+      const { error: userEmpresaErr } = await admin
+        .from("user_empresa")
+        .upsert({
+          user_id: newUserId,
+          empresa_id,
+          is_default: true,
+          created_by: callerId,
+        }, { onConflict: "user_id,empresa_id" });
+
+      if (userEmpresaErr) {
+        await rollbackCreatedUser();
+        return jsonResponse({ error: `Erro ao vincular empresa ao usuário: ${userEmpresaErr.message}` }, 500);
+      }
+    }
 
     const { error: profileErr } = await admin
       .from("profiles")
@@ -214,6 +244,19 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: `Erro ao gravar profile: ${profileErr.message}` }, 500);
     }
 
+    // on_auth_user_created já concedeu 'visitante' automaticamente — remove antes
+    // de aplicar os perfis pedidos, senão um insert de 'visitante' explícito (a
+    // opção existe no formulário) bateria de frente com UNIQUE(user_id, role).
+    const { error: cleanupRoleErr } = await admin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", newUserId);
+
+    if (cleanupRoleErr) {
+      await rollbackCreatedUser();
+      return jsonResponse({ error: `Erro ao limpar perfil padrão: ${cleanupRoleErr.message}` }, 500);
+    }
+
     const { error: rolesErr } = await admin
       .from("user_roles")
       .insert(rolesToApply.map((role) => ({ user_id: newUserId, role })));
@@ -221,22 +264,6 @@ Deno.serve(async (req) => {
     if (rolesErr) {
       await rollbackCreatedUser();
       return jsonResponse({ error: `Erro ao vincular perfis: ${rolesErr.message}` }, 500);
-    }
-
-    if (empresa_id) {
-      const { error: userEmpresaErr } = await admin
-        .from("user_empresa")
-        .upsert({
-          user_id: newUserId,
-          empresa_id,
-          is_default: true,
-          created_by: callerId,
-        }, { onConflict: "user_id,empresa_id" });
-
-      if (userEmpresaErr) {
-        await rollbackCreatedUser();
-        return jsonResponse({ error: `Erro ao vincular empresa ao usuário: ${userEmpresaErr.message}` }, 500);
-      }
     }
 
     return jsonResponse({
