@@ -510,7 +510,7 @@ export default function Colaboradores() {
     f["Título do Cargo"] = String(e["Título do Cargo"] ?? "").trim();
     f["Situação"] = e["Situação"] ?? "";
     f["Setor_ERP"] = String(e["Setor_ERP"] ?? "").trim() || "PADRAO";
-    f["LIDER"] = String(e["Título do Cargo"] ?? "").trim() || String(e["LIDER"] ?? "").trim(); // Hierarquia puxa do cargo
+    f["LIDER"] = String(e["Título do Cargo"] ?? "").trim() || String(e["LIDER"] ?? "").trim(); // Nível puxa do cargo
     f["Perfil_ERP"] = String(e["Perfil_ERP"] ?? "").trim() || "PADRAO";
     setForm(f);
   };
@@ -768,7 +768,7 @@ export default function Colaboradores() {
               </div>
 
               <div style={{ fontSize: 11, fontWeight: 800, color: "#0f3171", textTransform: "uppercase", letterSpacing: ".4px", margin: "18px 0 3px" }}>Configurações extras (ERP)</div>
-              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10 }}>Setor, hierarquia e perfil usados pelo sistema (permissões/encarregados).</div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10 }}>Setor, nível e perfil usados pelo sistema (permissões/encarregados).</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Setor</label>
@@ -776,7 +776,7 @@ export default function Colaboradores() {
                     {[...new Set([form["Setor_ERP"] ?? "", ...setorOptions])].filter(Boolean).map(s => <option key={s}>{s}</option>)}
                   </select>
                 </div>
-                <Campo label="Hierarquia" value={form["LIDER"] ?? ""} onChange={v => setCampo("LIDER", v)} />
+                <Campo label="Nível" value={form["LIDER"] ?? ""} onChange={v => setCampo("LIDER", v)} />
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "#475569" }}>Perfil</label>
                   <select className="col-fi" style={{ width: "100%" }} value={form["Perfil_ERP"] ?? ""} onChange={e => setCampo("Perfil_ERP", e.target.value)}>
