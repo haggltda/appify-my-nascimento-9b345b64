@@ -188,7 +188,7 @@ export default function VisaoExecutiva({
     return { dados, cats };
   }, [resps, pergs, mapa.situacao]);
 
-  // Cobertura por diretoria (papel 'diretor_setor') ou por setor. Setor sem diretor
+  // Cobertura por diretoria (RH_SETOR_DIRETOR) ou por setor. Setor sem diretor
   // designado vira uma faixa própria — some do gráfico seria esconder trabalho
   // por fazer.
   const porGrupo = useMemo(() => {
@@ -319,7 +319,7 @@ export default function VisaoExecutiva({
             {!emps.length
               ? "Não consegui ler o cadastro de colaboradores, então não há denominador para a taxa de realização. Recarregue a página; se persistir, confira o acesso ao módulo de RH."
               : !temPerfil
-              ? <>O cadastro veio <b>sem o Perfil_ERP</b>, que é o que define quem precisa responder. Falta aplicar a migration <b>20260731000002_remove_hierarquia_rh</b> no banco do app (e o <code>NOTIFY pgrst, 'reload schema'</code> que vem nela).</>
+              ? <>O cadastro veio <b>sem o Perfil_ERP</b>, que é o que define quem precisa responder. Falta aplicar a migration <b>20260724000001_rh_hierarquia_perfil</b> no banco do app (e o <code>NOTIFY pgrst, 'reload schema'</code> que vem nela).</>
               : <>Falta apontar qual pergunta traz o <b>colaborador avaliado</b>. Quem preenche o feedback é o líder, então o nome de quem foi avaliado está numa pergunta do formulário — sem isso não dá para saber quem já recebeu feedback, e a taxa de realização seria um chute.</>}
             {" "}Os demais indicadores abaixo continuam valendo.
           </div>

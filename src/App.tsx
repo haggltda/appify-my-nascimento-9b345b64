@@ -293,10 +293,9 @@ const App = () => (
             <Route path="contabil/conciliacao-eventos" element={<ConciliacaoEventos />} />
             {/* RH */}
             <Route path="rh/colaboradores" element={<Colaboradores />} />
-            {/* RH > Hierarquia removido (jul/2026) — feature descontinuada. As tabelas
-                RH_CONTRATO_ENCARREGADO, RH_SETOR_DIRETOR e CS_LIDERES_SETOR foram
-                dropadas na migration 20260731000002; a leitura do cadastro virou a
-                RPC rh_cadastro_dados (usada pelo Painel Gerencial). */}
+            {/* RH > Hierarquia removido (jul/2026) — feature descontinuada. A tabela
+                RH_CONTRATO_ENCARREGADO pode ser dropada; a RPC rh_hierarquia_dados
+                CONTINUA (usada por Líderes por setor / Painel Gerencial). */}
             <Route path="rh/hierarquia" element={<Navigate to="/app/rh/colaboradores" replace />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             <Route path="rh/folha" element={<Folha />} />

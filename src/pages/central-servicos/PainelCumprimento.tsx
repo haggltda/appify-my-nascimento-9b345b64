@@ -211,7 +211,7 @@ export default function PainelCumprimento({ emps, resps, avaliadoDaResposta, map
         <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 6 }}>Falta o Perfil_ERP no cadastro</div>
         <div style={{ fontSize: 12.5, color: "#64748b", maxWidth: 580, margin: "0 auto", lineHeight: 1.5 }}>
           O Cumprimento precisa saber <b>quem era esperado</b> no ciclo, e isso vem do <b>Perfil_ERP</b> (administrativo)
-          — que a leitura do cadastro não trouxe. Aplique a migration <code>20260731000002_remove_hierarquia_rh.sql</code>
+          — que a leitura do cadastro não trouxe. Aplique a migration <code>20260724000001_rh_hierarquia_perfil.sql</code>
           no banco do app. Sem ela eu mostraria 0% de cumprimento, o que seria falso.
         </div>
       </div>
