@@ -103,7 +103,6 @@ import ConciliacaoEventos from "./pages/contabil/ConciliacaoEventos";
 import Folha from "./pages/rh/Folha";
 import Contabilidade from "./pages/Contabilidade";
 import Colaboradores from "./pages/rh/Colaboradores";
-import Hierarquia from "./pages/rh/Hierarquia";
 import Alocacoes from "./pages/rh/Alocacoes";
 import Recrutamento from "./pages/rh/Recrutamento";
 import Patrimonios from "./pages/juridico/Patrimonios";
@@ -294,7 +293,10 @@ const App = () => (
             <Route path="contabil/conciliacao-eventos" element={<ConciliacaoEventos />} />
             {/* RH */}
             <Route path="rh/colaboradores" element={<Colaboradores />} />
-            <Route path="rh/hierarquia" element={<Hierarquia />} />
+            {/* RH > Hierarquia removido (jul/2026) — feature descontinuada. A tabela
+                RH_CONTRATO_ENCARREGADO pode ser dropada; a RPC rh_hierarquia_dados
+                CONTINUA (usada por Líderes por setor / Painel Gerencial). */}
+            <Route path="rh/hierarquia" element={<Navigate to="/app/rh/colaboradores" replace />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             <Route path="rh/folha" element={<Folha />} />
             <Route path="rh/novas-admissoes" element={<NovasAdmissoes />} />
