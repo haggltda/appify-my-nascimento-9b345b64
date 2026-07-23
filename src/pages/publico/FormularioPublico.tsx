@@ -383,10 +383,14 @@ export default function FormularioPublico() {
     const nomePergunta = Array.isArray(nomeRaw) ? (nomeRaw[0] ? String(nomeRaw[0]).trim() : "") : (nomeRaw != null ? String(nomeRaw).trim() : "");
     const nomeResp = cadastro?.nome?.trim() || (form.coleta_identificacao ? nome.trim() : "") || nomePergunta || null;
     const emailResp = cadastro?.email?.trim() || (form.coleta_identificacao ? email.trim() : "") || null;
-    // criado_por é preenchido pelo default (auth.uid()) quando logado; anônimo sem dono.
+    // Dono da resposta: quem está logado ao enviar. A coluna criado_por não tem
+    // default no banco, então sem isto ela ficava sempre nula e "só as próprias
+    // respostas" nunca achava nada. Anônimo (link público sem login) segue sem dono.
+    const { data: { session } } = await (supabase as any).auth.getSession();
+    const criado_por = session?.user?.id ?? null;
     const duracao_seg = Math.max(0, Math.round((Date.now() - abertoEm.current) / 1000));  // tempo de conclusão
     const base = { formulario_id: form.id, respondente_nome: nomeResp, respondente_email: emailResp, itens: valores };
-    let { error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert({ ...base, setor, respondente_cadastro: cadastro, duracao_seg });
+    let { error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert({ ...base, setor, respondente_cadastro: cadastro, duracao_seg, criado_por });
     // Banco ainda sem as colunas novas (setor/cadastro/duração): reenvia só o básico.
     if (error && /column|schema cache/i.test(error.message)) ({ error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert(base));
     setEnviando(false);

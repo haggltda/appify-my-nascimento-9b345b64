@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useFormPerms } from "@/hooks/useFormPerms";
+import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 import { Formulario, Pergunta, fmtDt, situacao, normalizaPerguntas } from "./Formularios";
 import EmpregadoDetalheModal, { normNome, carregarVinculos, prewarmFichas, invalidarFichas, nomesDoCadastro, resolveCadastro } from "./EmpregadoDetalheModal";
 
@@ -224,7 +225,8 @@ export default function FormularioRespostas() {
   const { id } = useParams();
   const nav = useNavigate();
   const { user } = useAuth();
-  const { soProprias } = useFormPerms();
+  const { can, canVerSetor, canCriarSetor, soProprias, loading: permsLoading } = useFormPerms();
+  const { empregado, loading: vincLoading } = useVinculoEmpregado();
   const [form, setForm] = useState<Formulario | null>(null);
   const [pergs, setPergs] = useState<Pergunta[]>([]);
   const [resps, setResps] = useState<Resposta[]>([]);
@@ -294,13 +296,6 @@ export default function FormularioRespostas() {
     return { ehPessoa: false, exibir: original, original, pendente: !nomesProntos };
   }, [vinculos, nomesProntos]);
 
-  // Defesa em profundidade: quando o escopo do usuário é "só as próprias", a
-  // tela mostra apenas o que ele enviou (criado_por), mesmo que a RLS devolva
-  // mais por estar defasada. A RLS continua sendo a autoridade de segurança.
-  const respsEscopo = useMemo(
-    () => (soProprias && user ? resps.filter(r => r.criado_por === user.id) : resps),
-    [resps, soProprias, user]);
-
   // Qual pergunta diz QUEM respondeu. A config do formulário manda; sem ela,
   // deduz pelo TÍTULO primeiro e só depois pelo tipo: um formulário costuma ter
   // várias perguntas do tipo "colaborador" (no Feedback Guiado, a #1 é a
@@ -323,6 +318,31 @@ export default function FormularioRespostas() {
     const txt = Array.isArray(v) ? (v[0] != null ? String(v[0]) : "") : (v != null ? String(v) : "");
     return txt.trim() || "Anônimo";
   }, [perguntaNomeId]);
+
+  // Nome do empregado vinculado ao login. É por ele que "só as próprias" casa as
+  // MINHAS respostas: elas vêm do link público (sem criado_por), então quem
+  // respondeu se identificou pelo nome do cadastro, não pelo dono da linha.
+  const meuNome = useMemo(() => normNome(empregado?.nome ?? ""), [empregado]);
+
+  // Recorte de visibilidade — espelha a RLS (cs_form_resp_select), como defesa
+  // em profundidade: a RLS continua sendo a autoridade, mas a tela mostra só o
+  // que a permissão do usuário libera, mesmo que a RLS devolva mais por estar
+  // defasada (era isso que fazia "ver por setor = RH" mostrar todo mundo).
+  //   • ver_tudo, ou dono do setor do formulário (criar_setor) → todas;
+  //   • ver_proprias → as que EU enviei (criado_por meu OU eu sou o respondente
+  //     vinculado);
+  //   • ver_setor → só as carimbadas com um setor que me foi liberado (o
+  //     Setor_ERP de quem respondeu, gravado em CS_FORM_RESPOSTAS.setor).
+  const respsEscopo = useMemo(() => {
+    if (!user) return [];
+    if (can("ver_tudo") || (form && canCriarSetor((form as any).setor))) return resps;
+    return resps.filter(r =>
+      (can("ver_proprias") && (
+        (!!r.criado_por && r.criado_por === user.id) ||
+        (!!meuNome && normNome(nomeRespondente(r)) === meuNome)
+      ))
+      || canVerSetor(r.setor));
+  }, [resps, user, form, can, canVerSetor, canCriarSetor, meuNome, nomeRespondente]);
 
   // Opções dos filtros: saem das próprias respostas (só o que existe aparece).
   const opcoesResp = useMemo(
@@ -373,7 +393,7 @@ export default function FormularioRespostas() {
     load();
   };
 
-  if (loading || !form) return <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Carregando...</div>;
+  if (loading || !form || permsLoading || vincLoading) return <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Carregando...</div>;
   const sit = situacao(form, resps.length);
 
   return (
