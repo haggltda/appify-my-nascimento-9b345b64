@@ -1,8 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -12,7 +14,7 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { Plus, Pencil, Trash2, Building2, CalendarDays, TrendingUp, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, CalendarDays, TrendingUp, Download, FileText, ExternalLink } from "lucide-react";
 import {
   useContratosERP,
   useContratoERPUpsert,
@@ -23,6 +25,10 @@ import { usePlanilhaCustos } from "@/hooks/usePlanilhaCusto";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useDadosFiscaisContrato, useSalvarDadosFiscaisContrato } from "@/hooks/useNfEmissao";
+import type { ContratoDadosFiscais } from "@/hooks/useNfEmissao";
+import { useContratoDocsPorContrato } from "@/hooks/useDocumentos";
+import { BADGE as DOC_BADGE, periodLabel } from "@/pages/Documentos";
 
 const STATUS_LABEL: Record<string, string> = {
   ativo: "Ativo",
@@ -58,7 +64,46 @@ const EMPTY: ContratoERPInput = {
   capa_id: null,
 };
 
+interface FiscalForm {
+  issqn_pct: string;
+  ir_pct: string;
+  cofins_pct: string;
+  pis_pct: string;
+  csll_pct: string;
+  prazo_pagamento: string;
+  codigo_servico_lc116: string;
+  codigo_servico_municipal_cnae: string;
+  conta_pagamento: string;
+  email_envio_nf: string;
+  instrucoes_envio: string;
+}
+
+const FISCAL_EMPTY: FiscalForm = {
+  issqn_pct: "", ir_pct: "", cofins_pct: "", pis_pct: "", csll_pct: "",
+  prazo_pagamento: "", codigo_servico_lc116: "", codigo_servico_municipal_cnae: "",
+  conta_pagamento: "", email_envio_nf: "", instrucoes_envio: "",
+};
+
+function fiscalParaForm(d: ContratoDadosFiscais | null | undefined): FiscalForm {
+  const pctToStr = (v: number | undefined | null) => (v ? String(Number(v) * 100) : "");
+  if (!d) return { ...FISCAL_EMPTY };
+  return {
+    issqn_pct: pctToStr(d.issqn_pct),
+    ir_pct: pctToStr(d.ir_pct),
+    cofins_pct: pctToStr(d.cofins_pct),
+    pis_pct: pctToStr(d.pis_pct),
+    csll_pct: pctToStr(d.csll_pct),
+    prazo_pagamento: d.prazo_pagamento ?? "",
+    codigo_servico_lc116: d.codigo_servico_lc116 ?? "",
+    codigo_servico_municipal_cnae: d.codigo_servico_municipal_cnae ?? "",
+    conta_pagamento: d.conta_pagamento ?? "",
+    email_envio_nf: d.email_envio_nf ?? "",
+    instrucoes_envio: d.instrucoes_envio ?? "",
+  };
+}
+
 export default function ContratosERP() {
+  const navigate = useNavigate();
   const { empresa } = useEmpresaAtiva();
   const { data: contratos = [], isLoading } = useContratosERP();
   const { data: planilha = [] } = usePlanilhaCustos();
@@ -71,7 +116,16 @@ export default function ContratosERP() {
   const [editando, setEditando] = useState<ContratoERP | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ContratoERP | null>(null);
   const [form, setForm] = useState<ContratoERPInput>(EMPTY);
+  const [fiscal, setFiscal] = useState<FiscalForm>(FISCAL_EMPTY);
   const [importando, setImportando] = useState(false);
+
+  const { data: dadosFiscaisAtual } = useDadosFiscaisContrato(editando?.id);
+  const salvarFiscal = useSalvarDadosFiscaisContrato();
+  const { data: docsContrato = [] } = useContratoDocsPorContrato(editando?.id);
+
+  useEffect(() => {
+    setFiscal(fiscalParaForm(dadosFiscaisAtual));
+  }, [dadosFiscaisAtual?.id, editando?.id]);
 
   // Calcula valor mensal EM VIGÊNCIA por contrato_id a partir da planilha
   const valorPorContratoId = useMemo(() => {
@@ -194,6 +248,7 @@ export default function ContratosERP() {
   function abrirNovo() {
     setEditando(null);
     setForm(EMPTY);
+    setFiscal(FISCAL_EMPTY);
     setModalOpen(true);
   }
 
@@ -214,6 +269,27 @@ export default function ContratosERP() {
 
   async function handleSalvar() {
     await upsert.mutateAsync({ ...form, id: editando?.id });
+    // Dados fiscais só são salvos ao editar um contrato já existente — um
+    // contrato novo ainda não tem id nesse ponto (upsert não retorna a linha).
+    const contratoId = editando?.id;
+    if (contratoId) {
+      const pctToNum = (v: string) => (v.trim() ? Number(v) / 100 : 0);
+      await salvarFiscal.mutateAsync({
+        id: dadosFiscaisAtual?.id,
+        contrato_id: contratoId,
+        issqn_pct: pctToNum(fiscal.issqn_pct),
+        ir_pct: pctToNum(fiscal.ir_pct),
+        cofins_pct: pctToNum(fiscal.cofins_pct),
+        pis_pct: pctToNum(fiscal.pis_pct),
+        csll_pct: pctToNum(fiscal.csll_pct),
+        prazo_pagamento: fiscal.prazo_pagamento || null,
+        codigo_servico_lc116: fiscal.codigo_servico_lc116 || null,
+        codigo_servico_municipal_cnae: fiscal.codigo_servico_municipal_cnae || null,
+        conta_pagamento: fiscal.conta_pagamento || null,
+        email_envio_nf: fiscal.email_envio_nf || null,
+        instrucoes_envio: fiscal.instrucoes_envio || null,
+      });
+    }
     setModalOpen(false);
   }
 
@@ -347,7 +423,7 @@ export default function ContratosERP() {
 
       {/* Modal cadastro/edição */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editando ? "Editar Contrato" : "Novo Contrato"}</DialogTitle>
           </DialogHeader>
@@ -370,13 +446,136 @@ export default function ContratosERP() {
               </select>
             </div>
           </div>
+
+          {editando && (
+            <div className="space-y-3 border-t border-border pt-4">
+              <div>
+                <h4 className="text-sm font-semibold">Dados Fiscais (Emissão de NF)</h4>
+                <p className="text-xs text-muted-foreground">
+                  Reaproveitados automaticamente em toda NF emitida para este contrato. INSS não entra
+                  aqui — é definido por categoria de risco em cada item da NF (alíquota padrão fixa).
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs">ISSQN %</Label>
+                  <Input type="number" step="0.01" className="h-9" value={fiscal.issqn_pct}
+                    onChange={(e) => setFiscal((f) => ({ ...f, issqn_pct: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">IR %</Label>
+                  <Input type="number" step="0.01" className="h-9" value={fiscal.ir_pct}
+                    onChange={(e) => setFiscal((f) => ({ ...f, ir_pct: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">COFINS %</Label>
+                  <Input type="number" step="0.01" className="h-9" value={fiscal.cofins_pct}
+                    onChange={(e) => setFiscal((f) => ({ ...f, cofins_pct: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">PIS %</Label>
+                  <Input type="number" step="0.01" className="h-9" value={fiscal.pis_pct}
+                    onChange={(e) => setFiscal((f) => ({ ...f, pis_pct: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">CSLL %</Label>
+                  <Input type="number" step="0.01" className="h-9" value={fiscal.csll_pct}
+                    onChange={(e) => setFiscal((f) => ({ ...f, csll_pct: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Prazo de Pagamento</Label>
+                  <Input className="h-9" placeholder="Ex: ATÉ 15 DIAS MÊS SUBSEQUENTE" value={fiscal.prazo_pagamento}
+                    onChange={(e) => setFiscal((f) => ({ ...f, prazo_pagamento: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Conta para Pagamento</Label>
+                  <Input className="h-9" placeholder="Ex: BANRISUL AG: 0949 / CC: 06.1421700-6" value={fiscal.conta_pagamento}
+                    onChange={(e) => setFiscal((f) => ({ ...f, conta_pagamento: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Código do Serviço (LC 116)</Label>
+                  <Input className="h-9" value={fiscal.codigo_servico_lc116}
+                    onChange={(e) => setFiscal((f) => ({ ...f, codigo_servico_lc116: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Cód. Serviço Municipal / CNAE</Label>
+                  <Input className="h-9" value={fiscal.codigo_servico_municipal_cnae}
+                    onChange={(e) => setFiscal((f) => ({ ...f, codigo_servico_municipal_cnae: e.target.value }))} />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">E-mail de Envio da NF</Label>
+                  <Input type="email" className="h-9" value={fiscal.email_envio_nf}
+                    onChange={(e) => setFiscal((f) => ({ ...f, email_envio_nf: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Instruções de Envio</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="Instruções gerais sobre a emissão desta NF. Nunca inclua login ou senha de portais externos aqui."
+                  value={fiscal.instrucoes_envio}
+                  onChange={(e) => setFiscal((f) => ({ ...f, instrucoes_envio: e.target.value }))}
+                />
+              </div>
+            </div>
+          )}
+
+          {editando && (
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold">Documentos Exigidos</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Somente consulta — a configuração é feita em Documentos.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate(`/app/documentos?contrato=${editando.id}`)}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Gerenciar documentos
+                </Button>
+              </div>
+
+              {docsContrato.length === 0 ? (
+                <p className="flex items-center gap-2 text-xs text-muted-foreground italic py-2">
+                  <FileText className="h-3.5 w-3.5" /> Nenhum documento configurado ainda.
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {docsContrato.map((d) => {
+                    const label = periodLabel(d);
+                    return (
+                      <div key={d.id} className="flex items-center gap-2 flex-wrap text-xs rounded-md border border-border px-3 py-1.5">
+                        <span className="font-medium">{d.doc_tipos?.nome ?? "—"}</span>
+                        {d.posto && (
+                          <span className="text-[10px] text-muted-foreground">· {d.posto}</span>
+                        )}
+                        {label && (
+                          <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold", DOC_BADGE[d.periodicidade!] ?? "bg-muted text-muted-foreground")}>
+                            {label}
+                          </span>
+                        )}
+                        {!d.obrigatorio && <span className="text-[10px] text-muted-foreground italic">opcional</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
             <Button
               onClick={handleSalvar}
-              disabled={!form.nome || !form.cliente || upsert.isPending}
+              disabled={!form.nome || !form.cliente || upsert.isPending || salvarFiscal.isPending}
             >
-              {upsert.isPending ? "Salvando…" : "Salvar"}
+              {upsert.isPending || salvarFiscal.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
