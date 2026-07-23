@@ -46,15 +46,16 @@ import {
   ClipboardList,
   Bell,
 } from "lucide-react";
-import { usePlanoAcaoPermissao } from "@/hooks/usePlanoAcaoPermissao";
 import { useTemAlcada } from "@/hooks/useTemAlcada";
+import { useAccessibleMenus, matchMenuCode } from "@/hooks/useAccessibleMenus";
+import { ACESSO_ABERTO_SEM_PERMISSOES, MENUS_SEMPRE_RESTRITOS } from "@/lib/acesso";
 import { useGradeAtivaCount } from "@/hooks/useGradeAtivaCount";
 import { EmpresaAtivaContext } from "@/context/EmpresaAtivaContext";
 import { Inbox } from "lucide-react";
 import { Target } from "lucide-react";
 import { GitBranch, GitMerge } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useState, useContext } from "react";
+import { useCallback, useEffect, useMemo, useState, useContext } from "react";
 
 interface NavItem {
   label: string;
@@ -591,26 +592,51 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: SidebarProps) {
   const location = useLocation();
-  const { perms } = usePlanoAcaoPermissao();
   const { temAlcada, pendentes } = useTemAlcada();
+  const { data: access } = useAccessibleMenus("visualizar");
   const empresaCtx = useContext(EmpresaAtivaContext);
   const { data: gradeAtivaCount } = useGradeAtivaCount(empresaCtx?.empresa?.id ?? null);
 
-  const allModules = [
-    ...erpModules,
-    ...(perms.pode_visualizar ? [buildPlanoAcoesModule(false)] : []),
-    integracaoModule,
-  ];
+  const allModules = [...erpModules, buildPlanoAcoesModule(false), integracaoModule];
 
-  // Sem regra de permissão no front: a sidebar mostra todos os módulos e telas.
+  // Sidebar filtra itens com base nos menus acessíveis do usuário (perfil de
+  // acesso, ver list_accessible_menus). Cargo/role não concede bypass. Plano de
+  // Ações passou a usar o mesmo filtro que todo o resto (antes tinha exceção
+  // própria via usePlanoAcaoPermissao — removida a pedido do usuário, pra
+  // "Acesso por Usuário" ser a única autoridade em qualquer módulo).
+  const canSee = useCallback((to: string) => {
+    if (ACESSO_ABERTO_SEM_PERMISSOES || !access) return true;
+    const code = matchMenuCode(to, access.routes);
+    // Rota sem entrada em app_menu: nunca foi migrada pro controle por
+    // perfil, então continua sempre visível (não é regressão esconder algo
+    // que nunca teve controle de acesso definido).
+    if (!code) return true;
+    // Menu existe, mas ninguém nunca configurou nada pra ele no
+    // gerenciamento de acesso (nenhuma linha em perfil_acesso_permissao
+    // ou screen_permission_user) — fica aberto até alguém decidir algo lá.
+    // Exceção: administracao/integracao nunca caem aqui, ver MENUS_SEMPRE_RESTRITOS.
+    if (!access.configuredCodes.has(code) && !MENUS_SEMPRE_RESTRITOS.has(code)) return true;
+    return access.codes.has(code);
+  }, [access]);
+
   const visibleModules = useMemo(() => {
     const resolvedBadge = (badge: string | undefined) => {
       if (badge === "__grade_ativa__") return gradeAtivaCount != null ? String(gradeAtivaCount) : undefined;
       return badge;
     };
 
+    const base = allModules
+      .map((mod) => {
+        if (!mod.groups) return mod;
+        const groups = mod.groups
+          .map((g) => ({ ...g, items: g.items.filter((item) => canSee(item.to)) }))
+          .filter((g) => g.items.length > 0);
+        return { ...mod, groups };
+      })
+      .filter((mod) => !mod.groups || mod.groups.length > 0);
+
     // Resolve sentinels de badge dinâmico
-    return allModules.map((mod) => ({
+    return base.map((mod) => ({
       ...mod,
       badge: resolvedBadge(mod.badge),
       groups: mod.groups?.map((g) => ({
@@ -618,7 +644,7 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
         items: g.items.map((item) => ({ ...item, badge: resolvedBadge(item.badge) })),
       })),
     }));
-  }, [allModules, gradeAtivaCount]);
+  }, [allModules, canSee, gradeAtivaCount]);
 
   // Módulo ativo = aquele cujo ITEM (link real) casa com a rota atual.
   // Detecção por basePath não serve porque o Licitações usa basePath "/app"
@@ -716,21 +742,23 @@ export function Sidebar({ collapsed, mobileOpen = false, onMobileClose }: Sideba
           )}
         </NavLink>
 
-        <NavLink
-          to="/app/presidencia"
-          className={({ isActive }) =>
-            cn(
-              "mt-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              isActive
-                ? "bg-sidebar-accent text-white"
-                : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-white",
-              collapsed && "justify-center px-2",
-            )
-          }
-        >
-          <LayoutDashboard className="h-4 w-4 shrink-0" />
-          {!collapsed && <span>Painel da Presidência</span>}
-        </NavLink>
+        {canSee("/app/presidencia") && (
+          <NavLink
+            to="/app/presidencia"
+            className={({ isActive }) =>
+              cn(
+                "mt-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-sidebar-accent text-white"
+                  : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-white",
+                collapsed && "justify-center px-2",
+              )
+            }
+          >
+            <LayoutDashboard className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>Painel da Presidência</span>}
+          </NavLink>
+        )}
 
         {temAlcada && (
           <NavLink

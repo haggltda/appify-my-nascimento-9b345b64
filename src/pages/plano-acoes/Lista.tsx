@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
+import { isSameDay, isWithinInterval, subDays } from "date-fns";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,34 @@ const fmtDate = (s: string | null) => {
   return isNaN(+d) ? s : d.toLocaleDateString("pt-BR");
 };
 
+type FiltroInclusao = "todos" | "hoje" | "ultimos_7" | "ultimos_30" | "personalizado";
+
+const OPCOES_PERIODO_INCLUSAO: { value: FiltroInclusao; label: string }[] = [
+  { value: "todos", label: "Todo o período" },
+  { value: "hoje", label: "Hoje" },
+  { value: "ultimos_7", label: "Últimos 7 dias" },
+  { value: "ultimos_30", label: "Últimos 30 dias" },
+  { value: "personalizado", label: "Personalizado" },
+];
+
+// "Data de inclusão" (created_at) é sempre passado/presente — por isso só
+// presets retroativos, sem "próximos X dias" (que só faz sentido pra datas
+// futuras, como em MinhasReunioesCard.tsx).
+function dentroPeriodoInclusao(createdAt: string | null, periodo: FiltroInclusao, dataIni: string, dataFim: string): boolean {
+  if (periodo === "todos" || !createdAt) return true;
+  const data = new Date(createdAt);
+  if (isNaN(+data)) return true;
+  const agora = new Date();
+  if (periodo === "hoje") return isSameDay(data, agora);
+  if (periodo === "ultimos_7") return isWithinInterval(data, { start: subDays(agora, 7), end: agora });
+  if (periodo === "ultimos_30") return isWithinInterval(data, { start: subDays(agora, 30), end: agora });
+  // personalizado
+  if (!dataIni && !dataFim) return true;
+  if (dataIni && data < new Date(`${dataIni}T00:00:00`)) return false;
+  if (dataFim && data > new Date(`${dataFim}T23:59:59.999`)) return false;
+  return true;
+}
+
 export default function PlanoAcoesLista() {
   const { data: rows = [], isLoading } = usePlanoAcoes();
   const { can, loading: lp } = usePlanoAcaoPermissao();
@@ -33,6 +62,9 @@ export default function PlanoAcoesLista() {
   const fComite = searchParams.get("comite") ?? "__all";
   const fArea   = searchParams.get("area")   ?? "__all";
   const fResp   = searchParams.get("resp")   ?? "__all";
+  const fPeriodo = (searchParams.get("periodo") as FiltroInclusao | null) ?? "todos";
+  const fDataIni = searchParams.get("dataIni") ?? "";
+  const fDataFim = searchParams.get("dataFim") ?? "";
   const [dateSort, setDateSort] = useState<"recent" | "oldest" | null>(null);
 
   const setFilter = (key: string, value: string) => {
@@ -78,6 +110,7 @@ export default function PlanoAcoesLista() {
       if (fComite !== "__all" && r.comite !== fComite) return false;
       if (fArea   !== "__all" && r.area !== fArea) return false;
       if (!matchResponsavel(r, fResp)) return false;
+      if (!dentroPeriodoInclusao(r.created_at, fPeriodo, fDataIni, fDataFim)) return false;
       if (!q) return true;
       return [r.titulo, r.problema, r.acao, r.responsavel_nome_origem, r.id_importacao]
         .filter(Boolean).some(s => (s as string).toLowerCase().includes(q));
@@ -90,7 +123,7 @@ export default function PlanoAcoesLista() {
       return dateSort === "recent" ? tb - ta : ta - tb;
     });
     return sorted;
-  }, [rows, busca, fStatus, fPrior, fComite, fArea, fResp, dateSort]);
+  }, [rows, busca, fStatus, fPrior, fComite, fArea, fResp, fPeriodo, fDataIni, fDataFim, dateSort]);
 
   if (lp) return null;
   if (!can("visualizar")) return <ForbiddenCard />;
@@ -140,6 +173,22 @@ export default function PlanoAcoesLista() {
           <SearchableSelect value={fComite === "__all" ? "" : fComite} onChange={v => setFilter("comite", v || "__all")} options={comites} placeholder="Todos os comitês" searchPlaceholder="Buscar comitê..." allowClear />
           <SearchableSelect value={fArea === "__all" ? "" : fArea}     onChange={v => setFilter("area",   v || "__all")} options={areas}   placeholder="Todos os setores"  searchPlaceholder="Buscar setor..."  allowClear />
           <SearchableSelect value={fResp  === "__all" ? "" : fResp}    onChange={v => setFilter("resp",   v || "__all")} options={responsaveis} placeholder="Todos os responsáveis" searchPlaceholder="Buscar responsável..." allowClear />
+          <Select value={fPeriodo} onValueChange={v => setFilter("periodo", v === "todos" ? "" : v)}>
+            <SelectTrigger><SelectValue placeholder="Data de inclusão" /></SelectTrigger>
+            <SelectContent>
+              {OPCOES_PERIODO_INCLUSAO.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {fPeriodo === "personalizado" && (
+            <>
+              <div>
+                <Input type="date" value={fDataIni} onChange={e => setFilter("dataIni", e.target.value)} placeholder="Período inicial" />
+              </div>
+              <div>
+                <Input type="date" value={fDataFim} onChange={e => setFilter("dataFim", e.target.value)} placeholder="Período final" />
+              </div>
+            </>
+          )}
         </div>
         <div className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>{filtered.length} de {rows.length} ações</span>

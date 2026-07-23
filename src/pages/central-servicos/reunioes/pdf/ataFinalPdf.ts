@@ -16,7 +16,12 @@ function montarAtaFinalPdf(
   pdf.tituloSecao("Ata de Reunião", 18);
 
   pdf.paragrafo(`Data e horário: ${fmtDataHoraPdf(reuniao.data_hora)}`, { negrito: true, tamanho: 10, espacoDepois: 1 });
-  pdf.paragrafo(`${reuniao.tipo_local === "presencial" ? "Local" : "Link"}: ${reuniao.local_ou_link}`, { tamanho: 10, espacoDepois: 1 });
+  if (reuniao.tipo_local === "hibrido") {
+    pdf.paragrafo(`Local: ${reuniao.local_ou_link}`, { tamanho: 10, espacoDepois: 1 });
+    pdf.paragrafo(`Link: ${reuniao.link_online ?? "—"}`, { tamanho: 10, espacoDepois: 1 });
+  } else {
+    pdf.paragrafo(`${reuniao.tipo_local === "presencial" ? "Local" : "Link"}: ${reuniao.local_ou_link}`, { tamanho: 10, espacoDepois: 1 });
+  }
   if (reuniao.objetivo) {
     pdf.paragrafo(`Objetivo: ${reuniao.objetivo}`, { tamanho: 10, espacoDepois: 3 });
   }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ShieldAlert, CheckCircle2, Pencil, Loader2 } from "lucide-react";
-import { RoleGate } from "@/components/RoleGate";
+import { AcessoGate } from "@/components/auth/AcessoGate";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -100,7 +100,7 @@ export default function Empresas() {
                 )}
               </div>
 
-              <RoleGate acao="alterar" modulo="empresas">
+              <AcessoGate acao="alterar" menu="empresas">
                 <button
                   data-write
                   onClick={() => setEditing(e)}
@@ -108,7 +108,7 @@ export default function Empresas() {
                 >
                   <Pencil className="h-3 w-3" /> Editar empresa
                 </button>
-              </RoleGate>
+              </AcessoGate>
 
               <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
                 <div>

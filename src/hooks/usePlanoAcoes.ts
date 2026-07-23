@@ -33,6 +33,7 @@ export interface PlanoAcaoRow {
   pendencia_evidencia: boolean;
   custo_previsto: number;
   custo_realizado: number;
+  created_at: string;
   updated_at: string;
   deleted_at: string | null;
 }

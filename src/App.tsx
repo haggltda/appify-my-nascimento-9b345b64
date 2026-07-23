@@ -149,6 +149,8 @@ import SolicitacoesErp from "./pages/sistemas/SolicitacoesErp";
 import CentralServicos from "./pages/central-servicos/CentralServicos";
 import Reunioes from "./pages/central-servicos/reunioes/Reunioes";
 import ReuniaoDetalhe from "./pages/central-servicos/reunioes/ReuniaoDetalhe";
+import ConducaoReuniao from "./pages/central-servicos/reunioes/ConducaoReuniao";
+import PainelGerencial from "./pages/central-servicos/reunioes/PainelGerencial";
 
 const queryClient = new QueryClient();
 
@@ -184,7 +186,9 @@ const App = () => (
             {/* Central de Serviços */}
             <Route path="central-servicos" element={<CentralServicos />} />
             <Route path="central-servicos/reunioes" element={<Reunioes />} />
+            <Route path="central-servicos/reunioes/painel-gerencial" element={<PainelGerencial />} />
             <Route path="central-servicos/reunioes/:id" element={<ReuniaoDetalhe />} />
+            <Route path="central-servicos/reunioes/:id/conducao" element={<ConducaoReuniao />} />
             <Route path="central-servicos/orientacoes-juridicas" element={<OrientacoesJuridicas />} />
             <Route path="central-servicos/denuncias" element={<Denuncias />} />
             <Route path="central-servicos/formularios" element={<Formularios />} />

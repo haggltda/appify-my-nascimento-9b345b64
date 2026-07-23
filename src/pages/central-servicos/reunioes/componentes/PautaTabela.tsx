@@ -25,6 +25,8 @@ interface Props {
   podeGerenciarGeral: boolean;
   userId: string | undefined;
   reuniaoEncerrada: boolean;
+  /** reuniao_resposta só aceita insert/update com a reunião "em_andamento" (ver RLS) — resposta/observações ficam travadas fora disso, mesmo com a pauta editável. */
+  emAndamento: boolean;
   onAdicionarTopico: (item: { titulo_topico: string; descricao: string; responsavel_user_id?: string | null; prazo?: string | null }) => Promise<boolean>;
   onAtualizarTopico: (id: string, patch: Partial<Pick<ReuniaoPauta, "titulo_topico" | "descricao" | "responsavel_user_id" | "prazo" | "status">>) => Promise<boolean>;
   onReordenar: (idsOrdenados: string[]) => Promise<boolean>;
@@ -139,7 +141,7 @@ function EditarTopicoPopover({ item, onSalvar }: { item: ReuniaoPauta; onSalvar:
 }
 
 function PautaRow({
-  item, indice, resposta, anexos, usuarios, podeEditarLinha, podeGerenciarGeral, opcoesUsuarios,
+  item, indice, resposta, anexos, usuarios, podeEditarLinha, podeResponderLinha, podeGerenciarGeral, opcoesUsuarios,
   onAtualizarTopico, onRemoverTopico, onSalvarResposta, onUploadPautaAnexo, onDownloadAnexo, onRemoverPautaAnexo,
 }: {
   item: ReuniaoPauta;
@@ -148,6 +150,7 @@ function PautaRow({
   anexos: ReuniaoPautaAnexo[];
   usuarios: Usuario[];
   podeEditarLinha: boolean;
+  podeResponderLinha: boolean;
   podeGerenciarGeral: boolean;
   opcoesUsuarios: { value: string; label: string }[];
   onAtualizarTopico: Props["onAtualizarTopico"];
@@ -225,7 +228,7 @@ function PautaRow({
         )}
       </td>
       <td className="min-w-[180px] py-2 pr-2">
-        {podeEditarLinha ? (
+        {podeResponderLinha ? (
           <Input
             defaultValue={texto}
             placeholder="Resposta / decisão"
@@ -233,12 +236,14 @@ function PautaRow({
             onChange={(e) => setTexto(e.target.value)}
             onBlur={() => onSalvarResposta(item.id, texto, obs)}
           />
+        ) : podeEditarLinha ? (
+          <span className="text-xs text-muted-foreground">{resposta?.texto_resposta || "Disponível durante a reunião"}</span>
         ) : (
           <span className="text-sm">{resposta?.texto_resposta || "—"}</span>
         )}
       </td>
       <td className="min-w-[160px] py-2 pr-2">
-        {podeEditarLinha ? (
+        {podeResponderLinha ? (
           <Input
             defaultValue={obs}
             placeholder="Observações"
@@ -246,6 +251,8 @@ function PautaRow({
             onChange={(e) => setObs(e.target.value)}
             onBlur={() => onSalvarResposta(item.id, texto, obs)}
           />
+        ) : podeEditarLinha ? (
+          <span className="text-xs text-muted-foreground">{resposta?.encaminhamento || "Disponível durante a reunião"}</span>
         ) : (
           <span className="text-sm">{resposta?.encaminhamento || "—"}</span>
         )}
@@ -272,7 +279,7 @@ function PautaRow({
 }
 
 export function PautaTabela({
-  pauta, respostas, pautaAnexos, usuarios, podeGerenciarGeral, userId, reuniaoEncerrada,
+  pauta, respostas, pautaAnexos, usuarios, podeGerenciarGeral, userId, reuniaoEncerrada, emAndamento,
   onAdicionarTopico, onAtualizarTopico, onReordenar, onRemoverTopico, onSalvarResposta,
   onUploadPautaAnexo, onDownloadAnexo, onRemoverPautaAnexo,
 }: Props) {
@@ -383,6 +390,7 @@ export function PautaTabela({
                     anexos={pautaAnexos.filter((a) => a.pauta_id === item.id)}
                     usuarios={usuarios}
                     podeEditarLinha={!reuniaoEncerrada && (podeGerenciarGeral || item.responsavel_user_id === userId)}
+                    podeResponderLinha={emAndamento && (podeGerenciarGeral || item.responsavel_user_id === userId)}
                     podeGerenciarGeral={podeEditarPodeCriar}
                     opcoesUsuarios={opcoesUsuarios}
                     onAtualizarTopico={onAtualizarTopico}

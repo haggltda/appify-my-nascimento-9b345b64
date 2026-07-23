@@ -1,4 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
+
+const normName = (s: string) =>
+  s.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { usePermissoes } from "@/context/PermissoesContext";
@@ -114,8 +117,11 @@ export default function Pipeline() {
 
   // lista de responsáveis únicos para o filtro
   const responsaveis = useMemo(() => {
-    const set = new Set(items.map((i) => i.responsavel).filter(Boolean) as string[]);
-    return Array.from(set).sort();
+    const seen = new Set<string>();
+    for (const i of items) {
+      if (i.responsavel) seen.add(normName(i.responsavel));
+    }
+    return Array.from(seen).sort();
   }, [items]);
 
   // modais
@@ -156,7 +162,7 @@ export default function Pipeline() {
     }
 
     if (responsavelFiltro !== "Todos") {
-      list = list.filter((i) => i.responsavel === responsavelFiltro);
+      list = list.filter((i) => normName(i.responsavel ?? "") === responsavelFiltro);
     }
 
     if (busca.trim()) {
@@ -935,7 +941,7 @@ function GradeSheet({
                   {/* Se o responsável atual não está na lista (nome antigo, usuário removido),
                       mantém como opção para não perder o valor ao salvar */}
                   {f.responsavel && !usuarios.some(
-                    (u) => (u.display_name ?? u.email ?? u.id) === f.responsavel
+                    (u) => normName(u.display_name ?? u.email ?? u.id) === normName(f.responsavel)
                   ) && (
                     <SelectItem value={f.responsavel}>{f.responsavel} (atual)</SelectItem>
                   )}
