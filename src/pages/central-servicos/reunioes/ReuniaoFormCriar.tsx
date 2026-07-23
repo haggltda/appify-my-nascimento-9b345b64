@@ -11,9 +11,10 @@ import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Paperclip, Info } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 import { useSetoresEmpresa } from "@/hooks/useSetoresEmpresa";
-import { useCriarReuniao, useCriarReunioesRecorrentes, useUsuariosAtivos, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
+import { useCriarReuniao, useCriarReunioesRecorrentes, useUsuariosAtivos, verificarBloqueioAgenda, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
 import {
   ETAPA_COR, ETAPA_LABEL, FINALIDADE_LABEL, NOTIFICAR_POR_LABEL, RESULTADO_ESPERADO_LABEL, SALAS_PRESENCIAIS,
   TIPO_REUNIAO_DURACAO_PADRAO, TIPO_REUNIAO_LABEL, TIPO_REUNIAO_OPCOES_CRIACAO, nomeUsuario,
@@ -91,6 +92,7 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
   const [erroConflito, setErroConflito] = useState("");
   const [verificando, setVerificando] = useState(false);
   const [dataCriacao] = useState(() => new Date());
+  const { user } = useAuth();
   const { data: usuarios = [] } = useUsuariosAtivos();
   const { empregado } = useVinculoEmpregado();
   const criar = useCriarReuniao();
@@ -212,6 +214,18 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
 
     setVerificando(true);
     try {
+      if (user?.id) {
+        const bloqueio = await verificarBloqueioAgenda({
+          userId: user.id,
+          dataHoraIso: dataHora,
+          duracaoMinutos: form.duracao_minutos,
+        });
+        if (bloqueio) {
+          setErroConflito("Sua agenda está bloqueada nesse horário. Vá em \"Bloquear Agenda\" pra ver ou remover o bloqueio.");
+          return;
+        }
+      }
+
       if (usaSala) {
         const conflito = await verificarConflitoSala({
           local: localFinal,

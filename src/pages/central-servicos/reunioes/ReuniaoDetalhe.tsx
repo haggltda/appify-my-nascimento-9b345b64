@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +26,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useReuniaoDetalhe } from "./useReuniaoDetalhe";
-import { useUsuariosAtivos, useEditarSerieRecorrente, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
+import { useUsuariosAtivos, useEditarSerieRecorrente, useExcluirReunioesEmMassa, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
 import { PautaTabela } from "./componentes/PautaTabela";
+import { EditarDiaHorarioDialog } from "./componentes/EditarDiaHorarioDialog";
 import { AssinaturasPanel } from "./componentes/AssinaturasPanel";
 import { AnexosPainel } from "./componentes/AnexosPainel";
 import { ComentariosPainel } from "./componentes/ComentariosPainel";
@@ -182,9 +184,8 @@ export default function ReuniaoDetalhe() {
   const [participantesOpen, setParticipantesOpen] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [serieOpen, setSerieOpen] = useState(false);
-  const [novoDiaSemana, setNovoDiaSemana] = useState("1");
-  const [novoHorarioSerie, setNovoHorarioSerie] = useState("");
   const editarSerie = useEditarSerieRecorrente();
+  const excluirLote = useExcluirReunioesEmMassa();
 
   const {
     reuniao, isLoading, pauta, respostas, convidados, anexos, pautaAnexos, comentarios, assinaturas, logs,
@@ -225,15 +226,17 @@ export default function ReuniaoDetalhe() {
     if (ok) navigate("/app/central-servicos/reunioes");
   };
 
-  const salvarSerie = async () => {
-    if (!reuniao?.serie_recorrencia_id || !novoHorarioSerie) return;
-    await editarSerie.mutateAsync({
-      serieId: reuniao.serie_recorrencia_id,
-      novoDiaSemana: Number(novoDiaSemana),
-      novoHorario: novoHorarioSerie,
-    });
-    setSerieOpen(false);
-    setNovoHorarioSerie("");
+  const excluirSerie = async () => {
+    if (!reuniao?.serie_recorrencia_id) return;
+    const { data: reunioesDaSerie } = await (supabase as any)
+      .from("reuniao")
+      .select("id")
+      .eq("serie_recorrencia_id", reuniao.serie_recorrencia_id)
+      .eq("etapa", "agendada")
+      .gt("data_hora", new Date().toISOString());
+    const ids = ((reunioesDaSerie ?? []) as { id: string }[]).map((r) => r.id);
+    if (ids.length === 0) return;
+    await excluirLote.mutateAsync(ids);
   };
 
   const convidar = async () => {
@@ -319,36 +322,36 @@ export default function ReuniaoDetalhe() {
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setSerieOpen(true)}>
               <CalendarDays className="h-3.5 w-3.5" /> Editar série
             </Button>
-            <Dialog open={serieOpen} onOpenChange={setSerieOpen}>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Editar série recorrente</DialogTitle></DialogHeader>
-                <p className="text-sm text-muted-foreground">
-                  Muda o dia da semana e o horário de todas as próximas ocorrências dessa série que ainda não aconteceram. Reuniões passadas, em andamento, concluídas ou canceladas não são alteradas.
-                </p>
-                <div className="space-y-1.5">
-                  <Label>Novo dia da semana</Label>
-                  <Select value={novoDiaSemana} onValueChange={setNovoDiaSemana}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Domingo</SelectItem>
-                      <SelectItem value="1">Segunda-feira</SelectItem>
-                      <SelectItem value="2">Terça-feira</SelectItem>
-                      <SelectItem value="3">Quarta-feira</SelectItem>
-                      <SelectItem value="4">Quinta-feira</SelectItem>
-                      <SelectItem value="5">Sexta-feira</SelectItem>
-                      <SelectItem value="6">Sábado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Novo horário</Label>
-                  <Input type="time" value={novoHorarioSerie} onChange={(e) => setNovoHorarioSerie(e.target.value)} />
-                </div>
-                <Button className="w-full" disabled={!novoHorarioSerie || editarSerie.isPending} onClick={salvarSerie}>
-                  {editarSerie.isPending ? "Salvando…" : "Salvar série"}
-                </Button>
-              </DialogContent>
-            </Dialog>
+            <EditarDiaHorarioDialog
+              open={serieOpen}
+              onOpenChange={setSerieOpen}
+              titulo="Editar série recorrente"
+              descricao="Muda o dia da semana e o horário de todas as próximas ocorrências dessa série que ainda não aconteceram. Reuniões passadas, em andamento, concluídas ou canceladas não são alteradas."
+              salvando={editarSerie.isPending}
+              onSalvar={async (novoDiaSemana, novoHorario) => {
+                await editarSerie.mutateAsync({ serieId: reuniao.serie_recorrencia_id!, novoDiaSemana, novoHorario });
+                setSerieOpen(false);
+              }}
+            />
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="ghost" className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /> Excluir série</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir as próximas reuniões desta série?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Apaga todas as ocorrências futuras ainda "agendada" dessa série (com tudo dentro — pauta, anexos, convidados). Reuniões passadas, em andamento ou já concluídas não são afetadas. Sem volta.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction disabled={excluirLote.isPending} onClick={excluirSerie}>
+                    {excluirLote.isPending ? "Excluindo…" : "Confirmar exclusão"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         )}
         {podeGerenciar && !reuniaoEncerrada && (
