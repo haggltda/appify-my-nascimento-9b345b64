@@ -20,6 +20,7 @@ import { Trash2, Paperclip, Download } from "lucide-react";
 import { useComitesMap } from "@/hooks/useComitesMap";
 import { useSetoresEmpresa } from "@/hooks/useSetoresEmpresa";
 import { acharUsuarioPorNome } from "@/lib/acharUsuarioPorNome";
+import { SETOR_RESPONSAVEL_MAP, normalizeSetorNome } from "@/data/planoAcaoSetorResponsavel";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { useUsuariosEmpresa } from "@/hooks/useUsuariosEmpresa";
@@ -160,6 +161,23 @@ export default function PlanoAcaoDetalhe() {
         const info = novoComite ? comitesMap[novoComite] : undefined;
         next.lider_comite_profile_id = info?.liderProfileId ?? null;
         next.lider_comite_nome_origem = info?.lider ?? null;
+      }
+      return next;
+    });
+  };
+
+  // Setor -> Responsável: setor é a fonte, nunca o contrário. Se o valor
+  // escolhido não estiver no mapa fixo, o Responsável não é tocado (é
+  // obrigatório e não deve ser limpo por um setor sem mapeamento).
+  const handleSetorChange = (v: string) => {
+    const novoSetor = v === "__none" ? "" : v;
+    setForm((f: any) => {
+      const next = { ...f, area: novoSetor };
+      const mapeado = SETOR_RESPONSAVEL_MAP[normalizeSetorNome(novoSetor)];
+      if (mapeado) {
+        const achado = usuariosOptions.find((o) => o.value === mapeado.profileId);
+        next.responsavel_profile_id = mapeado.profileId;
+        next.responsavel_nome_origem = achado?.label ?? mapeado.nome;
       }
       return next;
     });
@@ -423,7 +441,7 @@ export default function PlanoAcaoDetalhe() {
             </div>
             <div>
               <Label>Setor</Label>
-              <Select value={form.area || "__none"} disabled={!podeEdit} onValueChange={v => set("area", v === "__none" ? "" : v)}>
+              <Select value={form.area || "__none"} disabled={!podeEdit} onValueChange={handleSetorChange}>
                 <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">—</SelectItem>
@@ -468,7 +486,10 @@ export default function PlanoAcaoDetalhe() {
               <Label>Responsável {isNew && <span className="text-destructive">*</span>}</Label>
               <SearchableSelect
                 value={form.responsavel_profile_id ?? null}
-                onChange={(v) => set("responsavel_profile_id", v || null)}
+                onChange={(v) => {
+                  const opt = usuariosOptions.find((o) => o.value === v);
+                  setForm((f: any) => ({ ...f, responsavel_profile_id: v || null, responsavel_nome_origem: opt?.label ?? f.responsavel_nome_origem }));
+                }}
                 options={usuariosOptions}
                 placeholder={rpcSemPermissao ? "Sem permissão para listar usuários" : "Selecione um usuário"}
                 disabled={!podeEdit || rpcSemPermissao}
@@ -590,10 +611,10 @@ export default function PlanoAcaoDetalhe() {
 
           {!isNew && (
             <Card className="p-4">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comentários</h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Encaminhamentos</h3>
               {can("editar") && (
                 <div className="mb-2 flex gap-2">
-                  <Input placeholder="Novo comentário..." value={novoComent} onChange={e => setNovoComent(e.target.value)} onKeyDown={e => e.key === "Enter" && addComentario()} />
+                  <Input placeholder="Novo encaminhamento..." value={novoComent} onChange={e => setNovoComent(e.target.value)} onKeyDown={e => e.key === "Enter" && addComentario()} />
                   <Button size="sm" onClick={addComentario}>Add</Button>
                 </div>
               )}
@@ -607,7 +628,7 @@ export default function PlanoAcaoDetalhe() {
                     </p>
                   </div>
                 ))}
-                {comentarios.length === 0 && <p className="text-xs text-muted-foreground">Sem comentários ainda.</p>}
+                {comentarios.length === 0 && <p className="text-xs text-muted-foreground">Sem encaminhamentos ainda.</p>}
               </div>
             </Card>
           )}
