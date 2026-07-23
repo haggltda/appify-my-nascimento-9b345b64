@@ -25,8 +25,6 @@ import { usePlanilhaCustos } from "@/hooks/usePlanilhaCusto";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { useDadosFiscaisContrato, useSalvarDadosFiscaisContrato } from "@/hooks/useNfEmissao";
-import type { ContratoDadosFiscais } from "@/hooks/useNfEmissao";
 import { useContratoDocsPorContrato } from "@/hooks/useDocumentos";
 import { BADGE as DOC_BADGE, periodLabel } from "@/pages/Documentos";
 
@@ -53,7 +51,14 @@ function fmtData(d: string | null) {
   return `${day}/${m}/${y}`;
 }
 
-const EMPTY: ContratoERPInput = {
+type FiscalFields =
+  | "issqn_pct" | "ir_pct" | "cofins_pct" | "pis_pct" | "csll_pct"
+  | "prazo_pagamento" | "codigo_servico_lc116" | "codigo_servico_municipal_cnae"
+  | "conta_pagamento" | "email_envio_nf" | "instrucoes_envio";
+
+type ContratoFormState = Omit<ContratoERPInput, FiscalFields>;
+
+const EMPTY: ContratoFormState = {
   nome: "",
   cliente: "",
   cnpj_cliente: null,
@@ -84,7 +89,7 @@ const FISCAL_EMPTY: FiscalForm = {
   conta_pagamento: "", email_envio_nf: "", instrucoes_envio: "",
 };
 
-function fiscalParaForm(d: ContratoDadosFiscais | null | undefined): FiscalForm {
+function fiscalParaForm(d: ContratoERP | null | undefined): FiscalForm {
   const pctToStr = (v: number | undefined | null) => (v ? String(Number(v) * 100) : "");
   if (!d) return { ...FISCAL_EMPTY };
   return {
@@ -115,17 +120,11 @@ export default function ContratosERP() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<ContratoERP | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ContratoERP | null>(null);
-  const [form, setForm] = useState<ContratoERPInput>(EMPTY);
+  const [form, setForm] = useState<ContratoFormState>(EMPTY);
   const [fiscal, setFiscal] = useState<FiscalForm>(FISCAL_EMPTY);
   const [importando, setImportando] = useState(false);
 
-  const { data: dadosFiscaisAtual } = useDadosFiscaisContrato(editando?.id);
-  const salvarFiscal = useSalvarDadosFiscaisContrato();
   const { data: docsContrato = [] } = useContratoDocsPorContrato(editando?.id);
-
-  useEffect(() => {
-    setFiscal(fiscalParaForm(dadosFiscaisAtual));
-  }, [dadosFiscaisAtual?.id, editando?.id]);
 
   // Calcula valor mensal EM VIGÊNCIA por contrato_id a partir da planilha
   const valorPorContratoId = useMemo(() => {
@@ -264,32 +263,27 @@ export default function ContratosERP() {
       grade_id: c.grade_id,
       capa_id: c.capa_id,
     });
+    setFiscal(fiscalParaForm(c));
     setModalOpen(true);
   }
 
   async function handleSalvar() {
-    await upsert.mutateAsync({ ...form, id: editando?.id });
-    // Dados fiscais só são salvos ao editar um contrato já existente — um
-    // contrato novo ainda não tem id nesse ponto (upsert não retorna a linha).
-    const contratoId = editando?.id;
-    if (contratoId) {
-      const pctToNum = (v: string) => (v.trim() ? Number(v) / 100 : 0);
-      await salvarFiscal.mutateAsync({
-        id: dadosFiscaisAtual?.id,
-        contrato_id: contratoId,
-        issqn_pct: pctToNum(fiscal.issqn_pct),
-        ir_pct: pctToNum(fiscal.ir_pct),
-        cofins_pct: pctToNum(fiscal.cofins_pct),
-        pis_pct: pctToNum(fiscal.pis_pct),
-        csll_pct: pctToNum(fiscal.csll_pct),
-        prazo_pagamento: fiscal.prazo_pagamento || null,
-        codigo_servico_lc116: fiscal.codigo_servico_lc116 || null,
-        codigo_servico_municipal_cnae: fiscal.codigo_servico_municipal_cnae || null,
-        conta_pagamento: fiscal.conta_pagamento || null,
-        email_envio_nf: fiscal.email_envio_nf || null,
-        instrucoes_envio: fiscal.instrucoes_envio || null,
-      });
-    }
+    const pctToNum = (v: string) => (v.trim() ? Number(v) / 100 : 0);
+    await upsert.mutateAsync({
+      ...form,
+      issqn_pct: pctToNum(fiscal.issqn_pct),
+      ir_pct: pctToNum(fiscal.ir_pct),
+      cofins_pct: pctToNum(fiscal.cofins_pct),
+      pis_pct: pctToNum(fiscal.pis_pct),
+      csll_pct: pctToNum(fiscal.csll_pct),
+      prazo_pagamento: fiscal.prazo_pagamento || null,
+      codigo_servico_lc116: fiscal.codigo_servico_lc116 || null,
+      codigo_servico_municipal_cnae: fiscal.codigo_servico_municipal_cnae || null,
+      conta_pagamento: fiscal.conta_pagamento || null,
+      email_envio_nf: fiscal.email_envio_nf || null,
+      instrucoes_envio: fiscal.instrucoes_envio || null,
+      id: editando?.id,
+    });
     setModalOpen(false);
   }
 
@@ -447,8 +441,7 @@ export default function ContratosERP() {
             </div>
           </div>
 
-          {editando && (
-            <div className="space-y-3 border-t border-border pt-4">
+          <div className="space-y-3 border-t border-border pt-4">
               <div>
                 <h4 className="text-sm font-semibold">Dados Fiscais (Emissão de NF)</h4>
                 <p className="text-xs text-muted-foreground">
@@ -520,7 +513,6 @@ export default function ContratosERP() {
                 />
               </div>
             </div>
-          )}
 
           {editando && (
             <div className="space-y-3 border-t border-border pt-4">
@@ -573,9 +565,9 @@ export default function ContratosERP() {
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
             <Button
               onClick={handleSalvar}
-              disabled={!form.nome || !form.cliente || upsert.isPending || salvarFiscal.isPending}
+              disabled={!form.nome || !form.cliente || upsert.isPending}
             >
-              {upsert.isPending || salvarFiscal.isPending ? "Salvando…" : "Salvar"}
+              {upsert.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>

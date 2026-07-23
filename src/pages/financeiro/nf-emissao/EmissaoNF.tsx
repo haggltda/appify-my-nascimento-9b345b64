@@ -19,9 +19,7 @@ import { Plus, Trash2, FileText, Building2, Calculator, ChevronRight, Search } f
 import { toast } from "sonner";
 import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import {
-  ContratoComDadosFiscais,
   NfEmissaoRow,
-  useContratosComDadosFiscais,
   useNfsEmissao,
   useSalvarNfEmissao,
   useAtualizarNfEmissao,
@@ -31,6 +29,7 @@ import {
   useAnexosNfEmissao,
   baixarAnexoNfEmissao,
 } from "@/hooks/useNfEmissao";
+import { useContratosERP, ContratoERP } from "@/hooks/useContratosERP";
 import { usePlanilhaCustos, resolverPostosVigentes } from "@/hooks/usePlanilhaCusto";
 import { calcularItem, calcularTotaisNf, ItemInput, ItemCalculado, INSS_CATEGORIAS } from "./calculos";
 import { fmtMoney, fmtPct, fmtDate, STATUS_LABEL, STATUS_CLASS, Linha, itemVazio } from "./shared";
@@ -42,7 +41,7 @@ export default function EmissaoNF() {
   const { empresa } = useEmpresaAtiva();
   const empresaId = empresa?.id ?? null;
   const { data: nfs = [], isLoading } = useNfsEmissao(empresaId);
-  const { data: contratos = [] } = useContratosComDadosFiscais();
+  const { data: contratos = [] } = useContratosERP();
 
   const [busca, setBusca] = useState("");
   const [contratoSel, setContratoSel] = useState<string | null>(null);
@@ -195,7 +194,7 @@ function ContratoNfsPanel({
   onNovaNf,
   onSelecionar,
 }: {
-  contrato: ContratoComDadosFiscais;
+  contrato: ContratoERP;
   nfs: NfEmissaoRow[];
   isLoading: boolean;
   onNovaNf: () => void;
@@ -269,7 +268,7 @@ interface NovaNfDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   empresaId: string | null;
-  contratos: ContratoComDadosFiscais[];
+  contratos: ContratoERP[];
   nfParaEditar?: NfEmissaoRow | null;
   contratoIdInicial?: string | null;
 }
@@ -335,7 +334,22 @@ function NovaNfDialog({ open, onOpenChange, empresaId, contratos, nfParaEditar, 
   }, [open, nfParaEditar?.id, itensExistentes]);
 
   const contratoSelecionado = contratos.find((c) => c.id === contratoId) ?? null;
-  const dadosFiscais = contratoSelecionado?.dados_fiscais ?? null;
+  const fiscalConfigurado =
+    !!contratoSelecionado &&
+    (contratoSelecionado.issqn_pct !== 0 ||
+      contratoSelecionado.ir_pct !== 0 ||
+      contratoSelecionado.cofins_pct !== 0 ||
+      contratoSelecionado.pis_pct !== 0 ||
+      contratoSelecionado.csll_pct !== 0);
+  const dadosFiscais = fiscalConfigurado
+    ? {
+        issqn_pct: contratoSelecionado!.issqn_pct,
+        ir_pct: contratoSelecionado!.ir_pct,
+        cofins_pct: contratoSelecionado!.cofins_pct,
+        pis_pct: contratoSelecionado!.pis_pct,
+        csll_pct: contratoSelecionado!.csll_pct,
+      }
+    : null;
 
   const postosVigentes = useMemo(
     () => (contratoId ? resolverPostosVigentes(planilha, contratoId) : []),

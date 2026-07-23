@@ -259,7 +259,6 @@ export function useCapaPromover(empresaId: string) {
       qc.invalidateQueries({ queryKey: QK(empresaId) });
       qc.invalidateQueries({ queryKey: ["implantacao", empresaId] });
       qc.invalidateQueries({ queryKey: ["contratos_erp", empresaId] });
-      qc.invalidateQueries({ queryKey: ["contrato_dados_fiscais"] });
       toast({ title: `Contrato "${contrato.nome}" criado no módulo de Implantação e em Contratos!` });
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),

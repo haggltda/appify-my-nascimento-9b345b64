@@ -1,103 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useEmpresaAtiva } from "@/context/EmpresaAtivaContext";
 import type { ItemCalculado, TotaisNf, PercentuaisFiscais, InssCategoria } from "@/pages/financeiro/nf-emissao/calculos";
 
 const BUCKET = "nf-emissao";
 
-export interface ContratoDadosFiscais {
-  id: string;
-  contrato_id: string;
-  empresa_id: string;
-  issqn_pct: number;
-  ir_pct: number;
-  cofins_pct: number;
-  pis_pct: number;
-  csll_pct: number;
-  prazo_pagamento: string | null;
-  codigo_servico_lc116: string | null;
-  codigo_servico_municipal_cnae: string | null;
-  conta_pagamento: string | null;
-  email_envio_nf: string | null;
-  instrucoes_envio: string | null;
-}
-
-export interface ContratoComDadosFiscais {
-  id: string;
-  nome: string;
-  cliente: string;
-  status: string;
-  dados_fiscais: ContratoDadosFiscais | null;
-}
-
-const CONTRATOS_FISCAIS_KEY = "contrato_dados_fiscais";
 const NF_EMISSAO_KEY = "nf_emissao";
-
-export function useContratosComDadosFiscais() {
-  const { empresa } = useEmpresaAtiva();
-  const empresaId = empresa?.id ?? null;
-
-  return useQuery({
-    queryKey: [CONTRATOS_FISCAIS_KEY, empresaId],
-    enabled: !!empresaId,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("contratos")
-        .select("id, nome, cliente, status, contrato_dados_fiscais(*)")
-        .eq("empresa_id", empresaId)
-        .order("nome");
-      if (error) throw error;
-      return (data ?? []).map((c: any) => ({
-        id: c.id,
-        nome: c.nome,
-        cliente: c.cliente,
-        status: c.status,
-        dados_fiscais: Array.isArray(c.contrato_dados_fiscais)
-          ? (c.contrato_dados_fiscais[0] ?? null)
-          : (c.contrato_dados_fiscais ?? null),
-      })) as ContratoComDadosFiscais[];
-    },
-  });
-}
-
-export function useDadosFiscaisContrato(contratoId: string | null | undefined) {
-  return useQuery({
-    queryKey: [CONTRATOS_FISCAIS_KEY, "unico", contratoId],
-    enabled: !!contratoId,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("contrato_dados_fiscais")
-        .select("*")
-        .eq("contrato_id", contratoId)
-        .maybeSingle();
-      if (error) throw error;
-      return (data ?? null) as ContratoDadosFiscais | null;
-    },
-  });
-}
-
-interface SalvarDadosFiscaisInput extends Omit<ContratoDadosFiscais, "id" | "empresa_id"> {
-  id?: string;
-}
-
-export function useSalvarDadosFiscaisContrato() {
-  const { empresa } = useEmpresaAtiva();
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: SalvarDadosFiscaisInput) => {
-      if (!empresa?.id) throw new Error("Empresa não identificada.");
-      const payload = { ...input, empresa_id: empresa.id };
-      const { data, error } = await (supabase as any)
-        .from("contrato_dados_fiscais")
-        .upsert(payload, { onConflict: "contrato_id" })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as ContratoDadosFiscais;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [CONTRATOS_FISCAIS_KEY] }),
-  });
-}
 
 export interface NfEmissaoRow {
   id: string;
