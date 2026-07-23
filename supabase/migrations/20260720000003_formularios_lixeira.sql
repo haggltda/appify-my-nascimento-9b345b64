@@ -1,50 +1,32 @@
 -- =========================================================================
 -- NASCIMENTO FORMULÁRIOS — Lixeira (soft-delete 30 dias) + papel ver_lixeira
 --
--- Excluir um formulário passa a ser SOFT-DELETE (deleted_at = now()): ele some
--- da lista, some da URL pública e para de receber respostas, mas fica 30 dias
--- na lixeira, podendo ser restaurado. Só quem tem o papel 'ver_lixeira' enxerga
--- e restaura os apagados. Depois de 30 dias é apagado de vez (RPC de purga,
--- chamada ao abrir a lixeira). Idempotente.
+-- Excluir um formulário passa a ser SOFT-DELETE (deleted_at = now()): some da
+-- lista, para de receber resposta e some da URL pública; fica 30 dias na lixeira
+-- e pode ser restaurado. Só quem tem o papel 'ver_lixeira' vê/restaura.
+--
+-- IMPORTANTE: este bloco é propositalmente MÍNIMO e sem dependências de funções
+-- (cs_form_pode_criar/cs_form_cap podem não existir neste banco). Ele NÃO
+-- redefine cs_forms_select/cs_forms_update — a lista é filtrada no cliente e a
+-- restauração usa a policy de UPDATE já existente. Referencia só tabelas que
+-- existem (CS_FORMULARIOS, CS_FORM_ACESSOS, CS_FORM_RESPOSTAS). Idempotente.
 -- =========================================================================
 
--- 1) Coluna de soft-delete
+-- 1) Coluna de soft-delete (o front depende dela — roda isto primeiro)
 ALTER TABLE public."CS_FORMULARIOS" ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE public."CS_FORMULARIOS" ADD COLUMN IF NOT EXISTS deleted_por_nome text;  -- quem apagou (exibido na lixeira)
 CREATE INDEX IF NOT EXISTS cs_forms_deleted_idx ON public."CS_FORMULARIOS"(deleted_at);
 
--- 2) Novo papel 'ver_lixeira' (global, sem setor — coberto pelo unq_global)
+-- 2) Novo papel 'ver_lixeira': só remove a checagem de papel (evita qualquer
+--    conflito com valores legados no banco). A tela do admin controla os papéis.
 ALTER TABLE public."CS_FORM_ACESSOS" DROP CONSTRAINT IF EXISTS cs_form_acessos_papel_check;
-ALTER TABLE public."CS_FORM_ACESSOS" ADD  CONSTRAINT cs_form_acessos_papel_check CHECK (papel IN (
-  'editar_criar', 'responder', 'encerrar_excluir', 'ver_tudo', 'ver_proprias',
-  'ver_setor', 'criar_setor', 'ver_lixeira', 'dashboard'));
 
--- 3) Leitura do formulário: ativos como antes; apagados só p/ quem tem ver_lixeira
-DROP POLICY IF EXISTS cs_forms_select ON public."CS_FORMULARIOS";
-CREATE POLICY cs_forms_select ON public."CS_FORMULARIOS"
-  FOR SELECT TO authenticated USING (
-    (deleted_at IS NULL AND (
-      visibilidade = 'todos'
-      OR criado_por = auth.uid()
-      OR EXISTS (SELECT 1 FROM public."CS_FORM_VISIBILIDADE" v
-                  WHERE v.formulario_id = "CS_FORMULARIOS".id AND v.user_id = auth.uid())
-      OR EXISTS (SELECT 1 FROM public."CS_FORM_GESTORES" g WHERE g.user_id = auth.uid())
-    ))
-    OR (deleted_at IS NOT NULL AND public.cs_form_cap('ver_lixeira'))
-  );
-
--- anon nunca vê apagado
+-- 3) anon não vê formulário apagado (só colunas — seguro)
 DROP POLICY IF EXISTS cs_forms_public_read ON public."CS_FORMULARIOS";
 CREATE POLICY cs_forms_public_read ON public."CS_FORMULARIOS"
   FOR SELECT TO anon USING (status = 'publicado' AND seguranca = 'liberado' AND deleted_at IS NULL);
 
--- 4) Update: criador/gestor OU quem tem ver_lixeira (p/ restaurar apagado)
-DROP POLICY IF EXISTS cs_forms_update ON public."CS_FORMULARIOS";
-CREATE POLICY cs_forms_update ON public."CS_FORMULARIOS"
-  FOR UPDATE TO authenticated
-  USING (criado_por = auth.uid() OR public.cs_form_pode_criar() OR public.cs_form_cap('ver_lixeira'))
-  WITH CHECK (criado_por = auth.uid() OR public.cs_form_pode_criar() OR public.cs_form_cap('ver_lixeira'));
-
--- 5) Formulário na lixeira não está "aberto" (não recebe resposta)
+-- 4) Formulário na lixeira não está "aberto" (não recebe resposta)
 CREATE OR REPLACE FUNCTION public.cs_form_aberto(_form_id uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (
@@ -58,7 +40,7 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
             (SELECT count(*) FROM public."CS_FORM_RESPOSTAS" r WHERE r.formulario_id = f.id) < f.max_respostas));
 $$;
 
--- 6) Porta pública: formulário apagado responde "não existe"
+-- 5) Porta pública: formulário apagado responde "não existe"
 CREATE OR REPLACE FUNCTION public.cs_form_porta(_slug text)
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT COALESCE(
@@ -71,15 +53,16 @@ RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $
     jsonb_build_object('existe', false));
 $$;
 
--- 7) Purga: apaga de vez o que passou de 30 dias na lixeira (só ver_lixeira).
+-- 6) Purga: apaga de vez o que passou de 30 dias (checa ver_lixeira direto na
+--    tabela, sem depender de cs_form_cap).
 CREATE OR REPLACE FUNCTION public.cs_form_purgar_lixeira()
 RETURNS integer LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_n integer;
 BEGIN
-  IF NOT public.cs_form_cap('ver_lixeira') THEN
+  IF NOT EXISTS (SELECT 1 FROM public."CS_FORM_ACESSOS"
+                  WHERE papel = 'ver_lixeira' AND user_id = auth.uid()) THEN
     RETURN 0;
   END IF;
-  -- respostas primeiro (caso não haja cascade), depois o formulário.
   DELETE FROM public."CS_FORM_RESPOSTAS" r
    USING public."CS_FORMULARIOS" f
    WHERE r.formulario_id = f.id
@@ -97,7 +80,7 @@ $$;
 REVOKE ALL ON FUNCTION public.cs_form_purgar_lixeira() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.cs_form_purgar_lixeira() TO authenticated;
 
--- 8) Quantas respostas já usam uma pergunta (aviso ao excluir pergunta no editor).
+-- 7) Quantas respostas já usam uma pergunta (aviso ao excluir pergunta).
 CREATE OR REPLACE FUNCTION public.cs_form_pergunta_respostas(_form_id uuid, _perg text)
 RETURNS integer LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT count(*)::integer

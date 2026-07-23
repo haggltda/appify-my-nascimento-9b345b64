@@ -594,6 +594,21 @@ function PerguntaCard({ p, i, total, muda, move, remove, upload, setores, usuari
         </select>
       </div>
 
+      {/* Tipo de gráfico do painel (opcional) — só para perguntas que viram gráfico */}
+      {["multipla_escolha", "caixas_selecao", "lista_suspensa", "escala", "escala_trabalho"].includes(p.tipo) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#64748b" }}>📊 Gráfico no painel</span>
+          <select value={p.config.grafico ?? "barras"} onChange={e => muda(i, { config: { ...p.config, grafico: e.target.value } })}
+            style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "5px 9px", fontSize: 12, outline: "none", background: "#fff", fontWeight: 600 }}>
+            <option value="barras">Barras</option>
+            <option value="colunas">Colunas</option>
+            <option value="pizza">Pizza</option>
+            <option value="rosca">Rosca</option>
+          </select>
+          <span style={{ fontSize: 10.5, color: "#cbd5e1" }}>(opcional)</span>
+        </div>
+      )}
+
       {p.tipo === "texto_info" ? (
         <div style={{ marginBottom: 10 }}>
           <AutoTextarea value={p.descricao ?? ""} onChange={v => muda(i, { descricao: v })} minRows={3} placeholder="Texto que o colaborador vai ler (o título fica em destaque acima)"

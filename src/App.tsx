@@ -122,6 +122,7 @@ import Formularios from "./pages/central-servicos/Formularios";
 import FormularioEditor from "./pages/central-servicos/FormularioEditor";
 import FormularioRespostas from "./pages/central-servicos/FormularioRespostas";
 import FormulariosDashboard from "./pages/central-servicos/FormulariosDashboard";
+import PainelGerencialFormularios from "./pages/central-servicos/PainelGerencial";
 import FormulariosConfig from "./pages/central-servicos/FormulariosConfig";
 import FormularioPublico from "./pages/publico/FormularioPublico";
 import Ferias from "./pages/rh/Ferias";
@@ -192,7 +193,11 @@ const App = () => (
             <Route path="central-servicos/denuncias" element={<Denuncias />} />
             <Route path="central-servicos/formularios" element={<Formularios />} />
             <Route path="central-servicos/formularios/dashboard" element={<FormulariosDashboard />} />
+            <Route path="central-servicos/formularios/painel" element={<PainelGerencialFormularios />} />
             <Route path="central-servicos/formularios/config" element={<FormulariosConfig />} />
+            {/* "Líderes por setor" foi centralizado na Administração (Módulos & Menus →
+                Acesso por Usuário). Mantém a URL antiga redirecionando pra lá. */}
+            <Route path="central-servicos/formularios/lideres" element={<Navigate to="/app/administracao?tab=modulos" replace />} />
             <Route path="central-servicos/formularios/:id" element={<FormularioEditor />} />
             <Route path="central-servicos/formularios/:id/respostas" element={<FormularioRespostas />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
@@ -292,6 +297,10 @@ const App = () => (
             <Route path="contabil/conciliacao-eventos" element={<ConciliacaoEventos />} />
             {/* RH */}
             <Route path="rh/colaboradores" element={<Colaboradores />} />
+            {/* RH > Hierarquia removido (jul/2026) — feature descontinuada. A tabela
+                RH_CONTRATO_ENCARREGADO pode ser dropada; a RPC rh_hierarquia_dados
+                CONTINUA (usada por Líderes por setor / Painel Gerencial). */}
+            <Route path="rh/hierarquia" element={<Navigate to="/app/rh/colaboradores" replace />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             <Route path="rh/folha" element={<Folha />} />
             <Route path="rh/novas-admissoes" element={<NovasAdmissoes />} />
