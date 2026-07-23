@@ -465,7 +465,10 @@ const mapaDiretores = (rows: any[] | null | undefined) => {
 };
 
 // ── Tela ─────────────────────────────────────────────────────────────
-export default function LideresSetor() {
+// `embedded` = renderizado dentro da Administração (aba Acesso por Usuário), sem
+// o cromo de página inteira: some o "← Voltar" e o container não força altura/
+// scroll próprios (quem rola é o painel do admin).
+export default function LideresSetor({ embedded = false }: { embedded?: boolean } = {}) {
   const nav = useNavigate();
   const [emps, setEmps] = useState<Empregado[]>([]);
   const [overrides, setOverrides] = useState<Map<string, { id: number; obs?: string | null }>>(new Map());
@@ -584,10 +587,12 @@ export default function LideresSetor() {
   };
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
-      <div style={{ margin: "18px 24px 0", padding: "16px 22px", border: "1px solid #e2e8f0", borderRadius: 18, background: "linear-gradient(135deg,#fff 0%,#f8fbff 100%)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", flexShrink: 0 }}>
+    <div style={embedded
+      ? { display: "flex", flexDirection: "column", background: "transparent" }
+      : { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#f5f7fb" }}>
+      <div style={{ margin: embedded ? 0 : "18px 24px 0", padding: "16px 22px", border: "1px solid #e2e8f0", borderRadius: 18, background: "linear-gradient(135deg,#fff 0%,#f8fbff 100%)", boxShadow: "0 8px 24px rgba(15,23,42,.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={() => nav("/app/central-servicos/formularios")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>← Voltar</button>
+          {!embedded && <button onClick={() => nav("/app/central-servicos/formularios")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>← Voltar</button>}
           <div>
             <div style={{ fontSize: 19, fontWeight: 800, color: "#0f3171" }}>👥 Líderes por setor</div>
             <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
@@ -598,7 +603,9 @@ export default function LideresSetor() {
         <button onClick={exportar} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬇ Exportar</button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 40px" }}>
+      <div style={embedded
+        ? { padding: "16px 0 8px" }
+        : { flex: 1, overflowY: "auto", padding: "16px 24px 40px" }}>
         {carregando ? <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Carregando cadastro…</div>
         : erro ? (
           <div style={{ ...cardBox, padding: 36, textAlign: "center" }}>

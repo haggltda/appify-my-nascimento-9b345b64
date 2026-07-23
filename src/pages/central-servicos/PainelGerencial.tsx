@@ -588,7 +588,8 @@ export default function PainelGerencial() {
             <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>📈 Painel Gerencial</div>
             <div style={{ fontSize: 11.5, color: "#94a3b8" }}>Indicadores dos feedbacks — apoio à gestão.</div>
           </div>
-          <button onClick={() => nav("/app/central-servicos/formularios/lideres")} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>👥 Líderes por setor</button>
+          {/* "Líderes por setor" foi centralizado na Administração → Módulos & Menus →
+              Acesso por Usuário (regra geral por setor). */}
           <div style={{ minWidth: 240 }}>
             <label style={lbl}>Formulário (fonte)</label>
             <select value={formSel} onChange={e => setFormSel(e.target.value)} style={inp}>

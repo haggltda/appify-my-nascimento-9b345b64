@@ -123,7 +123,6 @@ import FormularioRespostas from "./pages/central-servicos/FormularioRespostas";
 import FormulariosDashboard from "./pages/central-servicos/FormulariosDashboard";
 import PainelGerencial from "./pages/central-servicos/PainelGerencial";
 import FormulariosConfig from "./pages/central-servicos/FormulariosConfig";
-import LideresSetor from "./pages/central-servicos/LideresSetor";
 import FormularioPublico from "./pages/publico/FormularioPublico";
 import Ferias from "./pages/rh/Ferias";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
@@ -195,7 +194,9 @@ const App = () => (
             <Route path="central-servicos/formularios/dashboard" element={<FormulariosDashboard />} />
             <Route path="central-servicos/formularios/painel" element={<PainelGerencial />} />
             <Route path="central-servicos/formularios/config" element={<FormulariosConfig />} />
-            <Route path="central-servicos/formularios/lideres" element={<LideresSetor />} />
+            {/* "Líderes por setor" foi centralizado na Administração (Módulos & Menus →
+                Acesso por Usuário). Mantém a URL antiga redirecionando pra lá. */}
+            <Route path="central-servicos/formularios/lideres" element={<Navigate to="/app/administracao?tab=modulos" replace />} />
             <Route path="central-servicos/formularios/:id" element={<FormularioEditor />} />
             <Route path="central-servicos/formularios/:id/respostas" element={<FormularioRespostas />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />

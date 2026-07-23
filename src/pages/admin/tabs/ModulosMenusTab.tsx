@@ -10,6 +10,7 @@ import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, UserCog, X, CheckSqu
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { FormCap } from "@/hooks/useFormPerms";
+import LideresSetor from "@/pages/central-servicos/LideresSetor";
 
 const FORM_MENU_CODIGO = "central_servicos_formularios";
 
@@ -269,6 +270,9 @@ function MenusEditor({ moduloId, menus, isAdmin, onChange }: { moduloId: string;
 function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulos: Modulo[]; menus: Menu[] }) {
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Regra GERAL por setor (líder/diretor de cada setor) — não depende do usuário
+  // selecionado. Fica no topo, colapsável, fechada por padrão.
+  const [lideresOpen, setLideresOpen] = useState(false);
   // Map of menu_codigo → desired allow value (staged, not yet saved)
   const [pending, setPending] = useState<Map<string, boolean>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
@@ -375,6 +379,27 @@ function UserAccessPanel({ isAdmin, modulos, menus }: { isAdmin: boolean; modulo
 
   return (
     <div>
+      {/* Nascimento Formulários — regra geral por setor (líder + diretor).
+          Global (independe do usuário selecionado); as permissões por usuário
+          seguem logo abaixo. */}
+      <div className="border-b border-border">
+        <button
+          onClick={() => setLideresOpen((v) => !v)}
+          className="flex w-full items-center gap-2 bg-muted/30 px-5 py-3 text-left text-sm font-medium hover:bg-muted/50"
+        >
+          {lideresOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          Nascimento Formulários — Líderes por setor (regra geral)
+          <span className="text-xs font-normal text-muted-foreground">
+            Quem lidera e o diretor responsável de cada setor — vale para todos.
+          </span>
+        </button>
+        {lideresOpen && (
+          <div className="px-5 pb-4">
+            <LideresSetor embedded />
+          </div>
+        )}
+      </div>
+
       <div className="border-b border-border bg-muted/30 px-5 py-3">
         <div className="flex items-center gap-3">
           <label className="text-sm font-medium whitespace-nowrap">Selecionar usuário</label>
