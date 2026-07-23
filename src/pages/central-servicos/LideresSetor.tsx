@@ -15,8 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 // ajuste fica em CS_LIDERES_SETOR.
 //
 // ACIMA do setor ficam os diretores: quem cuida de quais setores NÃO está no
-// cadastro (é decisão de gestão), então fica em RH_SETOR_DIRETOR — a mesma
-// tabela que RH > Hierarquia usa, para as duas telas nunca divergirem.
+// cadastro (é decisão de gestão), então fica em RH_SETOR_DIRETOR.
 // =====================================================================
 
 // Do mais alto para o mais baixo. Ordem = hierarquia (confirmada pelo RH em
@@ -456,8 +455,8 @@ function ModalDiretorSetores({ diretor, setores, diretorDe, onFechar, onSalvo }:
   );
 }
 
-// Linhas de RH_SETOR_DIRETOR → mapa por setor normalizado (mesma chave que a
-// tela de Hierarquia usa, para as duas lerem a mesma designação).
+// Linhas de RH_SETOR_DIRETOR → mapa por setor normalizado (mesma chave usada
+// na gravação, para leitura e escrita nunca divergirem).
 const mapaDiretores = (rows: any[] | null | undefined) => {
   const d = new Map<string, { id: number; nome: string }>();
   (rows ?? []).forEach((r: any) => d.set(normSetor(r.setor), { id: Number(r.diretor_id), nome: String(r.diretor_nome ?? "").trim() }));
@@ -541,9 +540,7 @@ export default function LideresSetor({ embedded = false }: { embedded?: boolean 
     .sort((a, b) => rankNivel(a.nivel) - rankNivel(b.nivel) || a.nome.localeCompare(b.nome, "pt-BR")), [ativos]);
 
   // Quem pode cuidar de setores: DIREÇÃO … DIRETOR. Acima (ADMIN/CEO) já vê
-  // tudo, abaixo (gerente) lidera o próprio setor. Mesmo recorte de RH >
-  // Hierarquia — se as duas telas oferecessem listas diferentes, uma gravaria
-  // um diretor que a outra não sabe mostrar.
+  // tudo, abaixo (gerente) lidera o próprio setor.
   const diretores = useMemo(() => cupula.filter(e => rankNivel(e.nivel) >= rankNivel("DIREÇÃO") && rankNivel(e.nivel) <= rankNivel("DIRETOR")), [cupula]);
 
   // Diretor → setores sob ele, para o resumo do card "Acima dos setores".
@@ -733,9 +730,8 @@ export default function LideresSetor({ embedded = false }: { embedded?: boolean 
                 </div>
               )}
               <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 10, lineHeight: 1.5 }}>
-                ⓘ Hierarquia usada, do topo para a base: {NIVEIS.join(" › ")}. Quem tem o nível mais alto dentro do
-                Setor_ERP responde por ele; o diretor responde pelos setores atribuídos a ele. A mesma designação aparece
-                em RH &gt; Hierarquia.
+                ⓘ Níveis, do topo para a base: {NIVEIS.join(" › ")}. Quem tem o nível mais alto dentro do
+                Setor_ERP responde por ele; o diretor responde pelos setores atribuídos a ele.
               </div>
             </div>
           </>
