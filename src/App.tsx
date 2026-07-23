@@ -92,6 +92,8 @@ import ValidacaoPosPagamento from "./pages/financeiro/ValidacaoPosPagamento";
 import ConciliacaoBancaria from "./pages/financeiro/ConciliacaoBancaria";
 import CadastroOrcamentos from "./pages/financeiro/orcamento/CadastroOrcamentos";
 import ClassificacoesOrcamento from "./pages/financeiro/orcamento/ClassificacoesOrcamento";
+import EmissaoNF from "./pages/financeiro/nf-emissao/EmissaoNF";
+import ControleNotas from "./pages/financeiro/controle-notas/ControleNotas";
 import Lancamentos from "./pages/contabil/Lancamentos";
 import PlanoContas from "./pages/contabil/PlanoContas";
 import AprovacaoContas from "./pages/contabil/AprovacaoContas";
@@ -274,6 +276,8 @@ const App = () => (
             <Route path="financeiro/conciliacao-bancaria" element={<ConciliacaoBancaria />} />
             <Route path="financeiro/planejamento-orcamentario/cadastro" element={<CadastroOrcamentos />} />
             <Route path="financeiro/planejamento-orcamentario/classificacoes" element={<ClassificacoesOrcamento />} />
+            <Route path="financeiro/emissao-nf/cadastro" element={<EmissaoNF />} />
+            <Route path="financeiro/emissao-nf/controle-notas" element={<ControleNotas />} />
             {/* Fiscal */}
             <Route path="fiscal" element={<Fiscal />} />
             {/* Contábil */}
