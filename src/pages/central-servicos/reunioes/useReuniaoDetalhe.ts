@@ -22,7 +22,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("reuniao")
-        .select("id, numero, titulo, objetivo, data_hora, duracao_minutos, tipo_local, local_ou_link, link_online, etapa, criado_por, organizador_user_id, responsavel_preenchimento_user_id, tipo_reuniao, finalidade, resultado_esperado, notificar_por, setor_responsavel, justificativa_alteracao_duracao, motivo_cancelamento, checklist_inicio, checklist_encerramento, hora_inicio_real, hora_termino_real, duracao_real_minutos, created_at, updated_at")
+        .select("id, numero, titulo, objetivo, data_hora, duracao_minutos, tipo_local, local_ou_link, link_online, etapa, criado_por, organizador_user_id, responsavel_preenchimento_user_id, tipo_reuniao, finalidade, resultado_esperado, notificar_por, setor_responsavel, justificativa_alteracao_duracao, serie_recorrencia_id, motivo_cancelamento, checklist_inicio, checklist_encerramento, hora_inicio_real, hora_termino_real, duracao_real_minutos, created_at, updated_at")
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;
@@ -63,7 +63,7 @@ export function useReuniaoDetalhe(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("reuniao_convidado")
-        .select("id, reuniao_id, user_id, papel, presente, created_at")
+        .select("id, reuniao_id, user_id, papel, presente, presente_marcado_em, created_at")
         .eq("reuniao_id", id)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -497,13 +497,17 @@ export function useReuniaoDetalhe(id: string | undefined) {
     return true;
   };
 
-  const marcarPresenca = async (convidadoId: string, presente: boolean): Promise<boolean> => {
-    const { error } = await (supabase as any).from("reuniao_convidado").update({ presente }).eq("id", convidadoId);
+  const marcarPresenca = async (convidadoId: string, presente: boolean, nomeParticipante?: string): Promise<boolean> => {
+    const { error } = await (supabase as any)
+      .from("reuniao_convidado")
+      .update({ presente, presente_marcado_em: new Date().toISOString() })
+      .eq("id", convidadoId);
     if (error) {
       toast({ title: "Erro ao marcar presença", description: error.message, variant: "destructive" });
       return false;
     }
     qc.invalidateQueries({ queryKey: ["reuniao_convidado", id] });
+    if (id) registrarLog(id, "presenca_marcada", `${nomeParticipante ?? "Participante"} marcado(a) como ${presente ? "presente" : "ausente"}`);
     return true;
   };
 

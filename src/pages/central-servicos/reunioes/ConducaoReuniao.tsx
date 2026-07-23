@@ -123,7 +123,7 @@ export default function ConducaoReuniao() {
 
           <div className="space-y-4">
             <Card className="p-4">
-              <PresencaConducaoPainel convidados={convidados} usuarios={usuarios} onMarcar={marcarPresenca} />
+              <PresencaConducaoPainel convidados={convidados} usuarios={usuarios} userId={user?.id} podeGerenciar={podeGerenciar} onMarcar={marcarPresenca} />
             </Card>
 
             <Card className="space-y-2 p-4">

@@ -266,6 +266,7 @@ export interface Reuniao {
   notificar_por: NotificarPor[];
   setor_responsavel: string | null;
   justificativa_alteracao_duracao: string | null;
+  serie_recorrencia_id: string | null;
   motivo_cancelamento: string | null;
   checklist_inicio: Record<string, string> | null;
   checklist_encerramento: Record<string, string> | null;
@@ -341,6 +342,7 @@ export interface ReuniaoConvidado {
   user_id: string;
   papel: PapelConvidado;
   presente: boolean | null;
+  presente_marcado_em: string | null;
   created_at: string;
 }
 

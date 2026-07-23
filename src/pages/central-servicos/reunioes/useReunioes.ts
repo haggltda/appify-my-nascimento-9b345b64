@@ -5,7 +5,7 @@ import type { Finalidade, NotificarPor, Reuniao, ReuniaoCalendario, ResultadoEsp
 import { registrarLog } from "./registrarLog";
 
 const REUNIAO_COLUNAS =
-  "id, numero, titulo, objetivo, data_hora, duracao_minutos, tipo_local, local_ou_link, link_online, etapa, criado_por, organizador_user_id, responsavel_preenchimento_user_id, tipo_reuniao, finalidade, resultado_esperado, notificar_por, setor_responsavel, justificativa_alteracao_duracao, motivo_cancelamento, created_at, updated_at";
+  "id, numero, titulo, objetivo, data_hora, duracao_minutos, tipo_local, local_ou_link, link_online, etapa, criado_por, organizador_user_id, responsavel_preenchimento_user_id, tipo_reuniao, finalidade, resultado_esperado, notificar_por, setor_responsavel, justificativa_alteracao_duracao, serie_recorrencia_id, motivo_cancelamento, created_at, updated_at";
 
 /** Calendário geral: todas as reuniões da empresa (recorte mínimo) — abrir o card ainda exige interação, via RLS de "reuniao". */
 export function useReunioes() {
@@ -141,6 +141,7 @@ interface NovaReuniao {
   convidados: string[];
   observadores: string[];
   anexos?: File[];
+  serie_recorrencia_id?: string | null;
 }
 
 const ANEXOS_BUCKET = "reunioes";
@@ -165,6 +166,7 @@ async function criarUmaReuniao(nova: NovaReuniao): Promise<string> {
       notificar_por: nova.notificar_por,
       setor_responsavel: nova.setor_responsavel,
       justificativa_alteracao_duracao: nova.justificativa_alteracao_duracao || null,
+      serie_recorrencia_id: nova.serie_recorrencia_id ?? null,
     })
     .select("id")
     .single();
@@ -259,9 +261,12 @@ export function useCriarReunioesRecorrentes() {
   return useMutation({
     mutationFn: async ({ base, datas }: { base: Omit<NovaReuniao, "data_hora">; datas: string[] }): Promise<ResultadoRecorrencia> => {
       const resultado: ResultadoRecorrencia = { criadas: 0, puladas: [] };
+      // Todas as ocorrências da mesma criação recorrente compartilham essa tag —
+      // é o que permite editar a série inteira de uma vez depois (ver editarSerieRecorrente).
+      const serieId = crypto.randomUUID();
       for (const dataHoraIso of datas) {
         try {
-          await criarUmaReuniao({ ...base, data_hora: dataHoraIso });
+          await criarUmaReuniao({ ...base, data_hora: dataHoraIso, serie_recorrencia_id: serieId });
           resultado.criadas += 1;
         } catch (e) {
           resultado.puladas.push({ dataHoraIso, motivo: e instanceof Error ? e.message : String(e) });
@@ -287,6 +292,93 @@ export function useCriarReunioesRecorrentes() {
     },
     onError: (error: any) => {
       toast({ title: "Erro ao agendar reuniões recorrentes", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+/** Desloca a data pro novo dia da semana dentro da mesma semana da ocorrência (pode ir pra frente ou pra trás), aplicando o novo horário. */
+function aplicarNovoDiaHorario(dataHoraIso: string, novoDiaSemana: number, novoHorario: string): string {
+  const d = new Date(dataHoraIso);
+  const deltaDias = novoDiaSemana - d.getDay();
+  const novaData = new Date(d.getTime() + deltaDias * 24 * 60 * 60 * 1000);
+  const [h, m] = novoHorario.split(":").map(Number);
+  novaData.setHours(h, m, 0, 0);
+  return novaData.toISOString();
+}
+
+interface ResultadoEdicaoSerie {
+  atualizadas: number;
+  puladas: { titulo: string; motivo: string }[];
+}
+
+/** Edita dia da semana + horário de todas as ocorrências futuras "agendada" de uma série recorrente — passadas/em andamento/concluídas/canceladas ficam intocadas, e cada ocorrência com conflito no novo horário é pulada individualmente (mesma regra da criação recorrente). */
+export function useEditarSerieRecorrente() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ serieId, novoDiaSemana, novoHorario }: { serieId: string; novoDiaSemana: number; novoHorario: string }): Promise<ResultadoEdicaoSerie> => {
+      const { data: reunioes, error } = await (supabase as any)
+        .from("reuniao")
+        .select(REUNIAO_COLUNAS)
+        .eq("serie_recorrencia_id", serieId)
+        .eq("etapa", "agendada")
+        .gt("data_hora", new Date().toISOString());
+      if (error) throw error;
+
+      const resultado: ResultadoEdicaoSerie = { atualizadas: 0, puladas: [] };
+      for (const r of (reunioes ?? []) as Reuniao[]) {
+        const novaDataHora = aplicarNovoDiaHorario(r.data_hora, novoDiaSemana, novoHorario);
+        try {
+          if (r.tipo_local === "presencial" || r.tipo_local === "hibrido") {
+            const conflitoSala = await verificarConflitoSala({
+              local: r.local_ou_link, dataHoraIso: novaDataHora, duracaoMinutos: r.duracao_minutos, reuniaoIdIgnorar: r.id,
+            });
+            if (conflitoSala) throw new Error(`"${r.local_ou_link}" já está reservada nesse horário (reunião "${conflitoSala.titulo}").`);
+          }
+
+          const { data: convidados } = await (supabase as any)
+            .from("reuniao_convidado")
+            .select("user_id")
+            .eq("reuniao_id", r.id);
+          const pessoas = [
+            r.organizador_user_id,
+            r.responsavel_preenchimento_user_id,
+            ...((convidados ?? []) as { user_id: string }[]).map((c) => c.user_id),
+          ];
+          for (const userId of new Set(pessoas)) {
+            const conflitoPessoa = await verificarConflitoParticipante({
+              userId, dataHoraIso: novaDataHora, duracaoMinutos: r.duracao_minutos, reuniaoIdIgnorar: r.id,
+            });
+            if (conflitoPessoa) throw new Error(`Um dos participantes já está em outra reunião nesse horário (reunião "${conflitoPessoa.titulo}").`);
+          }
+
+          const { error: updErr } = await (supabase as any).from("reuniao").update({ data_hora: novaDataHora }).eq("id", r.id);
+          if (updErr) throw updErr;
+          registrarLog(r.id, "horario_alterado_serie", `Horário alterado em massa (edição de série) para ${new Date(novaDataHora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}`);
+          resultado.atualizadas += 1;
+        } catch (e) {
+          resultado.puladas.push({ titulo: r.titulo, motivo: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      return resultado;
+    },
+    onSuccess: (resultado) => {
+      qc.invalidateQueries({ queryKey: ["reuniao-calendario"] });
+      qc.invalidateQueries({ queryKey: ["reuniao-minhas"] });
+      qc.invalidateQueries({ queryKey: ["reuniao"] });
+      if (resultado.puladas.length === 0) {
+        toast({ title: `${resultado.atualizadas} reuniões da série atualizadas` });
+        return;
+      }
+      toast({
+        title: `${resultado.atualizadas} atualizadas, ${resultado.puladas.length} pulada(s) por conflito`,
+        description: resultado.puladas.map((p) => `${p.titulo}: ${p.motivo}`).join(" · "),
+        variant: resultado.atualizadas === 0 ? "destructive" : undefined,
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao editar série", description: error.message, variant: "destructive" });
     },
   });
 }
