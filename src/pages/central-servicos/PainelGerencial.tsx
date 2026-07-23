@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -6,6 +6,12 @@ import {
   PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList,
 } from "recharts";
 import { Formulario, Pergunta, normalizaPerguntas } from "./Formularios";
+import PainelPlanosAcao, { SITUACOES, PRIORIDADES, ORIGENS, usePlanosAcao } from "./PainelPlanosAcao";
+import HistoricoIndividual from "./HistoricoIndividual";
+import IndicadoresCalculos from "./IndicadoresCalculos";
+import { carregaCadastro, normSetor, normNome, ehSetorReal, liderAcimaDe, MapasHier, Empregado } from "./LideresSetor";
+import PainelCumprimento from "./PainelCumprimento";
+import VisaoExecutiva from "./VisaoExecutiva";
 
 // =====================================================================
 // PAINEL GERENCIAL — Nascimento Formulários (feedbacks)
@@ -24,7 +30,9 @@ const VIZ_OPCOES: { v: Viz; r: string }[] = [
   { v: "rosca", r: "Rosca" }, { v: "linha", r: "Linha" }, { v: "area", r: "Área" },
 ];
 
-const TABS = ["Visão Executiva", "Cumprimento", "Desenvolvimento", "Liderança", "Alinhamento e Entrega", "Planos de Ação", "Histórico Individual"];
+const TABS = ["Visão Executiva", "Cumprimento", "Desenvolvimento", "Liderança", "Alinhamento e Entrega", "Planos de Ação", "Histórico Individual", "Indicadores e Cálculos"];
+// Abas já implementadas — as demais aparecem marcadas "em breve" na barra.
+const TABS_PRONTAS = ["Visão Executiva", "Cumprimento", "Desenvolvimento", "Liderança", "Alinhamento e Entrega", "Planos de Ação", "Histórico Individual", "Indicadores e Cálculos"];
 
 interface Resp { id: string; formulario_id: string; enviado_em: string; respondente_nome?: string | null; setor?: string | null; itens: Record<string, any>; }
 
@@ -41,6 +49,13 @@ const IND: { key: string; label: string; kw: string[] }[] = [
   { key: "fortes", label: "Pontos fortes", kw: ["fazendo bem", "ponto forte", "faz bem", "pontos fortes"] },
   { key: "melhoria", label: "Pontos de melhoria", kw: ["precisa melhorar", "melhorar", "melhoria", "sente que precisa"] },
 ];
+
+// Exclusivo da VISÃO EXECUTIVA: o que o colaborador pede DA LIDERANÇA — outra
+// pergunta, não o que ele mesmo precisa desenvolver. Fica fora de IND para não
+// poluir o mapeamento da aba Desenvolvimento, que não usa este indicador.
+const IND_EXEC: { key: string; label: string; kw: string[] }[] = [
+  { key: "necLideranca", label: "O que se pede da liderança", kw: ["precisa da lideranca", "precisa do lider", "espera da lideranca", "da sua lideranca", "do seu lider", "da lideranca"] },
+];
 // Indicadores da aba ALINHAMENTO E ENTREGA (todos viram nota 1..5).
 const IND_ALIN: { key: string; label: string; kw: string[]; opcional?: boolean }[] = [
   { key: "alinhamento", label: "Alinhamento às metas", kw: ["alinhad", "alinhamento", "visao do liderado", "meta"] },
@@ -48,6 +63,28 @@ const IND_ALIN: { key: string; label: string; kw: string[]; opcional?: boolean }
   { key: "contribuicao", label: "Contribuição para resultados", kw: ["comprometimento", "contribui", "resultado"] },
   { key: "metasConcluidas", label: "Metas concluídas (opcional)", kw: ["meta concluida", "metas concluidas", "concluiu"], opcional: true },
   { key: "metasPrazo", label: "Metas no prazo (opcional)", kw: ["no prazo", "dentro do prazo", "prazo"], opcional: true },
+];
+
+// Aba PLANOS DE AÇÃO — o plano já está no formulário: uma pergunta diz a ação
+// definida e outra o prazo. Sem essas duas a aba não tem o que mostrar.
+const IND_PLANO: { key: string; label: string; kw: string[] }[] = [
+  { key: "acaoPlano", label: "Ação definida", kw: ["acao definida", "treinamento ou acompanhamento", "o que exatamente vai ser feito", "plano de acao"] },
+  { key: "prazoPlano", label: "Prazo para a ação", kw: ["prazo para acao", "prazo para a acao", "prazo da acao", "prazo"] },
+];
+
+// Todos os campos de mapeamento num lugar só — é o que a aba "Indicadores e
+// Cálculos" oferece: lá a pessoa está justamente conferindo de onde cada número
+// sai, então limitar a edição aos indicadores de uma aba obrigaria a passear
+// pelo painel inteiro para consertar o que ela acabou de ver quebrado.
+// `tipos` mantém a mesma restrição das abas: indicador de gráfico não aceita
+// pergunta de texto.
+const CAMPOS_MAPA: { key: string; label: string; tipos?: string[] }[] = [
+  ...IND.map(i => ({ key: i.key, label: `Desenvolvimento · ${i.label}`, tipos: CHART_TIPOS })),
+  ...IND_EXEC.map(i => ({ key: i.key, label: `Visão executiva · ${i.label}`, tipos: CHART_TIPOS })),
+  { key: "lider", label: "Liderança · quem é a liderança avaliada" },
+  { key: "avaliado", label: "Histórico · colaborador avaliado" },
+  ...IND_ALIN.map(i => ({ key: i.key, label: `Alinhamento · ${i.label}`, tipos: ["escala", "multipla_escolha", "lista_suspensa"] })),
+  ...IND_PLANO.map(i => ({ key: i.key, label: `Planos de ação · ${i.label}` })),
 ];
 
 type Mapa = Record<string, any>;  // singles = id da pergunta; dimensoes = string[]
@@ -59,10 +96,29 @@ function autoMapa(pergs: Pergunta[]): Mapa {
     const achou = chart.find(p => ind.kw.some(k => semAcento(p.titulo || "").includes(k)));
     if (achou) m[ind.key] = achou.id;
   }
-  // LIDERANÇA: quem é a liderança avaliada (pergunta do tipo colaborador) …
-  const lid = pergs.find(p => p.tipo === "colaborador" && /lideranc|lider/.test(semAcento(p.titulo || "")))
-    ?? pergs.find(p => p.tipo === "colaborador");
+  // Da mais específica para a mais genérica: "da lideranca" é fraca e casaria
+  // com o enunciado errado se testada junto das outras.
+  for (const ind of IND_EXEC) {
+    const achou = achaPorEspecificidade(chart, ind.kw);
+    if (achou) m[ind.key] = achou.id;
+  }
+  // Perguntas do tipo colaborador: uma diz QUEM É O LÍDER, outra QUEM FOI
+  // AVALIADO. O avaliado é o sujeito do Histórico Individual e o denominador da
+  // Visão Executiva — `respondente_nome` não serve, porque quem preenche o
+  // feedback é o líder e o campo costuma vir vazio.
+  //
+  // Com UMA pergunta só, ela é o AVALIADO, não o líder: o formulário guiado de
+  // feedback pergunta de quem se está falando, não quem está falando. A regra
+  // antiga chutava "líder" nesse caso e deixava o avaliado vazio — a Visão
+  // Executiva ficava sem o dado principal em todo formulário de uma pergunta só.
+  const colabs = pergs.filter(p => p.tipo === "colaborador");
+  const ehLider = (p: Pergunta) => /lideranc|lider|gestor|chefe/.test(semAcento(p.titulo || ""));
+  const ehAvaliado = (p: Pergunta) => /colaborador|avaliad|liderado|funcionario|empregado|nome do/.test(semAcento(p.titulo || ""));
+  const lid = colabs.find(ehLider) ?? (colabs.length > 1 ? colabs.find(p => !ehAvaliado(p)) : undefined);
   if (lid) m.lider = lid.id;
+  const restantes = colabs.filter(p => p.id !== lid?.id);
+  const aval = restantes.find(ehAvaliado) ?? restantes[0];
+  if (aval) m.avaliado = aval.id;
   // … e as dimensões avaliadas: escalas (ideal) ou perguntas "o nível/como está".
   const escalas = pergs.filter(p => p.tipo === "escala");
   const ordinais = pergs.filter(p => ["multipla_escolha", "lista_suspensa"].includes(p.tipo)
@@ -75,7 +131,36 @@ function autoMapa(pergs: Pergunta[]): Mapa {
     const achou = notaveis.find(p => ind.kw.some(k => semAcento(p.titulo || "").includes(k)));
     if (achou) m[ind.key] = achou.id;
   }
+  // PLANOS DE AÇÃO: ação é texto, prazo é data/texto.
+  const textuais = pergs.filter(p => ["texto_longo", "texto_curto"].includes(p.tipo));
+  const acaoP = achaPorEspecificidade(textuais, IND_PLANO[0].kw);
+  if (acaoP) m.acaoPlano = acaoP.id;
+  // Perguntas do tipo data primeiro: o prazo costuma ser uma delas, e assim um
+  // campo de texto que só cite "prazo" não passa na frente.
+  const dataPrimeiro = [
+    ...pergs.filter(p => p.tipo === "data"),
+    ...pergs.filter(p => ["texto_curto", "texto_longo"].includes(p.tipo)),
+  ];
+  const prazoP = achaPorEspecificidade(dataPrimeiro, IND_PLANO[1].kw, acaoP?.id);
+  if (prazoP) m.prazoPlano = prazoP.id;
   return m;
+}
+
+// Casa keyword a keyword — da mais específica para a mais genérica — em vez de
+// pergunta a pergunta.
+//
+// Por que importa: o enunciado da própria "Ação definida" cita "prazo" no meio
+// do texto ("…você tem um prazo de x dias…"). Varrendo por pergunta, ela casava
+// com a keyword fraca "prazo" e roubava o mapeamento antes de a pergunta certa
+// ("Prazo para Ação") ser sequer testada — todo plano ficava "sem prazo".
+// `excluir` garante que a mesma pergunta não vire ação E prazo.
+function achaPorEspecificidade(cands: Pergunta[], kws: string[], excluir?: string): Pergunta | undefined {
+  const uteis = cands.filter(p => p.id !== excluir);
+  for (const k of kws) {
+    const achou = uteis.find(p => semAcento(p.titulo || "").includes(k));
+    if (achou) return achou;
+  }
+  return undefined;
 }
 
 // Converte a resposta de uma pergunta em nota 1..5.
@@ -158,11 +243,24 @@ export default function PainelGerencial() {
   const nav = useNavigate();
   const [forms, setForms] = useState<Formulario[]>([]);
   const [resps, setResps] = useState<Resp[]>([]);
+  const [liderSetor, setLiderSetor] = useState<Map<string, string>>(new Map());  // setor(norm) → nome do líder
+  const [diretorSetor, setDiretorSetor] = useState<Map<string, string>>(new Map());  // setor(norm) → nome do diretor
+  const [ceo, setCeo] = useState("");   // topo da hierarquia, último degrau do líder
+  const [emps, setEmps] = useState<Empregado[]>([]);   // cadastro: denominador da Visão Executiva
+  const [cadastroCarregando, setCadastroCarregando] = useState(true);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("Desenvolvimento");
   const [formSel, setFormSel] = useState("");
   const [mapa, setMapa] = useState<Mapa>({});
   const [mostrarMapa, setMostrarMapa] = useState(false);
+  // O painel de mapeamento abre lá no topo; quando o clique vem de um botão
+  // "Ajustar mapeamento" que está no fim de uma página longa, rolamos o painel
+  // pra dentro da tela senão parece que nada aconteceu.
+  const mapaRef = useRef<HTMLDivElement>(null);
+  const abrirMapa = useCallback(() => {
+    setMostrarMapa(true);
+    setTimeout(() => mapaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  }, []);
   const [viz, setViz] = useState<Record<string, Viz>>({ necessidades: "barras", distribuicao: "rosca", fortes: "barras", melhoria: "barras", evolucao: "linha" });
   // filtros
   const [periodo, setPeriodo] = useState<"todos" | "90" | "180" | "365">("todos");
@@ -170,6 +268,10 @@ export default function PainelGerencial() {
   const [fResp, setFResp] = useState("");
   const [fSituacao, setFSituacao] = useState("");
   const [fNecessidade, setFNecessidade] = useState("");
+  // filtros exclusivos da aba Planos de Ação
+  const [fSitPlano, setFSitPlano] = useState("");
+  const [fPrioridade, setFPrioridade] = useState("");
+  const [fOrigem, setFOrigem] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -184,6 +286,14 @@ export default function PainelGerencial() {
     const padrao = fs.find(f => /feedback/i.test(f.titulo)) ?? fs[0];
     if (padrao) setFormSel(prev => prev || padrao.id);
     setLoading(false);
+    // Cadastro em paralelo (não segura a tela: se a tabela ainda não existir no
+    // banco, o fallback fica vazio e o resto funciona igual). Só a Visão
+    // Executiva depende dele — as outras abas leem apenas as respostas.
+    setCadastroCarregando(true);
+    carregaCadastro()
+      .then(c => { setEmps(c.emps); setLiderSetor(c.liderPorSetor); setDiretorSetor(c.diretorPorSetor); setCeo(c.ceo); })
+      .catch(() => { setEmps([]); setLiderSetor(new Map()); setDiretorSetor(new Map()); setCeo(""); })
+      .finally(() => setCadastroCarregando(false));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -203,6 +313,55 @@ export default function PainelGerencial() {
 
   // respostas do formulário + filtros (setor/respondente/período aplicam a tudo)
   const respsForm = useMemo(() => resps.filter(r => r.formulario_id === formSel), [resps, formSel]);
+  // Nomes que já responderam este formulário — alimentam o autocomplete de
+  // colaborador/liderança ao cadastrar um plano (um por pessoa, não por resposta).
+  const pessoasForm = useMemo(() => {
+    const m = new Map<string, { id: string; nome: string; setor: string }>();
+    respsForm.forEach(r => {
+      const nome = (r.respondente_nome ?? "").trim();
+      if (nome && !m.has(nome)) m.set(nome, { id: r.id, nome, setor: r.setor ?? "" });
+    });
+    return [...m.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [respsForm]);
+
+  // Quem a resposta AVALIA (o dono do feedback).
+  const avaliadoDaResposta = useCallback((r: Resp) =>
+    (respValor(r, mapa.avaliado) || respValor(r, mapa.lider) || r.respondente_nome || "").trim(),
+    [mapa.avaliado, mapa.lider]);
+
+  // Líder de uma resposta = quem responde POR essa pessoa, pela HIERARQUIA —
+  // nunca ela mesma. O formulário tem uma pergunta de colaborador só, então
+  // usá-la como "liderança" fazia todo mundo aparecer como líder de si próprio
+  // (a Caroline dando feedback pra Caroline). Sobe um degrau de cada vez:
+  //   líder do setor → se for a própria pessoa, o diretor do setor → senão CEO.
+  const mapasHier = useMemo<MapasHier>(() => ({ liderPorSetor: liderSetor, diretorPorSetor: diretorSetor, ceo }), [liderSetor, diretorSetor, ceo]);
+  const liderDaResposta = useCallback((r: Resp) =>
+    liderAcimaDe(avaliadoDaResposta(r), r.setor, mapasHier), [avaliadoDaResposta, mapasHier]);
+
+  // Fontes dos planos de ação: cada resposta que preencheu a pergunta da ação
+  // é um plano. Sem texto de ação não há plano — só uma resposta em branco.
+  const fontesPlano = useMemo(() => {
+    if (!mapa.acaoPlano) return [];
+    // Mesma pergunta para ação e prazo é mapeamento errado: o texto da ação
+    // nunca vira data, e todo plano cairia em "sem prazo" sem explicação.
+    const pPrazo = mapa.prazoPlano === mapa.acaoPlano ? undefined : mapa.prazoPlano;
+    return respsForm
+      .map(r => ({
+        resposta_id: r.id,
+        acao: respValor(r, mapa.acaoPlano).trim(),
+        prazoBruto: respValor(r, pPrazo).trim(),
+        // O avaliado é o dono do plano. Só cai em respondente_nome se o
+        // formulário não tiver a pergunta de quem foi avaliado.
+        colaborador: (respValor(r, mapa.avaliado) || (r.respondente_nome ?? "")).trim(),
+        setor: (r.setor ?? "").trim(),
+        lideranca: liderDaResposta(r),
+        enviado_em: r.enviado_em,
+      }))
+      .filter(f => f.acao.length > 0);
+  }, [respsForm, mapa.acaoPlano, mapa.prazoPlano, mapa.avaliado, liderDaResposta]);
+
+  const planosAcao = usePlanosAcao(formSel, fontesPlano);
+
   const base = useMemo(() => {
     let rs = respsForm;
     const dias = periodo === "todos" ? 0 : Number(periodo);
@@ -265,11 +424,12 @@ export default function PainelGerencial() {
   }).sort((a, b) => b.valor - a.valor), [dimsPergs, filtradas]);
 
   const porLideranca = useMemo(() => {
-    const lp = pq("lider"); if (!lp) return [] as { lider: string; indice: number; n: number; evol: number | null }[];
+    // Antes exigia a pergunta de liderança mapeada; agora o líder do setor
+    // cobre os feedbacks sem autor, então basta ter como resolver algum líder.
     const grupos: Record<string, { soma: number; n: number }> = {};
     const tris: Record<string, Record<string, { soma: number; n: number }>> = {};
     filtradas.forEach(r => {
-      const quem = respValor(r, lp.id); if (!quem) return;
+      const quem = liderDaResposta(r); if (!quem) return;
       const nt = notaResp(r); if (nt == null) return;
       (grupos[quem] ??= { soma: 0, n: 0 }); grupos[quem].soma += nt; grupos[quem].n++;
       const t = trimestre(r.enviado_em);
@@ -284,7 +444,7 @@ export default function PainelGerencial() {
       const evol = ult && ant ? (ts[ult].soma / ts[ult].n) - (ts[ant].soma / ts[ant].n) : null;
       return { lider, indice: g.soma / g.n, n: g.n, evol };
     }).sort((a, b) => b.indice - a.indice);
-  }, [pergs, mapa, filtradas, notaResp]);
+  }, [filtradas, notaResp, liderDaResposta]);
 
   const distLideranca = useMemo(() => {
     const c = { destaque: 0, atencao: 0, critica: 0 };
@@ -337,11 +497,15 @@ export default function PainelGerencial() {
     ];
   }, [filtradas, indiceAlin]);
 
-  const alinPorSetor = useMemo(() => agrupaMedia(filtradas, setorDe, indiceAlin), [filtradas, indiceAlin]);
-  const topLidAlin = useMemo(() => agrupaMedia(filtradas, r => respValor(r, mapa.lider), indiceAlin), [filtradas, mapa, indiceAlin]);
+  // Só setor de verdade: fora "Sem setor" e os pseudo-setores de cargo
+  // ("DIRETOR ADMINISTRATIVO" é quem responde por setores, não um setor).
+  const alinPorSetor = useMemo(() => agrupaMedia(filtradas, setorDe, indiceAlin)
+    .filter(x => x.chave !== SEM_SETOR && ehSetorReal(x.chave)), [filtradas, indiceAlin]);
+  const topLidAlin = useMemo(() => agrupaMedia(filtradas, liderDaResposta, indiceAlin), [filtradas, liderDaResposta, indiceAlin]);
   // Rankings comparam times reais: "Sem setor" fica de fora.
-  const topSetorEntrega = useMemo(() => agrupaMedia(filtradas, setorDe, r => entP ? nota(entP, respValor(r, entP.id)) : null).filter(x => x.chave !== SEM_SETOR), [filtradas, entP]);
-  const topLidContrib = useMemo(() => agrupaMedia(filtradas, r => respValor(r, mapa.lider), r => contP ? nota(contP, respValor(r, contP.id)) : null), [filtradas, mapa, contP]);
+  const topSetorEntrega = useMemo(() => agrupaMedia(filtradas, setorDe, r => entP ? nota(entP, respValor(r, entP.id)) : null)
+    .filter(x => x.chave !== SEM_SETOR && ehSetorReal(x.chave)), [filtradas, entP]);
+  const topLidContrib = useMemo(() => agrupaMedia(filtradas, liderDaResposta, r => contP ? nota(contP, respValor(r, contP.id)) : null), [filtradas, liderDaResposta, contP]);
 
   const exportarCsvAlin = () => {
     const l: string[][] = [["Bloco", "Item", "Valor"]];
@@ -424,6 +588,7 @@ export default function PainelGerencial() {
             <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>📈 Painel Gerencial</div>
             <div style={{ fontSize: 11.5, color: "#94a3b8" }}>Indicadores dos feedbacks — apoio à gestão.</div>
           </div>
+          <button onClick={() => nav("/app/central-servicos/formularios/lideres")} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>👥 Líderes por setor</button>
           <div style={{ minWidth: 240 }}>
             <label style={lbl}>Formulário (fonte)</label>
             <select value={formSel} onChange={e => setFormSel(e.target.value)} style={inp}>
@@ -434,7 +599,7 @@ export default function PainelGerencial() {
         <div style={{ display: "flex", gap: 4, padding: "0 12px", borderTop: "1px solid #f1f5f9", overflowX: "auto" }}>
           {TABS.map(t => {
             const on = t === tab;
-            const pronto = ["Desenvolvimento", "Liderança", "Alinhamento e Entrega"].includes(t);
+            const pronto = TABS_PRONTAS.includes(t);
             return (
               <button key={t} onClick={() => setTab(t)} style={{ padding: "11px 14px", border: "none", background: "none", cursor: "pointer", fontSize: 12.5, fontWeight: on ? 800 : 600, color: on ? "#0f3171" : "#94a3b8", borderBottom: on ? "3px solid #0f3171" : "3px solid transparent", whiteSpace: "nowrap" }}>
                 {t}{!pronto && <span style={{ fontSize: 9, marginLeft: 5, color: "#cbd5e1" }}>em breve</span>}
@@ -446,7 +611,10 @@ export default function PainelGerencial() {
 
       {/* Barra de filtros */}
       <div style={{ margin: "12px 24px 0", padding: "12px 16px", border: "1px solid #e2e8f0", borderRadius: 14, background: "#fff", boxShadow: "0 8px 24px rgba(15,23,42,.06)", flexShrink: 0 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+        {/* Em "Indicadores e Cálculos" não há número para filtrar — é o dicionário
+            do painel. Some com os filtros e sobra só o mapeamento, que é o que
+            se conserta a partir dali. */}
+        <div style={{ display: tab === "Indicadores e Cálculos" ? "none" : "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
           <div><label style={lbl}>Período</label>
             <select value={periodo} onChange={e => setPeriodo(e.target.value as any)} style={inp}>
               <option value="todos">Todo o período</option><option value="90">Últimos 90 dias</option><option value="180">Últimos 180 dias</option><option value="365">Último ano</option>
@@ -457,20 +625,52 @@ export default function PainelGerencial() {
           <FiltroFuturo label="Liderança" />
           <div><label style={lbl}>Colaborador</label><input value={fResp} onChange={e => setFResp(e.target.value)} placeholder="Nome…" style={inp} /></div>
           <FiltroFuturo label="Situação do feedback" />
-          <div><label style={lbl}>Situação profissional</label>
-            <select value={fSituacao} onChange={e => setFSituacao(e.target.value)} style={inp}><option value="">Todas</option>{(pq("situacao")?.opcoes ?? []).map(o => <option key={o} value={o}>{o}</option>)}</select></div>
-          <div><label style={lbl}>Necessidade</label>
-            <select value={fNecessidade} onChange={e => setFNecessidade(e.target.value)} style={inp}><option value="">Todas</option>{(pq("necessidades")?.opcoes ?? []).map(o => <option key={o} value={o}>{o}</option>)}</select></div>
-          <FiltroFuturo label="Situação do plano de ação" />
+          {/* Na aba Planos de Ação os filtros do feedback não se aplicam — quem
+              manda ali é situação/prioridade/origem do próprio plano. */}
+          {tab === "Planos de Ação" ? (
+            <>
+              <div><label style={lbl}>Situação do plano</label>
+                <select value={fSitPlano} onChange={e => setFSitPlano(e.target.value)} style={inp}>
+                  <option value="">Todas</option>{SITUACOES.map(o => <option key={o} value={o}>{o}</option>)}
+                </select></div>
+              <div><label style={lbl}>Prioridade</label>
+                <select value={fPrioridade} onChange={e => setFPrioridade(e.target.value)} style={inp}>
+                  <option value="">Todas</option>{PRIORIDADES.map(o => <option key={o} value={o}>{o}</option>)}
+                </select></div>
+              <div><label style={lbl}>Origem do plano</label>
+                <select value={fOrigem} onChange={e => setFOrigem(e.target.value)} style={inp}>
+                  <option value="">Todas</option>{ORIGENS.map(o => <option key={o} value={o}>{o}</option>)}
+                </select></div>
+            </>
+          ) : (
+            <>
+              <div><label style={lbl}>Situação profissional</label>
+                <select value={fSituacao} onChange={e => setFSituacao(e.target.value)} style={inp}><option value="">Todas</option>{(pq("situacao")?.opcoes ?? []).map(o => <option key={o} value={o}>{o}</option>)}</select></div>
+              <div><label style={lbl}>Necessidade</label>
+                <select value={fNecessidade} onChange={e => setFNecessidade(e.target.value)} style={inp}><option value="">Todas</option>{(pq("necessidades")?.opcoes ?? []).map(o => <option key={o} value={o}>{o}</option>)}</select></div>
+              <FiltroFuturo label="Situação do plano de ação" />
+            </>
+          )}
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, gap: 8, flexWrap: "wrap" }}>
+        <div ref={mapaRef} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, gap: 8, flexWrap: "wrap", scrollMarginTop: 12 }}>
           <button onClick={() => setMostrarMapa(v => !v)} style={{ background: "none", border: "none", color: "#0f3171", fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0 }}>⚙ Mapeamento de perguntas {mostrarMapa ? "▴" : "▾"}</button>
-          <button onClick={() => { setPeriodo("todos"); setFSetor(""); setFResp(""); setFSituacao(""); setFNecessidade(""); }} style={btn("#f1f5f9", "#475569", "1px solid #e2e8f0")}>Limpar filtros</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {tab !== "Indicadores e Cálculos" && <button onClick={() => { setPeriodo("todos"); setFSetor(""); setFResp(""); setFSituacao(""); setFNecessidade(""); setFSitPlano(""); setFPrioridade(""); setFOrigem(""); }} style={btn("#f1f5f9", "#475569", "1px solid #e2e8f0")}>Limpar filtros</button>}
+            {mostrarMapa && <button onClick={() => setMostrarMapa(false)} style={btn("#f1f5f9", "#475569", "1px solid #e2e8f0")}>✕ Fechar mapeamento</button>}
+          </div>
         </div>
         {mostrarMapa && (
           <div style={{ marginTop: 10, borderTop: "1px dashed #e2e8f0", paddingTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
-            {tab === "Liderança" ? (
+            {tab === "Liderança" || tab === "Indicadores e Cálculos" ? (
               <>
+                {tab === "Indicadores e Cálculos" && CAMPOS_MAPA.filter(c => c.key !== "lider").map(c => (
+                  <div key={c.key}><label style={lbl}>{c.label}</label>
+                    <select value={mapa[c.key] ?? ""} onChange={e => salvarMapa({ ...mapa, [c.key]: e.target.value || undefined })} style={inp}>
+                      <option value="">— nenhuma —</option>
+                      {pergs.filter(p => !c.tipos || c.tipos.includes(p.tipo)).map(p => <option key={p.id} value={p.id}>{p.titulo || "(sem título)"}</option>)}
+                    </select>
+                  </div>
+                ))}
                 <div><label style={lbl}>Quem é a liderança avaliada</label>
                   <select value={mapa.lider ?? ""} onChange={e => salvarMapa({ ...mapa, lider: e.target.value || undefined })} style={inp}>
                     <option value="">— nenhuma —</option>
@@ -498,6 +698,66 @@ export default function PainelGerencial() {
                   </div>
                 </div>
               </>
+            ) : tab === "Histórico Individual" ? (
+              <>
+                <div><label style={lbl}>Colaborador avaliado</label>
+                  <select value={mapa.avaliado ?? ""} onChange={e => salvarMapa({ ...mapa, avaliado: e.target.value || undefined })} style={inp}>
+                    <option value="">— nenhuma —</option>
+                    {pergs.map(p => <option key={p.id} value={p.id}>{p.titulo || "(sem título)"}</option>)}
+                  </select>
+                </div>
+                <div><label style={lbl}>Pontos fortes</label>
+                  <select value={mapa.fortes ?? ""} onChange={e => salvarMapa({ ...mapa, fortes: e.target.value || undefined })} style={inp}>
+                    <option value="">— nenhuma —</option>
+                    {pergs.map(p => <option key={p.id} value={p.id}>{p.titulo || "(sem título)"}</option>)}
+                  </select>
+                </div>
+                <div><label style={lbl}>Pontos de melhoria</label>
+                  <select value={mapa.melhoria ?? ""} onChange={e => salvarMapa({ ...mapa, melhoria: e.target.value || undefined })} style={inp}>
+                    <option value="">— nenhuma —</option>
+                    {pergs.map(p => <option key={p.id} value={p.id}>{p.titulo || "(sem título)"}</option>)}
+                  </select>
+                </div>
+                <div style={{ gridColumn: "1/-1", fontSize: 11, color: "#94a3b8" }}>
+                  O <b>colaborador avaliado</b> é o sujeito do histórico. Quem preenche o feedback é o líder,
+                  então o nome de quem foi avaliado está numa pergunta — não no respondente.
+                  A nota 1–5 vem das <b>dimensões</b> (aba Liderança).
+                </div>
+              </>
+            ) : tab === "Planos de Ação" ? (
+              <>
+                {IND_PLANO.map(ind => (
+                  <div key={ind.key}><label style={lbl}>{ind.label}</label>
+                    <select value={mapa[ind.key] ?? ""} onChange={e => salvarMapa({ ...mapa, [ind.key]: e.target.value || undefined })} style={inp}>
+                      <option value="">— nenhuma —</option>
+                      {pergs.map(p => <option key={p.id} value={p.id}>{p.titulo || "(sem título)"}</option>)}
+                    </select>
+                  </div>
+                ))}
+                <div style={{ gridColumn: "1/-1", fontSize: 11, color: "#94a3b8" }}>
+                  Cada resposta que preencher a <b>ação definida</b> vira um plano de ação nesta tela.
+                  O <b>prazo</b> alimenta vencimento e dias em atraso — respostas sem prazo legível entram como “sem prazo”.
+                </div>
+              </>
+            ) : tab === "Visão Executiva" ? (
+              <>
+                {/* Só o que ESTA aba consome: quem foi avaliado (o denominador da
+                    taxa), a situação profissional e os dois rankings. */}
+                {[{ key: "avaliado", label: "Colaborador avaliado (define quem já recebeu feedback)", tipos: undefined as string[] | undefined },
+                  ...IND.filter(i => ["situacao", "necessidades"].includes(i.key)).map(i => ({ key: i.key, label: i.label, tipos: CHART_TIPOS })),
+                  ...IND_EXEC.map(i => ({ key: i.key, label: i.label, tipos: CHART_TIPOS }))].map(c => (
+                  <div key={c.key}><label style={lbl}>{c.label}</label>
+                    <select value={mapa[c.key] ?? ""} onChange={e => salvarMapa({ ...mapa, [c.key]: e.target.value || undefined })} style={inp}>
+                      <option value="">— nenhuma —</option>
+                      {pergs.filter(p => !c.tipos || c.tipos.includes(p.tipo)).map(p => <option key={p.id} value={p.id}>{p.titulo || "(sem título)"}</option>)}
+                    </select>
+                  </div>
+                ))}
+                <div style={{ gridColumn: "1/-1", fontSize: 11, color: "#94a3b8" }}>
+                  O <b>colaborador avaliado</b> é o que liga a resposta a uma pessoa do cadastro — é dele que saem
+                  realizados, pendentes e a taxa de realização. Sem ele a aba não tem denominador.
+                </div>
+              </>
             ) : tab === "Alinhamento e Entrega" ? IND_ALIN.map(ind => (
               <div key={ind.key}><label style={lbl}>{ind.label}</label>
                 <select value={mapa[ind.key] ?? ""} onChange={e => salvarMapa({ ...mapa, [ind.key]: e.target.value || undefined })} style={inp}>
@@ -514,27 +774,61 @@ export default function PainelGerencial() {
               </div>
             ))}
             <div style={{ gridColumn: "1/-1", fontSize: 11, color: "#94a3b8" }}>Escolha qual pergunta alimenta cada indicador. Fica salvo neste navegador por formulário.</div>
+            <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={() => setMostrarMapa(false)} style={btn("#0f3171")}>✕ Fechar mapeamento</button>
+            </div>
           </div>
         )}
       </div>
 
       {/* Conteúdo */}
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 40px" }}>
-        {!form ? (
+        {/* Antes do "selecione um formulário": o dicionário de indicadores vale
+            mesmo sem formulário escolhido — só a coluna de mapeamento fica vazia. */}
+        {tab === "Indicadores e Cálculos" ? (
+          <IndicadoresCalculos
+            pergs={pergs} mapa={mapa} ultima={ultimaAtualizacao} temForm={!!form}
+            onAbrirMapa={abrirMapa} onIrTab={t => TABS.includes(t) && setTab(t)} />
+        ) : !form ? (
           <div style={{ padding: 60, textAlign: "center", color: "#94a3b8" }}>Selecione um formulário.</div>
+        ) : tab === "Visão Executiva" ? (
+          <VisaoExecutiva
+            resps={filtradas} emps={emps} pergs={pergs} mapa={mapa} planos={planosAcao.planos}
+            diretorPorSetor={diretorSetor} fSetor={fSetor}
+            distSituacao={distSituacao} distNecess={distNecess}
+            ultima={ultimaAtualizacao} cadastroCarregando={cadastroCarregando}
+            onAbrirMapa={abrirMapa} onIrTab={t => TABS.includes(t) && setTab(t)} />
+        ) : tab === "Cumprimento" ? (
+          <PainelCumprimento
+            emps={emps} resps={filtradas} avaliadoDaResposta={avaliadoDaResposta}
+            mapas={mapasHier} encerraEm={form?.encerra_em ?? null}
+            ultima={ultimaAtualizacao} fSetor={fSetor} fResp={fResp} />
         ) : tab === "Liderança" ? (
           <PainelLideranca
             indice={indiceGeral} dist={distLideranca} porDim={porDimensao} evol={evolIndice}
             delta={deltaIndice} avaliados={avaliados} lideres={porLideranca}
-            temMapa={!!pq("lider") && dimsPergs.length > 0}
+            temMapa={(!!pq("lider") || liderSetor.size > 0) && dimsPergs.length > 0}
             ultima={ultimaAtualizacao} onExport={exportarCsvLid}
-            viz={viz} onViz={mudaViz} onAbrirMapa={() => setMostrarMapa(true)} />
+            viz={viz} onViz={mudaViz} onAbrirMapa={abrirMapa} />
         ) : tab === "Alinhamento e Entrega" ? (
           <PainelAlinhamento
             k={alinKpis} dist={distAlin} porSetor={alinPorSetor}
             topLidAlin={topLidAlin} topSetorEntrega={topSetorEntrega} topLidContrib={topLidContrib}
             temMapa={!!(alinP || entP || contP)} ultima={ultimaAtualizacao} onExport={exportarCsvAlin}
-            viz={viz} onViz={mudaViz} onAbrirMapa={() => setMostrarMapa(true)} />
+            viz={viz} onViz={mudaViz} onAbrirMapa={abrirMapa} />
+        ) : tab === "Planos de Ação" ? (
+          <PainelPlanosAcao
+            formId={formSel} ultima={ultimaAtualizacao} respostas={pessoasForm}
+            fontes={fontesPlano} temMapa={!!mapa.acaoPlano} onAbrirMapa={abrirMapa}
+            temPrazoMapeado={!!mapa.prazoPlano && mapa.prazoPlano !== mapa.acaoPlano}
+            planos={planosAcao.planos} carregando={planosAcao.carregando}
+            erro={planosAcao.erro} recarregar={planosAcao.recarregar}
+            filtros={{ periodo, setor: fSetor, colaborador: fResp, situacao: fSitPlano, prioridade: fPrioridade, origem: fOrigem }} />
+        ) : tab === "Histórico Individual" ? (
+          <HistoricoIndividual
+            resps={respsForm} pergs={pergs} mapa={mapa} planos={planosAcao.planos}
+            ultima={ultimaAtualizacao} periodo={periodo} setor={fSetor}
+            onAbrirMapa={abrirMapa} />
         ) : tab !== "Desenvolvimento" ? (
           <div style={{ padding: 70, textAlign: "center", color: "#94a3b8", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14 }}>
             A aba <b>{tab}</b> entra em breve.

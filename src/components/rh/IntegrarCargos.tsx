@@ -34,7 +34,22 @@ type Previa = {
   ambiguos: Record<string, { nomes: string[]; n: number }>; // código ambíguo na planilha → nomes possíveis + nº de empregados afetados
 };
 
-export default function IntegrarCargos({ rows, onImported }: { rows: any[]; onImported: () => void }) {
+// Lê a EMPREGADOS inteira (só as 3 colunas que interessam). A tela de
+// Colaboradores não carrega mais a tabela toda — quem precisa dela busca aqui.
+const carregarEmpregados = async (aviso: (s: string) => void): Promise<any[]> => {
+  let all: any[] = []; const chunk = 1000;
+  for (let de = 0; ; de += chunk) {
+    aviso(`Lendo cadastro… ${all.length.toLocaleString("pt-BR")}`);
+    const { data, error } = await (supabase as any).from("EMPREGADOS")
+      .select('"ID","Cargo","Nome do Cargo"').order("ID", { ascending: true }).range(de, de + chunk - 1);
+    if (error) throw new Error("Falha ao ler EMPREGADOS: " + error.message);
+    all = all.concat(data || []);
+    if (!data || data.length < chunk || de > 200000) break;
+  }
+  return all;
+};
+
+export default function IntegrarCargos({ onImported }: { onImported: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [fase, setFase] = useState<"idle" | "lendo" | "previa" | "aplicando" | "fim">("idle");
@@ -79,6 +94,9 @@ export default function IntegrarCargos({ rows, onImported }: { rows: any[]; onIm
       }
       for (const cod of ambiguosMapa.keys()) mapa.delete(cod); // ambíguo: não usa nenhum dos nomes
 
+      const rows = await carregarEmpregados(setProg);
+      setProg("");
+
       const aAtualizar: { id: any; nome: string }[] = [];
       const semCorrespondencia: Record<string, number> = {};
       const ambiguos: Record<string, { nomes: string[]; n: number }> = {};
@@ -119,7 +137,7 @@ export default function IntegrarCargos({ rows, onImported }: { rows: any[]; onIm
       });
       setFase("previa");
     } catch (e: any) {
-      setErro(e?.message || String(e)); setFase("idle");
+      setErro(e?.message || String(e)); setFase("idle"); setProg("");
     } finally {
       if (fileRef.current) fileRef.current.value = "";
     }
@@ -196,7 +214,7 @@ export default function IntegrarCargos({ rows, onImported }: { rows: any[]; onIm
                 </button>
               )}
 
-              {fase === "lendo" && <div style={{ padding: "40px 0", textAlign: "center", color: "#64748b", fontSize: 13.5 }}>Lendo planilha…</div>}
+              {fase === "lendo" && <div style={{ padding: "40px 0", textAlign: "center", color: "#64748b", fontSize: 13.5 }}>{prog || "Lendo planilha…"}</div>}
 
               {(fase === "previa" || fase === "fim") && previa && (
                 <>

@@ -343,6 +343,7 @@ const rhModule: ModuleDef = {
       defaultOpen: true,
       items: [
         { label: "Colaboradores", to: "/app/rh/colaboradores", icon: Users2 },
+        { label: "Hierarquia", to: "/app/rh/hierarquia", icon: GitBranch },
         { label: "Novas Admissões", to: "/app/rh/novas-admissoes", icon: ClipboardCheck },
         { label: "Alocações em Contratos", to: "/app/rh/alocacoes", icon: ListChecks },
         { label: "Folha de Pagamento", to: "/app/rh/folha", icon: ListChecks },

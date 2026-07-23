@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ImportarColaboradores from "@/components/rh/ImportarColaboradores";
 import IntegrarCargos from "@/components/rh/IntegrarCargos";
+import CarregandoLogo from "@/components/ui/CarregandoLogo";
 
 // =========================================================================
 // RH — Colaboradores (fonte: tabela EMPREGADOS, read-only + edição de campos RH)
@@ -44,13 +45,14 @@ const MESES_ABREV = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SE
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
 // Datas: aceita "DD/MM/AAAA", ISO ou Date.
+// Ano anterior a 1900 é o "vazio" do sistema legado (30/12/1899 = serial 0 do
+// Excel), não uma data real — vale como SEM data.
 const parseData = (v: any): Date | null => {
   if (!v) return null;
   const s = String(v).trim();
-  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  if (br) return new Date(+br[3], +br[2] - 1, +br[1]);
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d;
+  const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  const d = br ? new Date(+br[3], +br[2] - 1, +br[1]) : new Date(s);
+  return isNaN(d.getTime()) || d.getFullYear() < 1900 ? null : d;
 };
 const fmtData = (v: any) => { const d = parseData(v); return d ? d.toLocaleDateString("pt-BR") : "—"; };
 const anoDe = (v: any) => parseData(v)?.getFullYear() ?? null;
@@ -64,15 +66,34 @@ const ehTrabalhando = (e: any) => String(e?.["Situação"] ?? "").trim().toUpper
 // só fallback — evita "Sem cargo"/"AMBÍGUO" quando o código não está casado.
 const nomeCargoDe = (e: any): string => String(e?.["Título do Cargo"] ?? "").trim() || String(e?.["Nome do Cargo"] ?? "").trim() || "—";
 
-// Cascata de fallback: "Empresa"/"Contrato" já eram conhecidos por falhar em
-// alguns ambientes (por isso o SAFE original não tem os dois). "Cargo" e
-// "Nome do Cargo" precisam sobreviver a essas quedas — por isso entram
-// ANTES de "Empresa"/"Contrato" serem descartados, não depois.
-const FULL = '"ID","Nome","CPF","Cargo","Título do Cargo","Nome do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Empresa","Nome da Empresa","Filial","Nome Filial","Contrato","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
-const SEM_NOME_CARGO_NOVO = '"ID","Nome","CPF","Cargo","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Empresa","Nome da Empresa","Filial","Nome Filial","Contrato","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"'; // sem "Nome do Cargo" (antes da migration)
+// Cascata de fallback: "Empresa" já era conhecida por falhar em alguns
+// ambientes (por isso o SAFE original não a tem). "Cargo" e "Nome do Cargo"
+// precisam sobreviver a essa queda — por isso entram ANTES de "Empresa" ser
+// descartada, não depois.
+// "Contrato" NÃO entra: a coluna não existe na EMPREGADOS (o contrato sai da
+// CONTRATOS pela Filial). Enquanto estava aqui, os dois primeiros recortes
+// falhavam sempre e a tela ainda perdia "Empresa" junto no fallback.
+const FULL = '"ID","Nome","CPF","Cargo","Título do Cargo","Nome do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Empresa","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
+const SEM_NOME_CARGO_NOVO = '"ID","Nome","CPF","Cargo","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Empresa","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"'; // sem "Nome do Cargo" (antes da migration)
 const SAFE_COM_CARGO = '"ID","Nome","CPF","Cargo","Título do Cargo","Nome do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"'; // sem Empresa/Contrato, mas com Cargo/Nome do Cargo
 const SAFE_COM_CARGO_SEM_NOME = '"ID","Nome","CPF","Cargo","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"';
 const SAFE = '"ID","Nome","CPF","Título do Cargo","Situação","Admissão","Data Afastamento","Valor Salário","Nome da Empresa","Filial","Nome Filial","Setor_ERP","Perfil_ERP","LIDER","C.Custo","Titulo C.Custo","PIS","email","Descrição do Local"'; // último recurso (sem Cargo)
+
+const CHUNK = 1000;
+
+// Cache de módulo: a tela inteira sai de um único carregamento de ~12 mil
+// linhas. Sem isso, cada volta ao menu refazia tudo e a tela ficava vários
+// segundos vazia. Quem já carregou uma vez na sessão vê os dados na hora e a
+// atualização acontece por trás (stale-while-revalidate).
+let cacheRows: any[] | null = null;
+let cacheContratos: Record<string, string> = {};
+let cacheSetores: string[] = [];
+// Se o banco já tem as RPCs, não adianta testar de novo a cada visita.
+let cacheModo: "rpc" | "client" | null = null;
+// Último resultado com a tela "recém-aberta" (sem filtro, 1ª página, mês
+// atual) — é exatamente o que a próxima visita mostra, então pinta na hora.
+let cacheDash: any = null;
+let cacheLista: any = null;
 
 const PERFIS = ["PADRAO", "ENCARREGADO", "ADMINISTRATIVO", "DIRETORIA", "ADMIN"];
 // Campos principais editáveis (coluna da EMPREGADOS → rótulo). Situação é tratada à parte (select).
@@ -86,7 +107,8 @@ const MAIN_FIELDS: [string, string][] = [
   ["PIS", "PIS/PASEP"],
   ["Nome da Empresa", "Empresa"],
   ["Nome Filial", "Filial"],
-  ["Contrato", "Contrato"],
+  // "Contrato" não entra: a coluna não existe na EMPREGADOS — o campo aparecia
+  // vazio no modal e nunca salvava nada (o contrato vem da CONTRATOS/Filial).
   ["C.Custo", "Centro de custo"],
   ["email", "E-mail"],
 ];
@@ -113,14 +135,130 @@ function barRow(label: string, valor: number, max: number, cor: string, right: s
   );
 }
 
+// ── Formato dos dados da tela ─────────────────────────────────────────────
+// É o mesmo shape que a RPC rh_colaboradores_dashboard devolve. Quando o SQL
+// ainda não foi aplicado, `calcDashClient` produz esse mesmo objeto a partir
+// das linhas — assim a tela não sabe (nem precisa saber) de onde veio.
+type KV = { k: string; v: number };
+type Dash = {
+  kpis: { ativos_mes: number; no_recorte: number; total: number; folha: number; admitidos: number; desligados: number };
+  por_empresa: KV[]; folha_empresa: KV[]; por_situacao: KV[]; por_cargo: KV[]; por_contrato: KV[];
+  por_faixa: { label: string; n: number }[];
+  timeline: { ano: number; adm: number; desl: number }[];
+  opcoes: { empresas: string[]; contratos: string[]; situacoes: string[]; setores: string[] };
+};
+type Linha = {
+  id: any; nome: string; cpf: string; cargo: string; empresa: string; contrato: string;
+  filial: string; situacao: string; setor: string; admissao: string | null; salario: number;
+};
+type Filtro = { ini: Date; fim: Date; empresa: string; contrato: string; situacao: string; busca: string };
+
+const DASH_VAZIO: Dash = {
+  kpis: { ativos_mes: 0, no_recorte: 0, total: 0, folha: 0, admitidos: 0, desligados: 0 },
+  por_empresa: [], folha_empresa: [], por_situacao: [], por_cargo: [], por_contrato: [],
+  por_faixa: FAIXAS.map(f => ({ label: f.label, n: 0 })), timeline: [],
+  opcoes: { empresas: [], contratos: [], situacoes: [], setores: [] },
+};
+
+const ehSaidaDe = (e: any) => /DEMIT|DESLIG|RESCIS|APOSENT/i.test(String(e?.["Situação"] ?? ""));
+
+const linhaDe = (e: any, contratoDe: (e: any) => string): Linha => ({
+  id: e["ID"], nome: String(e["Nome"] ?? ""), cpf: String(e["CPF"] ?? ""),
+  cargo: nomeCargoDe(e), empresa: empresaDe(e), contrato: contratoDe(e),
+  filial: String(e["Nome Filial"] ?? "").trim() || String(e["Filial"] ?? "").trim() || "—",
+  situacao: String(e["Situação"] ?? "").trim(), setor: String(e["Setor_ERP"] ?? "").trim(),
+  admissao: e["Admissão"] ?? null, salario: parseSalario(e["Valor Salário"]),
+});
+
+const agrupar = (arr: any[], keyFn: (e: any) => string, valFn?: (e: any) => number): KV[] => {
+  const m = new Map<string, number>();
+  for (const e of arr) { const k = keyFn(e) || "—"; m.set(k, (m.get(k) || 0) + (valFn ? valFn(e) : 1)); }
+  return [...m.entries()].map(([k, v]) => ({ k, v })).sort((a, b) => b.v - a.v);
+};
+
+// Fallback (migration ainda não aplicada): os três recortes que a tela usa,
+// exatamente como a RPC faz do lado do banco.
+const recortesClient = (rows: any[], contratoDe: (e: any) => string, f: Filtro) => {
+  const casaBusca = (e: any) => {
+    if (!f.busca) return true;
+    const q = f.busca.toLowerCase();
+    return [e["Nome"], e["CPF"], e["Título do Cargo"], e["Nome do Cargo"], e["Nome Filial"], e["Setor_ERP"]]
+      .some(x => String(x ?? "").toLowerCase().includes(q));
+  };
+  // Mesmo critério da RPC: admitido até o fim do mês e, para quem tem situação
+  // de SAÍDA, afastamento do início do mês em diante. Saída sem data legível
+  // fica de fora — senão demitido antigo aparece como presente em todo mês.
+  const noMesQuadro = (e: any) => {
+    const adm = parseData(e["Admissão"]);
+    if (adm && adm.getTime() > f.fim.getTime()) return false;
+    if (ehSaidaDe(e)) {
+      const afa = parseData(e["Data Afastamento"]);
+      if (!afa || afa.getTime() < f.ini.getTime()) return false;
+    }
+    return true;
+  };
+  const casaEmp = (e: any) => !f.empresa || empresaDe(e) === f.empresa;
+  const casaCtr = (e: any) => !f.contrato || contratoDe(e) === f.contrato;
+
+  const semsit = rows.filter(e => noMesQuadro(e) && casaEmp(e) && casaCtr(e) && casaBusca(e));
+  const fil = semsit.filter(e => !f.situacao || String(e["Situação"] ?? "").trim() === f.situacao);
+  const tempo = rows.filter(e => casaEmp(e) && casaCtr(e));
+  return { fil, semsit, tempo };
+};
+
+const calcDashClient = (rows: any[], contratoDe: (e: any) => string, f: Filtro, rec: ReturnType<typeof recortesClient>): Dash => {
+  const { fil, semsit, tempo } = rec;
+  const noPeriodo = (v: any) => { const d = parseData(v); return !!d && d.getTime() >= f.ini.getTime() && d.getTime() <= f.fim.getTime(); };
+  const anoAtual = new Date().getFullYear();
+  const anos: Record<number, { adm: number; desl: number }> = {};
+  for (const e of tempo) {
+    const a = anoDe(e["Admissão"]); if (a) (anos[a] ??= { adm: 0, desl: 0 }).adm++;
+    const d = ehSaidaDe(e) ? anoDe(e["Data Afastamento"]) : null; if (d) (anos[d] ??= { adm: 0, desl: 0 }).desl++;
+  }
+  const uniq = (arr: string[]) => [...new Set(arr)].filter(x => x && x !== "—").sort();
+
+  return {
+    kpis: {
+      ativos_mes: semsit.length, no_recorte: fil.length, total: rows.length,
+      folha: fil.reduce((s, e) => s + parseSalario(e["Valor Salário"]), 0),
+      admitidos: tempo.filter(e => noPeriodo(e["Admissão"])).length,
+      desligados: tempo.filter(e => ehSaidaDe(e) && noPeriodo(e["Data Afastamento"])).length,
+    },
+    por_empresa: agrupar(fil, empresaDe),
+    folha_empresa: agrupar(fil, empresaDe, e => parseSalario(e["Valor Salário"])),
+    por_situacao: agrupar(semsit, e => String(e["Situação"] ?? "").trim() || "—"),
+    por_cargo: agrupar(semsit, nomeCargoDe),
+    por_contrato: agrupar(fil, contratoDe).slice(0, 10),
+    por_faixa: FAIXAS.map(x => ({
+      label: x.label,
+      n: fil.filter(e => { const a = anosDeCasa(e["Admissão"]); return a != null && a >= x.min && a < x.max; }).length,
+    })),
+    timeline: Object.entries(anos).map(([ano, v]) => ({ ano: +ano, ...v }))
+      .filter(x => x.ano >= anoAtual - 6 && x.ano <= anoAtual).sort((a, b) => a.ano - b.ano),
+    opcoes: {
+      empresas: uniq(rows.map(empresaDe)),
+      contratos: uniq(rows.map(contratoDe)),
+      situacoes: uniq(rows.map(e => String(e["Situação"] ?? "").trim())),
+      setores: uniq(rows.map(e => String(e["Setor_ERP"] ?? "").trim())),
+    },
+  };
+};
+
 export default function Colaboradores() {
-  const [rows, setRows] = useState<any[]>([]);
-  const [contratoPorFilial, setContratoPorFilial] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<any[]>(cacheRows ?? []);
+  const [contratoPorFilial, setContratoPorFilial] = useState<Record<string, string>>(cacheContratos);
+  const [loading, setLoading] = useState(!cacheRows && !cacheDash);
   const [erro, setErro] = useState<string | null>(null);
 
-  const [setoresTabela, setSetoresTabela] = useState<string[]>([]);
+  const [setoresTabela, setSetoresTabela] = useState<string[]>(cacheSetores);
+  const [atualizando, setAtualizando] = useState(false);
+  // "rpc" = banco agrega e pagina (rápido); "client" = modo antigo, baixa tudo.
+  const [modo, setModo] = useState<"rpc" | "client" | null>(cacheModo);
+  const [dashRpc, setDashRpc] = useState<Dash | null>(cacheDash);
+  const [listaRpc, setListaRpc] = useState<{ total: number; linhas: Linha[] } | null>(cacheLista);
   const [busca, setBusca] = useState("");
+  // Busca aplicada: refiltrar 12 mil linhas a cada tecla travava a digitação.
+  const [buscaQ, setBuscaQ] = useState("");
   const [fEmpresa, setFEmpresa] = useState("");
   const [fContrato, setFContrato] = useState("");
   const [fSituacao, setFSituacao] = useState(""); // Situação = status atual; no quadro do mês começa em "Todas"
@@ -135,49 +273,161 @@ export default function Colaboradores() {
   const [toast, setToast] = useState<{ msg: string; tipo: "ok" | "err" } | null>(null);
   const aviso = (msg: string, tipo: "ok" | "err" = "ok") => { setToast({ msg, tipo }); setTimeout(() => setToast(null), 3200); };
 
-  const load = async () => {
-    setLoading(true); setErro(null);
-    // Contratos para resolver o contrato pela Filial (mesma lógica das Advertências).
-    const ct = await (supabase as any).from("CONTRATOS").select('"NOME CONTRATO", Filial').eq("ATIVO", "SIM");
+  // Um bloco da EMPREGADOS. O 1º pede o count junto (uma requisição a menos) e
+  // é ele que descobre qual recorte de colunas o ambiente aceita.
+  const bloco = (cols: string, de: number, comCount = false) =>
+    (supabase as any).from("EMPREGADOS")
+      .select(cols, comCount ? { count: "exact" } : undefined)
+      .order("Nome", { ascending: true })
+      .range(de, de + CHUNK - 1);
+
+  // `silencioso` = já existe cache na tela; recarrega por trás, sem esvaziar.
+  const load = async (silencioso = false) => {
+    if (!silencioso) setLoading(true);
+    iniciar(); setErro(null);
+
+    // Contratos (resolve o contrato pela Filial), setores e o 1º bloco da
+    // EMPREGADOS saem JUNTOS. Antes era tudo em série - 13 blocos de mil, um
+    // depois do outro, e a tela só aparecia no fim.
+    // O `.then` aqui não é decorativo: o builder do supabase-js só dispara a
+    // requisição quando alguém a "thena" — sem isso as duas só sairiam depois
+    // do 1º bloco, em série de novo.
+    const contratosP = (supabase as any).from("CONTRATOS").select('"NOME CONTRATO", Filial').eq("ATIVO", "SIM").then((r: any) => r);
+    const setoresP = (supabase as any).from("SETORES").select("*").limit(2000).then((r: any) => r);
+
+    let cols = FULL;
+    let primeiro = await bloco(cols, 0, true);
+    for (const alt of [SEM_NOME_CARGO_NOVO, SAFE_COM_CARGO, SAFE_COM_CARGO_SEM_NOME, SAFE]) {
+      if (!primeiro.error) break;
+      cols = alt; primeiro = await bloco(cols, 0, true);
+    }
+    if (primeiro.error) {
+      setErro(primeiro.error.message || "Falha ao carregar EMPREGADOS.");
+      if (!cacheRows) setRows([]);
+      setLoading(false); terminar(); return;
+    }
+
+    // Sabendo o total, os blocos restantes vão todos de uma vez.
+    const total = Math.min(primeiro.count ?? (primeiro.data?.length ?? 0), 200000);
+    const faixas: number[] = [];
+    for (let de = CHUNK; de < total; de += CHUNK) faixas.push(de);
+    const [ct, st, ...partes] = await Promise.all([contratosP, setoresP, ...faixas.map(de => bloco(cols, de))]);
+
+    const todos = (primeiro.data || []).concat(...partes.map((p: any) => p.data || []));
+    cacheRows = todos; setRows(todos);
+
     if (ct.data) {
       const m: Record<string, string> = {};
       for (const c of ct.data) if (c.Filial != null) m[String(c.Filial)] = c["NOME CONTRATO"] || "";
-      setContratoPorFilial(m);
+      cacheContratos = m; setContratoPorFilial(m);
     }
     // Setores válidos (tabela SETORES, se existir). Cai pros valores reais da EMPREGADOS se não houver.
-    const st = await (supabase as any).from("SETORES").select("*").limit(2000);
     if (!st.error && Array.isArray(st.data)) {
       const pick = (row: any) => {
         for (const k of Object.keys(row)) if (/setor|nome|descri/i.test(k) && typeof row[k] === "string" && row[k].trim()) return row[k].trim();
         for (const k of Object.keys(row)) if (typeof row[k] === "string" && row[k].trim()) return row[k].trim();
         return "";
       };
-      setSetoresTabela([...new Set(st.data.map(pick).filter(Boolean) as string[])]);
+      const lista = [...new Set(st.data.map(pick).filter(Boolean) as string[])];
+      cacheSetores = lista; setSetoresTabela(lista);
     }
-    // EMPREGADOS em blocos (fallback de colunas p/ nunca dar tela vazia).
-    const buscar = async (cols: string) => {
-      let all: any[] = []; let from = 0; const chunk = 1000;
-      for (;;) {
-        const { data, error } = await (supabase as any).from("EMPREGADOS").select(cols).order("Nome", { ascending: true }).range(from, from + chunk - 1);
-        if (error) return { data: null as any, error };
-        all = all.concat(data || []);
-        if (!data || data.length < chunk || from > 60000) break;
-        from += chunk;
-      }
-      return { data: all, error: null };
-    };
-    let res = await buscar(FULL);
-    if (res.error) res = await buscar(SEM_NOME_CARGO_NOVO);
-    if (res.error) res = await buscar(SAFE_COM_CARGO);
-    if (res.error) res = await buscar(SAFE_COM_CARGO_SEM_NOME);
-    if (res.error) res = await buscar(SAFE);
-    if (res.error) { setErro(res.error.message || "Falha ao carregar EMPREGADOS."); setRows([]); setLoading(false); return; }
-    setRows(res.data || []); setLoading(false);
+    setLoading(false); terminar();
   };
-  useEffect(() => { load(); }, []);
-  useEffect(() => { setPagina(1); }, [busca, fEmpresa, fContrato, fSituacao, porPagina, mesRef]);
+  useEffect(() => { const t = setTimeout(() => setBuscaQ(busca), 180); return () => clearTimeout(t); }, [busca]);
+  useEffect(() => { setPagina(1); }, [buscaQ, fEmpresa, fContrato, fSituacao, porPagina, mesRef]);
 
-  const contratoDe = (e: any): string => contratoPorFilial[String(e?.["Filial"] ?? "")] || String(e?.["Contrato"] ?? "").trim() || "—";
+  // ── Caminho rápido: o banco entrega o dashboard e a página da lista ──
+  const argsRpc = () => ({
+    _ano: mesRef.ano, _mes: mesRef.mes + 1,
+    _empresa: fEmpresa, _contrato: fContrato, _situacao: fSituacao, _busca: buscaQ,
+  });
+  // Migration ainda não aplicada neste banco → cai no modo antigo em vez de
+  // mostrar erro (a `main` em produção pode rodar sem o SQL por um tempo).
+  const semRpc = (e: any) => !!e && (e.code === "42883" || e.code === "PGRST202"
+    || /does not exist|could not find the function|schema cache/i.test(String(e.message || "")));
+
+  // Clicar numa situação e depois noutra deixa duas consultas no ar. Sem um
+  // carimbo de ordem, a que voltar por último manda — mesmo sendo a antiga —
+  // e os painéis passam a mostrar o filtro anterior. Só a mais recente aplica.
+  const pedidoDash = useRef(0);
+  const pedidoLista = useRef(0);
+
+  // Consultas em voo (dashboard e lista são independentes): o véu de
+  // carregamento só sai quando as duas terminam.
+  const emVoo = useRef(0);
+  const iniciar = () => { emVoo.current++; setAtualizando(true); };
+  const terminar = () => { emVoo.current = Math.max(0, emVoo.current - 1); if (!emVoo.current) setAtualizando(false); };
+
+  const ehPadrao = () => !fEmpresa && !fContrato && !fSituacao && !buscaQ && pagina === 1 && porPagina === 50
+    && mesRef.ano === hoje.getFullYear() && mesRef.mes === hoje.getMonth();
+
+  // Dashboard e lista são consultas independentes: trocar de página não
+  // recalcula os painéis (que não mudam), só busca as 50 linhas novas.
+  const buscarDash = async (): Promise<boolean> => {
+    const meu = ++pedidoDash.current;
+    iniciar();
+    const d = await (supabase as any).rpc("rh_colaboradores_dashboard", argsRpc());
+    terminar();
+    if (semRpc(d.error)) return false;
+    if (meu !== pedidoDash.current) return true;   // resposta atrasada: descarta
+    if (d.error) { setErro(d.error.message); return true; }
+    setDashRpc(d.data as Dash); setErro(null);
+    if (ehPadrao()) cacheDash = d.data;
+    return true;
+  };
+
+  const buscarLista = async (): Promise<boolean> => {
+    const meu = ++pedidoLista.current;
+    iniciar();
+    const l = await (supabase as any).rpc("rh_colaboradores_lista", { ...argsRpc(), _offset: (pagina - 1) * porPagina, _limite: porPagina });
+    terminar();
+    if (semRpc(l.error)) return false;
+    if (meu !== pedidoLista.current) return true;
+    if (l.error) { setErro(l.error.message); return true; }
+    const lista = { total: Number(l.data?.total ?? 0), linhas: (l.data?.linhas ?? []) as Linha[] };
+    setListaRpc(lista);
+    if (ehPadrao()) cacheLista = lista;
+    return true;
+  };
+
+  const buscarRpc = async () => { await Promise.all([buscarDash(), buscarLista()]); };
+
+  // Painéis: só filtros e competência mexem neles.
+  useEffect(() => {
+    if (modo === "client") return;
+    let vivo = true;
+    (async () => {
+      const ok = await buscarDash();
+      if (!vivo) return;
+      cacheModo = ok ? "rpc" : "client";
+      setModo(cacheModo);
+      if (ok) setLoading(false);
+    })();
+    return () => { vivo = false; };
+  }, [modo, mesRef, fEmpresa, fContrato, fSituacao, buscaQ]);
+
+  // O véu só aparece se a consulta passar de ~250ms: com o banco respondendo
+  // em milissegundos, mostrar sempre viraria um piscar a cada clique.
+  const [veu, setVeu] = useState(false);
+  useEffect(() => {
+    if (!atualizando) { setVeu(false); return; }
+    const t = setTimeout(() => setVeu(true), 250);
+    return () => clearTimeout(t);
+  }, [atualizando]);
+
+  // Lista: filtros + paginação.
+  useEffect(() => {
+    if (modo !== "rpc") return;
+    buscarLista();
+  }, [modo, mesRef, fEmpresa, fContrato, fSituacao, buscaQ, pagina, porPagina]);
+
+  // Modo antigo: baixa a tabela inteira uma vez e calcula tudo aqui.
+  useEffect(() => { if (modo === "client") load(!!cacheRows); }, [modo]);
+
+  const recarregar = () => { if (modo === "client") load(true); else buscarRpc(); };
+
+  // O contrato do colaborador sai da CONTRATOS, casado pela Filial.
+  const contratoDe = (e: any): string => contratoPorFilial[String(e?.["Filial"] ?? "")] || "—";
 
   // ── Competência (quadro do mês) ──────────────────────────────────────
   // "Estava na empresa no mês": admitido até o fim do mês. A "Data Afastamento"
@@ -187,78 +437,38 @@ export default function Colaboradores() {
   // aparece só nos meses até a saída. Sem data não exclui (não perde cadastro).
   const inicioMes = useMemo(() => new Date(mesRef.ano, mesRef.mes, 1), [mesRef]);
   const fimMes = useMemo(() => new Date(mesRef.ano, mesRef.mes + 1, 0, 23, 59, 59, 999), [mesRef]);
-  const ehSaida = (e: any) => /DEMIT|DESLIG|RESCIS|APOSENT/i.test(String(e?.["Situação"] ?? ""));
-  const noQuadroMes = (e: any): boolean => {
-    const adm = parseData(e["Admissão"]);
-    if (adm && adm.getTime() > fimMes.getTime()) return false; // ainda não admitido no mês
-    if (ehSaida(e)) {
-      const afa = parseData(e["Data Afastamento"]);
-      if (afa && afa.getTime() < inicioMes.getTime()) return false; // já tinha saído antes do mês
-    }
-    return true;
-  };
   const irMes = (delta: number) => setMesRef(m => { const d = new Date(m.ano, m.mes + delta, 1); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const ehMesAtual = mesRef.ano === hoje.getFullYear() && mesRef.mes === hoje.getMonth();
 
-  // listas de filtro (a partir dos dados reais)
-  const empresas = useMemo(() => [...new Set(rows.map(empresaDe))].filter(x => x && x !== "—").sort(), [rows]);
-  const contratos = useMemo(() => [...new Set(rows.map(contratoDe))].filter(x => x && x !== "—").sort(), [rows, contratoPorFilial]);
-  const situacoes = useMemo(() => [...new Set(rows.map(e => String(e["Situação"] ?? "").trim()).filter(Boolean))].sort(), [rows]);
+  // ── Números da tela ──────────────────────────────────────────────────
+  // No modo RPC vêm prontos do banco; no fallback são calculados aqui no mesmo
+  // formato. Daqui pra baixo a tela não sabe (nem precisa saber) a origem.
+  const filtro = useMemo<Filtro>(() => ({ ini: inicioMes, fim: fimMes, empresa: fEmpresa, contrato: fContrato, situacao: fSituacao, busca: buscaQ }),
+    [inicioMes, fimMes, fEmpresa, fContrato, fSituacao, buscaQ]);
+  const recClient = useMemo(() => modo === "client" ? recortesClient(rows, contratoDe, filtro) : null,
+    [modo, rows, contratoPorFilial, filtro]);
+  const dashClient = useMemo(() => recClient ? calcDashClient(rows, contratoDe, filtro, recClient) : null,
+    [recClient, rows, contratoPorFilial, filtro]);
+  const dash = (modo === "rpc" ? dashRpc : dashClient) ?? DASH_VAZIO;
+
+  const empresas = dash.opcoes.empresas;
+  const contratos = dash.opcoes.contratos;
+  const situacoes = dash.opcoes.situacoes;
   // opções de Setor: tabela SETORES ∪ valores reais da EMPREGADOS, sempre com PADRAO.
-  const setorOptions = useMemo(() => {
-    const reais = rows.map(e => String(e["Setor_ERP"] ?? "").trim()).filter(Boolean);
-    return [...new Set(["PADRAO", ...setoresTabela, ...reais])].sort();
-  }, [rows, setoresTabela]);
+  const setorOptions = useMemo(() => [...new Set(["PADRAO", ...setoresTabela, ...dash.opcoes.setores])].sort(), [setoresTabela, dash]);
 
-  const filtrados = useMemo(() => rows.filter(e => {
-    if (!noQuadroMes(e)) return false;
-    if (fEmpresa && empresaDe(e) !== fEmpresa) return false;
-    if (fContrato && contratoDe(e) !== fContrato) return false;
-    if (fSituacao && String(e["Situação"] ?? "").trim() !== fSituacao) return false;
-    if (busca) {
-      const q = busca.toLowerCase();
-      return [e["Nome"], e["CPF"], e["Título do Cargo"], e["Nome do Cargo"], e["Nome Filial"], e["Setor_ERP"]].some(x => String(x ?? "").toLowerCase().includes(q));
-    }
-    return true;
-  }), [rows, busca, fEmpresa, fContrato, fSituacao, contratoPorFilial, inicioMes, fimMes]);
-
-  // recorte histórico (todos os anos): NÃO aplica competência — alimenta o gráfico
-  // "Admissões × Desligamentos por ano" e a contagem de admitidos/desligados do mês.
-  const recorteTempo = useMemo(() => rows.filter(e => {
-    if (fEmpresa && empresaDe(e) !== fEmpresa) return false;
-    if (fContrato && contratoDe(e) !== fContrato) return false;
-    return true;
-  }), [rows, fEmpresa, fContrato, contratoPorFilial]);
-  // recorte do quadro do mês, ignorando a situação (senão férias/afastados somem).
-  const recorteSemSituacao = useMemo(() => rows.filter(e => {
-    if (!noQuadroMes(e)) return false;
-    if (fEmpresa && empresaDe(e) !== fEmpresa) return false;
-    if (fContrato && contratoDe(e) !== fContrato) return false;
-    if (busca) { const q = busca.toLowerCase(); return [e["Nome"], e["CPF"], e["Título do Cargo"], e["Nome do Cargo"], e["Nome Filial"], e["Setor_ERP"]].some(x => String(x ?? "").toLowerCase().includes(q)); }
-    return true;
-  }), [rows, fEmpresa, fContrato, busca, contratoPorFilial, inicioMes, fimMes]);
-
-  // ── Dashboard (ao vivo) ──────────────────────────────────────────────
-  const folhaTotal = useMemo(() => filtrados.reduce((s, e) => s + parseSalario(e["Valor Salário"]), 0), [filtrados]);
-  const salarioMedio = filtrados.length ? folhaTotal / filtrados.length : 0;
+  const folhaTotal = dash.kpis.folha;
+  const salarioMedio = dash.kpis.no_recorte ? folhaTotal / dash.kpis.no_recorte : 0;
   // "Ativos no mês" = presença pelas datas (não depende da Situação atual, que só
   // reflete o status de hoje). É o número que se mantém estável mês a mês.
-  const ativosNoMes = useMemo(() => recorteSemSituacao.length, [recorteSemSituacao]);
-  const anoAtual = new Date().getFullYear();
-  const noMes = (v: any) => { const d = parseData(v); return !!d && d.getTime() >= inicioMes.getTime() && d.getTime() <= fimMes.getTime(); };
-  const admitidosMes = useMemo(() => recorteTempo.filter(e => noMes(e["Admissão"])).length, [recorteTempo, inicioMes, fimMes]);
+  const ativosNoMes = dash.kpis.ativos_mes;
+  const admitidosMes = dash.kpis.admitidos;
   // desligados = saída de verdade (Situação) com Data Afastamento no mês (a data
   // sozinha não vale: também marca férias/atestado/licença).
-  const desligadosMes = useMemo(() => recorteTempo.filter(e => ehSaida(e) && noMes(e["Data Afastamento"])).length, [recorteTempo, inicioMes, fimMes]);
-
-  const agrupar = (arr: any[], keyFn: (e: any) => string, valFn?: (e: any) => number) => {
-    const m = new Map<string, number>();
-    for (const e of arr) { const k = keyFn(e) || "—"; m.set(k, (m.get(k) || 0) + (valFn ? valFn(e) : 1)); }
-    return [...m.entries()].map(([k, v]) => ({ k, v })).sort((a, b) => b.v - a.v);
-  };
-  const porEmpresa = useMemo(() => agrupar(filtrados, empresaDe), [filtrados]);
-  const porSituacao = useMemo(() => agrupar(recorteSemSituacao, e => String(e["Situação"] ?? "").trim() || "—"), [recorteSemSituacao]);
-  const porContrato = useMemo(() => agrupar(filtrados, contratoDe).slice(0, 10), [filtrados, contratoPorFilial]);
+  const desligadosMes = dash.kpis.desligados;
+  const porEmpresa = dash.por_empresa;
+  const porSituacao = dash.por_situacao;
+  const porContrato = dash.por_contrato;
   // card rotativo: passa por cada situação a cada 3s (movimento leve).
   useEffect(() => {
     if (porSituacao.length <= 1) return;
@@ -267,27 +477,32 @@ export default function Colaboradores() {
   }, [porSituacao.length]);
   const sitAtual = porSituacao.length ? porSituacao[sitIdx % porSituacao.length] : null;
   const corSituacao = (s: string) => { const u = (s || "").toUpperCase(); return u.startsWith("TRABALH") ? "#15803d" : u.includes("FÉRIAS") || u.includes("FERIAS") ? "#2563eb" : u.includes("AFAST") || u.includes("LICEN") ? "#d97706" : u.includes("DEMIT") || u.includes("DESLIG") ? "#dc2626" : "#7c3aed"; };
-  const folhaPorEmpresa = useMemo(() => agrupar(filtrados, empresaDe, e => parseSalario(e["Valor Salário"])), [filtrados]);
+  const folhaPorEmpresa = dash.folha_empresa;
   // presença no mês por cargo (não usa Situação atual, que só vale para hoje).
-  const ativosPorCargo = useMemo(() => agrupar(recorteSemSituacao, nomeCargoDe), [recorteSemSituacao]);
-  const porFaixa = useMemo(() => FAIXAS.map(f => ({ label: f.label, n: filtrados.filter(e => { const a = anosDeCasa(e["Admissão"]); return a != null && a >= f.min && a < f.max; }).length })), [filtrados]);
-  const timeline = useMemo(() => {
-    const anos: Record<number, { adm: number; desl: number }> = {};
-    for (const e of recorteTempo) {
-      const a = anoDe(e["Admissão"]); if (a) (anos[a] ??= { adm: 0, desl: 0 }).adm++;
-      const d = ehSaida(e) ? anoDe(e["Data Afastamento"]) : null; if (d) (anos[d] ??= { adm: 0, desl: 0 }).desl++;
-    }
-    return Object.entries(anos).map(([ano, v]) => ({ ano: +ano, ...v })).filter(x => x.ano >= anoAtual - 6 && x.ano <= anoAtual).sort((a, b) => a.ano - b.ano);
-  }, [recorteTempo]);
+  const ativosPorCargo = dash.por_cargo;
+  const porFaixa = dash.por_faixa;
+  const timeline = dash.timeline;
   const maxTl = Math.max(1, ...timeline.flatMap(t => [t.adm, t.desl]));
 
-  // paginação
-  const totalPag = Math.max(1, Math.ceil(filtrados.length / porPagina));
-  const visiveis = filtrados.slice((pagina - 1) * porPagina, pagina * porPagina);
+  // paginação: no modo RPC a página já vem pronta do banco.
+  const totalFiltrado = modo === "rpc" ? (listaRpc?.total ?? 0) : (recClient?.fil.length ?? 0);
+  const totalGeral = dash.kpis.total;
+  const totalPag = Math.max(1, Math.ceil(totalFiltrado / porPagina));
+  const visiveis: Linha[] = useMemo(() => modo === "rpc"
+    ? (listaRpc?.linhas ?? [])
+    : (recClient?.fil ?? []).slice((pagina - 1) * porPagina, pagina * porPagina).map(e => linhaDe(e, contratoDe)),
+    [modo, listaRpc, recClient, pagina, porPagina, contratoPorFilial]);
 
   const limparFiltros = () => { setBusca(""); setFEmpresa(""); setFContrato(""); setFSituacao(""); };
 
   // ── Edição de campos RH na EMPREGADOS ────────────────────────────────
+  // A lista traz só o necessário p/ a tabela; o cadastro completo (PIS, e-mail,
+  // centro de custo…) é buscado ao abrir o modal.
+  const abrirEditPorId = async (id: any) => {
+    const { data } = await (supabase as any).from("EMPREGADOS").select("*").eq("ID", id).maybeSingle();
+    if (!data) { aviso("Não foi possível abrir o cadastro.", "err"); return; }
+    abrirEdit(data);
+  };
   const abrirEdit = (e: any) => {
     setEditing(e);
     const f: Record<string, string> = {};
@@ -310,6 +525,7 @@ export default function Colaboradores() {
     if (error) { aviso("Erro ao salvar: " + error.message, "err"); return; }
     setRows(rs => rs.map(r => r["ID"] === editing["ID"] ? { ...r, ...patch } : r));
     setEditing(null); aviso("Colaborador atualizado.");
+    if (modo === "rpc") buscarRpc();   // os números vêm do banco: refaz a consulta
   };
   const setCampo = (col: string, v: string) => setForm(f => ({ ...f, [col]: v }));
 
@@ -360,24 +576,31 @@ export default function Colaboradores() {
             <button className="col-btn" onClick={() => irMes(-1)} title="Mês anterior" style={{ height: 30, width: 30, padding: 0, fontSize: 16, lineHeight: 1 }}>‹</button>
             <button className="col-btn" onClick={() => irMes(1)} disabled={ehMesAtual} title="Próximo mês" style={{ height: 30, width: 30, padding: 0, fontSize: 16, lineHeight: 1, opacity: ehMesAtual ? .4 : 1, cursor: ehMesAtual ? "not-allowed" : "pointer" }}>›</button>
           </div>
-          <ImportarColaboradores rows={rows} onImported={load} />
-          <IntegrarCargos rows={rows} onImported={load} />
-          <button className="col-btn" onClick={load} style={{ background: "#eef4ff", color: "#0f3171", borderColor: "#dbe4f0" }}>↻ Atualizar</button>
+          <ImportarColaboradores onImported={recarregar} />
+          <IntegrarCargos onImported={recarregar} />
+          {/* Recarrega por trás: a lista continua na tela enquanto atualiza. */}
+          <button className="col-btn" onClick={recarregar} disabled={atualizando}
+            style={{ background: "#eef4ff", color: "#0f3171", borderColor: "#dbe4f0", opacity: atualizando ? .6 : 1 }}>
+            {atualizando ? "↻ Atualizando…" : "↻ Atualizar"}
+          </button>
         </div>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+      {/* 1ª abertura: nada na tela ainda, então a marca ocupa o lugar todo. */}
+      {loading && <CarregandoLogo texto="Carregando colaboradores…" tamanho={96} />}
+
+      {/* KPIs — esmaecem durante o recálculo, mas continuam legíveis */}
+      <div style={{ display: loading ? "none" : "flex", gap: 12, flexWrap: "wrap", marginBottom: 14, opacity: veu ? .4 : 1, transition: "opacity .2s ease" }}>
         {card("Ativos no mês", String(ativosNoMes), "#15803d", `${MESES_ABREV[mesRef.mes]}/${mesRef.ano} · presença`)}
-        {card("No recorte", String(filtrados.length), "#0f3171", `${rows.length} no total`)}
+        {card("No recorte", String(totalFiltrado), "#0f3171", `${totalGeral} no total`)}
         {card("Folha (recorte)", moneyK(folhaTotal), "#0f766e", money(folhaTotal))}
         {card("Salário médio", money(salarioMedio), "#7c3aed")}
         {card("Admitidos no mês", String(admitidosMes), "#2563eb", `${MESES_ABREV[mesRef.mes]}/${mesRef.ano}`)}
         {card("Desligados no mês", String(desligadosMes), "#dc2626", `${MESES_ABREV[mesRef.mes]}/${mesRef.ano}`)}
       </div>
 
-      {/* Filtros */}
-      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 14, marginBottom: 16, boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
+      {/* Filtros — ficam fora do véu: dá pra trocar de filtro enquanto recalcula */}
+      <div style={{ display: loading ? "none" : "block", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 14, marginBottom: 16, boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <input className="col-fi" style={{ minWidth: 240, flex: 1 }} placeholder="Buscar por nome, CPF, cargo, filial, setor…" value={busca} onChange={e => setBusca(e.target.value)} />
           <select className="col-fi" value={fEmpresa} onChange={e => setFEmpresa(e.target.value)}>
@@ -392,6 +615,11 @@ export default function Colaboradores() {
           {(busca || fEmpresa || fContrato || fSituacao) && <button className="col-btn" onClick={limparFiltros} style={{ background: "#f1f5f9" }}>Limpar</button>}
         </div>
       </div>
+
+      {/* Painéis e tabela: é o que o recálculo muda, então o véu cobre só daqui
+          pra baixo — o conteúdo antigo fica visível embaixo até o novo chegar. */}
+      <div style={{ display: loading ? "none" : "block", position: "relative" }}>
+      {veu && <CarregandoLogo overlay texto="Recalculando…" />}
 
       {/* Dashboard ao vivo */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
@@ -458,7 +686,7 @@ export default function Colaboradores() {
       {/* Tabela */}
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 24px rgba(15,23,42,.05)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 16px", borderBottom: "1px solid #eef2f7" }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{filtrados.length} colaborador(es)</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{totalFiltrado} colaborador(es)</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {erro && <span style={{ fontSize: 12, color: "#dc2626" }}>⚠ {erro}</span>}
             <span style={{ fontSize: 12, color: "#94a3b8" }}>Por página:</span>
@@ -468,9 +696,7 @@ export default function Colaboradores() {
             </select>
           </div>
         </div>
-        {loading ? (
-          <div style={{ padding: 50, textAlign: "center", color: "#94a3b8" }}>Carregando colaboradores…</div>
-        ) : filtrados.length === 0 ? (
+        {visiveis.length === 0 ? (
           <div style={{ padding: 50, textAlign: "center", color: "#94a3b8" }}>Nenhum colaborador no recorte atual.</div>
         ) : (
           <div style={{ overflowX: "auto" }}>
@@ -482,21 +708,21 @@ export default function Colaboradores() {
                 <th className="col-th" style={{ textAlign: "right" }}>Salário</th><th className="col-th">Situação</th><th className="col-th"></th>
               </tr></thead>
               <tbody>
-                {visiveis.map((e, i) => {
-                  const trab = ehTrabalhando(e); const casa = anosDeCasa(e["Admissão"]);
+                {visiveis.map((l, i) => {
+                  const trab = l.situacao.toUpperCase().startsWith("TRABALH"); const casa = anosDeCasa(l.admissao);
                   return (
-                    <tr key={e["ID"] ?? i} onMouseEnter={ev => (ev.currentTarget.style.background = "#f8fbff")} onMouseLeave={ev => (ev.currentTarget.style.background = "#fff")}>
-                      <td className="col-td" style={{ fontWeight: 700, color: "#0f172a" }}>{e["Nome"] || "—"}<div style={{ fontSize: 10.5, color: "#94a3b8" }}>{e["Setor_ERP"] || ""}</div></td>
-                      <td className="col-td" style={{ fontVariantNumeric: "tabular-nums" }}>{e["CPF"] || "—"}</td>
-                      <td className="col-td">{nomeCargoDe(e)}</td>
-                      <td className="col-td"><span style={{ fontSize: 11, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: "#eef4ff", color: "#0f3171" }}>{empresaDe(e)}</span></td>
-                      <td className="col-td" style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{contratoDe(e)}</td>
-                      <td className="col-td">{e["Nome Filial"] || e["Filial"] || "—"}</td>
-                      <td className="col-td" style={{ whiteSpace: "nowrap" }}>{fmtData(e["Admissão"])}</td>
+                    <tr key={l.id ?? i} onMouseEnter={ev => (ev.currentTarget.style.background = "#f8fbff")} onMouseLeave={ev => (ev.currentTarget.style.background = "#fff")}>
+                      <td className="col-td" style={{ fontWeight: 700, color: "#0f172a" }}>{l.nome || "—"}<div style={{ fontSize: 10.5, color: "#94a3b8" }}>{l.setor}</div></td>
+                      <td className="col-td" style={{ fontVariantNumeric: "tabular-nums" }}>{l.cpf || "—"}</td>
+                      <td className="col-td">{l.cargo}</td>
+                      <td className="col-td"><span style={{ fontSize: 11, fontWeight: 800, padding: "2px 9px", borderRadius: 20, background: "#eef4ff", color: "#0f3171" }}>{l.empresa}</span></td>
+                      <td className="col-td" style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.contrato}</td>
+                      <td className="col-td">{l.filial}</td>
+                      <td className="col-td" style={{ whiteSpace: "nowrap" }}>{fmtData(l.admissao)}</td>
                       <td className="col-td" style={{ whiteSpace: "nowrap" }}>{casa != null ? `${casa.toFixed(1)}a` : "—"}</td>
-                      <td className="col-td" style={{ textAlign: "right", fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap" }}>{money(parseSalario(e["Valor Salário"]))}</td>
-                      <td className="col-td"><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: trab ? "#dcfce7" : "#f1f5f9", color: trab ? "#15803d" : "#64748b" }}>{e["Situação"] || "—"}</span></td>
-                      <td className="col-td" style={{ textAlign: "right" }}><button className="col-btn" onClick={() => abrirEdit(e)} style={{ height: 30, padding: "0 11px", background: "#eef4ff", color: "#0f3171", borderColor: "#dbe4f0" }}>Editar</button></td>
+                      <td className="col-td" style={{ textAlign: "right", fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap" }}>{money(l.salario)}</td>
+                      <td className="col-td"><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20, background: trab ? "#dcfce7" : "#f1f5f9", color: trab ? "#15803d" : "#64748b" }}>{l.situacao || "—"}</span></td>
+                      <td className="col-td" style={{ textAlign: "right" }}><button className="col-btn" onClick={() => abrirEditPorId(l.id)} style={{ height: 30, padding: "0 11px", background: "#eef4ff", color: "#0f3171", borderColor: "#dbe4f0" }}>Editar</button></td>
                     </tr>
                   );
                 })}
@@ -512,6 +738,7 @@ export default function Colaboradores() {
           </div>
         )}
       </div>
+      </div>{/* fim do bloco coberto pelo véu */}
 
       {/* Modal editar campos RH */}
       {editing && (

@@ -143,10 +143,19 @@ function ColaboradorSelect({ value, onChange }: { value: string; onChange: (v: s
   const [busca, setBusca] = useState("");
   const [resultados, setResultados] = useState<{ id: number; nome: string; setor?: string; cargo?: string }[]>([]);
   const [aberto, setAberto] = useState(false);
+  // Cada busca ganha um número crescente; quando a resposta volta, só aplica se
+  // ainda for a última disparada. Sem isso a consulta SEM filtro do onFocus
+  // (a maior/mais lenta) chegava DEPOIS da consulta filtrada e sobrescrevia o
+  // resultado — o campo mostrava "pablo" mas a lista trazia a fila alfabética.
+  const seq = useRef(0);
   const buscar = async (texto: string) => {
     setBusca(texto); setAberto(true);
+    const meu = ++seq.current;
     const termo = texto.trim();
-    let query = (supabase as any).from("EMPREGADOS")
+    // Rota pública (sem login) — usa a view sem colunas sensíveis (sem CPF/
+    // salário/PIS). A tabela EMPREGADOS completa exige acesso por menu (ver
+    // migration 20260717190010) e não é lida por anon, então NÃO usar aqui.
+    let query = (supabase as any).from("VW_EMPREGADOS_BASICO")
       .select('"ID","Nome","Setor_ERP","Título do Cargo","Situação"')
       .order('"Nome"').limit(40);
     // Busca por PALAVRA: cada palavra (≥2 letras) precisa aparecer no nome, em
@@ -156,6 +165,7 @@ function ColaboradorSelect({ value, onChange }: { value: string; onChange: (v: s
       for (const w of palavras) query = query.ilike("Nome", `%${w}%`);
     }
     const { data } = await query;
+    if (meu !== seq.current) return;  // chegou uma busca mais nova primeiro — descarta esta
     setResultados((data ?? [])
       .filter((r: any) => !/demitid/i.test(String(r["Situação"] ?? "")))  // só demitido fica de fora
       .map((r: any) => ({ id: r["ID"], nome: r["Nome"] ?? "", setor: r["Setor_ERP"], cargo: r["Título do Cargo"] }))

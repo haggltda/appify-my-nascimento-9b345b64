@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useFormPerms } from "@/hooks/useFormPerms";
 import { Formulario, Pergunta, fmtDt, situacao, normalizaPerguntas } from "./Formularios";
-import EmpregadoDetalheModal, { normNome, carregarVinculos } from "./EmpregadoDetalheModal";
+import EmpregadoDetalheModal, { normNome, carregarVinculos, prewarmFichas, invalidarFichas, nomesDoCadastro, resolveCadastro } from "./EmpregadoDetalheModal";
 
 // =====================================================================
 // NASCIMENTO FORMULÁRIOS - Respostas
@@ -51,8 +51,18 @@ const selFiltro: React.CSSProperties = { width: "100%", border: "1px solid #e2e8
 // resposta pelo nome completo do empregado ("Gerência Sistemas" vira
 // "IURY DE JESUS SILVA"); `original` é sempre o que veio na resposta e é ele
 // que abre a ficha (a ficha resolve o vínculo pelo texto original).
-interface Pessoa { ehPessoa: boolean; exibir: string; original: string }
+// `pendente`: o cadastro ainda está carregando, então NÃO dá p/ afirmar que o
+// texto não é gente - a tela mostra "Verificando…" no lugar de "Vincular".
+interface Pessoa { ehPessoa: boolean; exibir: string; original: string; pendente?: boolean }
 type Resolver = (v: any) => Pessoa;
+
+// Só a pergunta de IDENTIFICAÇÃO traz gente na resposta. Em toda outra, o que
+// existe é alternativa ("Alto", "Muito comprometido") — tratar isso como nome
+// fazia alternativa virar link de ficha e, pior, casar com lixo do cadastro
+// (nomes de uma letra), trocando o rótulo da opção pelo nome de um empregado.
+const SEM_PESSOA = (v: any): Pessoa => { const t = valorTexto(v); return { ehPessoa: false, exibir: t, original: t }; };
+const resolverDaPergunta = (p: Pergunta, resolve: Resolver): Resolver =>
+  p.tipo === "colaborador" ? resolve : SEM_PESSOA;
 
 // Nome de empregado citado numa resposta: vira link p/ a ficha (👤). Se não
 // bater com o cadastro, renderiza texto normal (mesma fonte).
@@ -91,22 +101,31 @@ function BlocoResposta({ titulo, valor, resolve, onPessoa }: {
   );
 }
 
-// Linha da lista de respostas abertas: valor + ação. "Detalhes" abre a ficha
-// de quem já casa com o cadastro; "Vincular" abre a mesma ficha no modo de
-// amarrar o texto a um empregado (nome incompleto, grafia diferente...).
+// Ação da linha: "Detalhes" abre a ficha de quem já casa com o cadastro;
+// "Vincular" abre a mesma ficha no modo de amarrar o texto a um empregado
+// (nome incompleto, grafia diferente...). Enquanto o cadastro não terminou de
+// carregar não existe "não é gente": aí o rótulo é "Verificando…" — antes a
+// tela abria dizendo "Vincular" p/ todo mundo e só corrigia depois do clique.
+function BotaoFicha({ p, onPessoa }: { p: Pessoa; onPessoa: (n: string) => void }) {
+  const rotulo = p.pendente ? "Verificando…" : p.ehPessoa ? "Detalhes" : "Vincular";
+  return (
+    <button onClick={() => onPessoa(p.original)}
+      title={p.pendente ? "Conferindo o cadastro de empregados…" : p.ehPessoa ? "Ver ficha completa" : "Vincular este nome a um empregado"}
+      style={p.ehPessoa
+        ? btnMini("rgba(15,49,113,.08)", "#0f3171", "1px solid rgba(15,49,113,.2)")
+        : btnMini("#fff", "#94a3b8", "1px solid #e2e8f0")}>
+      {rotulo}
+    </button>
+  );
+}
+
 function LinhaValor({ texto, resolve, onPessoa }: { texto: string; resolve: Resolver; onPessoa: (n: string) => void }) {
-  const pessoa = resolve(texto).ehPessoa;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f8fafc", border: "1px solid #f1f5f9", borderRadius: 8, padding: "6px 10px" }}>
       <div style={{ flex: 1, minWidth: 0, wordBreak: "break-word" }}>
         <NomeLink texto={texto} resolve={resolve} onPessoa={onPessoa} />
       </div>
-      <button onClick={() => onPessoa(texto)} title={pessoa ? "Ver ficha completa" : "Vincular este nome a um empregado"}
-        style={pessoa
-          ? btnMini("rgba(15,49,113,.08)", "#0f3171", "1px solid rgba(15,49,113,.2)")
-          : btnMini("#fff", "#94a3b8", "1px solid #e2e8f0")}>
-        {pessoa ? "Detalhes" : "Vincular"}
-      </button>
+      <BotaoFicha p={resolve(texto)} onPessoa={onPessoa} />
     </div>
   );
 }
@@ -133,12 +152,7 @@ function GrupoValor({ texto, itens, resolve, onPessoa, quem, onVerRespostas }: {
             {aberto ? "Ocultar" : "Ver todos"}
           </button>
         )}
-        <button onClick={() => onPessoa(texto)} title={resolve(texto).ehPessoa ? "Ver ficha completa" : "Vincular este nome a um empregado"}
-          style={resolve(texto).ehPessoa
-            ? btnMini("rgba(15,49,113,.08)", "#0f3171", "1px solid rgba(15,49,113,.2)")
-            : btnMini("#fff", "#94a3b8", "1px solid #e2e8f0")}>
-          {resolve(texto).ehPessoa ? "Detalhes" : "Vincular"}
-        </button>
+        <BotaoFicha p={resolve(texto)} onPessoa={onPessoa} />
       </div>
       {aberto && (
         <div style={{ display: "flex", flexDirection: "column", gap: 3, paddingLeft: 12 }}>
@@ -222,7 +236,7 @@ export default function FormularioRespostas() {
   const [fAte, setFAte] = useState("");
   const [detalhe, setDetalhe] = useState<Resposta | null>(null);  // modal "Detalhes" do cadastro
   const [pessoa, setPessoa] = useState<string | null>(null);      // modal ficha do empregado (nome citado)
-  const [nomesEmp, setNomesEmp] = useState<Set<string>>(new Set()); // nomes do cadastro (normalizados) p/ tornar clicável
+  const [nomesProntos, setNomesProntos] = useState(false);          // cadastro já veio inteiro? (antes disso não dá p/ dizer "Vincular")
   const [vinculos, setVinculos] = useState<Map<string, string>>(new Map()); // apelido -> nome do empregado (CS_FORM_VINCULOS)
 
   const load = useCallback(async () => {
@@ -239,37 +253,46 @@ export default function FormularioRespostas() {
   }, [id, nav]);
   useEffect(() => { load(); }, [load]);
 
-  // Nomes do cadastro (EMPREGADOS) só para saber quais valores de resposta são
-  // pessoas de verdade (viram link p/ a ficha). Best-effort: se falhar, ninguém
-  // fica clicável. Só a coluna "Nome" p/ não pesar.
-  // O PostgREST corta a resposta em 1000 linhas mesmo com .limit() alto — por
-  // isso lê em blocos de 1000 (mesmo padrão do RH/Colaboradores). Sem isso só o
-  // 1º milheiro do cadastro entrava e todo o resto aparecia como "Vincular".
+  // Monta em segundo plano o índice que a ficha do empregado consome. Quem abre
+  // esta tela vai clicar em nome — quando clicar, não deve haver nada a esperar.
+  useEffect(() => { prewarmFichas(); }, []);
+
+  // Nomes do cadastro só para saber quais valores de resposta são pessoas de
+  // verdade (viram link p/ a ficha). Best-effort: se falhar, ninguém fica
+  // clicável, mas a tela abre.
+  //
+  // Vem do MESMO cache que a ficha usa (`nomesDoCadastro`, via RPC). Antes esta
+  // tela varria a EMPREGADOS inteira pelo PostgREST em blocos de 1000 — pagando
+  // RLS por linha —, e era isso que deixava a lista inteira em "Verificando…"
+  // por muito tempo, competindo com a consulta da própria ficha.
   const carregarNomes = useCallback(async () => {
-    try {
-      let todos: any[] = []; const bloco = 1000;
-      for (let de = 0; ; de += bloco) {
-        const { data, error } = await (supabase as any).from("EMPREGADOS").select('"Nome"').range(de, de + bloco - 1);
-        if (error) break;
-        todos = todos.concat(data || []);
-        if (!data || data.length < bloco || de > 60000) break;
-      }
-      setNomesEmp(new Set(todos.map((e: any) => normNome(e["Nome"])).filter(Boolean)));
-    } catch { /* ignore */ }
-    setVinculos(await carregarVinculos());
+    setNomesProntos(false);
+    const [, vincs] = await Promise.all([nomesDoCadastro(), carregarVinculos()]);
+    setVinculos(vincs);
+    setNomesProntos(true);
   }, []);
   useEffect(() => { carregarNomes(); }, [carregarNomes]);
 
   // Pessoa = bate com o cadastro OU foi vinculada à mão (nome incompleto etc.).
   // O vínculo manual manda no nome exibido: quem vinculou "Gerência Sistemas" a
   // IURY DE JESUS SILVA quer ver o nome dele, não o texto que veio na resposta.
+  //
+  // O casamento usa a MESMA regra da ficha (`resolveCadastro`), incluindo nome
+  // contido: "Mileny de oliveira" aparecia como "Vincular" na lista e abria a
+  // ficha da MILENY DE OLIVEIRA DA ROSA — a lista exigia igualdade exata e a
+  // ficha não. Nome ambíguo (casa com várias pessoas) continua pedindo vínculo
+  // manual: melhor perguntar do que pôr em negrito o nome errado.
   const resolve = useCallback((v: any): Pessoa => {
     const original = v == null ? "" : String(v);
     const n = normNome(v);
     const vinculado = n ? vinculos.get(n) : undefined;
     if (vinculado !== undefined) return { ehPessoa: true, exibir: vinculado || original, original };
-    return { ehPessoa: !!n && nomesEmp.has(n), exibir: original, original };
-  }, [nomesEmp, vinculos]);
+    if (n && nomesProntos) {
+      const { hit, ambiguo } = resolveCadastro(n);
+      if (hit && !ambiguo) return { ehPessoa: true, exibir: hit.nome, original };
+    }
+    return { ehPessoa: false, exibir: original, original, pendente: !nomesProntos };
+  }, [vinculos, nomesProntos]);
 
   // Defesa em profundidade: quando o escopo do usuário é "só as próprias", a
   // tela mostra apenas o que ele enviou (criado_por), mesmo que a RLS devolva
@@ -346,6 +369,7 @@ export default function FormularioRespostas() {
   const excluirResp = async (r: Resposta) => {
     if (!confirm("Excluir esta resposta?")) return;
     await (supabase as any).from("CS_FORM_RESPOSTAS").delete().eq("id", r.id);
+    invalidarFichas();   // a resposta some das participações da ficha
     load();
   };
 
@@ -387,7 +411,10 @@ export default function FormularioRespostas() {
               Nenhuma resposta bate com o filtro. <button onClick={limparFiltros} style={{ background: "none", border: "none", color: "#2563eb", fontWeight: 700, cursor: "pointer", fontSize: 12.5 }}>Limpar filtros</button>
             </div>
           ) : aba === "resumo" ? (
-            pergs.map((p, i) => <ResumoPergunta key={p.id} p={p} i={i} resps={respsFiltradas} resolve={resolve} onPessoa={setPessoa} quem={nomeRespondente}
+            // resolverDaPergunta: só pergunta do tipo "colaborador" vira nome do
+            // cadastro. Sem isso, rótulos curtos de opção casavam com empregado
+            // ("Bom" virava "NATALEN SOARES BOM…", "N" virava gente).
+            pergs.map((p, i) => <ResumoPergunta key={p.id} p={p} i={i} resps={respsFiltradas} resolve={resolverDaPergunta(p, resolve)} onPessoa={setPessoa} quem={nomeRespondente}
               onVerRespostas={(n) => { setFResp(n); setAba("individuais"); }} />)
           ) : (
             respsFiltradas.map(r => {
@@ -413,7 +440,7 @@ export default function FormularioRespostas() {
                     const anexo = r.itens[`${p.id}__anexo`];
                     return (
                       <div key={p.id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        <BlocoResposta titulo={p.titulo} valor={r.itens[p.id]} resolve={resolve} onPessoa={setPessoa} />
+                        <BlocoResposta titulo={p.titulo} valor={r.itens[p.id]} resolve={resolverDaPergunta(p, resolve)} onPessoa={setPessoa} />
                         {anexo && (
                           <a href={anexo} target="_blank" rel="noopener noreferrer" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: "#0369a1", textDecoration: "none", background: "#f0f7ff", border: "1px solid #dbeafe", borderRadius: 8, padding: "5px 10px" }}>📎 Baixar anexo{r.itens[`${p.id}__anexo_nome`] ? ` — ${r.itens[`${p.id}__anexo_nome`]}` : ""}</a>
                         )}

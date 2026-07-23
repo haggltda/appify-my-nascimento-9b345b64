@@ -103,6 +103,7 @@ import ConciliacaoEventos from "./pages/contabil/ConciliacaoEventos";
 import Folha from "./pages/rh/Folha";
 import Contabilidade from "./pages/Contabilidade";
 import Colaboradores from "./pages/rh/Colaboradores";
+import Hierarquia from "./pages/rh/Hierarquia";
 import Alocacoes from "./pages/rh/Alocacoes";
 import Recrutamento from "./pages/rh/Recrutamento";
 import Patrimonios from "./pages/juridico/Patrimonios";
@@ -122,6 +123,7 @@ import FormularioRespostas from "./pages/central-servicos/FormularioRespostas";
 import FormulariosDashboard from "./pages/central-servicos/FormulariosDashboard";
 import PainelGerencial from "./pages/central-servicos/PainelGerencial";
 import FormulariosConfig from "./pages/central-servicos/FormulariosConfig";
+import LideresSetor from "./pages/central-servicos/LideresSetor";
 import FormularioPublico from "./pages/publico/FormularioPublico";
 import Ferias from "./pages/rh/Ferias";
 import MinhasSolicitacoes from "./pages/MinhasSolicitacoes";
@@ -189,6 +191,7 @@ const App = () => (
             <Route path="central-servicos/formularios/dashboard" element={<FormulariosDashboard />} />
             <Route path="central-servicos/formularios/painel" element={<PainelGerencial />} />
             <Route path="central-servicos/formularios/config" element={<FormulariosConfig />} />
+            <Route path="central-servicos/formularios/lideres" element={<LideresSetor />} />
             <Route path="central-servicos/formularios/:id" element={<FormularioEditor />} />
             <Route path="central-servicos/formularios/:id/respostas" element={<FormularioRespostas />} />
             <Route path="painel-executivo" element={<PainelExecutivo />} />
@@ -286,6 +289,7 @@ const App = () => (
             <Route path="contabil/conciliacao-eventos" element={<ConciliacaoEventos />} />
             {/* RH */}
             <Route path="rh/colaboradores" element={<Colaboradores />} />
+            <Route path="rh/hierarquia" element={<Hierarquia />} />
             <Route path="rh/alocacoes" element={<Alocacoes />} />
             <Route path="rh/folha" element={<Folha />} />
             <Route path="rh/novas-admissoes" element={<NovasAdmissoes />} />
