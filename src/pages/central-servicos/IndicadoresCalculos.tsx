@@ -156,7 +156,7 @@ const CATALOGO: ItemInd[] = [
     calculo: "Quem está no quadro ativo e não aparece em nenhuma resposta do período. Vem com nome, setor e cargo — e exporta em CSV, que é o que o RH cobra.",
     visual: "Cartão + lista nominal", telas: ["Visão Executiva"], tipo: "Contagem", freq: "A cada carregamento" },
   { key: "porDiretoria", icone: "🏛️", cor: "#ea580c", label: "Realização por diretoria / setor", ativo: true,
-    calculo: "Agrupa esperados e realizados pelo diretor responsável pelo setor (RH_SETOR_DIRETOR). Setor sem diretor designado vira a faixa “Sem diretor definido” — esconder daria falsa sensação de cobertura.",
+    calculo: "Agrupa esperados e realizados pelo diretor responsável pelo setor (papel 'diretor_setor', em Acesso por Usuário). Setor sem diretor designado vira a faixa “Sem diretor definido” — esconder daria falsa sensação de cobertura.",
     visual: "Colunas com meta", telas: ["Visão Executiva"], tipo: "Percentual", freq: "A cada carregamento" },
   { key: "necLideranca", icone: "🤝", cor: "#7c3aed", label: "O que se pede da liderança", mapaKey: "necLideranca", ativo: true,
     calculo: "Frequência das alternativas da pergunta sobre o que o colaborador precisa DA liderança — diferente do que ele mesmo precisa desenvolver.",
@@ -198,8 +198,8 @@ const ORIGENS_DADOS = [
   { icone: "📝", cor: "#2563eb", fonte: "CS_FORMULARIOS", desc: "Formulário selecionado, suas perguntas e alternativas. Formulário na lixeira não entra." },
   { icone: "📥", cor: "#16a34a", fonte: "CS_FORM_RESPOSTAS", desc: "Todas as respostas: itens, setor e data de envio. É a base de quase todo indicador." },
   { icone: "📋", cor: "#7c3aed", fonte: "CS_FORM_PLANOS_ACAO", desc: "Só o acompanhamento do plano (status, prioridade, origem, conclusão). A ação e o prazo vêm da resposta." },
-  { icone: "👥", cor: "#ea580c", fonte: "EMPREGADOS (via rh_hierarquia_dados)", desc: "Setor, nível e situação — quem está ativo e quem lidera cada setor." },
-  { icone: "🧭", cor: "#0891b2", fonte: "CS_LIDERES_SETOR · RH_SETOR_DIRETOR", desc: "Ajustes manuais de quem responde pelo setor e de qual diretor cuida dele." },
+  { icone: "👥", cor: "#ea580c", fonte: "EMPREGADOS (via rh_cadastro_dados)", desc: "Setor, nível e situação — quem está ativo e quem lidera cada setor." },
+  { icone: "🧭", cor: "#0891b2", fonte: "CS_FORM_ACESSOS (via cs_responsaveis_setor)", desc: "Designação de quem responde pelo setor e de qual diretor cuida dele — os toggles de Acesso por Usuário." },
 ];
 
 function Chip({ texto, cor, titulo }: { texto: string; cor: string; titulo?: string }) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ehNivel, NIVEIS, carregaHierarquiaDados } from "./LideresSetor";
+import { ehNivel, NIVEIS, carregaCadastroDados } from "./LideresSetor";
 
 // =====================================================================
 // NASCIMENTO FORMULÁRIOS - Ficha do empregado (a partir de um nome citado
@@ -195,7 +195,7 @@ export async function nomesDoCadastro(): Promise<Map<string, NomeCad>> {
   if (!cadProm) cadProm = (async () => {
     const m = new Map<string, NomeCad>();
     try {
-      (await carregaHierarquiaDados()).forEach(l => {
+      (await carregaCadastroDados()).forEach(l => {
         const k = normNome(l.nome); if (!k) return;
         const ativo = l.situacao.toUpperCase().startsWith("TRABALH");
         const cur = m.get(k);

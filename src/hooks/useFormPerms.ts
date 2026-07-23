@@ -14,7 +14,10 @@ import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 
 export type FormCap =
   | "editar_criar" | "responder" | "encerrar_excluir"
-  | "ver_tudo" | "ver_proprias" | "ver_setor" | "criar_setor" | "ver_lixeira";
+  | "ver_tudo" | "ver_proprias" | "ver_setor" | "criar_setor" | "ver_lixeira"
+  // Responsavel pelo setor - tambem e grant POR USUARIO (papel + setor) e ve as
+  // respostas daquele setor, igual ao ver_setor (public.cs_form_cap_setor).
+  | "diretor_setor" | "gerente_setor";
 
 const VIEW_CAPS: FormCap[] = ["ver_tudo", "ver_proprias"];
 
@@ -25,7 +28,8 @@ export function useFormPerms() {
   const setor = empregado?.setor || null;  // usado por Formularios (setores_acesso), nao por permissao
   const isAdmin = roles.includes("admin");
   const [caps, setCaps] = useState<Set<string>>(new Set());
-  // Setores cujas respostas o usuario pode ver (papel 'ver_setor'), normalizados.
+  // Setores cujas respostas o usuario pode ver (papeis 'ver_setor',
+  // 'diretor_setor' e 'gerente_setor'), normalizados.
   const [setoresVer, setSetoresVer] = useState<Set<string>>(new Set());
   // Setores dos quais o usuario e DONO: cria formularios e ve as respostas
   // deles (papel 'criar_setor'), normalizados.
@@ -37,11 +41,13 @@ export function useFormPerms() {
     const uRes = await (supabase as any).from("CS_FORM_ACESSOS")
       .select("papel, setor").eq("user_id", user.id).neq("papel", "dashboard");
     const linhas = uRes.data ?? [];
-    const setoresDe = (papel: string) => new Set<string>(linhas
-      .filter((r: any) => r.papel === papel && r.setor)
+    const setoresDe = (...papeis: string[]) => new Set<string>(linhas
+      .filter((r: any) => papeis.includes(r.papel) && r.setor)
       .map((r: any) => String(r.setor).trim().toUpperCase()));
     setCaps(new Set<string>(linhas.map((r: any) => r.papel)));
-    setSetoresVer(setoresDe("ver_setor"));
+    // Ver por setor = o toggle "visualizar" MAIS ser o responsavel pelo setor
+    // (diretor/gerente) - a RLS junta os tres no cs_form_cap_setor.
+    setSetoresVer(setoresDe("ver_setor", "diretor_setor", "gerente_setor"));
     setSetoresCriar(setoresDe("criar_setor"));
     setLoading(false);
   }, [user]);
