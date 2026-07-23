@@ -25,7 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useReuniaoDetalhe } from "./useReuniaoDetalhe";
-import { useUsuariosAtivos, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
+import { useUsuariosAtivos, useEditarSerieRecorrente, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
 import { PautaTabela } from "./componentes/PautaTabela";
 import { AssinaturasPanel } from "./componentes/AssinaturasPanel";
 import { AnexosPainel } from "./componentes/AnexosPainel";
@@ -181,6 +181,10 @@ export default function ReuniaoDetalhe() {
   const [motivoCancelamento, setMotivoCancelamento] = useState("");
   const [participantesOpen, setParticipantesOpen] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
+  const [serieOpen, setSerieOpen] = useState(false);
+  const [novoDiaSemana, setNovoDiaSemana] = useState("1");
+  const [novoHorarioSerie, setNovoHorarioSerie] = useState("");
+  const editarSerie = useEditarSerieRecorrente();
 
   const {
     reuniao, isLoading, pauta, respostas, convidados, anexos, pautaAnexos, comentarios, assinaturas, logs,
@@ -219,6 +223,17 @@ export default function ReuniaoDetalhe() {
     const ok = await excluirReuniao();
     setExcluindo(false);
     if (ok) navigate("/app/central-servicos/reunioes");
+  };
+
+  const salvarSerie = async () => {
+    if (!reuniao?.serie_recorrencia_id || !novoHorarioSerie) return;
+    await editarSerie.mutateAsync({
+      serieId: reuniao.serie_recorrencia_id,
+      novoDiaSemana: Number(novoDiaSemana),
+      novoHorario: novoHorarioSerie,
+    });
+    setSerieOpen(false);
+    setNovoHorarioSerie("");
   };
 
   const convidar = async () => {
@@ -299,6 +314,43 @@ export default function ReuniaoDetalhe() {
         <Button size="sm" variant="outline" className="gap-1.5" onClick={() => baixarIcs(reuniao)}>
           <Download className="h-3.5 w-3.5" /> Baixar .ics
         </Button>
+        {podeGerenciar && reuniao.serie_recorrencia_id && !reuniaoEncerrada && (
+          <>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setSerieOpen(true)}>
+              <CalendarDays className="h-3.5 w-3.5" /> Editar série
+            </Button>
+            <Dialog open={serieOpen} onOpenChange={setSerieOpen}>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Editar série recorrente</DialogTitle></DialogHeader>
+                <p className="text-sm text-muted-foreground">
+                  Muda o dia da semana e o horário de todas as próximas ocorrências dessa série que ainda não aconteceram. Reuniões passadas, em andamento, concluídas ou canceladas não são alteradas.
+                </p>
+                <div className="space-y-1.5">
+                  <Label>Novo dia da semana</Label>
+                  <Select value={novoDiaSemana} onValueChange={setNovoDiaSemana}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Domingo</SelectItem>
+                      <SelectItem value="1">Segunda-feira</SelectItem>
+                      <SelectItem value="2">Terça-feira</SelectItem>
+                      <SelectItem value="3">Quarta-feira</SelectItem>
+                      <SelectItem value="4">Quinta-feira</SelectItem>
+                      <SelectItem value="5">Sexta-feira</SelectItem>
+                      <SelectItem value="6">Sábado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Novo horário</Label>
+                  <Input type="time" value={novoHorarioSerie} onChange={(e) => setNovoHorarioSerie(e.target.value)} />
+                </div>
+                <Button className="w-full" disabled={!novoHorarioSerie || editarSerie.isPending} onClick={salvarSerie}>
+                  {editarSerie.isPending ? "Salvando…" : "Salvar série"}
+                </Button>
+              </DialogContent>
+            </Dialog>
+          </>
+        )}
         {podeGerenciar && !reuniaoEncerrada && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -541,9 +593,16 @@ export default function ReuniaoDetalhe() {
           <div className="space-y-1">
             {convidados.map((c) => (
               <div key={c.id} className="flex items-center justify-between rounded border border-border px-2 py-1 text-sm">
-                <span className="flex items-center gap-2">
+                <span className="flex flex-wrap items-center gap-2">
                   {nomeUsuario(usuarios, c.user_id) ?? c.user_id}
                   <Badge variant="outline" className="text-[10px]">{c.papel === "observador" ? "Observador" : "Convidado"}</Badge>
+                  {c.presente === true && <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-700 dark:text-emerald-400">Presente</Badge>}
+                  {c.presente === false && <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-[10px] text-destructive">Ausente</Badge>}
+                  {c.presente_marcado_em && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(c.presente_marcado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                  )}
                 </span>
                 {podeGerenciar && !reuniaoEncerrada && (
                   <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removerConvidado(c.id, nomeUsuario(usuarios, c.user_id) ?? undefined)}>

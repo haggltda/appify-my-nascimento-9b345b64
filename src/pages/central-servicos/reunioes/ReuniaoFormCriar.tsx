@@ -540,7 +540,22 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Convidados *</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Convidados *</Label>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => setForm((f) => {
+                      const todos = opcoesUsuarios.filter((o) => !f.observadores.includes(o.value)).map((o) => o.value);
+                      const jaTemTodos = todos.length > 0 && todos.every((v) => f.convidados.includes(v));
+                      return { ...f, convidados: jaTemTodos ? [] : todos };
+                    })}
+                  >
+                    {opcoesUsuarios.filter((o) => !form.observadores.includes(o.value)).every((o) => form.convidados.includes(o.value)) && form.convidados.length > 0
+                      ? "Limpar seleção"
+                      : "Selecionar todos"}
+                  </button>
+                </div>
                 <SearchableMultiSelect
                   value={form.convidados}
                   onChange={(v) => setForm((f) => ({ ...f, convidados: v }))}
