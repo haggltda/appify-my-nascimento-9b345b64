@@ -213,9 +213,16 @@ export function useReuniaoDetalhe(id: string | undefined) {
     if (paths.length > 0) {
       await supabase.storage.from(BUCKET).remove(paths);
     }
-    const { error } = await (supabase as any).from("reuniao").delete().eq("id", id);
+    // .select("id") depois do delete é o que permite detectar exclusão bloqueada por RLS:
+    // sem RLS permissiva, o Postgres não erra, só apaga zero linhas — sem o .select(),
+    // "data" viria vazio de qualquer forma e passaria como sucesso silencioso.
+    const { data, error } = await (supabase as any).from("reuniao").delete().eq("id", id).select("id");
     if (error) {
       toast({ title: "Erro ao excluir reunião", description: error.message, variant: "destructive" });
+      return false;
+    }
+    if (!data || data.length === 0) {
+      toast({ title: "Não foi possível excluir", description: "Nenhuma linha foi removida — você pode não ter permissão para excluir esta reunião.", variant: "destructive" });
       return false;
     }
     qc.invalidateQueries({ queryKey: ["reuniao-calendario"] });
