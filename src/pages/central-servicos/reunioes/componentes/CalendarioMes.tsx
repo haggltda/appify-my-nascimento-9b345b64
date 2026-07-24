@@ -7,7 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { ETAPA_COR, MOTIVO_BLOQUEIO_LABEL, nomeUsuario, salaResumo, type BloqueioAgenda, type ReuniaoCalendario, type Usuario } from "../types";
+import { ETAPA_COR, descreverBloqueioResumo, motivoBloqueioLabel, nomeUsuario, salaResumo, type BloqueioAgenda, type ReuniaoCalendario, type Usuario } from "../types";
 
 const DIAS_SEMANA = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"];
 
@@ -15,7 +15,7 @@ function iniciais(nome: string): string {
   return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 }
 
-function bloqueioDoDia(dia: Date, bloqueios: BloqueioAgenda[]): BloqueioAgenda | undefined {
+export function bloqueioDoDia(dia: Date, bloqueios: BloqueioAgenda[]): BloqueioAgenda | undefined {
   const diaStr = format(dia, "yyyy-MM-dd");
   return bloqueios.find((b) => diaStr >= b.data_inicio && diaStr <= b.data_fim);
 }
@@ -77,9 +77,9 @@ export function CalendarioMes({
                 {bloqueio && (
                   <span
                     className="truncate rounded border border-destructive/30 bg-destructive/10 px-1 py-0.5 text-[9px] font-medium text-destructive"
-                    title={bloqueio.motivo === "outro" ? (bloqueio.motivo_outro ?? "Outro") : MOTIVO_BLOQUEIO_LABEL[bloqueio.motivo]}
+                    title={motivoBloqueioLabel(bloqueio)}
                   >
-                    Bloqueado: {bloqueio.motivo === "outro" ? (bloqueio.motivo_outro ?? "Outro") : MOTIVO_BLOQUEIO_LABEL[bloqueio.motivo]}
+                    {descreverBloqueioResumo(bloqueio)}
                   </span>
                 )}
               </div>

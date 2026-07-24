@@ -420,6 +420,25 @@ export interface BloqueioAgenda {
   created_at: string;
 }
 
+/** "08:00:00" -> "8h" | "08:30:00" -> "8h30" */
+export function formatarHoraBloqueio(hora: string): string {
+  const [h, m] = hora.split(":");
+  const hNum = Number(h);
+  return m && m !== "00" ? `${hNum}h${m}` : `${hNum}h`;
+}
+
+export function motivoBloqueioLabel(b: BloqueioAgenda): string {
+  return b.motivo === "outro" ? (b.motivo_outro ?? "Outro") : MOTIVO_BLOQUEIO_LABEL[b.motivo];
+}
+
+/** Descrição curta pro badge do dia no calendário: horário específico quando não é dia inteiro, motivo quando é. */
+export function descreverBloqueioResumo(b: BloqueioAgenda): string {
+  if (!b.dia_inteiro && b.hora_inicio && b.hora_fim) {
+    return `Agenda bloqueada ${formatarHoraBloqueio(b.hora_inicio)}-${formatarHoraBloqueio(b.hora_fim)}`;
+  }
+  return `Bloqueado: ${motivoBloqueioLabel(b)}`;
+}
+
 export interface Usuario {
   id: string;
   display_name: string;
