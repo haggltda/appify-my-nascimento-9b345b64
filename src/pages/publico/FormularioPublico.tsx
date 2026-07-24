@@ -383,7 +383,10 @@ export default function FormularioPublico() {
     const nomePergunta = Array.isArray(nomeRaw) ? (nomeRaw[0] ? String(nomeRaw[0]).trim() : "") : (nomeRaw != null ? String(nomeRaw).trim() : "");
     const nomeResp = cadastro?.nome?.trim() || (form.coleta_identificacao ? nome.trim() : "") || nomePergunta || null;
     const emailResp = cadastro?.email?.trim() || (form.coleta_identificacao ? email.trim() : "") || null;
-    // criado_por é preenchido pelo default (auth.uid()) quando logado; anônimo sem dono.
+    // criado_por é carimbado pelo default do banco (auth.uid()) quando quem envia
+    // está logado; anônimo (link público sem login) fica sem dono. Quem não bate
+    // por criado_por é reconhecido pela identidade do cadastro na leitura das
+    // respostas (cs_form_minha_resposta), então não precisa setar aqui.
     const duracao_seg = Math.max(0, Math.round((Date.now() - abertoEm.current) / 1000));  // tempo de conclusão
     const base = { formulario_id: form.id, respondente_nome: nomeResp, respondente_email: emailResp, itens: valores };
     let { error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert({ ...base, setor, respondente_cadastro: cadastro, duracao_seg });

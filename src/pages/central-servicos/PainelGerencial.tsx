@@ -12,6 +12,8 @@ import IndicadoresCalculos from "./IndicadoresCalculos";
 import { carregaCadastro, normSetor, normNome, ehSetorReal, liderAcimaDe, MapasHier, Empregado } from "./LideresSetor";
 import PainelCumprimento from "./PainelCumprimento";
 import VisaoExecutiva from "./VisaoExecutiva";
+import { useFormPerms } from "@/hooks/useFormPerms";
+import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 
 // =====================================================================
 // PAINEL GERENCIAL — Nascimento Formulários (feedbacks)
@@ -34,7 +36,15 @@ const TABS = ["Visão Executiva", "Cumprimento", "Desenvolvimento", "Liderança"
 // Abas já implementadas — as demais aparecem marcadas "em breve" na barra.
 const TABS_PRONTAS = ["Visão Executiva", "Cumprimento", "Desenvolvimento", "Liderança", "Alinhamento e Entrega", "Planos de Ação", "Histórico Individual", "Indicadores e Cálculos"];
 
-interface Resp { id: string; formulario_id: string; enviado_em: string; respondente_nome?: string | null; setor?: string | null; itens: Record<string, any>; }
+interface Resp { id: string; formulario_id: string; enviado_em: string; respondente_nome?: string | null; criado_por?: string | null; setor?: string | null; respondente_cadastro?: Record<string, any> | null; itens: Record<string, any>; }
+
+// Diretoria = atalho para um conjunto FIXO de setores (definição de negócio, não
+// do cadastro). Selecionar uma diretoria recorta as respostas para esses setores.
+// Chaves já na forma que normSetor devolve (sem acento, caixa alta).
+const DIRETORIAS: Record<string, string[]> = {
+  "Diretor Operacional":    ["LICITACAO", "COMPRAS", "OPERACIONAL"],
+  "Diretor Administrativo": ["RH", "TREINAMENTOS", "FINANCEIRO", "JURIDICO"],
+};
 
 const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
   ({ padding: "7px 13px", borderRadius: 9, border, background: bg, color: c, fontSize: 12.5, fontWeight: 700, cursor: "pointer" });
@@ -247,6 +257,11 @@ export default function PainelGerencial() {
   const [diretorSetor, setDiretorSetor] = useState<Map<string, string>>(new Map());  // setor(norm) → nome do diretor
   const [ceo, setCeo] = useState("");   // topo da hierarquia, último degrau do líder
   const [emps, setEmps] = useState<Empregado[]>([]);   // cadastro: denominador da Visão Executiva
+  // Empresa do usuário (profiles.empresa_id → empresas). Fonte do filtro/dropdown
+  // de empresa: liga a resposta a quem respondeu por uid (criado_por) e, como
+  // fallback, pelo nome (respondente_nome → display_name).
+  const [empresaPorUid, setEmpresaPorUid] = useState<Map<string, string>>(new Map());
+  const [empresaPorNome, setEmpresaPorNome] = useState<Map<string, string>>(new Map());
   const [cadastroCarregando, setCadastroCarregando] = useState(true);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("Desenvolvimento");
@@ -268,16 +283,24 @@ export default function PainelGerencial() {
   const [fResp, setFResp] = useState("");
   const [fSituacao, setFSituacao] = useState("");
   const [fNecessidade, setFNecessidade] = useState("");
+  const [fEmpresas, setFEmpresas] = useState<string[]>([]);  // empresa do respondente (multi), da "Empresa padrão (de cadastro)" do usuário
+  const [fDiretoria, setFDiretoria] = useState("");          // Diretor Operacional | Diretor Administrativo → conjunto de setores
+  const [fLider, setFLider] = useState("");                  // nome do líder → recorta pelos setores que ele lidera
   // filtros exclusivos da aba Planos de Ação
   const [fSitPlano, setFSitPlano] = useState("");
   const [fPrioridade, setFPrioridade] = useState("");
   const [fOrigem, setFOrigem] = useState("");
 
+  // Permissões do usuário logado (espelha a RLS dos formulários). Quem NÃO tem
+  // 'ver_tudo' fica preso aos setores que pode ver — o Painel trava o filtro.
+  const { can: canForm, setoresVer, setoresCriar, loading: permsLoading } = useFormPerms();
+  const { empregado: meuEmpregado } = useVinculoEmpregado();  // p/ saber os setores que EU lidero
+
   const load = useCallback(async () => {
     setLoading(true);
     const [fRes, rRes] = await Promise.all([
       (supabase as any).from("CS_FORMULARIOS").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
-      (supabase as any).from("CS_FORM_RESPOSTAS").select("id, formulario_id, enviado_em, respondente_nome, setor, itens").order("enviado_em", { ascending: false }).limit(10000),
+      (supabase as any).from("CS_FORM_RESPOSTAS").select("id, formulario_id, enviado_em, respondente_nome, criado_por, setor, respondente_cadastro, itens").order("enviado_em", { ascending: false }).limit(10000),
     ]);
     const fs: Formulario[] = fRes.data ?? [];
     setForms(fs);
@@ -294,6 +317,24 @@ export default function PainelGerencial() {
       .then(c => { setEmps(c.emps); setLiderSetor(c.liderPorSetor); setDiretorSetor(c.diretorPorSetor); setCeo(c.ceo); })
       .catch(() => { setEmps([]); setLiderSetor(new Map()); setDiretorSetor(new Map()); setCeo(""); })
       .finally(() => setCadastroCarregando(false));
+    // Empresa por usuário: "Empresa padrão (de cadastro)" (profiles.empresa_id →
+    // empresas). Vira dois mapas — por uid (criado_por) e por nome — usados pelo
+    // filtro/dropdown de empresa. Em paralelo, não segura a tela.
+    Promise.all([
+      (supabase as any).from("profiles").select("id, display_name, empresa_id"),
+      (supabase as any).from("empresas").select("id, codigo, razao_social"),
+    ]).then(([pRes, eRes]: any[]) => {
+      const empById = new Map<string, string>();
+      (eRes.data ?? []).forEach((e: any) => empById.set(e.id, String(e.razao_social ?? e.codigo ?? "").trim()));
+      const porUid = new Map<string, string>(), porNome = new Map<string, string>();
+      (pRes.data ?? []).forEach((p: any) => {
+        const label = p.empresa_id ? (empById.get(p.empresa_id) ?? "") : "";
+        if (!label) return;
+        if (p.id) porUid.set(String(p.id), label);
+        const n = normNome(p.display_name); if (n && !porNome.has(n)) porNome.set(n, label);
+      });
+      setEmpresaPorUid(porUid); setEmpresaPorNome(porNome);
+    }).catch(() => { setEmpresaPorUid(new Map()); setEmpresaPorNome(new Map()); });
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -362,15 +403,59 @@ export default function PainelGerencial() {
 
   const planosAcao = usePlanosAcao(formSel, fontesPlano);
 
+  // Empresa de quem respondeu: a "Empresa padrão (de cadastro)" do usuário. Liga
+  // pelo uid (criado_por, envio logado) e, se anônimo/sem uid, pelo nome.
+  const empresaDe = useCallback((r: Resp) => {
+    if (r.criado_por && empresaPorUid.has(r.criado_por)) return empresaPorUid.get(r.criado_por)!;
+    return empresaPorNome.get(normNome(r.respondente_nome)) ?? "";
+  }, [empresaPorUid, empresaPorNome]);
+
+  // Setores que EU lidero/dirijo (toggles "Gerente de X" / "Diretor de X"),
+  // lidos dos mapas do cadastro cruzando com o meu nome. Chaves já normalizadas.
+  const meuNome = normNome(meuEmpregado?.nome);
+  const setoresQueLidero = useMemo(() => {
+    const s = new Set<string>();
+    if (!meuNome) return s;
+    liderSetor.forEach((nome, setorK) => { if (normNome(nome) === meuNome) s.add(setorK); });
+    diretorSetor.forEach((nome, setorK) => { if (normNome(nome) === meuNome) s.add(setorK); });
+    return s;
+  }, [liderSetor, diretorSetor, meuNome]);
+
+  // Escopo de setores do usuário. null = vê tudo (papel 'ver_tudo') OU nenhum
+  // setor concedido (ex.: só 'ver_proprias' — aí não travamos por setor, quem
+  // recorta é a RLS). Base SÓ nas permissões concedidas + setores que lidera —
+  // NUNCA no que o servidor devolveu (senão um servidor que devolve tudo zeraria
+  // a trava). Enquanto as permissões carregam, não trava.
+  const escopoSetores = useMemo(() => {
+    if (permsLoading || canForm("ver_tudo")) return null;
+    const s = new Set<string>();
+    [...setoresVer, ...setoresCriar].forEach(x => { const k = normSetor(x); if (k) s.add(k); });
+    setoresQueLidero.forEach(k => s.add(k));
+    return s.size ? s : null;
+  }, [permsLoading, canForm, setoresVer, setoresCriar, setoresQueLidero]);
+
   const base = useMemo(() => {
     let rs = respsForm;
+    // Trava por permissão: quem não vê tudo só enxerga os setores do seu escopo.
+    if (escopoSetores) rs = rs.filter(r => escopoSetores.has(normSetor(r.setor)));
     const dias = periodo === "todos" ? 0 : Number(periodo);
     if (dias) { const corte = Date.now() - dias * 86400000; rs = rs.filter(r => +new Date(r.enviado_em) >= corte); }
-    if (fSetor) rs = rs.filter(r => (r.setor ?? "") === fSetor);
+    if (fSetor) rs = rs.filter(r => normSetor(r.setor) === normSetor(fSetor));
+    // Diretoria: recorta para o conjunto de setores da diretoria (via normSetor,
+    // sem acento/caixa). Setor + Diretoria juntos são AND — pode zerar de propósito.
+    if (fDiretoria) { const alvo = new Set(DIRETORIAS[fDiretoria] ?? []); rs = rs.filter(r => alvo.has(normSetor(r.setor))); }
+    // Liderança: recorta pelos setores que aquele líder lidera (mesma coisa que
+    // escolher o(s) setor(es) dele), lendo o mapa setor→líder do cadastro.
+    if (fLider) rs = rs.filter(r => liderSetor.get(normSetor(r.setor)) === fLider);
+    // Empresa (multi): "Empresa padrão (de cadastro)" do usuário que respondeu (empresaDe).
+    if (fEmpresas.length) { const set = new Set(fEmpresas); rs = rs.filter(r => set.has(empresaDe(r))); }
+    // Colaborador: busca pelo AVALIADO (dono do feedback), com fallback ao
+    // respondente. Antes só olhava respondente_nome — que nos feedbacks vem
+    // vazio/é o líder que respondeu —, por isso qualquer nome zerava.
     const q = fResp.trim().toLowerCase();
-    if (q) rs = rs.filter(r => (r.respondente_nome ?? "").toLowerCase().includes(q));
+    if (q) rs = rs.filter(r => avaliadoDaResposta(r).toLowerCase().includes(q) || (r.respondente_nome ?? "").toLowerCase().includes(q));
     return rs;
-  }, [respsForm, periodo, fSetor, fResp]);
+  }, [respsForm, escopoSetores, periodo, fSetor, fDiretoria, fLider, fEmpresas, fResp, liderSetor, avaliadoDaResposta, empresaDe]);
   // recorte final também respeita situação/necessidade (filtros específicos)
   const filtradas = useMemo(() => {
     let rs = base;
@@ -379,11 +464,46 @@ export default function PainelGerencial() {
     return rs;
   }, [base, fSituacao, fNecessidade, mapa]);
 
-  const setores = useMemo(() => [...new Set(respsForm.map(r => (r.setor ?? "").trim()).filter(Boolean))].sort(), [respsForm]);
+  // Opções de setor. Sem escopo: os setores presentes nas respostas. Com escopo:
+  // TODOS os setores permitidos (mesmo sem resposta ainda) — assim um setor
+  // concedido aparece selecionável em vez de sumir por falta de dados. O rótulo
+  // de exibição vem dos dados quando existe, senão do próprio grant.
+  const setores = useMemo(() => {
+    const dataLabels = [...new Set(respsForm.map(r => (r.setor ?? "").trim()).filter(Boolean))];
+    if (!escopoSetores) return dataLabels.sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const porNorm = new Map<string, string>();
+    dataLabels.forEach(l => { const k = normSetor(l); if (escopoSetores.has(k) && !porNorm.has(k)) porNorm.set(k, l); });
+    [...setoresVer, ...setoresCriar].forEach(l => { const k = normSetor(l); if (escopoSetores.has(k) && !porNorm.has(k)) porNorm.set(k, l.trim()); });
+    escopoSetores.forEach(k => { if (!porNorm.has(k)) porNorm.set(k, k); });
+    return [...porNorm.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [respsForm, escopoSetores, setoresVer, setoresCriar]);
+
+  // Ao MUDAR o escopo: 1 setor → fixa nele (o select fica travado); vários ou
+  // liberado → volta p/ "Todos (permitidos)". Roda só na transição (ref), então
+  // não atropela a escolha manual do usuário depois.
+  const escopoKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = escopoSetores ? [...escopoSetores].sort().join("|") : "";
+    if (key === escopoKeyRef.current) return;
+    escopoKeyRef.current = key;
+    if (escopoSetores && escopoSetores.size === 1) setFSetor(setores[0] ?? "");
+    else setFSetor("");
+  }, [escopoSetores, setores]);
+  // Empresas presentes nas respostas: a empresa de cadastro de cada respondente
+  // (empresaDe) — só entram as que aparecem em quem respondeu.
+  const empresasOpc = useMemo(() => [...new Set(respsForm.map(empresaDe).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")), [respsForm, empresaDe]);
+  // Líderes dos setores que aparecem nas respostas (um por pessoa). Selecionar um
+  // recorta pelos setores dele — por isso a lista sai do mapa setor→líder.
+  const lideresOpc = useMemo(() => {
+    const s = new Set<string>();
+    setores.forEach(setor => { const l = liderSetor.get(normSetor(setor)); if (l) s.add(l); });
+    return [...s].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [setores, liderSetor]);
   const distSituacao = useMemo(() => distrib(pq("situacao"), filtradas), [pergs, mapa, filtradas]);
-  const distNecess = useMemo(() => distrib(pq("necessidades"), filtradas), [pergs, mapa, filtradas]);
-  const distFortes = useMemo(() => distrib(pq("fortes"), filtradas), [pergs, mapa, filtradas]);
-  const distMelhoria = useMemo(() => distrib(pq("melhoria"), filtradas), [pergs, mapa, filtradas]);
+  // categorias sem ordem intrínseca: mostrar sempre da mais citada p/ a menos
+  const distNecess = useMemo(() => distrib(pq("necessidades"), filtradas).sort((a, b) => b.n - a.n), [pergs, mapa, filtradas]);
+  const distFortes = useMemo(() => distrib(pq("fortes"), filtradas).sort((a, b) => b.n - a.n), [pergs, mapa, filtradas]);
+  const distMelhoria = useMemo(() => distrib(pq("melhoria"), filtradas).sort((a, b) => b.n - a.n), [pergs, mapa, filtradas]);
 
   // evolução da situação por trimestre (usa base, sem o filtro de situação)
   const evolucao = useMemo(() => {
@@ -620,10 +740,23 @@ export default function PainelGerencial() {
             <select value={periodo} onChange={e => setPeriodo(e.target.value as any)} style={inp}>
               <option value="todos">Todo o período</option><option value="90">Últimos 90 dias</option><option value="180">Últimos 180 dias</option><option value="365">Último ano</option>
             </select></div>
-          <FiltroFuturo label="Empresa" /><FiltroFuturo label="Diretoria" />
+          <MultiSelectEmpresa opcoes={empresasOpc} sel={fEmpresas} setSel={setFEmpresas} />
+          <div><label style={lbl}>Diretoria</label>
+            <select value={fDiretoria} onChange={e => setFDiretoria(e.target.value)} style={inp}>
+              <option value="">Todas</option>{Object.keys(DIRETORIAS).map(d => <option key={d} value={d}>{d}</option>)}
+            </select></div>
           <div><label style={lbl}>Setor</label>
-            <select value={fSetor} onChange={e => setFSetor(e.target.value)} style={inp}><option value="">Todos</option>{setores.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-          <FiltroFuturo label="Liderança" />
+            {escopoSetores && escopoSetores.size === 1 ? (
+              <select value={setores[0] ?? ""} disabled title="Você só tem acesso a este setor" style={{ ...inp, background: "#f1f5f9", color: "#475569", cursor: "not-allowed" }}>
+                <option value={setores[0] ?? ""}>{setores[0] ?? "—"}</option>
+              </select>
+            ) : (
+              <select value={fSetor} onChange={e => setFSetor(e.target.value)} style={inp}><option value="">{escopoSetores ? "Todos (permitidos)" : "Todos"}</option>{setores.map(s => <option key={s} value={s}>{s}</option>)}</select>
+            )}</div>
+          <div><label style={lbl}>Liderança</label>
+            <select value={fLider} onChange={e => setFLider(e.target.value)} style={inp} disabled={!lideresOpc.length}>
+              <option value="">{lideresOpc.length ? "Todas" : "Sem líder definido"}</option>{lideresOpc.map(l => <option key={l} value={l}>{l}</option>)}
+            </select></div>
           <div><label style={lbl}>Colaborador</label><input value={fResp} onChange={e => setFResp(e.target.value)} placeholder="Nome…" style={inp} /></div>
           <FiltroFuturo label="Situação do feedback" />
           {/* Na aba Planos de Ação os filtros do feedback não se aplicam — quem
@@ -656,7 +789,7 @@ export default function PainelGerencial() {
         <div ref={mapaRef} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, gap: 8, flexWrap: "wrap", scrollMarginTop: 12 }}>
           <button onClick={() => setMostrarMapa(v => !v)} style={{ background: "none", border: "none", color: "#0f3171", fontSize: 11.5, fontWeight: 700, cursor: "pointer", padding: 0 }}>⚙ Mapeamento de perguntas {mostrarMapa ? "▴" : "▾"}</button>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {tab !== "Indicadores e Cálculos" && <button onClick={() => { setPeriodo("todos"); setFSetor(""); setFResp(""); setFSituacao(""); setFNecessidade(""); setFSitPlano(""); setFPrioridade(""); setFOrigem(""); }} style={btn("#f1f5f9", "#475569", "1px solid #e2e8f0")}>Limpar filtros</button>}
+            {tab !== "Indicadores e Cálculos" && <button onClick={() => { setPeriodo("todos"); setFSetor(""); setFResp(""); setFSituacao(""); setFNecessidade(""); setFSitPlano(""); setFPrioridade(""); setFOrigem(""); setFEmpresas([]); setFDiretoria(""); setFLider(""); }} style={btn("#f1f5f9", "#475569", "1px solid #e2e8f0")}>Limpar filtros</button>}
             {mostrarMapa && <button onClick={() => setMostrarMapa(false)} style={btn("#f1f5f9", "#475569", "1px solid #e2e8f0")}>✕ Fechar mapeamento</button>}
           </div>
         </div>
@@ -953,6 +1086,44 @@ const pct = (n: number, tot: number) => tot ? `${Math.round((n / tot) * 100)}%` 
 function Vazio() { return <div style={{ fontSize: 12, color: "#94a3b8", padding: "10px 0" }}>Sem dados no recorte.</div>; }
 function FiltroFuturo({ label }: { label: string }) {
   return <div><label style={lbl}>{label}</label><select disabled style={{ ...inp, background: "#f8fafc", color: "#94a3b8", cursor: "not-allowed" }}><option>Todas (em breve)</option></select></div>;
+}
+
+// Filtro Empresa: multi-seleção por caixinhas num dropdown (as respostas podem
+// abranger várias empresas de uma vez — "1, 2, 3, 5"). Sem opção = todas.
+function MultiSelectEmpresa({ opcoes, sel, setSel }: { opcoes: string[]; sel: string[]; setSel: (v: string[]) => void }) {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setAberto(false); };
+    document.addEventListener("mousedown", fora);
+    return () => document.removeEventListener("mousedown", fora);
+  }, [aberto]);
+  const rotulo = !sel.length ? "Todas" : sel.length === 1 ? sel[0] : `${sel.length} empresas`;
+  const toggle = (o: string) => setSel(sel.includes(o) ? sel.filter(x => x !== o) : [...sel, o]);
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <label style={lbl}>Empresa</label>
+      <button type="button" onClick={() => opcoes.length && setAberto(v => !v)} disabled={!opcoes.length}
+        style={{ ...inp, textAlign: "left", cursor: opcoes.length ? "pointer" : "not-allowed", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, color: opcoes.length ? (sel.length ? "#0f172a" : "#64748b") : "#94a3b8", background: opcoes.length ? "#fff" : "#f8fafc" }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opcoes.length ? rotulo : "Sem dados no formulário"}</span>
+        <span style={{ fontSize: 9, color: "#94a3b8" }}>▾</span>
+      </button>
+      {aberto && (
+        <div style={{ position: "absolute", zIndex: 30, top: "100%", left: 0, right: 0, marginTop: 4, maxHeight: 240, overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 12px 28px rgba(15,23,42,.12)", padding: 4 }}>
+          {sel.length > 0 && (
+            <button type="button" onClick={() => setSel([])} style={{ width: "100%", textAlign: "left", padding: "6px 8px", fontSize: 11.5, fontWeight: 700, color: "#0f3171", background: "none", border: "none", cursor: "pointer" }}>✕ Limpar seleção</button>
+          )}
+          {opcoes.map(o => (
+            <label key={o} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 7, cursor: "pointer", fontSize: 12.5, color: "#0f172a" }}>
+              <input type="checkbox" checked={sel.includes(o)} onChange={() => toggle(o)} />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Kpi({ titulo, valor, cor, sub, icone }: { titulo: string; valor: number | string; cor: string; sub?: string; icone?: string }) {
