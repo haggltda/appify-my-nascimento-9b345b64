@@ -5,20 +5,14 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { AlertTriangle, CalendarDays, CheckSquare, Clock, LayoutDashboard, List, Lock, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarDays, Clock, LayoutDashboard, List, Lock, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useAccessibleMenus } from "@/hooks/useAccessibleMenus";
-import { useReunioes, useUsuariosAtivos, useEditarReunioesEmMassa, useExcluirReunioesEmMassa } from "./useReunioes";
+import { useReunioes, useUsuariosAtivos } from "./useReunioes";
 import { useBloqueiosAgendaPorUsuarios } from "./useBloqueioAgenda";
 import { CalendarioMes, bloqueioDoDia } from "./componentes/CalendarioMes";
-import { EditarDiaHorarioDialog } from "./componentes/EditarDiaHorarioDialog";
 import { ReuniaoFormCriar } from "./ReuniaoFormCriar";
 import { BloquearAgendaModal } from "./componentes/BloquearAgendaModal";
 import { ETAPA_COR, ETAPA_LABEL, formatarHoraBloqueio, motivoBloqueioLabel, nomeUsuario, salaResumo, SALAS_PRESENCIAIS } from "./types";
@@ -50,14 +44,9 @@ export default function Reunioes() {
   const [diaSelecionado, setDiaSelecionado] = useState(() => new Date());
   const [filtroPessoa, setFiltroPessoa] = useState("");
   const [filtroSala, setFiltroSala] = useState("");
-  const [selecaoAtiva, setSelecaoAtiva] = useState(false);
-  const [selecionadas, setSelecionadas] = useState<string[]>([]);
   // Sem filtro de pessoa, mostra os próprios bloqueios; filtrando por alguém, mostra os dela (motivo incluso — visível pra quem tem acesso à Agenda de Reunião).
   const { data: bloqueios = [] } = useBloqueiosAgendaPorUsuarios([filtroPessoa || user?.id].filter((v): v is string => !!v));
   const bloqueioDoDiaSelecionado = useMemo(() => bloqueioDoDia(diaSelecionado, bloqueios), [diaSelecionado, bloqueios]);
-  const [editarLoteOpen, setEditarLoteOpen] = useState(false);
-  const editarLote = useEditarReunioesEmMassa();
-  const excluirLote = useExcluirReunioesEmMassa();
 
   const opcoesResponsaveis = usuarios.map((u) => ({ value: u.id, label: u.display_name }));
   const opcoesSalas = SALAS_PRESENCIAIS.map((s) => ({ value: s, label: s }));
@@ -69,18 +58,6 @@ export default function Reunioes() {
     ),
     [reunioes, filtroPessoa, filtroSala],
   );
-
-  const podeGerenciarLinha = (r: { criado_por: string; organizador_user_id: string; responsavel_preenchimento_user_id: string }) =>
-    !!user?.id && (user.id === r.criado_por || user.id === r.organizador_user_id || user.id === r.responsavel_preenchimento_user_id);
-
-  const alternarSelecao = (id: string) => {
-    setSelecionadas((s) => (s.includes(id) ? s.filter((v) => v !== id) : [...s, id]));
-  };
-
-  const sairDoModoSelecao = () => {
-    setSelecaoAtiva(false);
-    setSelecionadas([]);
-  };
 
   const kpis = useMemo(() => {
     const agora = new Date();
@@ -154,67 +131,7 @@ export default function Reunioes() {
             <List className="h-3.5 w-3.5" /> Lista
           </Button>
         </div>
-        {modo === "lista" && (
-          <Button
-            size="sm"
-            variant={selecaoAtiva ? "secondary" : "outline"}
-            className="gap-1.5"
-            onClick={() => (selecaoAtiva ? sairDoModoSelecao() : setSelecaoAtiva(true))}
-          >
-            <CheckSquare className="h-3.5 w-3.5" /> {selecaoAtiva ? "Cancelar seleção" : "Selecionar"}
-          </Button>
-        )}
       </div>
-
-      {selecaoAtiva && selecionadas.length > 0 && (
-        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-3 shadow-sm">
-          <span className="text-sm font-medium">{selecionadas.length} selecionada{selecionadas.length > 1 ? "s" : ""}</span>
-          <Button size="sm" className="gap-1.5" onClick={() => setEditarLoteOpen(true)}>
-            <CalendarDays className="h-3.5 w-3.5" /> Editar em massa
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="sm" variant="destructive" className="gap-1.5">
-                <Trash2 className="h-3.5 w-3.5" /> Excluir em massa
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir {selecionadas.length} reunião(ões)?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Apaga cada reunião selecionada com tudo dentro — pauta, anexos, convidados, histórico. Sem volta.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Voltar</AlertDialogCancel>
-                <AlertDialogAction
-                  disabled={excluirLote.isPending}
-                  onClick={async () => {
-                    await excluirLote.mutateAsync(selecionadas);
-                    sairDoModoSelecao();
-                  }}
-                >
-                  {excluirLote.isPending ? "Excluindo…" : "Confirmar exclusão"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button size="sm" variant="ghost" onClick={sairDoModoSelecao}>Limpar</Button>
-        </div>
-      )}
-
-      <EditarDiaHorarioDialog
-        open={editarLoteOpen}
-        onOpenChange={setEditarLoteOpen}
-        titulo="Editar reuniões selecionadas"
-        descricao={'Muda o dia da semana e o horário das reuniões selecionadas que ainda estão como "Planejada". As demais (já iniciadas, concluídas ou canceladas) não são alteradas.'}
-        salvando={editarLote.isPending}
-        onSalvar={async (novoDiaSemana, novoHorario) => {
-          await editarLote.mutateAsync({ reuniaoIds: selecionadas, novoDiaSemana, novoHorario });
-          setEditarLoteOpen(false);
-          sairDoModoSelecao();
-        }}
-      />
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 
@@ -276,36 +193,25 @@ export default function Reunioes() {
               <p className="text-sm">Nenhuma reunião agendada ainda.</p>
             </Card>
           )}
-          {reunioesFiltradas.map((r) => {
-            const gerenciavel = podeGerenciarLinha(r);
-            return (
-              <Card
-                key={r.id}
-                className="flex cursor-pointer items-center justify-between gap-4 p-4 transition-colors hover:bg-accent/40"
-                onClick={() => (selecaoAtiva ? (gerenciavel && alternarSelecao(r.id)) : navigate(`/app/central-servicos/reunioes/${r.id}`))}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  {selecaoAtiva && (
-                    <Checkbox
-                      checked={selecionadas.includes(r.id)}
-                      disabled={!gerenciavel}
-                      onCheckedChange={() => gerenciavel && alternarSelecao(r.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{r.titulo}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.numero}
-                      {" · "}{new Date(r.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
-                      {" · "}{r.tipo_local === "presencial" ? "Presencial" : r.tipo_local === "hibrido" ? "Híbrido" : "Online"}
-                    </p>
-                  </div>
+          {reunioesFiltradas.map((r) => (
+            <Card
+              key={r.id}
+              className="flex cursor-pointer items-center justify-between gap-4 p-4 transition-colors hover:bg-accent/40"
+              onClick={() => navigate(`/app/central-servicos/reunioes/${r.id}`)}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{r.titulo}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.numero}
+                    {" · "}{new Date(r.data_hora).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                    {" · "}{r.tipo_local === "presencial" ? "Presencial" : r.tipo_local === "hibrido" ? "Híbrido" : "Online"}
+                  </p>
                 </div>
-                <Badge variant="outline" className={ETAPA_COR[r.etapa]}>{ETAPA_LABEL[r.etapa]}</Badge>
-              </Card>
-            );
-          })}
+              </div>
+              <Badge variant="outline" className={ETAPA_COR[r.etapa]}>{ETAPA_LABEL[r.etapa]}</Badge>
+            </Card>
+          ))}
         </div>
       )}
 

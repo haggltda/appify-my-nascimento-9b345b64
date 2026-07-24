@@ -208,6 +208,7 @@ export default function ReuniaoDetalhe() {
   }
 
   const podeGerenciar = user?.id === reuniao.criado_por || user?.id === reuniao.responsavel_preenchimento_user_id || user?.id === reuniao.organizador_user_id;
+  const souParticipante = podeGerenciar || convidados.some((c) => c.user_id === user?.id);
   const reuniaoEncerrada = reuniao.etapa === "concluida" || reuniao.etapa === "cancelada";
   const opcoesConvidaveis = usuarios
     .filter((u) => !convidados.some((c) => c.user_id === u.id))
@@ -291,9 +292,11 @@ export default function ReuniaoDetalhe() {
                 <Link to={`/app/central-servicos/reunioes/${reuniao.id}/conducao`}><Play className="h-3.5 w-3.5" /> Iniciar Reunião</Link>
               </Button>
             )}
-            {podeGerenciar && reuniao.etapa === "em_andamento" && (
+            {souParticipante && reuniao.etapa === "em_andamento" && (
               <Button asChild size="sm" className="gap-1.5">
-                <Link to={`/app/central-servicos/reunioes/${reuniao.id}/conducao`}><Play className="h-3.5 w-3.5" /> Conduzir Reunião</Link>
+                <Link to={`/app/central-servicos/reunioes/${reuniao.id}/conducao`}>
+                  <Play className="h-3.5 w-3.5" /> {podeGerenciar ? "Conduzir Reunião" : "Marcar presença"}
+                </Link>
               </Button>
             )}
             {podeGerenciar && reuniao.etapa === "em_andamento" && (

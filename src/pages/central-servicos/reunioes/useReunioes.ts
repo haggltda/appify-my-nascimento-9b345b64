@@ -434,40 +434,6 @@ export function useEditarSerieRecorrente() {
   });
 }
 
-/** Mesma edição em massa, mas a partir de uma seleção manual de IDs (tela de listagem) — cobre reuniões antigas, sem serie_recorrencia_id, ou qualquer combinação escolhida à mão. Só as "agendada" da seleção entram; as demais aparecem como puladas. */
-export function useEditarReunioesEmMassa() {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const mostrarResultado = useResultadoEdicaoToast();
-
-  return useMutation({
-    mutationFn: async ({ reuniaoIds, novoDiaSemana, novoHorario }: { reuniaoIds: string[]; novoDiaSemana: number; novoHorario: string }): Promise<ResultadoEdicaoSerie> => {
-      const { data: reunioes, error } = await (supabase as any)
-        .from("reuniao")
-        .select(REUNIAO_COLUNAS)
-        .in("id", reuniaoIds);
-      if (error) throw error;
-
-      const todas = (reunioes ?? []) as Reuniao[];
-      const editaveis = todas.filter((r) => r.etapa === "agendada");
-      const resultado = await editarReunioesEmLote(editaveis, novoDiaSemana, novoHorario);
-      for (const r of todas) {
-        if (r.etapa !== "agendada") resultado.puladas.push({ titulo: r.titulo, motivo: `Etapa "${r.etapa}" não pode ser editada em massa.` });
-      }
-      return resultado;
-    },
-    onSuccess: (resultado) => {
-      qc.invalidateQueries({ queryKey: ["reuniao-calendario"] });
-      qc.invalidateQueries({ queryKey: ["reuniao-minhas"] });
-      qc.invalidateQueries({ queryKey: ["reuniao"] });
-      mostrarResultado(resultado, "reuniões atualizadas");
-    },
-    onError: (error: any) => {
-      toast({ title: "Erro ao editar em massa", description: error.message, variant: "destructive" });
-    },
-  });
-}
-
 interface ResultadoExclusaoLote {
   excluidas: number;
   puladas: { titulo: string; motivo: string }[];
