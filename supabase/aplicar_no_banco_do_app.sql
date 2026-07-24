@@ -5115,3 +5115,45 @@ CREATE POLICY cs_form_resp_select ON public."CS_FORM_RESPOSTAS"
     OR public.cs_form_lidera_setor(setor));            -- gerente/diretor do setor
 
 NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260801000002_rh_colaboradores_lista_saida_completa =====
+-- RH Colaboradores: filtrar por situacao de SAIDA (Demitido/Desligado/Rescisao/
+-- Aposentadoria) passa a listar TODOS com aquela situacao (historico completo),
+-- ignorando o recorte de presenca no mes. O dashboard segue com presenca no mes.
+CREATE OR REPLACE FUNCTION public.rh_colaboradores_lista(
+  _ano int, _mes int,
+  _empresa text DEFAULT '', _contrato text DEFAULT '', _situacao text DEFAULT '', _busca text DEFAULT '',
+  _offset int DEFAULT 0, _limite int DEFAULT 50
+) RETURNS jsonb
+LANGUAGE plpgsql STABLE SET search_path = public AS $$
+DECLARE
+  v_ini date := make_date(_ano, _mes, 1);
+  v_fim date := (make_date(_ano, _mes, 1) + interval '1 month' - interval '1 day')::date;
+  v_q   text := nullif(btrim(coalesce(_busca, '')), '');
+  v_emp text := coalesce(_empresa, '');
+  v_ctr text := coalesce(_contrato, '');
+  v_sit text := coalesce(_situacao, '');
+  v_saida boolean := v_sit ~* '(DEMIT|DESLIG|RESCIS|APOSENT)';
+  v_out jsonb;
+BEGIN
+  WITH fil AS (
+    SELECT v.* FROM public.v_rh_colaboradores v
+     WHERE (v_saida
+            OR ((v.admissao IS NULL OR v.admissao <= v_fim)
+                AND (NOT v.eh_saida OR (v.afastamento IS NOT NULL AND v.afastamento >= v_ini))))
+       AND (v_emp = '' OR v.empresa  = v_emp)
+       AND (v_ctr = '' OR v.contrato = v_ctr)
+       AND (v_sit = '' OR v.situacao = v_sit)
+       AND (v_q IS NULL OR v.busca_txt ILIKE '%' || v_q || '%')
+  )
+  SELECT jsonb_build_object(
+    'total', (SELECT count(*) FROM fil),
+    'linhas', (SELECT coalesce(jsonb_agg(to_jsonb(p) - 'busca_txt' - 'eh_saida'), '[]'::jsonb)
+                 FROM (SELECT * FROM fil ORDER BY nome, id OFFSET greatest(_offset, 0) LIMIT least(greatest(_limite, 1), 500)) p)
+  ) INTO v_out;
+  RETURN v_out;
+END $$;
+REVOKE ALL ON FUNCTION public.rh_colaboradores_lista(int, int, text, text, text, text, int, int) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rh_colaboradores_lista(int, int, text, text, text, text, int, int) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
