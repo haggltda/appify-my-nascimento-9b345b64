@@ -64,7 +64,7 @@ export default function Reunioes() {
 
   const reunioesFiltradas = useMemo(
     () => reunioes.filter((r) =>
-      (!filtroPessoa || [r.criado_por, r.responsavel_preenchimento_user_id, ...r.convidados].includes(filtroPessoa))
+      (!filtroPessoa || [r.criado_por, r.organizador_user_id, r.responsavel_preenchimento_user_id, ...r.convidados].includes(filtroPessoa))
       && (!filtroSala || salaResumo(r) === filtroSala),
     ),
     [reunioes, filtroPessoa, filtroSala],
