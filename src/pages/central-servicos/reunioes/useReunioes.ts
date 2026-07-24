@@ -104,36 +104,41 @@ export async function verificarConflitoParticipante(params: {
 }
 
 /**
- * Sobreposição com bloqueio de agenda — mesma janela usada pelo trigger
- * pessoa_tem_bloqueio_agenda no banco (mantém a mesma lógica, inclusive a
- * mesma particularidade de bloqueio parcial de horário usar sempre
- * data_inicio como referência de dia, não data_fim).
- * A RLS de reuniao_bloqueio_agenda só deixa o dono ver os próprios
- * bloqueios — então isso só serve pra checar a própria agenda de quem
- * está logado, não a de terceiros (essa checagem continua sendo feita
- * só pelo trigger do banco, que é SECURITY DEFINER).
+ * Sobreposição pura entre um bloqueio já carregado e uma janela de
+ * data/hora — mesma lógica usada pelo trigger pessoa_tem_bloqueio_agenda
+ * no banco (inclusive a mesma particularidade de bloqueio parcial de
+ * horário usar sempre data_inicio como referência de dia, não data_fim).
+ * Sem I/O — pra reaproveitar sobre bloqueios já buscados (aviso ao vivo no
+ * formulário), sem uma query nova a cada tecla.
+ */
+export function bloqueioSobrepoe(b: BloqueioAgenda, dataHoraIso: string, duracaoMinutos: number): boolean {
+  const inicio = new Date(dataHoraIso);
+  const fim = new Date(inicio.getTime() + duracaoMinutos * 60_000);
+  const bInicio = b.dia_inteiro ? new Date(`${b.data_inicio}T00:00:00`) : new Date(`${b.data_inicio}T${b.hora_inicio}`);
+  const bFim = b.dia_inteiro
+    ? new Date(new Date(`${b.data_fim}T00:00:00`).getTime() + 24 * 60 * 60_000)
+    : new Date(`${b.data_inicio}T${b.hora_fim}`);
+  return inicio < bFim && bInicio < fim;
+}
+
+/**
+ * Busca do banco + checa sobreposição de bloqueio de agenda de uma pessoa.
+ * A RLS de reuniao_bloqueio_agenda agora é visível pra qualquer um com
+ * acesso à Agenda de Reunião (não só o dono) — funciona pra checar
+ * qualquer pessoa envolvida na reunião, não só quem está logado.
  */
 export async function verificarBloqueioAgenda(params: {
   userId: string;
   dataHoraIso: string;
   duracaoMinutos: number;
 }): Promise<BloqueioAgenda | null> {
-  const inicio = new Date(params.dataHoraIso);
-  const fim = new Date(inicio.getTime() + params.duracaoMinutos * 60_000);
-
   const { data, error } = await (supabase as any)
     .from("reuniao_bloqueio_agenda")
     .select("id, user_id, tipo, data_inicio, data_fim, dia_inteiro, hora_inicio, hora_fim, motivo, motivo_outro, created_at")
     .eq("user_id", params.userId);
   if (error) throw error;
 
-  const conflito = ((data ?? []) as BloqueioAgenda[]).find((b) => {
-    const bInicio = b.dia_inteiro ? new Date(`${b.data_inicio}T00:00:00`) : new Date(`${b.data_inicio}T${b.hora_inicio}`);
-    const bFim = b.dia_inteiro
-      ? new Date(new Date(`${b.data_fim}T00:00:00`).getTime() + 24 * 60 * 60_000)
-      : new Date(`${b.data_inicio}T${b.hora_fim}`);
-    return inicio < bFim && bInicio < fim;
-  });
+  const conflito = ((data ?? []) as BloqueioAgenda[]).find((b) => bloqueioSobrepoe(b, params.dataHoraIso, params.duracaoMinutos));
   return conflito ?? null;
 }
 

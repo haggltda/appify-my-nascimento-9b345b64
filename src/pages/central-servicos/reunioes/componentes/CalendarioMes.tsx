@@ -7,7 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { ETAPA_COR, nomeUsuario, salaResumo, type BloqueioAgenda, type ReuniaoCalendario, type Usuario } from "../types";
+import { ETAPA_COR, MOTIVO_BLOQUEIO_LABEL, nomeUsuario, salaResumo, type BloqueioAgenda, type ReuniaoCalendario, type Usuario } from "../types";
 
 const DIAS_SEMANA = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"];
 
@@ -15,9 +15,9 @@ function iniciais(nome: string): string {
   return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 }
 
-function diaBloqueado(dia: Date, bloqueios: BloqueioAgenda[]): boolean {
+function bloqueioDoDia(dia: Date, bloqueios: BloqueioAgenda[]): BloqueioAgenda | undefined {
   const diaStr = format(dia, "yyyy-MM-dd");
-  return bloqueios.some((b) => diaStr >= b.data_inicio && diaStr <= b.data_fim);
+  return bloqueios.find((b) => diaStr >= b.data_inicio && diaStr <= b.data_fim);
 }
 
 export function CalendarioMes({
@@ -29,7 +29,7 @@ export function CalendarioMes({
   onSelecionarDia: (data: Date) => void;
   reunioes: ReuniaoCalendario[];
   usuarios: Usuario[];
-  /** Bloqueios de agenda do próprio usuário logado (RLS só deixa ver os seus mesmo) — pinta o dia de vermelho. */
+  /** Bloqueios de agenda a exibir (os próprios por padrão, ou de quem estiver filtrado) — motivo visível pra quem tem acesso à Agenda de Reunião. Pinta o dia de vermelho. */
   bloqueios?: BloqueioAgenda[];
 }) {
   const navigate = useNavigate();
@@ -54,7 +54,7 @@ export function CalendarioMes({
           const doDia = reunioesPorDia(dia);
           const foraDoMes = !isSameMonth(dia, mesAtual);
           const selecionado = isSameDay(dia, diaSelecionado);
-          const bloqueado = diaBloqueado(dia, bloqueios);
+          const bloqueio = bloqueioDoDia(dia, bloqueios);
           return (
             <button
               key={dia.toISOString()}
@@ -63,7 +63,7 @@ export function CalendarioMes({
               className={cn(
                 "flex min-h-28 flex-col items-stretch gap-1 border-b border-r border-border p-1.5 text-left align-top last:border-r-0",
                 foraDoMes && "bg-muted/20 text-muted-foreground",
-                bloqueado && "bg-destructive/10",
+                bloqueio && "bg-destructive/10",
                 selecionado && "bg-accent",
               )}
             >
@@ -74,9 +74,12 @@ export function CalendarioMes({
                 )}>
                   {format(dia, "d")}
                 </span>
-                {bloqueado && (
-                  <span className="truncate rounded border border-destructive/30 bg-destructive/10 px-1 py-0.5 text-[9px] font-medium text-destructive">
-                    Agenda bloqueada
+                {bloqueio && (
+                  <span
+                    className="truncate rounded border border-destructive/30 bg-destructive/10 px-1 py-0.5 text-[9px] font-medium text-destructive"
+                    title={bloqueio.motivo === "outro" ? (bloqueio.motivo_outro ?? "Outro") : MOTIVO_BLOQUEIO_LABEL[bloqueio.motivo]}
+                  >
+                    Bloqueado: {bloqueio.motivo === "outro" ? (bloqueio.motivo_outro ?? "Outro") : MOTIVO_BLOQUEIO_LABEL[bloqueio.motivo]}
                   </span>
                 )}
               </div>
