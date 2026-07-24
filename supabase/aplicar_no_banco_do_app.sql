@@ -5080,3 +5080,38 @@ CREATE POLICY cs_form_resp_select ON public."CS_FORM_RESPOSTAS"
     OR public.cs_form_cap_form_setor(formulario_id));  -- setor-dono do formulário
 
 NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260801000001_formularios_ver_por_lideranca_setor =====
+-- Recorte por LIDERANÇA de setor: "Gerente de <setor>" (CS_LIDERES_SETOR) e
+-- "Diretor de <setor>" (RH_SETOR_DIRETOR) passam a ver, no Painel Gerencial,
+-- só as respostas do(s) setor(es) que lidera/dirige. Enforcement no RLS.
+-- ADITIVO: quem tem 'ver_tudo' segue vendo tudo — para recortar, remova
+-- 'ver_tudo' da conta. Vínculo: EMPREGADOS.auth_user_id = auth.uid();
+-- empregado_id/diretor_id = EMPREGADOS."ID". Idempotente.
+CREATE OR REPLACE FUNCTION public.cs_form_lidera_setor(_setor text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT _setor IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public."EMPREGADOS" e
+     WHERE e.auth_user_id = auth.uid()
+       AND (
+         EXISTS (SELECT 1 FROM public."CS_LIDERES_SETOR" l
+                  WHERE l.empregado_id = e."ID"
+                    AND upper(btrim(l.setor)) = upper(btrim(_setor)))
+      OR EXISTS (SELECT 1 FROM public."RH_SETOR_DIRETOR" d
+                  WHERE d.diretor_id = e."ID"
+                    AND upper(btrim(d.setor)) = upper(btrim(_setor)))
+       ));
+$$;
+REVOKE EXECUTE ON FUNCTION public.cs_form_lidera_setor(text) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.cs_form_lidera_setor(text) TO authenticated;
+
+DROP POLICY IF EXISTS cs_form_resp_select ON public."CS_FORM_RESPOSTAS";
+CREATE POLICY cs_form_resp_select ON public."CS_FORM_RESPOSTAS"
+  FOR SELECT TO authenticated USING (
+    public.cs_form_cap('ver_tudo')
+    OR (public.cs_form_cap('ver_proprias') AND public.cs_form_minha_resposta(criado_por, respondente_nome))
+    OR public.cs_form_cap_setor(setor)                 -- ver_setor (CS_FORM_ACESSOS)
+    OR public.cs_form_cap_form_setor(formulario_id)    -- setor-dono do formulário
+    OR public.cs_form_lidera_setor(setor));            -- gerente/diretor do setor
+
+NOTIFY pgrst, 'reload schema';

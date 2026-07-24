@@ -35,6 +35,24 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.cs_form_minha_resposta(uuid, text) FROM PUBLIC, anon;
 GRANT  EXECUTE ON FUNCTION public.cs_form_minha_resposta(uuid, text) TO authenticated;
 
+-- Dependência: a UNIÃO abaixo chama cs_form_cap_form_setor (setor-dono do
+-- formulário). Ela nasceu em 20260716000001_formularios_criar_por_setor; num
+-- banco que ainda não recebeu aquela migration a CREATE POLICY abaixo estoura
+-- "function ... does not exist". Recriamos aqui (idêntica à origem) para esta
+-- migration ser autossuficiente e idempotente.
+CREATE OR REPLACE FUNCTION public.cs_form_cap_form_setor(_form_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public."CS_FORMULARIOS" f
+      JOIN public."CS_FORM_ACESSOS" a
+        ON a.papel = 'criar_setor' AND a.user_id = auth.uid()
+       AND upper(btrim(a.setor)) = upper(btrim(f.setor))
+     WHERE f.id = _form_id AND f.setor IS NOT NULL);
+$$;
+REVOKE EXECUTE ON FUNCTION public.cs_form_cap_form_setor(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.cs_form_cap_form_setor(uuid) FROM anon;
+GRANT  EXECUTE ON FUNCTION public.cs_form_cap_form_setor(uuid) TO authenticated;
+
 -- Releitura de respostas: mesma UNIÃO de antes, só o ramo ver_proprias muda.
 -- ver_setor continua recortando pelo Setor_ERP carimbado na resposta
 -- (cs_form_cap_setor) — é ele que faz "ver por setor = RH" mostrar só o RH.
