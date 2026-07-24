@@ -505,12 +505,17 @@ export function useReuniaoDetalhe(id: string | undefined) {
   };
 
   const marcarPresenca = async (convidadoId: string, presente: boolean, nomeParticipante?: string): Promise<boolean> => {
-    const { error } = await (supabase as any)
+    const { data, error } = await (supabase as any)
       .from("reuniao_convidado")
       .update({ presente, presente_marcado_em: new Date().toISOString() })
-      .eq("id", convidadoId);
+      .eq("id", convidadoId)
+      .select("id");
     if (error) {
       toast({ title: "Erro ao marcar presença", description: error.message, variant: "destructive" });
+      return false;
+    }
+    if (!data || data.length === 0) {
+      toast({ title: "Erro ao marcar presença", description: "Sem permissão pra marcar a presença deste participante.", variant: "destructive" });
       return false;
     }
     qc.invalidateQueries({ queryKey: ["reuniao_convidado", id] });
