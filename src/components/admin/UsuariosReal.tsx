@@ -11,7 +11,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound, Copy, AlertTriangle, Upload, Trash2 } from "lucide-react";
+import { Search, Pencil, ShieldCheck, Building2, UserPlus, Eye, EyeOff, KeyRound, Copy, AlertTriangle, Upload, Trash2, Link2, Link2Off, Loader2, IdCard } from "lucide-react";
+
+// Situações de desligamento (mesma regra das RPCs de vínculo): nunca vincula
+// nem aparece na busca.
+const ehDesligado = (s?: string | null) => /DEMITID|RESCIS|DESLIGAD/i.test(s ?? "");
+
+// Cadastro EMPREGADOS ligado a um login (colunas leves p/ a lista).
+interface EmpregadoVinc {
+  auth_user_id: string;
+  ID: number;
+  Nome: string | null;
+  "Situação": string | null;
+  "Título do Cargo": string | null;
+  Setor_ERP: string | null;
+}
 
 const FALLBACK_ROLES: Role[] = ["admin","controladoria","comercial","operacional","juridico","sst","diretor_adm","diretor_op","presidencia","usuario","visitante","comprador","almoxarife","gestor_cc","fiscal_recebedor","financeiro","fiscal","rh","sistemas","treinamentos"];
 
@@ -100,6 +114,31 @@ export function UsuariosReal() {
     },
   });
 
+  // Colaboradores (EMPREGADOS) já vinculados a um login — p/ mostrar o nome
+  // oficial da Senior e habilitar Detalhes/Vincular por linha.
+  const vinculadosQ = useQuery({
+    queryKey: ["admin-empregados-vinculados"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("EMPREGADOS")
+        .select('auth_user_id,"ID","Nome","Situação","Título do Cargo","Setor_ERP"')
+        .not("auth_user_id", "is", null);
+      if (error) throw error;
+      return (data ?? []) as EmpregadoVinc[];
+    },
+  });
+
+  const vincByUser = useMemo(() => {
+    const m = new Map<string, EmpregadoVinc>();
+    (vinculadosQ.data ?? []).forEach((e) => { if (e.auth_user_id) m.set(e.auth_user_id, e); });
+    return m;
+  }, [vinculadosQ.data]);
+
+  const invalidarVinculo = () => {
+    qc.invalidateQueries({ queryKey: ["admin-profiles"] });
+    qc.invalidateQueries({ queryKey: ["admin-empregados-vinculados"] });
+  };
+
   const rolesByUser = useMemo(() => {
     const m = new Map<string, Role[]>();
     (rolesQ.data ?? []).forEach((r: any) => {
@@ -177,6 +216,9 @@ export function UsuariosReal() {
             const userRoles = rolesByUser.get(u.id) ?? [];
             const emp = u.empresa_id ? empresasById.get(u.empresa_id) : null;
             const ehVoce = u.id === user?.id;
+            const vinc = vincByUser.get(u.id);
+            // Nome oficial da Senior tem prioridade sobre o display_name digitado.
+            const nomeExibicao = (vinc?.Nome?.trim()) || u.display_name || "—";
             return (
               <tr key={u.id} className="hover:bg-muted/40">
                 <td className="px-5 py-3">
@@ -185,12 +227,13 @@ export function UsuariosReal() {
                       <img src={u.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
                     ) : (
                       <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-primary text-xs font-semibold text-primary-foreground">
-                        {(u.display_name ?? u.email ?? "?").split(" ").map((s) => s[0]).slice(0,2).join("").toUpperCase()}
+                        {(nomeExibicao ?? u.email ?? "?").split(" ").map((s) => s[0]).slice(0,2).join("").toUpperCase()}
                       </div>
                     )}
                     <div>
                       <p className="text-sm font-medium">
-                        {u.display_name ?? "—"} {ehVoce && <Badge variant="outline" className="ml-1 text-[10px]">você</Badge>}
+                        {nomeExibicao} {ehVoce && <Badge variant="outline" className="ml-1 text-[10px]">você</Badge>}
+                        {vinc && <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-semibold text-success align-middle"><Link2 className="h-3 w-3" /> vinculado</span>}
                       </p>
                       <p className="text-[11px] text-muted-foreground">{u.email}</p>
                     </div>
@@ -213,19 +256,29 @@ export function UsuariosReal() {
                   ) : <span className="text-muted-foreground">— sem vínculo —</span>}
                 </td>
                 <td className="px-5 py-3 text-right">
-                  {podeEditar ? (
-                    <EditarUsuarioDialog
-                      profile={u}
-                      empresas={empresasQ.data ?? []}
-                      currentRoles={userRoles}
-                      onSaved={() => {
-                        qc.invalidateQueries({ queryKey: ["admin-profiles"] });
-                        qc.invalidateQueries({ queryKey: ["all-user-roles"] });
-                      }}
-                    />
-                  ) : (
-                    <span className="text-[11px] text-muted-foreground">somente admin</span>
-                  )}
+                  {(() => {
+                    // Compõe por capacidade: Detalhes/Vincular delegáveis; Editar só admin.
+                    const acoes = [
+                      podeEditar && (vinc
+                        ? <ColaboradorDetalheDialog key="det" empregadoId={vinc.ID} userId={u.id} podeDesvincular={podeEditar} onChanged={invalidarVinculo} />
+                        : <VincularColaboradorDialog key="vin" userId={u.id} nomeUsuario={u.display_name ?? u.email ?? ""} onLinked={invalidarVinculo} />),
+                      podeEditar && (
+                        <EditarUsuarioDialog
+                          key="edit"
+                          profile={u}
+                          empresas={empresasQ.data ?? []}
+                          currentRoles={userRoles}
+                          onSaved={() => {
+                            qc.invalidateQueries({ queryKey: ["admin-profiles"] });
+                            qc.invalidateQueries({ queryKey: ["all-user-roles"] });
+                          }}
+                        />
+                      ),
+                    ].filter(Boolean);
+                    return acoes.length
+                      ? <div className="flex items-center justify-end gap-1">{acoes}</div>
+                      : <span className="text-[11px] text-muted-foreground">—</span>;
+                  })()}
                 </td>
               </tr>
             );
@@ -988,6 +1041,218 @@ function AvatarUploadSection({ profile }: { profile: ProfileRow }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Detalhes do colaborador vinculado (ficha completa da Senior) ───────────
+const CAMPOS_EMP: { k: string; label: string }[] = [
+  { k: "Nome", label: "Nome" }, { k: "CPF", label: "CPF" },
+  { k: "Título do Cargo", label: "Cargo" },
+  { k: "Setor_ERP", label: "Setor" }, { k: "Perfil_ERP", label: "Perfil" },
+  { k: "LIDER", label: "Líder" }, { k: "Situação", label: "Situação" },
+  { k: "Admissão", label: "Admissão" }, { k: "Nascimento", label: "Nascimento" },
+  { k: "Nome da Empresa", label: "Empresa" }, { k: "Nome Filial", label: "Filial" },
+  { k: "email", label: "E-mail" },
+];
+
+function ColaboradorDetalheDialog({ empregadoId, userId, podeDesvincular, onChanged }: { empregadoId: number; userId: string; podeDesvincular: boolean; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [emp, setEmp] = useState<Record<string, any> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [desvinculando, setDesvinculando] = useState(false);
+  const [confirmar, setConfirmar] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancel = false;
+    (async () => {
+      setLoading(true);
+      const { data } = await (supabase as any).from("EMPREGADOS").select("*").eq("ID", empregadoId).maybeSingle();
+      if (!cancel) { setEmp(data ?? null); setLoading(false); }
+    })();
+    return () => { cancel = true; };
+  }, [open, empregadoId]);
+
+  const desvincular = async () => {
+    setDesvinculando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("admin_desvincular_empregado", { p_user_id: userId });
+      if (error) throw error;
+      if (data && (data as any).ok === false) throw new Error((data as any).error);
+      toast({ title: "Vínculo removido" });
+      setOpen(false);
+      onChanged();
+    } catch (e: any) {
+      toast({ title: "Erro ao desvincular", description: e?.message, variant: "destructive" });
+    } finally {
+      setDesvinculando(false);
+      setConfirmar(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setConfirmar(false); }}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="ghost" className="h-7 gap-1.5"><IdCard className="h-3.5 w-3.5" />Detalhes</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Ficha do colaborador</DialogTitle>
+          <DialogDescription>Dados do cadastro (Senior) vinculado a este login.</DialogDescription>
+        </DialogHeader>
+        {loading ? (
+          <div className="py-8 text-center text-sm text-muted-foreground"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></div>
+        ) : !emp ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Cadastro não encontrado.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {CAMPOS_EMP.map(({ k, label }) => {
+              const v = emp[k];
+              if (v == null || String(v).trim() === "") return null;
+              const desligado = k === "Situação" && ehDesligado(String(v));
+              return (
+                <div key={k} className="rounded-md border border-border bg-muted/20 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+                  <p className={`text-sm font-medium ${desligado ? "text-destructive" : ""}`}>{String(v)}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <DialogFooter className="sm:justify-between">
+          {podeDesvincular ? (
+            !confirmar ? (
+              <Button variant="ghost" className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setConfirmar(true)} disabled={desvinculando}>
+                <Link2Off className="h-4 w-4" /> Desvincular
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-destructive">Remover o vínculo?</span>
+                <Button size="sm" variant="ghost" onClick={() => setConfirmar(false)} disabled={desvinculando}>Não</Button>
+                <Button size="sm" variant="destructive" onClick={desvincular} disabled={desvinculando}>{desvinculando ? "Removendo…" : "Sim"}</Button>
+              </div>
+            )
+          ) : <span />}
+          <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Vincular login a um colaborador (busca no cadastro, sem demitidos) ─────
+interface EmpBusca { ID: number; Nome: string | null; CPF: string | null; "Título do Cargo": string | null; Setor_ERP: string | null; "Situação": string | null; auth_user_id: string | null }
+
+function VincularColaboradorDialog({ userId, nomeUsuario, onLinked }: { userId: string; nomeUsuario: string; onLinked: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [termo, setTermo] = useState("");
+  const [resultados, setResultados] = useState<EmpBusca[]>([]);
+  const [buscando, setBuscando] = useState(false);
+  const [sel, setSel] = useState<EmpBusca | null>(null);
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    if (!open) { setTermo(""); setResultados([]); setSel(null); return; }
+  }, [open]);
+
+  // Busca por nome/CPF via RPC (ignora acento, quebra em palavras, casa CPF por
+  // dígitos e já exclui desligados no servidor).
+  useEffect(() => {
+    const q = termo.trim();
+    if (q.length < 2) { setResultados([]); return; }
+    let cancel = false;
+    setBuscando(true);
+    const t = setTimeout(async () => {
+      const { data, error } = await (supabase as any).rpc("admin_buscar_empregados", { p_termo: q });
+      if (cancel) return;
+      if (error) { console.error("admin_buscar_empregados", error); setResultados([]); }
+      else setResultados((data ?? []) as EmpBusca[]);
+      setBuscando(false);
+    }, 300);
+    return () => { cancel = true; clearTimeout(t); };
+  }, [termo]);
+
+  const vincular = async () => {
+    if (!sel) return;
+    setSalvando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("admin_vincular_empregado", { p_user_id: userId, p_empregado_id: sel.ID });
+      if (error) throw error;
+      if (data && (data as any).ok === false) throw new Error((data as any).error);
+      toast({ title: "Colaborador vinculado", description: sel.Nome ?? undefined });
+      setOpen(false);
+      onLinked();
+    } catch (e: any) {
+      toast({ title: "Erro ao vincular", description: e?.message, variant: "destructive" });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline" className="h-7 gap-1.5"><Link2 className="h-3.5 w-3.5" />Vincular</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Vincular colaborador</DialogTitle>
+          <DialogDescription>Ligar <strong>{nomeUsuario}</strong> a um cadastro da Senior. Colaboradores demitidos não aparecem.</DialogDescription>
+        </DialogHeader>
+
+        {!sel ? (
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input autoFocus value={termo} onChange={(e) => setTermo(e.target.value)} placeholder="Buscar por nome ou CPF…" className="pl-9" />
+            </div>
+            <div className="max-h-72 overflow-y-auto rounded-md border border-border divide-y divide-border">
+              {buscando && <p className="px-3 py-3 text-center text-xs text-muted-foreground"><Loader2 className="mx-auto h-4 w-4 animate-spin" /></p>}
+              {!buscando && termo.trim().length >= 2 && resultados.length === 0 && (
+                <p className="px-3 py-4 text-center text-xs text-muted-foreground">Nenhum colaborador ativo encontrado.</p>
+              )}
+              {!buscando && termo.trim().length < 2 && (
+                <p className="px-3 py-4 text-center text-xs text-muted-foreground">Digite ao menos 2 caracteres.</p>
+              )}
+              {resultados.map((e) => {
+                const jaVinc = !!e.auth_user_id && e.auth_user_id !== userId;
+                return (
+                  <button key={e.ID} type="button" disabled={jaVinc}
+                    onClick={() => setSel(e)}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50">
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium">{e.Nome}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{[e["Título do Cargo"], e.Setor_ERP].filter(Boolean).join(" · ")}</span>
+                    </span>
+                    {jaVinc
+                      ? <span className="shrink-0 text-[10px] font-semibold text-muted-foreground">já vinculado</span>
+                      : <span className="shrink-0 text-[10px] text-muted-foreground">{e.CPF}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border bg-muted/20 p-3">
+              <p className="text-sm font-semibold">{sel.Nome}</p>
+              <p className="text-xs text-muted-foreground">{[sel["Título do Cargo"], sel.Setor_ERP].filter(Boolean).join(" · ")}</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
+                {sel.CPF && <span className="rounded bg-muted px-2 py-0.5">{sel.CPF}</span>}
+                {sel["Situação"] && <span className="rounded bg-success-soft px-2 py-0.5 text-success">{sel["Situação"]}</span>}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Ao confirmar, o nome de exibição do usuário passa a ser o nome oficial da Senior.</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setSel(null)} disabled={salvando}>Voltar</Button>
+              <Button onClick={vincular} disabled={salvando} className="gap-1.5">
+                {salvando ? <><Loader2 className="h-4 w-4 animate-spin" /> Vinculando…</> : <><Link2 className="h-4 w-4" /> Confirmar vínculo</>}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

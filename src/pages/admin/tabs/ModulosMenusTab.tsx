@@ -539,6 +539,7 @@ const CAPS: { papel: FormCap; rotulo: string; desc: string }[] = [
   { papel: "encerrar_excluir", rotulo: "Encerrar / Excluir",       desc: "Publicar, encerrar, reabrir e excluir" },
   { papel: "ver_tudo",         rotulo: "Visualizar tudo",          desc: "Ver todas as respostas" },
   { papel: "ver_proprias",     rotulo: "So as proprias respostas", desc: "So o que a propria pessoa enviou" },
+  { papel: "ver_lixeira",      rotulo: "Lixeira de formularios",   desc: "Ver e restaurar formularios apagados (30 dias)" },
 ];
 
 // Lista de capacidades como linhas com Switch à direita (mesmo padrão dos menus).
@@ -558,11 +559,17 @@ function CapToggles({ caps, onToggle }: { caps: Set<string>; onToggle: (papel: F
   );
 }
 
-// "Visualizar respostas por setor": switch mestre que abre um toggle por setor
-// do cadastro (EMPREGADOS.Setor_ERP). Desligar o mestre revoga todos.
-function SetorToggles({ setores, marcados, onToggle, onLimpar }: {
+// Bloco "por setor": switch mestre que abre um toggle por setor do cadastro
+// (EMPREGADOS.Setor_ERP). Desligar o mestre revoga todos. Reusado por
+// "Visualizar respostas por setor" (ver_setor), "Criar formularios por setor"
+// (criar_setor), "Diretor responsavel" (RH_SETOR_DIRETOR) e "Gerente do setor"
+// (CS_LIDERES_SETOR) — muda so os rotulos e os handlers.
+function SetorToggles({ titulo, descricao, rotuloLinha, descLinha, ariaLinha, setores, marcados, onToggle, onLimpar, disabled, avisoDesabilitado }: {
+  titulo: string; descricao: string;
+  rotuloLinha: (s: string) => string; descLinha: (s: string) => string; ariaLinha: (s: string) => string;
   setores: string[]; marcados: Set<string>;
   onToggle: (setor: string) => void; onLimpar: () => void;
+  disabled?: boolean; avisoDesabilitado?: string;
 }) {
   const [aberto, setAberto] = useState(marcados.size > 0);
   useEffect(() => { if (marcados.size > 0) setAberto(true); }, [marcados.size]);
@@ -571,23 +578,23 @@ function SetorToggles({ setores, marcados, onToggle, onLimpar }: {
     <>
       <div className="flex items-center gap-3 py-2.5">
         <div className="flex-1">
-          <p className="text-sm">Visualizar respostas por setor</p>
-          <p className="text-[11px] text-muted-foreground">Ver respostas dos formularios filtradas por setor especifico</p>
+          <p className="text-sm">{titulo}</p>
+          <p className="text-[11px] text-muted-foreground">{descricao}</p>
         </div>
-        <Switch checked={aberto} aria-label="Visualizar respostas por setor"
+        <Switch checked={aberto} disabled={disabled} aria-label={titulo}
           onCheckedChange={(v) => { setAberto(v); if (!v && marcados.size) onLimpar(); }} />
       </div>
       {aberto && (
         <div className="pb-2 pl-3">
-          {setores.length === 0 && <p className="py-2 text-[11px] text-muted-foreground">Carregando setores...</p>}
-          {setores.map((s) => (
+          {disabled && avisoDesabilitado && <p className="py-2 text-[11px] text-muted-foreground">{avisoDesabilitado}</p>}
+          {!disabled && setores.length === 0 && <p className="py-2 text-[11px] text-muted-foreground">Carregando setores...</p>}
+          {!disabled && setores.map((s) => (
             <div key={s} className="flex items-center gap-3 rounded-md py-2 pl-2 pr-1 hover:bg-muted/40">
-              <span className="text-muted-foreground">👥</span>
               <div className="flex-1">
-                <p className="text-[13px]">Visualizar respostas - {s}</p>
-                <p className="text-[11px] text-muted-foreground">Ver respostas do setor de {s}</p>
+                <p className="text-[13px]">{rotuloLinha(s)}</p>
+                <p className="text-[11px] text-muted-foreground">{descLinha(s)}</p>
               </div>
-              <Switch checked={marcados.has(s.toUpperCase())} onCheckedChange={() => onToggle(s)} aria-label={`Ver respostas de ${s}`} />
+              <Switch checked={marcados.has(s.toUpperCase())} onCheckedChange={() => onToggle(s)} aria-label={ariaLinha(s)} />
             </div>
           ))}
         </div>
@@ -599,53 +606,135 @@ function SetorToggles({ setores, marcados, onToggle, onLimpar }: {
 // Capacidades de UM usuário, na cascata de "Acesso por Usuário".
 function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: string, t?: string) => void }) {
   const [caps, setCaps] = useState<Set<string>>(new Set());
-  const [setoresVer, setSetoresVer] = useState<Set<string>>(new Set());  // normalizados (upper)
+  const [setoresVer, setSetoresVer] = useState<Set<string>>(new Set());    // ver_setor (upper)
+  const [setoresCriar, setSetoresCriar] = useState<Set<string>>(new Set()); // criar_setor (upper)
   const [setoresErp, setSetoresErp] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  // Empregado vinculado a este login (EMPREGADOS.auth_user_id = userId). É por
+  // ele que a pessoa vira diretor/gerente de setor — sem vínculo não dá.
+  const [empVinc, setEmpVinc] = useState<{ id: number; nome: string } | null>(null);
+  const [setoresDiretor, setSetoresDiretor] = useState<Set<string>>(new Set());  // RH_SETOR_DIRETOR (upper)
+  const [setoresGerente, setSetoresGerente] = useState<Set<string>>(new Set());  // CS_LIDERES_SETOR (upper)
   const erroPerm = (m: string) => /row-level|permission|policy/i.test(m) ? "So administradores alteram permissoes." : "Erro: " + m;
 
   const load = useCallback(async () => {
     setLoading(true);
     const uRes = await (supabase as any).from("CS_FORM_ACESSOS").select("papel, setor").eq("user_id", userId).neq("papel", "dashboard");
     const linhas = uRes.data ?? [];
+    const setoresDe = (papel: string) => new Set<string>(linhas.filter((r: any) => r.papel === papel && r.setor).map((r: any) => String(r.setor).trim().toUpperCase()));
     setCaps(new Set<string>(linhas.map((r: any) => r.papel)));
-    setSetoresVer(new Set<string>(linhas.filter((r: any) => r.papel === "ver_setor" && r.setor).map((r: any) => String(r.setor).trim().toUpperCase())));
+    setSetoresVer(setoresDe("ver_setor"));
+    setSetoresCriar(setoresDe("criar_setor"));
+
+    // Vínculo com o cadastro + setores onde ele já é diretor/gerente.
+    const eRes = await (supabase as any).from("EMPREGADOS").select('"ID","Nome"').eq("auth_user_id", userId).maybeSingle();
+    const emp = eRes.data ? { id: Number(eRes.data["ID"]), nome: String(eRes.data["Nome"] ?? "") } : null;
+    setEmpVinc(emp);
+    if (emp) {
+      const [dRes, gRes] = await Promise.all([
+        (supabase as any).from("RH_SETOR_DIRETOR").select("setor").eq("diretor_id", emp.id),
+        (supabase as any).from("CS_LIDERES_SETOR").select("setor").eq("empregado_id", emp.id),
+      ]);
+      const up = (rows: any[]) => new Set<string>((rows ?? []).map((r: any) => String(r.setor).trim().toUpperCase()));
+      setSetoresDiretor(up(dRes.data)); setSetoresGerente(up(gRes.data));
+    } else { setSetoresDiretor(new Set()); setSetoresGerente(new Set()); }
     setLoading(false);
   }, [userId]);
   useEffect(() => { load(); }, [load]);
 
-  // Setores reais do cadastro — a lista não é fixa no código.
+  // Setores para os grants — a lista não é fixa no código. Une DOIS domínios: o
+  // Setor_ERP do cadastro (EMPREGADOS) E o setor carimbado nas respostas
+  // (CS_FORM_RESPOSTAS). As permissões por setor recortam justamente pelo setor
+  // da resposta (cs_form_cap_setor), então setores que só aparecem em respostas
+  // (ex.: COMPRAS, LICITAÇÃO, TREINAMENTOS, JURÍDICO — sem colaborador com esse
+  // Setor_ERP) precisam ser concedíveis também. Dedup por caixa alta.
   useEffect(() => {
     (async () => {
-      const { data } = await (supabase as any).from("EMPREGADOS").select('"Setor_ERP"').limit(20000);
-      setSetoresErp([...new Set((data ?? []).map((r: any) => String(r["Setor_ERP"] ?? "").trim()).filter(Boolean))].sort() as string[]);
+      const [empRes, respRes] = await Promise.all([
+        (supabase as any).from("EMPREGADOS").select('"Setor_ERP"').limit(20000),
+        (supabase as any).from("CS_FORM_RESPOSTAS").select("setor").not("setor", "is", null).limit(20000),
+      ]);
+      const porChave = new Map<string, string>();  // CHAVE(upper) → rótulo de exibição
+      const add = (v: any) => { const l = String(v ?? "").trim(); if (!l) return; const k = l.toUpperCase(); if (!porChave.has(k)) porChave.set(k, l); };
+      (empRes.data ?? []).forEach((r: any) => add(r["Setor_ERP"]));
+      (respRes.data ?? []).forEach((r: any) => add(r.setor));
+      setSetoresErp([...porChave.values()].sort((a, b) => a.localeCompare(b, "pt-BR")));
     })();
   }, []);
 
+  // ver_tudo x ver_proprias sao contraditorios: ligar um desliga o outro (senao
+  // ver_tudo mascara o "so as proprias" e a pessoa acaba vendo tudo).
+  const OPOSTO: Partial<Record<FormCap, FormCap>> = { ver_tudo: "ver_proprias", ver_proprias: "ver_tudo" };
+
   const toggle = async (papel: FormCap) => {
     const tem = caps.has(papel);
-    const { error } = tem
-      ? await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", papel)
-      : await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel, user_id: userId });
-    if (error) { onToast(erroPerm(error.message), "err"); return; }
-    setCaps(c => { const n = new Set(c); tem ? n.delete(papel) : n.add(papel); return n; });
+    const oposto = !tem ? OPOSTO[papel] : undefined;  // ao LIGAR, remover o contrario
+    if (tem) {
+      const { error } = await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", papel);
+      if (error) { onToast(erroPerm(error.message), "err"); return; }
+    } else {
+      if (oposto && caps.has(oposto)) await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", oposto);
+      const { error } = await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel, user_id: userId });
+      if (error) { onToast(erroPerm(error.message), "err"); return; }
+    }
+    setCaps(c => {
+      const n = new Set(c);
+      if (tem) n.delete(papel);
+      else { n.add(papel); if (oposto) n.delete(oposto); }
+      return n;
+    });
   };
 
-  const toggleSetor = async (setor: string) => {
-    const chave = setor.trim().toUpperCase();
-    const tem = setoresVer.has(chave);
-    const { error } = tem
-      ? await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", "ver_setor").eq("setor", setor)
-      : await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel: "ver_setor", user_id: userId, setor });
-    if (error) { onToast(erroPerm(error.message), "err"); return; }
-    setSetoresVer(s => { const n = new Set(s); tem ? n.delete(chave) : n.add(chave); return n; });
-  };
+  // Fabrica de handlers p/ os dois blocos por setor (ver_setor / criar_setor):
+  // gravam/removem 1 linha por (usuario, setor) e refletem no estado local.
+  const fazSetorHandlers = (papel: "ver_setor" | "criar_setor", marcados: Set<string>, setMarcados: (f: (s: Set<string>) => Set<string>) => void) => ({
+    onToggle: async (setor: string) => {
+      const chave = setor.trim().toUpperCase();
+      const tem = marcados.has(chave);
+      const { error } = tem
+        ? await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", papel).eq("setor", setor)
+        : await (supabase as any).from("CS_FORM_ACESSOS").insert({ papel, user_id: userId, setor });
+      if (error) { onToast(erroPerm(error.message), "err"); return; }
+      setMarcados(s => { const n = new Set(s); tem ? n.delete(chave) : n.add(chave); return n; });
+    },
+    onLimpar: async () => {
+      const { error } = await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", papel);
+      if (error) { onToast(erroPerm(error.message), "err"); return; }
+      setMarcados(() => new Set());
+    },
+  });
+  const verSetorH = fazSetorHandlers("ver_setor", setoresVer, setSetoresVer);
+  const criarSetorH = fazSetorHandlers("criar_setor", setoresCriar, setSetoresCriar);
 
-  const limparSetores = async () => {
-    const { error } = await (supabase as any).from("CS_FORM_ACESSOS").delete().eq("user_id", userId).eq("papel", "ver_setor");
-    if (error) { onToast(erroPerm(error.message), "err"); return; }
-    setSetoresVer(new Set());
-  };
+  // Responsabilidade por setor (diretor/gerente): grava a pessoa VINCULADA como
+  // dona do setor na tabela certa. É por aqui que o Painel Gerencial passa a
+  // mostrar aquele setor pra ela — a visibilidade vem do vínculo, não de um
+  // switch de "ver respostas" à parte.
+  const fazResponsavelHandlers = (
+    tabela: "RH_SETOR_DIRETOR" | "CS_LIDERES_SETOR",
+    colId: "diretor_id" | "empregado_id",
+    colNome: "diretor_nome" | "empregado_nome",
+    marcados: Set<string>, setMarcados: (f: (s: Set<string>) => Set<string>) => void,
+  ) => ({
+    onToggle: async (setor: string) => {
+      if (!empVinc) return;
+      const chave = setor.trim().toUpperCase();
+      const tem = marcados.has(chave);
+      const { error } = tem
+        ? await (supabase as any).from(tabela).delete().eq("setor", setor).eq(colId, empVinc.id)
+        : await (supabase as any).from(tabela).upsert({ setor, [colId]: empVinc.id, [colNome]: empVinc.nome }, { onConflict: "setor" });
+      if (error) { onToast(erroPerm(error.message), "err"); return; }
+      setMarcados(s => { const n = new Set(s); tem ? n.delete(chave) : n.add(chave); return n; });
+    },
+    onLimpar: async () => {
+      if (!empVinc) return;
+      const { error } = await (supabase as any).from(tabela).delete().eq(colId, empVinc.id);
+      if (error) { onToast(erroPerm(error.message), "err"); return; }
+      setMarcados(() => new Set());
+    },
+  });
+  const diretorH = fazResponsavelHandlers("RH_SETOR_DIRETOR", "diretor_id", "diretor_nome", setoresDiretor, setSetoresDiretor);
+  const gerenteH = fazResponsavelHandlers("CS_LIDERES_SETOR", "empregado_id", "empregado_nome", setoresGerente, setSetoresGerente);
 
   if (loading) return <div className="py-2 text-xs text-muted-foreground">Carregando permissoes...</div>;
 
@@ -656,7 +745,36 @@ function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: st
       </div>
       <div className="divide-y divide-border/60">
         <CapToggles caps={caps} onToggle={toggle} />
-        <SetorToggles setores={setoresErp} marcados={setoresVer} onToggle={toggleSetor} onLimpar={limparSetores} />
+        <SetorToggles
+          titulo="Visualizar respostas por setor"
+          descricao="Ver respostas dos formularios filtradas pelo setor de quem respondeu"
+          rotuloLinha={(s) => `Visualizar respostas - ${s}`}
+          descLinha={(s) => `Ver respostas de quem e do setor de ${s}`}
+          ariaLinha={(s) => `Ver respostas de ${s}`}
+          setores={setoresErp} marcados={setoresVer} onToggle={verSetorH.onToggle} onLimpar={verSetorH.onLimpar} />
+        <SetorToggles
+          titulo="Criar formularios por setor"
+          descricao="Criar formularios de um setor e ver todas as respostas desses formularios"
+          rotuloLinha={(s) => `Criar formularios - ${s}`}
+          descLinha={(s) => `So cria formularios do ${s} e ve todas as respostas deles`}
+          ariaLinha={(s) => `Criar formularios de ${s}`}
+          setores={setoresErp} marcados={setoresCriar} onToggle={criarSetorH.onToggle} onLimpar={criarSetorH.onLimpar} />
+        <SetorToggles
+          titulo="Diretor responsavel pelos setores"
+          descricao="No Painel Gerencial esta pessoa passa a ver os setores onde e a diretora"
+          rotuloLinha={(s) => `Diretor de ${s}`}
+          descLinha={(s) => `Responde pelo setor ${s} acima dos gerentes`}
+          ariaLinha={(s) => `Diretor de ${s}`}
+          setores={setoresErp} marcados={setoresDiretor} onToggle={diretorH.onToggle} onLimpar={diretorH.onLimpar}
+          disabled={!empVinc} avisoDesabilitado="Vincule este usuario a um colaborador (aba Usuarios) para defini-lo como diretor de setor." />
+        <SetorToggles
+          titulo="Gerente / lider do setor"
+          descricao="No Painel Gerencial esta pessoa passa a ver o setor que lidera"
+          rotuloLinha={(s) => `Gerente de ${s}`}
+          descLinha={(s) => `Lidera o setor ${s} (sobrepoe o lider automatico do cadastro)`}
+          ariaLinha={(s) => `Gerente de ${s}`}
+          setores={setoresErp} marcados={setoresGerente} onToggle={gerenteH.onToggle} onLimpar={gerenteH.onLimpar}
+          disabled={!empVinc} avisoDesabilitado="Vincule este usuario a um colaborador (aba Usuarios) para defini-lo como gerente de setor." />
       </div>
     </div>
   );

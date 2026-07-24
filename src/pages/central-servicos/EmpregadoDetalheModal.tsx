@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { ehNivel, NIVEIS, carregaHierarquiaDados } from "./LideresSetor";
 
 // =====================================================================
 // NASCIMENTO FORMULÁRIOS - Ficha do empregado (a partir de um nome citado
@@ -19,14 +20,137 @@ import { supabase } from "@/integrations/supabase/client";
 export const normNome = (s: any) =>
   String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
 
-// Todos os apelidos já vinculados à mão (nome_norm). A tela de Respostas usa
-// p/ saber quais textos viram link de ficha.
-export const carregarVinculos = async (): Promise<Set<string>> => {
-  try {
-    const { data } = await (supabase as any).from("CS_FORM_VINCULOS").select("nome_norm");
-    return new Set((data ?? []).map((v: any) => v.nome_norm).filter(Boolean));
-  } catch { return new Set(); }
+// De-para dos apelidos vinculados à mão: nome_norm → nome completo do empregado.
+// A tela de Respostas usa p/ saber quais textos viram link de ficha e p/ exibir
+// o nome do cadastro no lugar do texto que veio na resposta.
+export const carregarVinculos = async (): Promise<Map<string, string>> => {
+  const vincs = await mapaVinculos();
+  return new Map([...vincs.values()].map(v => [v.nome_norm, String(v.empregado_nome ?? "").trim()]));
 };
+
+// =====================================================================
+// CACHE DE MÓDULO — a ficha tem que abrir instantânea
+//
+// Antes, cada clique num nome baixava TODOS os formulários e TODAS as
+// respostas (com o jsonb `itens` inteiro) só para descobrir de quais
+// formulários AQUELA pessoa participou — e ainda em série com outras três
+// consultas. Segundos de "Carregando ficha…", repetidos a cada nome, e a
+// mesma varredura de novo ao reabrir a mesma pessoa.
+//
+// Agora a varredura acontece UMA vez por sessão e vira um índice
+// nome_norm → participações; abrir a ficha é lookup em Map. A tela de
+// Respostas chama `prewarmFichas()` quando carrega, então na hora do clique
+// o índice já está pronto e não há nada para esperar.
+//
+// Escrita (vincular/desvincular) invalida só o que mudou.
+// =====================================================================
+
+interface VincRow { id?: any; nome_norm: string; nome_texto?: string; empregado_id: any; empregado_nome?: string }
+
+let vincCache: Map<string, VincRow> | null = null;   // nome_norm → vínculo
+let vincProm: Promise<Map<string, VincRow>> | null = null;
+
+async function mapaVinculos(): Promise<Map<string, VincRow>> {
+  if (vincCache) return vincCache;
+  if (!vincProm) vincProm = (async () => {
+    try {
+      const { data } = await (supabase as any).from("CS_FORM_VINCULOS").select("*");
+      vincCache = new Map((data ?? []).filter((v: any) => v.nome_norm).map((v: any) => [String(v.nome_norm), v as VincRow]));
+    } catch { vincCache = new Map(); }   // tabela nova ainda não aplicada: degrada
+    return vincCache!;
+  })().finally(() => { vincProm = null; });
+  return vincProm;
+}
+const invalidarVinculos = () => { vincCache = null; };
+
+// Participações de um nome, com as respostas que a geraram (o total é o
+// tamanho da união — a mesma resposta citando dois apelidos da pessoa não
+// pode contar duas vezes).
+interface ParticIdx { formId: string; titulo: string; comoRespondente: boolean; perguntas: Set<string>; respostas: Set<string> }
+
+let idxCache: Map<string, Map<string, ParticIdx>> | null = null;
+let idxProm: Promise<Map<string, Map<string, ParticIdx>>> | null = null;
+
+// PostgREST corta QUALQUER resposta em 1000 linhas. Sem paginar, o índice
+// nasceria truncado e pessoas com participação sumiriam da ficha.
+async function leTudo(tabela: string, cols: string): Promise<any[]> {
+  const bloco = 1000; const out: any[] = [];
+  for (let de = 0; ; de += bloco) {
+    const { data, error } = await (supabase as any).from(tabela).select(cols)
+      .order("id", { ascending: true }).range(de, de + bloco - 1);
+    if (error) throw error;
+    const linhas: any[] = data ?? [];
+    out.push(...linhas);
+    if (linhas.length < bloco) break;
+  }
+  return out;
+}
+
+async function construirIndice(): Promise<Map<string, Map<string, ParticIdx>>> {
+  const idx = new Map<string, Map<string, ParticIdx>>();
+  try {
+    const [forms, resps] = await Promise.all([
+      leTudo("CS_FORMULARIOS", "id,titulo,perguntas"),
+      leTudo("CS_FORM_RESPOSTAS", "id,formulario_id,respondente_nome,respondente_cadastro,itens"),
+    ]);
+    const titPorId: Record<string, string> = {};
+    const pergsPorForm: Record<string, Record<string, string>> = {};
+    forms.forEach((f: any) => {
+      titPorId[f.id] = f.titulo;
+      const m: Record<string, string> = {};
+      (Array.isArray(f.perguntas) ? f.perguntas : []).forEach((p: any) => { if (p?.id) m[p.id] = p.titulo; });
+      pergsPorForm[f.id] = m;
+    });
+    resps.forEach((r: any) => {
+      const fid = r.formulario_id;
+      // Um passo por resposta: junta os nomes citados nela antes de escrever no
+      // índice, para o total contar a resposta uma vez por pessoa.
+      const naResposta = new Map<string, { comoResp: boolean; perguntas: Set<string> }>();
+      const anota = (bruto: any, pergunta: string | null) => {
+        const k = normNome(bruto);
+        // >60 caracteres nunca é nome de gente — é resposta dissertativa. Cortar
+        // aqui mantém o índice enxuto sem perder nenhum casamento possível.
+        if (!k || k.length > 60) return;
+        const cur = naResposta.get(k) ?? { comoResp: false, perguntas: new Set<string>() };
+        if (pergunta === null) cur.comoResp = true; else cur.perguntas.add(pergunta);
+        naResposta.set(k, cur);
+      };
+      anota(r.respondente_nome, null);
+      anota(r.respondente_cadastro?.nome, null);
+      Object.entries(r.itens ?? {}).forEach(([pid, v]) => {
+        (Array.isArray(v) ? v : [v]).forEach(x => anota(x, pergsPorForm[fid]?.[pid] ?? "Resposta"));
+      });
+      naResposta.forEach((info, nome) => {
+        const porForm = idx.get(nome) ?? new Map<string, ParticIdx>();
+        const p = porForm.get(fid) ?? { formId: fid, titulo: titPorId[fid] ?? "Formulário", comoRespondente: false, perguntas: new Set<string>(), respostas: new Set<string>() };
+        p.respostas.add(String(r.id));
+        if (info.comoResp) p.comoRespondente = true;
+        info.perguntas.forEach(q => p.perguntas.add(q));
+        porForm.set(fid, p); idx.set(nome, porForm);
+      });
+    });
+  } catch { /* degrada: ficha abre sem a aba de formulários */ }
+  idxCache = idx;
+  return idx;
+}
+
+function indiceFichas(): Promise<Map<string, Map<string, ParticIdx>>> {
+  if (idxCache) return Promise.resolve(idxCache);
+  if (!idxProm) idxProm = construirIndice().finally(() => { idxProm = null; });
+  return idxProm;
+}
+
+/** Começa a montar o índice das fichas em segundo plano. A tela de Respostas
+ *  chama ao carregar: quando o usuário clicar num nome, não há o que esperar. */
+export const prewarmFichas = () => { void nomesDoCadastro(); void mapaVinculos(); void indiceFichas(); };
+
+/** Invalida o índice após criar/apagar respostas. */
+export const invalidarFichas = () => { idxCache = null; };
+
+// Fichas do cadastro já resolvidas nesta sessão (nome_norm → linha da
+// EMPREGADOS, ou null quando não existe). Reabrir a mesma pessoa não repete a
+// busca por nome, que é a consulta cara quando não há vínculo.
+const empCache = new Map<string, any | null>();
 
 const parseData = (v: any): Date | null => {
   if (!v) return null;
@@ -53,12 +177,78 @@ const resumoDe = (e: any) => `${nomeCargoDe(e)}${e?.["Setor_ERP"] ? " · " + e["
 // "Trabalhando" e afins = vínculo ativo; o resto (Demitido/Rescisão) é terminal.
 const ehAtivo = (e: any) => String(e?.["Situação"] ?? "").trim().toUpperCase().startsWith("TRABALH");
 
-// Busca 1 empregado pelo nome (ilike exato pega diferença de caixa; fallback por trecho).
+// ── Índice de nomes do cadastro (via RPC) ────────────────────────────
+// Ler EMPREGADOS direto pelo PostgREST paga o custo da RLS por linha e
+// engasga neste cadastro — foi o que fez a tela de Colaboradores e a de
+// Hierarquia migrarem para RPC. A ficha era o último lugar fazendo
+// `ilike '%nome%'`, ou seja, varredura da tabela inteira A CADA CLIQUE:
+// é daí que vinha o "Carregando ficha…" que não terminava.
+//
+// Agora o nome é resolvido em memória (uma leitura por RPC, cacheada) e só
+// então se busca a linha completa PELA CHAVE — consulta de uma linha só.
+interface NomeCad { id: number; nome: string; ativo: boolean }
+let cadCache: Map<string, NomeCad> | null = null;
+let cadProm: Promise<Map<string, NomeCad>> | null = null;
+
+export async function nomesDoCadastro(): Promise<Map<string, NomeCad>> {
+  if (cadCache) return cadCache;
+  if (!cadProm) cadProm = (async () => {
+    const m = new Map<string, NomeCad>();
+    try {
+      (await carregaHierarquiaDados()).forEach(l => {
+        const k = normNome(l.nome); if (!k) return;
+        const ativo = l.situacao.toUpperCase().startsWith("TRABALH");
+        const cur = m.get(k);
+        // Homônimo é comum (readmissão vira 2+ linhas, uma demitida):
+        // quem está trabalhando ganha, senão fica o primeiro.
+        if (!cur || (ativo && !cur.ativo)) m.set(k, { id: l.id, nome: l.nome, ativo });
+      });
+    } catch { /* degrada: ninguém vira link, ninguém trava */ }
+    cadCache = m;
+    return m;
+  })().finally(() => { cadProm = null; });
+  return cadProm;
+}
+export const invalidarCadastro = () => { cadCache = null; };
+
+/**
+ * Nome citado numa resposta → pessoa do cadastro, em memória.
+ *
+ * Exato primeiro; depois nome CONTIDO — "Mileny de Oliveira" é a mesma
+ * "MILENY DE OLIVEIRA DA ROSA", e exigir igualdade jogaria meio mundo para o
+ * botão "Vincular".
+ *
+ * `ambiguo` existe porque nome curto casa com muita gente ("ANA" cai em toda
+ * Ana Paula do cadastro). Nesse caso a LISTA continua pedindo vínculo manual
+ * (não dá para chutar um nome em negrito), enquanto a FICHA ainda mostra o
+ * melhor palpite — lá existe o botão "Não é essa pessoa?" para corrigir.
+ *
+ * Requer o cache já carregado (`await nomesDoCadastro()`); sem ele devolve vazio.
+ */
+export function resolveCadastro(nome: string): { hit: NomeCad | null; ambiguo: boolean } {
+  const alvo = normNome(nome);
+  if (!alvo || !cadCache) return { hit: null, ambiguo: false };
+  const exato = cadCache.get(alvo);
+  if (exato) return { hit: exato, ambiguo: false };
+  const parciais: NomeCad[] = [];
+  cadCache.forEach((v, k) => { if (k.includes(alvo) || alvo.includes(k)) parciais.push(v); });
+  if (!parciais.length) return { hit: null, ambiguo: false };
+  const ativos = parciais.filter(p => p.ativo);
+  const pool = ativos.length ? ativos : parciais;
+  // Melhor palpite: o nome mais próximo em tamanho do texto citado.
+  const melhor = [...pool].sort((a, b) =>
+    Math.abs(normNome(a.nome).length - alvo.length) - Math.abs(normNome(b.nome).length - alvo.length))[0];
+  return { hit: melhor, ambiguo: pool.length > 1 };
+}
+
+// Linha completa da EMPREGADOS da pessoa resolvida. Só ela vai ao banco, pela
+// chave primária.
 const buscaEmpregado = async (n: string) => {
-  let { data } = await (supabase as any).from("EMPREGADOS").select("*").ilike("Nome", n).limit(8);
-  if (!data?.length) ({ data } = await (supabase as any).from("EMPREGADOS").select("*").ilike("Nome", "%" + n + "%").limit(20));
-  const arr = data ?? [];
-  return arr.find((e: any) => normNome(e["Nome"]) === normNome(n)) ?? arr[0] ?? null;
+  await nomesDoCadastro();
+  const { hit } = resolveCadastro(n);
+  if (!hit) return null;
+  const { data } = await (supabase as any).from("EMPREGADOS").select("*").eq("ID", hit.id).maybeSingle();
+  return data ?? null;
 };
 
 interface Participacao {
@@ -150,6 +340,7 @@ export default function EmpregadoDetalheModal({ nome, onClose, onVinculado }: {
   const [lider, setLider] = useState<any | null>(null);
   const [vinculo, setVinculo] = useState<any | null>(null); // de-para manual que resolveu este nome
   const [parts, setParts] = useState<Participacao[]>([]);
+  const [partsCarregando, setPartsCarregando] = useState(true);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -160,79 +351,74 @@ export default function EmpregadoDetalheModal({ nome, onClose, onVinculado }: {
   useEffect(() => { setModo(null); setErro(null); setFiltro("todos"); }, [alvoNome]);
 
   const carregar = useCallback(async (cancelado?: () => boolean) => {
-    setLoading(true);
     const alvo = normNome(alvoNome);
+    // Só mostra "Carregando" quando há mesmo o que buscar: com os caches
+    // quentes (o normal, graças ao prewarm) a ficha aparece pronta, sem piscar.
+    const quente = !!idxCache && !!vincCache && empCache.has(alvo);
+    if (!quente) setLoading(true);
 
-    // 1. Vínculo manual tem prioridade sobre o casamento por nome.
-    let empRow: any = null, vinc: any = null;
-    try {
-      const { data } = await (supabase as any).from("CS_FORM_VINCULOS").select("*").eq("nome_norm", alvo).maybeSingle();
-      vinc = data ?? null;
-    } catch { /* tabela nova ainda não aplicada: degrada p/ busca por nome */ }
-    if (vinc?.empregado_id != null) {
-      try {
-        const { data } = await (supabase as any).from("EMPREGADOS").select("*").eq("ID", vinc.empregado_id).maybeSingle();
-        empRow = data ?? null;
-      } catch { /* ignore */ }
+    // 1. Vínculo manual tem prioridade sobre o casamento por nome — sai do
+    //    cache dos vínculos (tabela pequena, lida uma vez por sessão).
+    const vincs = await mapaVinculos();
+    const vinc = vincs.get(alvo) ?? null;
+
+    // 2. Linha do cadastro. Com vínculo, busca pela PK (barata); sem vínculo,
+    //    cai no ilike por nome. O resultado — inclusive "não achei" — fica em
+    //    cache para reabrir a mesma pessoa não repetir a consulta.
+    let empRow: any;
+    if (empCache.has(alvo)) empRow = empCache.get(alvo);
+    else {
+      empRow = null;
+      if (vinc?.empregado_id != null) {
+        try {
+          const { data } = await (supabase as any).from("EMPREGADOS").select("*").eq("ID", vinc.empregado_id).maybeSingle();
+          empRow = data ?? null;
+        } catch { /* ignore */ }
+      }
+      if (!empRow) { try { empRow = await buscaEmpregado(alvoNome); } catch { /* RLS/coluna ausente: degrada */ } }
+      empCache.set(alvo, empRow);
     }
-    if (!empRow) { try { empRow = await buscaEmpregado(alvoNome); } catch { /* RLS/coluna ausente: degrada */ } }
 
-    // 2. Líder dele (coluna LIDER guarda o nome)
-    let liderRow: any = null;
-    const liderNome = empRow?.["LIDER"];
-    if (liderNome && normNome(liderNome) !== normNome(empRow?.["Nome"])) {
-      try { liderRow = await buscaEmpregado(String(liderNome)); } catch { /* ignore */ }
-    }
+    // 3. LIDER é o NÍVEL da própria pessoa (GERENTE, DIREÇÃO…), não o nome de
+    //    outra — não há ficha para buscar. Quem lidera o setor sai de
+    //    Formulários › Líderes por setor.
+    const liderRow: any = null;
 
-    // 3. Nomes que representam esta pessoa: o do cadastro, o texto clicado e
+    // 4. Nomes que representam esta pessoa: o do cadastro, o texto clicado e
     //    todo apelido vinculado à mão. Sem isso, um formulário que cita
     //    "João Peretti" não entraria na ficha do "João Pedro Peretti".
+    //    Os apelidos saem do mesmo cache — nada de ir ao banco de novo.
     const alvos = new Set<string>([alvo]);
     if (empRow?.["Nome"]) alvos.add(normNome(empRow["Nome"]));
     if (empRow?.["ID"] != null) {
-      try {
-        const { data } = await (supabase as any).from("CS_FORM_VINCULOS").select("nome_norm").eq("empregado_id", empRow["ID"]);
-        (data ?? []).forEach((v: any) => v.nome_norm && alvos.add(v.nome_norm));
-      } catch { /* ignore */ }
+      vincs.forEach(v => { if (String(v.empregado_id) === String(empRow["ID"]) && v.nome_norm) alvos.add(v.nome_norm); });
     }
 
-    // 4. Participação em formulários (respondente OU citado numa resposta)
-    let participacoes: Participacao[] = [];
-    try {
-      const [fRes, rRes] = await Promise.all([
-        (supabase as any).from("CS_FORMULARIOS").select("id,titulo,perguntas"),
-        (supabase as any).from("CS_FORM_RESPOSTAS").select("id,formulario_id,respondente_nome,respondente_cadastro,itens"),
-      ]);
-      const forms = fRes.data ?? [];
-      const titPorId: Record<string, string> = {};
-      const pergsPorForm: Record<string, Record<string, string>> = {};
-      forms.forEach((f: any) => {
-        titPorId[f.id] = f.titulo;
-        const m: Record<string, string> = {};
-        (Array.isArray(f.perguntas) ? f.perguntas : []).forEach((p: any) => { if (p?.id) m[p.id] = p.titulo; });
-        pergsPorForm[f.id] = m;
+    // 5. O CADASTRO já pode aparecer: é a aba aberta e não depende de mais nada.
+    //    Esperar as participações aqui era o que segurava a ficha inteira.
+    if (cancelado?.()) return;
+    setEmp(empRow); setLider(liderRow); setVinculo(vinc); setLoading(false);
+
+    // 6. Participação em formulários: lookup no índice (já montado pelo prewarm).
+    //    Chega depois, sem travar a tela — a aba mostra "carregando" sozinha.
+    setPartsCarregando(true);
+    const idx = await indiceFichas();
+    const porForm = new Map<string, Participacao & { _resps: Set<string> }>();
+    alvos.forEach(a => {
+      idx.get(a)?.forEach((p, fid) => {
+        const cur = porForm.get(fid) ?? { formId: fid, titulo: p.titulo, comoRespondente: false, perguntas: [], total: 0, _resps: new Set<string>() };
+        p.respostas.forEach(id => cur._resps.add(id));
+        if (p.comoRespondente) cur.comoRespondente = true;
+        p.perguntas.forEach(q => { if (!cur.perguntas.includes(q)) cur.perguntas.push(q); });
+        porForm.set(fid, cur);
       });
-      const acc: Record<string, Participacao> = {};
-      (rRes.data ?? []).forEach((r: any) => {
-        const fid = r.formulario_id;
-        let hit = false, comoResp = false;
-        const perguntas = new Set<string>();
-        if (alvos.has(normNome(r.respondente_nome)) || alvos.has(normNome(r.respondente_cadastro?.nome))) { hit = true; comoResp = true; }
-        Object.entries(r.itens ?? {}).forEach(([pid, v]) => {
-          const arr = Array.isArray(v) ? v : [v];
-          if (arr.some(x => alvos.has(normNome(x)))) { hit = true; perguntas.add(pergsPorForm[fid]?.[pid] ?? "Resposta"); }
-        });
-        if (!hit) return;
-        const p = acc[fid] ?? (acc[fid] = { formId: fid, titulo: titPorId[fid] ?? "Formulário", comoRespondente: false, perguntas: [], total: 0 });
-        p.total++;
-        if (comoResp) p.comoRespondente = true;
-        perguntas.forEach(q => { if (!p.perguntas.includes(q)) p.perguntas.push(q); });
-      });
-      participacoes = Object.values(acc).sort((a, b) => b.total - a.total);
-    } catch { /* ignore */ }
+    });
+    const participacoes: Participacao[] = [...porForm.values()]
+      .map(({ _resps, ...p }) => ({ ...p, total: _resps.size }))
+      .sort((a, b) => b.total - a.total);
 
     if (cancelado?.()) return;
-    setEmp(empRow); setLider(liderRow); setVinculo(vinc); setParts(participacoes); setLoading(false);
+    setParts(participacoes); setPartsCarregando(false);
   }, [alvoNome]);
 
   useEffect(() => {
@@ -250,6 +436,10 @@ export default function EmpregadoDetalheModal({ nome, onClose, onVinculado }: {
     }, { onConflict: "nome_norm" });
     setSalvando(false);
     if (error) { setErro(`Não deu p/ vincular: ${error.message}`); return; }
+    // Vincular muda os dois caches: o de-para e a ficha resolvida deste nome.
+    // Gravar o escolhido direto evita ir buscar de novo o que acabamos de ter
+    // em mãos — é o "vincula uma vez e pronto".
+    invalidarVinculos(); empCache.set(normNome(alvoNome), escolhido);
     setModo(null); onVinculado?.(); carregar();
   };
 
@@ -259,26 +449,15 @@ export default function EmpregadoDetalheModal({ nome, onClose, onVinculado }: {
     const { error } = await (supabase as any).from("CS_FORM_VINCULOS").delete().eq("id", vinculo.id);
     setSalvando(false);
     if (error) { setErro(`Não deu p/ desvincular: ${error.message}`); return; }
+    invalidarVinculos(); empCache.delete(normNome(alvoNome));
     onVinculado?.(); carregar();
   };
 
-  const definirLider = async (escolhido: any) => {
-    if (!emp) return;
-    setSalvando(true); setErro(null);
-    const { error } = await (supabase as any).from("EMPREGADOS").update({ LIDER: escolhido["Nome"] }).eq("ID", emp["ID"]);
-    setSalvando(false);
-    if (error) { setErro(`Não deu p/ salvar o líder: ${error.message}`); return; }
-    setModo(null); carregar();
-  };
-
-  const removerLider = async () => {
-    if (!emp || !confirm(`Remover ${emp["LIDER"]} como líder de ${emp["Nome"]}?`)) return;
-    setSalvando(true); setErro(null);
-    const { error } = await (supabase as any).from("EMPREGADOS").update({ LIDER: null }).eq("ID", emp["ID"]);
-    setSalvando(false);
-    if (error) { setErro(`Não deu p/ remover o líder: ${error.message}`); return; }
-    carregar();
-  };
+  // definirLider/removerLider foram REMOVIDOS de propósito: escreviam nome de
+  // pessoa (ou NULL) em EMPREGADOS.LIDER, coluna que guarda o NÍVEL hierárquico
+  // da própria pessoa — cada clique apagava o nível de quem estava sendo
+  // editado. A ficha agora só exibe o nível; quem lidera cada setor se resolve
+  // em Formulários › Líderes por setor.
 
   const irParaForm = (formId: string) => { onClose(); nav(`/app/central-servicos/formularios/${formId}/respostas`); };
 
@@ -354,7 +533,25 @@ export default function EmpregadoDetalheModal({ nome, onClose, onVinculado }: {
                     </span>
                   )}
                   {vinculo && <button onClick={desvincular} disabled={salvando} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 11.5, fontWeight: 700 }}>Desvincular</button>}
+                  <div style={{ flex: 1 }} />
+                  {/* O casamento automático é por nome e erra: homônimo, cadastro
+                      antigo/demitido, nome trocado. Daqui dá p/ fixar o texto da
+                      resposta na pessoa certa mesmo já tendo achado alguém. */}
+                  {modo !== "vincular" && (
+                    <button onClick={() => setModo("vincular")} disabled={salvando}
+                      style={{ ...btnGhost, padding: "4px 10px", fontSize: 11 }}>
+                      {vinculo ? "Trocar vínculo" : "Não é essa pessoa?"}
+                    </button>
+                  )}
                 </div>
+
+                {modo === "vincular" && (
+                  <div style={{ marginBottom: 12 }}>
+                    <BuscaEmpregado titulo={`Apontar "${alvoNome}" para outro empregado`}
+                      ajuda={`Hoje está caindo em ${emp["Nome"]}. O escolhido passa a valer p/ todas as respostas com esse nome.`}
+                      ignorarId={emp["ID"]} onEscolher={vincularA} onCancelar={() => setModo(null)} />
+                  </div>
+                )}
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   <Campo rotulo="CPF" valor={val(emp["CPF"])} />
@@ -371,49 +568,37 @@ export default function EmpregadoDetalheModal({ nome, onClose, onVinculado }: {
                   <Campo rotulo="E-mail" valor={val(emp["email"])} />
                 </div>
 
-                {/* Líder - dá p/ definir/trocar direto aqui */}
-                <div style={{ ...rotuloSecao, display: "flex", alignItems: "center", gap: 8 }}>
-                  <span>Líder</span>
-                  <div style={{ flex: 1 }} />
-                  {modo !== "lider" && (
-                    <button onClick={() => setModo("lider")} disabled={salvando}
-                      style={{ ...btnGhost, padding: "4px 10px", fontSize: 11, textTransform: "none", letterSpacing: 0 }}>
-                      {emp["LIDER"] ? "Trocar líder" : "Definir líder"}
-                    </button>
-                  )}
-                </div>
-
-                {modo === "lider" ? (
-                  <BuscaEmpregado titulo={`Escolher o líder de ${emp["Nome"]}`}
-                    ajuda="Grava na coluna LIDER do cadastro (EMPREGADOS) — vale p/ todo o ERP."
-                    ignorarId={emp["ID"]} onEscolher={definirLider} onCancelar={() => setModo(null)} />
-                ) : emp["LIDER"] ? (
-                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 13px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                    <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#0f3171", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, flexShrink: 0 }}>
-                      {String(emp["LIDER"]).trim().charAt(0).toUpperCase()}
+                {/* Nível hierárquico (coluna LIDER) — SOMENTE LEITURA.
+                    Esta seção já teve um botão "Definir líder" que gravava o
+                    NOME de outra pessoa em EMPREGADOS.LIDER. Só que essa coluna
+                    guarda o NÍVEL da própria pessoa (CEO, DIREÇÃO, GERENTE,
+                    SUPERVISOR…): cada uso do botão apagava o nível de quem
+                    estava sendo editado, e "Remover" zerava de vez. O botão saiu.
+                    Quem lidera cada setor se resolve em Formulários › Líderes
+                    por setor, derivado de Setor_ERP + nível. */}
+                <div style={rotuloSecao}>Nível hierárquico</div>
+                {emp["LIDER"] ? (
+                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 13px" }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, padding: "3px 10px", borderRadius: 20, background: ehNivel(emp["LIDER"]) ? "#0f31711a" : "#f59e0b1a", color: ehNivel(emp["LIDER"]) ? "#0f3171" : "#b45309" }}>
+                      {String(emp["LIDER"])}
+                    </span>
+                    <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 7, lineHeight: 1.5 }}>
+                      {ehNivel(emp["LIDER"])
+                        ? <>Responde pelo setor <b>{val(emp["Setor_ERP"])}</b> quando é o nível mais alto dele.</>
+                        : <>⚠ Este valor não é um nível conhecido ({NIVEIS.slice(0, 5).join(", ")}…). Se for nome de pessoa,
+                          foi gravado pelo antigo botão “Definir líder” e substituiu o nível real — o RH precisa corrigir no cadastro.</>}
                     </div>
-                    <div style={{ minWidth: 140, flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{lider?.["Nome"] ?? emp["LIDER"]}</div>
-                      <div style={{ fontSize: 11.5, color: "#64748b" }}>{lider ? resumoDe(lider) : "Não localizado no cadastro"}</div>
-                      {lider && (
-                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-                          <span style={{ color: ehAtivo(lider) ? "#15803d" : "#b91c1c", fontWeight: 700 }}>{val(lider["Situação"])}</span>
-                          {lider["Nome Filial"] ? ` · ${lider["Nome Filial"]}` : ""}
-                          {lider["email"] ? ` · ${lider["email"]}` : ""}
-                        </div>
-                      )}
-                    </div>
-                    {lider && <button onClick={() => setAlvoNome(lider["Nome"])} style={btnGhost}>Ver ficha</button>}
-                    <button onClick={removerLider} disabled={salvando} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 11.5, fontWeight: 700 }}>Remover</button>
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, color: "#94a3b8" }}>Sem líder no cadastro.</div>
+                  <div style={{ fontSize: 12, color: "#94a3b8" }}>Sem nível no cadastro (não é liderança).</div>
                 )}
               </>
             )
           ) : (
             // Aba Formulários
-            parts.length === 0 ? (
+            partsCarregando ? (
+              <div style={{ padding: 30, textAlign: "center", color: "#94a3b8", fontSize: 12.5 }}>Cruzando os formulários…</div>
+            ) : parts.length === 0 ? (
               <div style={{ padding: 30, textAlign: "center", color: "#94a3b8", fontSize: 12.5 }}>
                 Nenhum formulário encontrado com <b>{alvoNome}</b> (como respondente ou citado numa resposta).
               </div>

@@ -49,7 +49,7 @@ const QK = (empresaId: string) => ["grade", empresaId];
 export function useGrade(empresaId: string | null) {
   return useQuery({
     queryKey: QK(empresaId ?? ""),
-    enabled: !!empresaId,
+    enabled: !!empresaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(empresaId ?? ""),
     // Evita refetch enquanto o usuário está editando o formulário
     staleTime: 30_000,
     queryFn: async () => {

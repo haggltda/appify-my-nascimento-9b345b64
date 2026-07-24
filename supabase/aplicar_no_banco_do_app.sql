@@ -3710,3 +3710,1592 @@ CREATE POLICY cs_form_resp_select ON public."CS_FORM_RESPOSTAS"
     OR public.cs_form_cap_setor(setor));
 
 NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260716000001_formularios_criar_por_setor =====
+-- =========================================================================
+-- NASCIMENTO FORMULÁRIOS — "criar formulários por setor" (setor-dono)
+--
+-- Novo formato de grant POR USUÁRIO, parametrizado por setor, IRMÃO do
+-- 'ver_setor' mas com semântica de DONO do formulário:
+--   papel 'criar_setor' + setor = 'COMPRAS'  → o usuário só CRIA formulários
+--   carimbados com setor='COMPRAS' (e edita as perguntas deles) e VÊ todas as
+--   respostas dos formulários cujo setor='COMPRAS', de qualquer respondente.
+--
+-- Diferença p/ 'ver_setor': ver_setor classifica pelo SETOR DO RESPONDENTE
+-- (CS_FORM_RESPOSTAS.setor); criar_setor pelo SETOR DONO DO FORMULÁRIO
+-- (CS_FORMULARIOS.setor). Convivem na UNIÃO da RLS.
+-- Idempotente.
+-- =========================================================================
+
+-- ── 1) Coluna dona do formulário ─────────────────────────────────────────
+ALTER TABLE public."CS_FORMULARIOS" ADD COLUMN IF NOT EXISTS setor text;
+CREATE INDEX IF NOT EXISTS cs_forms_setor_idx ON public."CS_FORMULARIOS"(setor);
+
+-- ── 2) papel 'criar_setor' entra no conjunto; setor vale p/ ver_setor OU criar_setor
+ALTER TABLE public."CS_FORM_ACESSOS" DROP CONSTRAINT IF EXISTS cs_form_acessos_papel_check;
+ALTER TABLE public."CS_FORM_ACESSOS" ADD  CONSTRAINT cs_form_acessos_papel_check CHECK (papel IN (
+  'editar_criar', 'responder', 'encerrar_excluir', 'ver_tudo', 'ver_proprias',
+  'ver_setor', 'criar_setor', 'dashboard'));
+
+ALTER TABLE public."CS_FORM_ACESSOS" DROP CONSTRAINT IF EXISTS cs_form_acessos_setor_por_papel;
+ALTER TABLE public."CS_FORM_ACESSOS" ADD  CONSTRAINT cs_form_acessos_setor_por_papel
+  CHECK ((setor IS NOT NULL) = (papel IN ('ver_setor', 'criar_setor')));
+
+-- ── 3) Unicidade: 1 linha por (usuário, setor) também no criar_setor ─────
+DROP INDEX IF EXISTS cs_form_acessos_unq_global;
+CREATE UNIQUE INDEX cs_form_acessos_unq_global
+  ON public."CS_FORM_ACESSOS"(papel, user_id)
+  WHERE formulario_id IS NULL AND papel NOT IN ('ver_setor', 'criar_setor');
+
+DROP INDEX IF EXISTS cs_form_acessos_unq_criar_setor;
+CREATE UNIQUE INDEX cs_form_acessos_unq_criar_setor
+  ON public."CS_FORM_ACESSOS"(user_id, setor)
+  WHERE papel = 'criar_setor';
+
+-- ── 4) Helpers ───────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.cs_form_pode_criar_setor(_setor text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT _setor IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public."CS_FORM_ACESSOS" a
+     WHERE a.papel = 'criar_setor'
+       AND a.user_id = auth.uid()
+       AND upper(btrim(a.setor)) = upper(btrim(_setor)));
+$$;
+REVOKE EXECUTE ON FUNCTION public.cs_form_pode_criar_setor(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.cs_form_pode_criar_setor(text) FROM anon;
+GRANT  EXECUTE ON FUNCTION public.cs_form_pode_criar_setor(text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.cs_form_cap_form_setor(_form_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public."CS_FORMULARIOS" f
+      JOIN public."CS_FORM_ACESSOS" a
+        ON a.papel = 'criar_setor' AND a.user_id = auth.uid()
+       AND upper(btrim(a.setor)) = upper(btrim(f.setor))
+     WHERE f.id = _form_id AND f.setor IS NOT NULL);
+$$;
+REVOKE EXECUTE ON FUNCTION public.cs_form_cap_form_setor(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.cs_form_cap_form_setor(uuid) FROM anon;
+GRANT  EXECUTE ON FUNCTION public.cs_form_cap_form_setor(uuid) TO authenticated;
+
+-- ── 5) RLS: insert de formulário aceita o criador do setor ───────────────
+DROP POLICY IF EXISTS cs_forms_insert ON public."CS_FORMULARIOS";
+CREATE POLICY cs_forms_insert ON public."CS_FORMULARIOS"
+  FOR INSERT TO authenticated WITH CHECK (
+    public.cs_form_pode_criar()
+    OR (setor IS NOT NULL AND public.cs_form_pode_criar_setor(setor)));
+
+-- ── 6) RLS: leitura de respostas em UNIÃO (+ setor-dono do formulário) ────
+DROP POLICY IF EXISTS cs_form_resp_select ON public."CS_FORM_RESPOSTAS";
+CREATE POLICY cs_form_resp_select ON public."CS_FORM_RESPOSTAS"
+  FOR SELECT TO authenticated USING (
+    public.cs_form_cap('ver_tudo')
+    OR (public.cs_form_cap('ver_proprias') AND criado_por = auth.uid())
+    OR public.cs_form_cap_setor(setor)
+    OR public.cs_form_cap_form_setor(formulario_id));
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260716000002_formularios_anexo_respondente =====
+-- =========================================================================
+-- NASCIMENTO FORMULÁRIOS — anexo de arquivo pelo respondente
+-- Perguntas podem aceitar um arquivo do respondente (config `anexo_resp`; a
+-- URL vai em CS_FORM_RESPOSTAS.itens sob `${pergunta_id}__anexo`). Faltava o
+-- respondente ANÔNIMO poder subir arquivo no bucket cs-formularios + teto 25MB.
+-- Idempotente.
+-- =========================================================================
+DROP POLICY IF EXISTS cs_form_files_insert_anon ON storage.objects;
+CREATE POLICY cs_form_files_insert_anon ON storage.objects
+  FOR INSERT TO anon WITH CHECK (bucket_id = 'cs-formularios');
+
+UPDATE storage.buckets SET file_size_limit = 26214400 WHERE id = 'cs-formularios';
+
+-- ===== 20260716000003_admin_vinculo_empregado =====
+-- =========================================================================
+-- ADMIN — vincular login ↔ cadastro EMPREGADOS (Senior) e puxar o nome oficial
+-- admin_vincular_empregado / admin_desvincular_empregado (admin-only) +
+-- vincular_meu_empregado agora também grava profiles.display_name = Nome.
+-- Bloqueia desligados (DEMITIDO/DEMITIDA/RESCISÃO/DESLIGADO/DESLIGADA). Idempotente.
+-- =========================================================================
+CREATE OR REPLACE FUNCTION public.admin_vincular_empregado(
+  p_user_id     uuid,
+  p_empregado_id bigint
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_emp  public."EMPREGADOS"%ROWTYPE;
+  v_bloq text[] := ARRAY['DEMITIDO','DEMITIDA','RESCISÃO','DESLIGADO','DESLIGADA'];
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Apenas administradores podem vincular.');
+  END IF;
+  IF p_user_id IS NULL OR p_empregado_id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Usuário e colaborador são obrigatórios.');
+  END IF;
+
+  SELECT * INTO v_emp FROM public."EMPREGADOS" WHERE "ID" = p_empregado_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Cadastro não encontrado.');
+  END IF;
+
+  IF upper(coalesce(v_emp."Situação",'')) = ANY (v_bloq) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Colaborador desligado — não pode ser vinculado.');
+  END IF;
+
+  IF v_emp.auth_user_id IS NOT NULL AND v_emp.auth_user_id <> p_user_id THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Este cadastro já está vinculado a outro usuário.');
+  END IF;
+
+  UPDATE public."EMPREGADOS"
+     SET auth_user_id = NULL
+   WHERE auth_user_id = p_user_id AND "ID" <> p_empregado_id;
+
+  UPDATE public."EMPREGADOS"
+     SET auth_user_id = p_user_id,
+         "email" = CASE
+                     WHEN coalesce(btrim("email"), '') = ''
+                     THEN (SELECT u.email FROM auth.users u WHERE u.id = p_user_id)
+                     ELSE "email"
+                   END
+   WHERE "ID" = p_empregado_id;
+
+  UPDATE public.profiles SET display_name = v_emp."Nome" WHERE id = p_user_id;
+
+  RETURN jsonb_build_object('ok', true, 'empregado', jsonb_build_object(
+    'id', v_emp."ID", 'nome', coalesce(v_emp."Nome",''), 'cargo', coalesce(v_emp."Título do Cargo",''),
+    'setor', coalesce(v_emp."Setor_ERP",''), 'situacao', coalesce(v_emp."Situação",'')));
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Conflito de vínculo — recarregue e tente de novo.');
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_vincular_empregado(uuid, bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_vincular_empregado(uuid, bigint) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_desvincular_empregado(p_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Apenas administradores podem desvincular.');
+  END IF;
+  UPDATE public."EMPREGADOS" SET auth_user_id = NULL WHERE auth_user_id = p_user_id;
+  RETURN jsonb_build_object('ok', true);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_desvincular_empregado(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_desvincular_empregado(uuid) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.vincular_meu_empregado(
+  p_cpf        text,
+  p_nascimento text,
+  p_confirmar  boolean DEFAULT false
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid     uuid := auth.uid();
+  v_cpf     text := regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g');
+  v_nasc    text := regexp_replace(coalesce(p_nascimento, ''), '\D', '', 'g');
+  v_cpf_fmt text;
+  v_emp     public."EMPREGADOS"%ROWTYPE;
+  v_bloq    text[] := ARRAY['DEMITIDO','DEMITIDA','RESCISÃO','DESLIGADO','DESLIGADA'];
+  v_preview jsonb;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Não autenticado');
+  END IF;
+  IF length(v_cpf) <> 11 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Informe um CPF válido (11 dígitos).');
+  END IF;
+  IF length(v_nasc) <> 8 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Informe a data de nascimento (DD/MM/AAAA).');
+  END IF;
+
+  v_cpf_fmt := substr(v_cpf,1,3) || '.' || substr(v_cpf,4,3) || '.' || substr(v_cpf,7,3) || '-' || substr(v_cpf,10,2);
+
+  SELECT * INTO v_emp
+  FROM public."EMPREGADOS" e
+  WHERE e."CPF" IN (v_cpf, v_cpf_fmt)
+  ORDER BY
+    (CASE WHEN upper(coalesce(e."Situação",'')) = ANY (v_bloq) THEN 1 ELSE 0 END) ASC,
+    (CASE WHEN e."Admissão" ~ '^\d{2}/\d{2}/\d{4}$'
+          THEN (substr(e."Admissão",7,4) || substr(e."Admissão",4,2) || substr(e."Admissão",1,2))::bigint
+          ELSE 0 END) DESC
+  LIMIT 1;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'CPF não encontrado.');
+  END IF;
+
+  IF upper(coalesce(v_emp."Situação",'')) = ANY (v_bloq) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Cadastro consta como desligado. Procure o RH.');
+  END IF;
+
+  IF regexp_replace(coalesce(v_emp."Nascimento",''), '\D', '', 'g') <> v_nasc THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'CPF e data de nascimento não conferem.');
+  END IF;
+
+  IF v_emp.auth_user_id IS NOT NULL AND v_emp.auth_user_id <> v_uid THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Este cadastro já está vinculado a outro usuário. Procure o RH.');
+  END IF;
+
+  v_preview := jsonb_build_object(
+    'id',       v_emp."ID",
+    'nome',     coalesce(v_emp."Nome", ''),
+    'cargo',    coalesce(v_emp."Título do Cargo", ''),
+    'setor',    coalesce(v_emp."Setor_ERP", ''),
+    'perfil',   coalesce(v_emp."Perfil_ERP", ''),
+    'lider',    coalesce(v_emp."LIDER", ''),
+    'situacao', coalesce(v_emp."Situação", ''),
+    'admissao', coalesce(v_emp."Admissão", ''),
+    'empresa',  coalesce(v_emp."Nome da Empresa", ''),
+    'filial',   coalesce(v_emp."Nome Filial", '')
+  );
+
+  IF NOT p_confirmar THEN
+    RETURN jsonb_build_object('ok', true, 'ja_vinculado', (v_emp.auth_user_id = v_uid), 'empregado', v_preview);
+  END IF;
+
+  UPDATE public."EMPREGADOS"
+     SET auth_user_id = v_uid,
+         "email" = CASE
+                     WHEN coalesce(btrim("email"), '') = ''
+                     THEN (SELECT u.email FROM auth.users u WHERE u.id = v_uid)
+                     ELSE "email"
+                   END
+   WHERE "ID" = v_emp."ID";
+
+  UPDATE public.profiles SET display_name = v_emp."Nome" WHERE id = v_uid;
+
+  RETURN jsonb_build_object('ok', true, 'vinculado', true, 'empregado', v_preview);
+
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Sua conta já está vinculada a outro cadastro.');
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.vincular_meu_empregado(text, text, boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.vincular_meu_empregado(text, text, boolean) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260716000004_admin_usuarios_acessos =====
+-- =========================================================================
+-- ADMIN › Usuários — capacidades delegáveis por usuário (vincular_usuario,
+-- ver_detalhe_usuario). Espelha CS_FORM_ACESSOS. Admin sempre pode (bypass no
+-- helper). As RPCs de vínculo passam a checar pode_acao_usuario. Idempotente.
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public."ADMIN_USUARIOS_ACESSOS" (
+  id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id    uuid NOT NULL,
+  papel      text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public."ADMIN_USUARIOS_ACESSOS" DROP CONSTRAINT IF EXISTS admin_usuarios_acessos_papel_check;
+ALTER TABLE public."ADMIN_USUARIOS_ACESSOS" ADD  CONSTRAINT admin_usuarios_acessos_papel_check
+  CHECK (papel IN ('vincular_usuario', 'ver_detalhe_usuario'));
+
+CREATE UNIQUE INDEX IF NOT EXISTS admin_usuarios_acessos_unq
+  ON public."ADMIN_USUARIOS_ACESSOS"(user_id, papel);
+
+ALTER TABLE public."ADMIN_USUARIOS_ACESSOS" ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, DELETE ON public."ADMIN_USUARIOS_ACESSOS" TO authenticated;
+
+DROP POLICY IF EXISTS admin_usuarios_acessos_select ON public."ADMIN_USUARIOS_ACESSOS";
+CREATE POLICY admin_usuarios_acessos_select ON public."ADMIN_USUARIOS_ACESSOS"
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+
+DROP POLICY IF EXISTS admin_usuarios_acessos_insert ON public."ADMIN_USUARIOS_ACESSOS";
+CREATE POLICY admin_usuarios_acessos_insert ON public."ADMIN_USUARIOS_ACESSOS"
+  FOR INSERT TO authenticated WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+DROP POLICY IF EXISTS admin_usuarios_acessos_delete ON public."ADMIN_USUARIOS_ACESSOS";
+CREATE POLICY admin_usuarios_acessos_delete ON public."ADMIN_USUARIOS_ACESSOS"
+  FOR DELETE TO authenticated USING (public.has_role(auth.uid(), 'admin'));
+
+CREATE OR REPLACE FUNCTION public.pode_acao_usuario(_papel text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT public.has_role(auth.uid(), 'admin')
+      OR EXISTS (SELECT 1 FROM public."ADMIN_USUARIOS_ACESSOS" a
+                  WHERE a.user_id = auth.uid() AND a.papel = _papel);
+$$;
+REVOKE ALL ON FUNCTION public.pode_acao_usuario(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.pode_acao_usuario(text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_vincular_empregado(
+  p_user_id     uuid,
+  p_empregado_id bigint
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_emp  public."EMPREGADOS"%ROWTYPE;
+  v_bloq text[] := ARRAY['DEMITIDO','DEMITIDA','RESCISÃO','DESLIGADO','DESLIGADA'];
+BEGIN
+  IF NOT public.pode_acao_usuario('vincular_usuario') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Sem permissão para vincular usuários.');
+  END IF;
+  IF p_user_id IS NULL OR p_empregado_id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Usuário e colaborador são obrigatórios.');
+  END IF;
+
+  SELECT * INTO v_emp FROM public."EMPREGADOS" WHERE "ID" = p_empregado_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Cadastro não encontrado.');
+  END IF;
+
+  IF upper(coalesce(v_emp."Situação",'')) = ANY (v_bloq) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Colaborador desligado — não pode ser vinculado.');
+  END IF;
+
+  IF v_emp.auth_user_id IS NOT NULL AND v_emp.auth_user_id <> p_user_id THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Este cadastro já está vinculado a outro usuário.');
+  END IF;
+
+  UPDATE public."EMPREGADOS"
+     SET auth_user_id = NULL
+   WHERE auth_user_id = p_user_id AND "ID" <> p_empregado_id;
+
+  UPDATE public."EMPREGADOS"
+     SET auth_user_id = p_user_id,
+         "email" = CASE
+                     WHEN coalesce(btrim("email"), '') = ''
+                     THEN (SELECT u.email FROM auth.users u WHERE u.id = p_user_id)
+                     ELSE "email"
+                   END
+   WHERE "ID" = p_empregado_id;
+
+  UPDATE public.profiles SET display_name = v_emp."Nome" WHERE id = p_user_id;
+
+  RETURN jsonb_build_object('ok', true, 'empregado', jsonb_build_object(
+    'id', v_emp."ID", 'nome', coalesce(v_emp."Nome",''), 'cargo', coalesce(v_emp."Título do Cargo",''),
+    'setor', coalesce(v_emp."Setor_ERP",''), 'situacao', coalesce(v_emp."Situação",'')));
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Conflito de vínculo — recarregue e tente de novo.');
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_vincular_empregado(uuid, bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_vincular_empregado(uuid, bigint) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_desvincular_empregado(p_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.pode_acao_usuario('vincular_usuario') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Sem permissão para desvincular usuários.');
+  END IF;
+  UPDATE public."EMPREGADOS" SET auth_user_id = NULL WHERE auth_user_id = p_user_id;
+  RETURN jsonb_build_object('ok', true);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_desvincular_empregado(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_desvincular_empregado(uuid) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260716000005_formularios_pergunta_nome_e_empregados_update =====
+-- =========================================================================
+-- 1) CS_FORMULARIOS.pergunta_nome_id — qual pergunta identifica o respondente
+--    (irmã de pergunta_setor_id). Respostas importadas vêm com
+--    respondente_nome nulo ("Anônimo" + filtro de Respondente vazio).
+-- 2) EMPREGADOS: a migration 20260622000025 criou a POLICY de UPDATE mas nunca
+--    deu o GRANT de tabela (só havia GRANT INSERT) — por isso "Trocar líder"
+--    não gravava. GRANT e RLS são checagens separadas no Postgres.
+-- Idempotente.
+-- =========================================================================
+ALTER TABLE public."CS_FORMULARIOS"
+  ADD COLUMN IF NOT EXISTS pergunta_nome_id text;
+
+ALTER TABLE public."EMPREGADOS" ENABLE ROW LEVEL SECURITY;
+GRANT UPDATE ON public."EMPREGADOS" TO authenticated;
+
+DROP POLICY IF EXISTS empregados_update_rh ON public."EMPREGADOS";
+CREATE POLICY empregados_update_rh ON public."EMPREGADOS"
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260716000006_remover_admin_usuarios_acessos =====
+-- =========================================================================
+-- Reverte a delegação: Vincular/Ver detalhes voltam a ser SÓ de admin. As
+-- RPCs voltam a checar has_role(admin); helper pode_acao_usuario e tabela
+-- ADMIN_USUARIOS_ACESSOS saem. Idempotente.
+-- =========================================================================
+CREATE OR REPLACE FUNCTION public.admin_vincular_empregado(
+  p_user_id     uuid,
+  p_empregado_id bigint
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_emp  public."EMPREGADOS"%ROWTYPE;
+  v_bloq text[] := ARRAY['DEMITIDO','DEMITIDA','RESCISÃO','DESLIGADO','DESLIGADA'];
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Apenas administradores podem vincular.');
+  END IF;
+  IF p_user_id IS NULL OR p_empregado_id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Usuário e colaborador são obrigatórios.');
+  END IF;
+
+  SELECT * INTO v_emp FROM public."EMPREGADOS" WHERE "ID" = p_empregado_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Cadastro não encontrado.');
+  END IF;
+
+  IF upper(coalesce(v_emp."Situação",'')) = ANY (v_bloq) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Colaborador desligado — não pode ser vinculado.');
+  END IF;
+
+  IF v_emp.auth_user_id IS NOT NULL AND v_emp.auth_user_id <> p_user_id THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Este cadastro já está vinculado a outro usuário.');
+  END IF;
+
+  UPDATE public."EMPREGADOS"
+     SET auth_user_id = NULL
+   WHERE auth_user_id = p_user_id AND "ID" <> p_empregado_id;
+
+  UPDATE public."EMPREGADOS"
+     SET auth_user_id = p_user_id,
+         "email" = CASE
+                     WHEN coalesce(btrim("email"), '') = ''
+                     THEN (SELECT u.email FROM auth.users u WHERE u.id = p_user_id)
+                     ELSE "email"
+                   END
+   WHERE "ID" = p_empregado_id;
+
+  UPDATE public.profiles SET display_name = v_emp."Nome" WHERE id = p_user_id;
+
+  RETURN jsonb_build_object('ok', true, 'empregado', jsonb_build_object(
+    'id', v_emp."ID", 'nome', coalesce(v_emp."Nome",''), 'cargo', coalesce(v_emp."Título do Cargo",''),
+    'setor', coalesce(v_emp."Setor_ERP",''), 'situacao', coalesce(v_emp."Situação",'')));
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Conflito de vínculo — recarregue e tente de novo.');
+  WHEN OTHERS THEN
+    RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_vincular_empregado(uuid, bigint) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_vincular_empregado(uuid, bigint) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.admin_desvincular_empregado(p_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'Apenas administradores podem desvincular.');
+  END IF;
+  UPDATE public."EMPREGADOS" SET auth_user_id = NULL WHERE auth_user_id = p_user_id;
+  RETURN jsonb_build_object('ok', true);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_desvincular_empregado(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_desvincular_empregado(uuid) TO authenticated;
+
+DROP FUNCTION IF EXISTS public.pode_acao_usuario(text);
+DROP TABLE IF EXISTS public."ADMIN_USUARIOS_ACESSOS";
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260720000001_empregados_cpf_formato_pontuado =====
+-- =========================================================================
+-- EMPREGADOS — Padronizar CPF no formato pontuado (XXX.XXX.XXX-XX)
+--
+-- Alguns CPFs estão só com dígitos (05566199003), outros pontuados
+-- (055.661.990-03). É o MESMO valor — muda só a formatação. Normaliza tudo
+-- para o formato com pontuação. Completa zero à esquerda até 11 dígitos (cobre
+-- CPFs que perderam o zero por já terem sido salvos como número). Idempotente:
+-- só toca em linhas com 8..11 dígitos e que ainda não estejam no formato certo.
+-- =========================================================================
+
+DO $$
+DECLARE
+  v_norm int;
+  v_fora int;
+BEGIN
+  WITH atualizadas AS (
+    UPDATE public."EMPREGADOS" e
+       SET "CPF" = regexp_replace(
+             lpad(regexp_replace(e."CPF", '\D', '', 'g'), 11, '0'),
+             '(\d{3})(\d{3})(\d{3})(\d{2})', '\1.\2.\3-\4'
+           )
+     WHERE e."CPF" IS NOT NULL
+       AND length(regexp_replace(e."CPF", '\D', '', 'g')) BETWEEN 8 AND 11
+       AND e."CPF" IS DISTINCT FROM regexp_replace(
+             lpad(regexp_replace(e."CPF", '\D', '', 'g'), 11, '0'),
+             '(\d{3})(\d{3})(\d{3})(\d{2})', '\1.\2.\3-\4'
+           )
+    RETURNING 1
+  )
+  SELECT count(*) INTO v_norm FROM atualizadas;
+
+  SELECT count(*) INTO v_fora
+  FROM public."EMPREGADOS" e
+  WHERE coalesce(btrim(e."CPF"), '') <> ''
+    AND length(regexp_replace(e."CPF", '\D', '', 'g')) NOT BETWEEN 8 AND 11;
+
+  RAISE NOTICE 'CPFs normalizados: %; fora do padrao (revisar manualmente): %', v_norm, v_fora;
+END $$;
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260720000002_admin_buscar_empregados =====
+-- =========================================================================
+-- ADMIN — Busca de colaboradores para o "Vincular colaborador"
+--
+-- A tela fazia SELECT direto na EMPREGADOS com .or(ilike), que dependia de RLS
+-- e não ignorava acento / não quebrava em palavras / não casava CPF por dígitos
+-- → buscas corretas não achavam ninguém. Esta RPC SECURITY DEFINER (padrão dos
+-- outros fluxos de vínculo) faz a busca no servidor: só admin; ignora acento e
+-- caixa; por NOME cada palavra precisa aparecer (qualquer ordem); por CPF casa
+-- pelos dígitos; exclui desligados. Idempotente.
+-- =========================================================================
+
+CREATE OR REPLACE FUNCTION public.admin_buscar_empregados(p_termo text)
+RETURNS TABLE (
+  "ID"               bigint,
+  "Nome"             text,
+  "CPF"              text,
+  "Título do Cargo"  text,
+  "Setor_ERP"        text,
+  "Situação"         text,
+  auth_user_id       uuid
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_q      text   := btrim(coalesce(p_termo, ''));
+  v_digits text   := regexp_replace(v_q, '\D', '', 'g');
+  v_tokens text[];
+  v_bloq   text[] := ARRAY['DEMITIDO','DEMITIDA','RESCISÃO','DESLIGADO','DESLIGADA'];
+BEGIN
+  IF NOT public.has_role(auth.uid(), 'admin') THEN
+    RETURN;
+  END IF;
+  IF length(v_q) < 2 THEN
+    RETURN;
+  END IF;
+
+  v_tokens := ARRAY(
+    SELECT regexp_replace(lower(unaccent_safe(w)), '[^a-z0-9]+', '', 'g')
+    FROM regexp_split_to_table(v_q, '\s+') AS w
+  );
+
+  RETURN QUERY
+  SELECT e."ID", e."Nome", e."CPF", e."Título do Cargo", e."Setor_ERP", e."Situação", e.auth_user_id
+  FROM public."EMPREGADOS" e
+  WHERE upper(coalesce(e."Situação", '')) <> ALL (v_bloq)
+    AND (
+      ( EXISTS (SELECT 1 FROM unnest(v_tokens) t WHERE t <> '')
+        AND NOT EXISTS (
+          SELECT 1 FROM unnest(v_tokens) t
+          WHERE t <> ''
+            AND regexp_replace(lower(unaccent_safe(coalesce(e."Nome", ''))), '[^a-z0-9]+', '', 'g')
+                NOT LIKE '%' || t || '%'
+        )
+      )
+      OR
+      ( length(v_digits) >= 3
+        AND regexp_replace(coalesce(e."CPF", ''), '\D', '', 'g') LIKE '%' || v_digits || '%'
+      )
+    )
+  ORDER BY e."Nome"
+  LIMIT 30;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.admin_buscar_empregados(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_buscar_empregados(text) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260720000003_formularios_lixeira =====
+-- 1) Coluna de soft-delete (o front depende dela — roda isto primeiro)
+ALTER TABLE public."CS_FORMULARIOS" ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE public."CS_FORMULARIOS" ADD COLUMN IF NOT EXISTS deleted_por_nome text;  -- quem apagou (exibido na lixeira)
+CREATE INDEX IF NOT EXISTS cs_forms_deleted_idx ON public."CS_FORMULARIOS"(deleted_at);
+
+-- 2) Novo papel 'ver_lixeira': só remove a checagem de papel (evita qualquer
+--    conflito com valores legados no banco). A tela do admin controla os papéis.
+ALTER TABLE public."CS_FORM_ACESSOS" DROP CONSTRAINT IF EXISTS cs_form_acessos_papel_check;
+
+-- 3) anon não vê formulário apagado (só colunas — seguro)
+DROP POLICY IF EXISTS cs_forms_public_read ON public."CS_FORMULARIOS";
+CREATE POLICY cs_forms_public_read ON public."CS_FORMULARIOS"
+  FOR SELECT TO anon USING (status = 'publicado' AND seguranca = 'liberado' AND deleted_at IS NULL);
+
+-- 4) Formulário na lixeira não está "aberto" (não recebe resposta)
+CREATE OR REPLACE FUNCTION public.cs_form_aberto(_form_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public."CS_FORMULARIOS" f
+     WHERE f.id = _form_id
+       AND f.deleted_at IS NULL
+       AND f.status = 'publicado'
+       AND (f.inicia_em  IS NULL OR now() >= f.inicia_em)
+       AND (f.encerra_em IS NULL OR now() <= f.encerra_em)
+       AND (f.max_respostas IS NULL OR
+            (SELECT count(*) FROM public."CS_FORM_RESPOSTAS" r WHERE r.formulario_id = f.id) < f.max_respostas));
+$$;
+
+-- 5) Porta pública: formulário apagado responde "não existe"
+CREATE OR REPLACE FUNCTION public.cs_form_porta(_slug text)
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT COALESCE(
+    (SELECT jsonb_build_object(
+              'existe', true,
+              'seguranca', f.seguranca,
+              'exige_senha', f.exige_senha,
+              'publicado', f.status = 'publicado')
+       FROM public."CS_FORMULARIOS" f WHERE f.slug = _slug AND f.deleted_at IS NULL),
+    jsonb_build_object('existe', false));
+$$;
+
+-- 6) Purga: apaga de vez o que passou de 30 dias (checa ver_lixeira direto na
+--    tabela, sem depender de cs_form_cap).
+CREATE OR REPLACE FUNCTION public.cs_form_purgar_lixeira()
+RETURNS integer LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_n integer;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public."CS_FORM_ACESSOS"
+                  WHERE papel = 'ver_lixeira' AND user_id = auth.uid()) THEN
+    RETURN 0;
+  END IF;
+  DELETE FROM public."CS_FORM_RESPOSTAS" r
+   USING public."CS_FORMULARIOS" f
+   WHERE r.formulario_id = f.id
+     AND f.deleted_at IS NOT NULL
+     AND f.deleted_at < now() - interval '30 days';
+  WITH del AS (
+    DELETE FROM public."CS_FORMULARIOS"
+     WHERE deleted_at IS NOT NULL AND deleted_at < now() - interval '30 days'
+    RETURNING 1
+  )
+  SELECT count(*) INTO v_n FROM del;
+  RETURN v_n;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.cs_form_purgar_lixeira() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.cs_form_purgar_lixeira() TO authenticated;
+
+-- 7) Quantas respostas já usam uma pergunta (aviso ao excluir pergunta).
+CREATE OR REPLACE FUNCTION public.cs_form_pergunta_respostas(_form_id uuid, _perg text)
+RETURNS integer LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT count(*)::integer
+    FROM public."CS_FORM_RESPOSTAS" r
+   WHERE r.formulario_id = _form_id
+     AND r.itens ? _perg
+     AND COALESCE(btrim(r.itens ->> _perg), '') <> '';
+$$;
+REVOKE ALL ON FUNCTION public.cs_form_pergunta_respostas(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.cs_form_pergunta_respostas(uuid, text) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ==================== migration 20260721000001 ====================
+-- =========================================================================
+-- RH / Colaboradores — dashboard e lista calculados NO BANCO
+--
+-- A tela baixava as ~12.5 mil linhas da EMPREGADOS a cada abertura e fazia
+-- KPIs, gráficos e paginação no navegador. Aqui o banco devolve os agregados
+-- prontos (um JSON de poucos KB) e a lista já paginada — a tela passa a
+-- trafegar ~50 linhas em vez de 12.556.
+--
+-- As regras são as MESMAS da tela (foram portadas do TSX, não reinventadas):
+--   • empresa: código 1/2/3/5 → HAGG/SN/CANAÃ/NH, com fallback pelo nome;
+--   • contrato: CONTRATOS ativo casado pela Filial, senão a coluna Contrato;
+--   • cargo: "Título do Cargo", caindo p/ "Nome do Cargo";
+--   • quadro do mês: admitido até o fim do mês e, para quem REALMENTE saiu
+--     (Demitido/Desligado/Rescisão/Aposentadoria), afastamento do início do
+--     mês em diante — "Data Afastamento" sozinha não vale, a folha também a
+--     preenche em férias/atestado. Saída sem data legível fica FORA (a pessoa
+--     saiu; sem saber quando, não dá para afirmar que estava presente).
+--
+-- Funções: STABLE e SECURITY INVOKER (a RLS da EMPREGADOS continua mandando).
+-- =========================================================================
+
+-- 1) Auxiliares de parse ---------------------------------------------------
+-- A EMPREGADOS veio da folha: data em "DD/MM/AAAA" e salário em texto pt-BR
+-- ("2.002,6900"), mas algumas colunas podem já ser date/numeric. Recebem text
+-- para funcionar nos dois casos (basta chamar com ::text) e NUNCA levantam
+-- erro de cast — valor estranho vira NULL/0 em vez de derrubar a consulta.
+
+-- Expressão ÚNICA de propósito: função SQL com WITH o planejador não inlineia,
+-- vira uma chamada por linha (12 mil linhas × 3 colunas) e a consulta estoura
+-- o statement_timeout.
+CREATE OR REPLACE FUNCTION public.rh_num(_v text)
+RETURNS numeric LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+  SELECT CASE
+    WHEN _v IS NULL OR btrim(_v) = ''  THEN 0::numeric
+    WHEN _v ~ '^\s*-?[\d.]*\d,\d+\s*$' THEN replace(replace(btrim(_v), '.', ''), ',', '.')::numeric  -- 2.002,69
+    WHEN _v ~ '^\s*-?\d+(\.\d+)?\s*$'  THEN btrim(_v)::numeric                                       -- 3600.21
+    ELSE 0::numeric
+  END;
+$$;
+
+-- Aceita "DD/MM/AAAA" e ISO, com ou sem zero à esquerda ("1/4/2019"), e trata
+-- ano anterior a 1900 como SEM DATA: 30/12/1899 é o "vazio" do sistema legado
+-- (serial 0 do Excel), não uma data real.
+-- O ano 19xx/20xx dentro do próprio regex já descarta o 30/12/1899, e o
+-- \d{1,2} aceita data sem zero à esquerda. Sem CTE, pelo mesmo motivo da rh_num.
+CREATE OR REPLACE FUNCTION public.rh_data(_v text)
+RETURNS date LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+  SELECT CASE
+    WHEN _v ~ '^(0?[1-9]|[12]\d|3[01])/(0?[1-9]|1[0-2])/(19|20)\d{2}'
+      THEN to_date(regexp_replace(_v, '^(\d{1,2})/(\d{1,2})/(\d{4}).*$', '\3-\2-\1'), 'YYYY-MM-DD')
+    WHEN _v ~ '^(19|20)\d{2}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])'
+      THEN to_date(regexp_replace(_v, '^(\d{4})-(\d{1,2})-(\d{1,2}).*$', '\1-\2-\3'), 'YYYY-MM-DD')
+    ELSE NULL
+  END;
+$$;
+
+-- Mesma regra do EMPRESA_MAP da tela.
+CREATE OR REPLACE FUNCTION public.rh_empresa(_cod text, _nome text)
+RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+  SELECT CASE btrim(coalesce(_cod, ''))
+    WHEN '1' THEN 'HAGG'
+    WHEN '2' THEN 'SN'
+    WHEN '3' THEN 'CANAÃ'
+    WHEN '5' THEN 'NH'
+    ELSE CASE
+      WHEN upper(coalesce(_nome, '')) LIKE '%HAGG%' THEN 'HAGG'
+      WHEN upper(coalesce(_nome, '')) LIKE '%CANA%' THEN 'CANAÃ'
+      WHEN upper(coalesce(_nome, '')) ~ '\mNH\M'    THEN 'NH'
+      WHEN upper(coalesce(_nome, '')) ~ '\mSN\M'    THEN 'SN'
+      ELSE nullif(btrim(coalesce(_nome, '')), '')
+    END
+  END;
+$$;
+
+-- 2) Recorte comum ---------------------------------------------------------
+-- View com as colunas já normalizadas: as duas RPCs partem daqui, então
+-- dashboard e lista nunca divergem de critério.
+CREATE OR REPLACE VIEW public.v_rh_colaboradores AS
+WITH ct AS (
+  SELECT DISTINCT ON (btrim(c."Filial"::text))
+         btrim(c."Filial"::text) AS filial,
+         btrim(coalesce(c."NOME CONTRATO", '')) AS nome
+    FROM public."CONTRATOS" c
+   WHERE c."ATIVO" = 'SIM' AND c."Filial" IS NOT NULL
+)
+SELECT
+  e."ID"                                                            AS id,
+  coalesce(e."Nome", '')                                            AS nome,
+  coalesce(e."CPF", '')                                             AS cpf,
+  coalesce(nullif(btrim(coalesce(e."Título do Cargo", '')), ''),
+           nullif(btrim(coalesce(e."Nome do Cargo", '')), ''), '—') AS cargo,
+  coalesce(public.rh_empresa(e."Empresa"::text, e."Nome da Empresa"), '—') AS empresa,
+  -- A EMPREGADOS não tem coluna "Contrato": o vínculo é só pela Filial. (O
+  -- código da tela tinha um fallback para e["Contrato"] que nunca valia nada.)
+  coalesce(nullif(ct.nome, ''), '—')                                AS contrato,
+  coalesce(nullif(btrim(coalesce(e."Nome Filial", '')), ''),
+           nullif(btrim(coalesce(e."Filial"::text, '')), ''), '—')  AS filial,
+  btrim(coalesce(e."Situação", ''))                                 AS situacao,
+  btrim(coalesce(e."Setor_ERP", ''))                                AS setor,
+  public.rh_data(e."Admissão"::text)                                AS admissao,
+  public.rh_data(e."Data Afastamento"::text)                        AS afastamento,
+  public.rh_num(e."Valor Salário"::text)                            AS salario,
+  (btrim(coalesce(e."Situação", '')) ~* '(DEMIT|DESLIG|RESCIS|APOSENT)') AS eh_saida,
+  (coalesce(e."Nome", '') || ' ' || coalesce(e."CPF", '') || ' ' ||
+   coalesce(e."Título do Cargo", '') || ' ' || coalesce(e."Nome do Cargo", '') || ' ' ||
+   coalesce(e."Nome Filial", '') || ' ' || coalesce(e."Setor_ERP", ''))  AS busca_txt
+FROM public."EMPREGADOS" e
+LEFT JOIN ct ON ct.filial = btrim(e."Filial"::text);
+
+-- A view herda a RLS da EMPREGADOS (security_invoker), não a contorna.
+ALTER VIEW public.v_rh_colaboradores SET (security_invoker = true);
+REVOKE ALL ON public.v_rh_colaboradores FROM PUBLIC, anon;
+GRANT SELECT ON public.v_rh_colaboradores TO authenticated;
+
+-- 3) Dashboard -------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.rh_colaboradores_dashboard(
+  _ano int, _mes int,
+  _empresa text DEFAULT '', _contrato text DEFAULT '', _situacao text DEFAULT '', _busca text DEFAULT ''
+) RETURNS jsonb
+LANGUAGE plpgsql STABLE SET search_path = public AS $$
+DECLARE
+  v_ini date := make_date(_ano, _mes, 1);
+  v_fim date := (make_date(_ano, _mes, 1) + interval '1 month' - interval '1 day')::date;
+  v_q   text := nullif(btrim(coalesce(_busca, '')), '');
+  -- coalesce nos filtros: um NULL vindo do cliente faria `NULL = ''` virar
+  -- NULL e o WHERE descartaria tudo silenciosamente.
+  v_emp text := coalesce(_empresa, '');
+  v_ctr text := coalesce(_contrato, '');
+  v_sit text := coalesce(_situacao, '');
+  v_ano int  := extract(year from current_date)::int;
+  v_out jsonb;
+BEGIN
+  WITH flags AS (
+    SELECT v.*,
+      -- No quadro do mês: admitido até o fim do mês e, para quem tem situação
+      -- de SAÍDA, com afastamento do início do mês em diante. Saída sem data
+      -- legível fica de fora: a pessoa saiu, só não sabemos quando — contá-la
+      -- como presente em TODO mês inflava o quadro com demitidos antigos.
+      ((v.admissao IS NULL OR v.admissao <= v_fim)
+        AND (NOT v.eh_saida OR (v.afastamento IS NOT NULL AND v.afastamento >= v_ini))) AS no_mes,
+      (v_emp = '' OR v.empresa  = v_emp) AS f_emp,
+      (v_ctr = '' OR v.contrato = v_ctr) AS f_ctr,
+      (v_sit = '' OR v.situacao = v_sit) AS f_sit,
+      (v_q IS NULL OR v.busca_txt ILIKE '%' || v_q || '%') AS f_bus
+    FROM public.v_rh_colaboradores v
+  ),
+  fil    AS (SELECT * FROM flags WHERE no_mes AND f_emp AND f_ctr AND f_sit AND f_bus),
+  semsit AS (SELECT * FROM flags WHERE no_mes AND f_emp AND f_ctr AND f_bus),
+  tempo  AS (SELECT * FROM flags WHERE f_emp AND f_ctr)
+  SELECT jsonb_build_object(
+    'kpis', jsonb_build_object(
+      'ativos_mes', (SELECT count(*) FROM semsit),
+      'no_recorte', (SELECT count(*) FROM fil),
+      'total',      (SELECT count(*) FROM flags),
+      'folha',      (SELECT coalesce(sum(salario), 0) FROM fil),
+      'admitidos',  (SELECT count(*) FROM tempo WHERE admissao BETWEEN v_ini AND v_fim),
+      'desligados', (SELECT count(*) FROM tempo WHERE eh_saida AND afastamento BETWEEN v_ini AND v_fim)
+    ),
+    'por_empresa',   (SELECT coalesce(jsonb_agg(jsonb_build_object('k', k, 'v', v) ORDER BY v DESC), '[]'::jsonb)
+                        FROM (SELECT empresa AS k, count(*) AS v FROM fil GROUP BY 1) t),
+    'folha_empresa', (SELECT coalesce(jsonb_agg(jsonb_build_object('k', k, 'v', v) ORDER BY v DESC), '[]'::jsonb)
+                        FROM (SELECT empresa AS k, coalesce(sum(salario), 0) AS v FROM fil GROUP BY 1) t),
+    'por_situacao',  (SELECT coalesce(jsonb_agg(jsonb_build_object('k', k, 'v', v) ORDER BY v DESC), '[]'::jsonb)
+                        FROM (SELECT coalesce(nullif(situacao, ''), '—') AS k, count(*) AS v FROM semsit GROUP BY 1) t),
+    'por_cargo',     (SELECT coalesce(jsonb_agg(jsonb_build_object('k', k, 'v', v) ORDER BY v DESC), '[]'::jsonb)
+                        FROM (SELECT cargo AS k, count(*) AS v FROM semsit GROUP BY 1) t),
+    'por_contrato',  (SELECT coalesce(jsonb_agg(jsonb_build_object('k', k, 'v', v) ORDER BY v DESC), '[]'::jsonb)
+                        FROM (SELECT contrato AS k, count(*) AS v FROM fil GROUP BY 1 ORDER BY 2 DESC LIMIT 10) t),
+    'por_faixa',     (SELECT jsonb_agg(jsonb_build_object('label', f.label, 'n',
+                              (SELECT count(*) FROM fil x
+                                WHERE x.admissao IS NOT NULL
+                                  AND ((current_date - x.admissao) / 365.25) >= f.mn
+                                  AND ((current_date - x.admissao) / 365.25) <  f.mx)) ORDER BY f.ord)
+                        FROM (VALUES (1, '< 1 ano', 0::numeric, 1::numeric), (2, '1–3 anos', 1, 3),
+                                     (3, '3–5 anos', 3, 5), (4, '5–10 anos', 5, 10),
+                                     (5, '10+ anos', 10, 9999)) AS f(ord, label, mn, mx)),
+    'timeline',      (SELECT coalesce(jsonb_agg(jsonb_build_object('ano', ano, 'adm', adm, 'desl', desl) ORDER BY ano), '[]'::jsonb)
+                        FROM (SELECT a.ano,
+                                     count(*) FILTER (WHERE a.tipo = 'adm')  AS adm,
+                                     count(*) FILTER (WHERE a.tipo = 'desl') AS desl
+                                FROM (SELECT extract(year from admissao)::int AS ano, 'adm' AS tipo
+                                        FROM tempo WHERE admissao IS NOT NULL
+                                       UNION ALL
+                                      SELECT extract(year from afastamento)::int, 'desl'
+                                        FROM tempo WHERE eh_saida AND afastamento IS NOT NULL) a
+                               WHERE a.ano BETWEEN v_ano - 6 AND v_ano
+                               GROUP BY a.ano) z),
+    'opcoes', jsonb_build_object(
+      'empresas',  (SELECT coalesce(jsonb_agg(DISTINCT empresa  ORDER BY empresa),  '[]'::jsonb) FROM flags WHERE empresa  <> '—'),
+      'contratos', (SELECT coalesce(jsonb_agg(DISTINCT contrato ORDER BY contrato), '[]'::jsonb) FROM flags WHERE contrato <> '—'),
+      'situacoes', (SELECT coalesce(jsonb_agg(DISTINCT situacao ORDER BY situacao), '[]'::jsonb) FROM flags WHERE situacao <> ''),
+      'setores',   (SELECT coalesce(jsonb_agg(DISTINCT setor    ORDER BY setor),    '[]'::jsonb) FROM flags WHERE setor    <> '')
+    )
+  ) INTO v_out;
+  RETURN v_out;
+END $$;
+
+REVOKE ALL ON FUNCTION public.rh_colaboradores_dashboard(int, int, text, text, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rh_colaboradores_dashboard(int, int, text, text, text, text) TO authenticated;
+
+-- 4) Lista paginada --------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.rh_colaboradores_lista(
+  _ano int, _mes int,
+  _empresa text DEFAULT '', _contrato text DEFAULT '', _situacao text DEFAULT '', _busca text DEFAULT '',
+  _offset int DEFAULT 0, _limite int DEFAULT 50
+) RETURNS jsonb
+LANGUAGE plpgsql STABLE SET search_path = public AS $$
+DECLARE
+  v_ini date := make_date(_ano, _mes, 1);
+  v_fim date := (make_date(_ano, _mes, 1) + interval '1 month' - interval '1 day')::date;
+  v_q   text := nullif(btrim(coalesce(_busca, '')), '');
+  v_emp text := coalesce(_empresa, '');
+  v_ctr text := coalesce(_contrato, '');
+  v_sit text := coalesce(_situacao, '');
+  v_out jsonb;
+BEGIN
+  WITH fil AS (
+    SELECT v.* FROM public.v_rh_colaboradores v
+     WHERE (v.admissao IS NULL OR v.admissao <= v_fim)
+       AND (NOT v.eh_saida OR (v.afastamento IS NOT NULL AND v.afastamento >= v_ini))
+       AND (v_emp = '' OR v.empresa  = v_emp)
+       AND (v_ctr = '' OR v.contrato = v_ctr)
+       AND (v_sit = '' OR v.situacao = v_sit)
+       AND (v_q IS NULL OR v.busca_txt ILIKE '%' || v_q || '%')
+  )
+  SELECT jsonb_build_object(
+    'total', (SELECT count(*) FROM fil),
+    'linhas', (SELECT coalesce(jsonb_agg(to_jsonb(p) - 'busca_txt' - 'eh_saida'), '[]'::jsonb)
+                 FROM (SELECT * FROM fil ORDER BY nome, id OFFSET greatest(_offset, 0) LIMIT least(greatest(_limite, 1), 500)) p)
+  ) INTO v_out;
+  RETURN v_out;
+END $$;
+
+REVOKE ALL ON FUNCTION public.rh_colaboradores_lista(int, int, text, text, text, text, int, int) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rh_colaboradores_lista(int, int, text, text, text, text, int, int) TO authenticated;
+
+-- 5) Índices que sustentam os filtros --------------------------------------
+CREATE INDEX IF NOT EXISTS empregados_nome_idx     ON public."EMPREGADOS" ("Nome");
+CREATE INDEX IF NOT EXISTS empregados_situacao_idx ON public."EMPREGADOS" ("Situação");
+CREATE INDEX IF NOT EXISTS empregados_filial_idx   ON public."EMPREGADOS" ("Filial");
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ==================== migration 20260721000002 ====================
+-- =========================================================================
+-- NASCIMENTO FORMULÁRIOS — Planos de ação definidos nos feedbacks
+--
+-- O plano de ação JÁ EXISTE dentro do formulário: são as perguntas
+-- "Ação definida (treinamento ou acompanhamento)" e "Prazo para Ação".
+-- Cada resposta preenchida nessas duas perguntas É um plano de ação —
+-- hoje já são ~80 deles. Nada disso precisa ser redigitado.
+--
+-- O que a resposta NÃO tem é o acompanhamento: ninguém volta no formulário
+-- para dizer "concluí", "cancelei", "isto é prioridade alta". É só isso que
+-- esta tabela guarda — uma CAMADA sobre a resposta, ligada por resposta_id.
+--
+-- Decisões:
+--   • `resposta_id` é UNIQUE: uma resposta tem no máximo um acompanhamento.
+--   • `acao` e `prazo` são NULL no caso normal — a fonte é a resposta. Só se
+--     preenchem quando alguém corrige o texto/prazo pela tela (override) ou
+--     quando o plano é avulso, sem resposta de origem.
+--   • Um registro precisa OU apontar para uma resposta OU se bastar sozinho
+--     (ação + prazo próprios) — é o que o CHECK abaixo garante.
+--   • A SITUAÇÃO (no prazo / atrasado / vencido) NÃO é coluna: é derivada de
+--     status + prazo + concluido_em. Gravar situação daria dado velho no dia
+--     seguinte — um plano "em andamento" vira "vencido" sozinho quando o
+--     prazo passa, sem ninguém tocar no registro.
+--
+-- Permissões: mesma capacidade que já governa as respostas (cs_form_cap).
+-- Quem enxerga as respostas enxerga os planos; quem só vê as próprias, idem.
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS public."CS_FORM_PLANOS_ACAO" (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  formulario_id  uuid NOT NULL REFERENCES public."CS_FORMULARIOS"(id) ON DELETE CASCADE,
+  resposta_id    uuid UNIQUE REFERENCES public."CS_FORM_RESPOSTAS"(id) ON DELETE CASCADE,
+
+  -- Normalmente NULL: a ação e o prazo vêm das perguntas 14 e 15 da resposta.
+  -- Preenchidos só em override manual ou plano avulso.
+  acao           text,
+  prazo          date,
+  detalhe        text,                       -- observações do acompanhamento
+
+  -- Idem: colaborador/setor/liderança vêm da resposta; aqui só se sobrescreve.
+  colaborador       text,
+  colaborador_id    bigint,                  -- EMPREGADOS."ID" quando resolvido
+  lideranca         text,
+  setor             text,
+  empresa           text,
+
+  origem         text NOT NULL DEFAULT 'Outro',
+  prioridade     text NOT NULL DEFAULT 'Média',
+  status         text NOT NULL DEFAULT 'Em andamento',
+  concluido_em   date,                       -- preenchido ao concluir
+
+  criado_por     uuid DEFAULT auth.uid(),
+  criado_por_nome text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  deleted_at     timestamptz,
+
+  CONSTRAINT cs_plano_origem_chk     CHECK (origem     IN ('Desenvolvimento', 'Liderança', 'Alinhamento e Entrega', 'Outro')),
+  CONSTRAINT cs_plano_prioridade_chk CHECK (prioridade IN ('Alta', 'Média', 'Baixa')),
+  CONSTRAINT cs_plano_status_chk     CHECK (status     IN ('Em andamento', 'Concluído', 'Cancelado')),
+  -- Concluído sem data de conclusão deixaria "no prazo × com atraso" indecidível.
+  CONSTRAINT cs_plano_concluido_chk  CHECK (status <> 'Concluído' OR concluido_em IS NOT NULL),
+  -- Ou é acompanhamento de uma resposta, ou é um plano que se basta sozinho.
+  CONSTRAINT cs_plano_fonte_chk      CHECK (resposta_id IS NOT NULL OR (acao IS NOT NULL AND prazo IS NOT NULL))
+);
+
+CREATE INDEX IF NOT EXISTS cs_planos_form_idx     ON public."CS_FORM_PLANOS_ACAO"(formulario_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS cs_planos_status_idx   ON public."CS_FORM_PLANOS_ACAO"(status) WHERE deleted_at IS NULL;
+
+-- updated_at sempre que a linha muda
+CREATE OR REPLACE FUNCTION public.cs_planos_touch() RETURNS trigger
+LANGUAGE plpgsql AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END $$;
+DROP TRIGGER IF EXISTS cs_planos_touch_trg ON public."CS_FORM_PLANOS_ACAO";
+CREATE TRIGGER cs_planos_touch_trg BEFORE UPDATE ON public."CS_FORM_PLANOS_ACAO"
+  FOR EACH ROW EXECUTE FUNCTION public.cs_planos_touch();
+
+-- ── Permissões ───────────────────────────────────────────────────────────
+ALTER TABLE public."CS_FORM_PLANOS_ACAO" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public."CS_FORM_PLANOS_ACAO" FROM PUBLIC, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public."CS_FORM_PLANOS_ACAO" TO authenticated;
+
+DROP POLICY IF EXISTS cs_planos_select ON public."CS_FORM_PLANOS_ACAO";
+CREATE POLICY cs_planos_select ON public."CS_FORM_PLANOS_ACAO"
+  FOR SELECT TO authenticated USING (
+    public.cs_form_cap('ver_tudo')
+    OR (public.cs_form_cap('ver_proprias') AND criado_por = auth.uid()));
+
+DROP POLICY IF EXISTS cs_planos_insert ON public."CS_FORM_PLANOS_ACAO";
+CREATE POLICY cs_planos_insert ON public."CS_FORM_PLANOS_ACAO"
+  FOR INSERT TO authenticated WITH CHECK (
+    public.cs_form_cap('ver_tudo') OR public.cs_form_cap('ver_proprias'));
+
+DROP POLICY IF EXISTS cs_planos_update ON public."CS_FORM_PLANOS_ACAO";
+CREATE POLICY cs_planos_update ON public."CS_FORM_PLANOS_ACAO"
+  FOR UPDATE TO authenticated USING (
+    public.cs_form_cap('ver_tudo')
+    OR (public.cs_form_cap('ver_proprias') AND criado_por = auth.uid()));
+
+-- Exclusão é soft (UPDATE deleted_at); DELETE fica só para quem vê tudo.
+DROP POLICY IF EXISTS cs_planos_delete ON public."CS_FORM_PLANOS_ACAO";
+CREATE POLICY cs_planos_delete ON public."CS_FORM_PLANOS_ACAO"
+  FOR DELETE TO authenticated USING (public.cs_form_cap('ver_tudo'));
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ==================== migration 20260721000003 ====================
+-- =========================================================================
+-- NASCIMENTO FORMULÁRIOS — Líderes por setor
+--
+-- Quem lidera cada setor NÃO é digitado: sai do cadastro. Em EMPREGADOS a
+-- coluna LIDER guarda o NÍVEL HIERÁRQUICO da pessoa (CEO, DIREÇÃO, GERENTE,
+-- SUPERVISOR…), não o nome do líder dela. Então:
+--
+--     Setor_ERP = 'COMPRAS' + LIDER = 'GERENTE'  →  gerente do Compras
+--
+-- O líder de um setor é a pessoa de MAIOR nível dentro dele. CEO está acima
+-- de DIREÇÃO, que está acima de GERENTE, e assim por diante.
+--
+-- Esta tabela guarda só a EXCEÇÃO: quando a regra não resolve (dois gerentes
+-- no mesmo setor, setor sem ninguém com nível, ou o cadastro está errado e
+-- não dá para corrigir agora), fixa-se o líder à mão. Setor sem linha aqui =
+-- resolvido automaticamente pelo cadastro, e continua acompanhando mudanças
+-- de EMPREGADOS sozinho.
+--
+-- Por isso a chave é o setor: é uma exceção POR SETOR, não por formulário —
+-- a estrutura da empresa é a mesma em todos eles.
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS public."CS_LIDERES_SETOR" (
+  setor              text PRIMARY KEY,
+  empregado_id       bigint NOT NULL,          -- EMPREGADOS."ID" escolhido à mão
+  empregado_nome     text,                     -- cópia p/ exibir sem novo join
+  observacao         text,                     -- por que foi fixado à mão
+  definido_por       uuid DEFAULT auth.uid(),
+  definido_por_nome  text,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  updated_at         timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION public.cs_lideres_touch() RETURNS trigger
+LANGUAGE plpgsql AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END $$;
+DROP TRIGGER IF EXISTS cs_lideres_touch_trg ON public."CS_LIDERES_SETOR";
+CREATE TRIGGER cs_lideres_touch_trg BEFORE UPDATE ON public."CS_LIDERES_SETOR"
+  FOR EACH ROW EXECUTE FUNCTION public.cs_lideres_touch();
+
+-- ── Permissões ───────────────────────────────────────────────────────────
+-- Ler: qualquer um que enxergue o módulo (a tela de feedback precisa resolver
+-- o líder). Escrever: só quem vê tudo — é estrutura da empresa, não dado solto.
+ALTER TABLE public."CS_LIDERES_SETOR" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public."CS_LIDERES_SETOR" FROM PUBLIC, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public."CS_LIDERES_SETOR" TO authenticated;
+
+DROP POLICY IF EXISTS cs_lideres_select ON public."CS_LIDERES_SETOR";
+CREATE POLICY cs_lideres_select ON public."CS_LIDERES_SETOR"
+  FOR SELECT TO authenticated USING (
+    public.cs_form_cap('ver_tudo') OR public.cs_form_cap('ver_proprias'));
+
+DROP POLICY IF EXISTS cs_lideres_ins ON public."CS_LIDERES_SETOR";
+CREATE POLICY cs_lideres_ins ON public."CS_LIDERES_SETOR"
+  FOR INSERT TO authenticated WITH CHECK (public.cs_form_cap('ver_tudo'));
+
+DROP POLICY IF EXISTS cs_lideres_upd ON public."CS_LIDERES_SETOR";
+CREATE POLICY cs_lideres_upd ON public."CS_LIDERES_SETOR"
+  FOR UPDATE TO authenticated USING (public.cs_form_cap('ver_tudo'));
+
+DROP POLICY IF EXISTS cs_lideres_del ON public."CS_LIDERES_SETOR";
+CREATE POLICY cs_lideres_del ON public."CS_LIDERES_SETOR"
+  FOR DELETE TO authenticated USING (public.cs_form_cap('ver_tudo'));
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ==================== migration 20260722000001 ====================
+-- =========================================================================
+-- RH — HIERARQUIA
+--
+-- A hierarquia da empresa tem DOIS eixos e nenhum deles é digitado à mão:
+--
+--   1. Administrativo (por setor): dentro de cada Setor_ERP, a ordem sai do
+--      nível em EMPREGADOS.LIDER (GERENTE › COORDENADOR › SUPERVISOR …), e o
+--      staff sem nível entra por cargo. Isso é 100% derivado do cadastro.
+--
+--   2. Operacional (por contrato): a coluna EMPREGADOS."Descrição do Local" é
+--      o NOME DO CONTRATO a que o colaborador pertence. Cada contrato tem um
+--      ENCARREGADO, e todo mundo daquele contrato fica sob ele. Só que "qual
+--      encarregado responde por qual contrato" nem sempre está no cadastro de
+--      forma confiável — é o que ESTA tabela guarda: a designação, por contrato.
+--
+-- Ou seja: a árvore é calculada ao vivo do cadastro; esta tabela guarda apenas
+-- a CONFIGURAÇÃO que o cadastro não resolve sozinho — o encarregado de cada
+-- contrato. Contrato sem linha aqui cai na sugestão automática (o membro com
+-- nível ENCARREGADO), e fica sinalizado como "a definir".
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS public."RH_CONTRATO_ENCARREGADO" (
+  contrato          text PRIMARY KEY,        -- = EMPREGADOS."Descrição do Local"
+  encarregado_id    bigint NOT NULL,         -- EMPREGADOS."ID" escolhido
+  encarregado_nome  text,                    -- cópia p/ exibir sem novo join
+  setor             text,                    -- setor predominante do contrato (referência)
+  observacao        text,
+  definido_por      uuid DEFAULT auth.uid(),
+  definido_por_nome text,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION public.rh_contrato_enc_touch() RETURNS trigger
+LANGUAGE plpgsql AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END $$;
+DROP TRIGGER IF EXISTS rh_contrato_enc_touch_trg ON public."RH_CONTRATO_ENCARREGADO";
+CREATE TRIGGER rh_contrato_enc_touch_trg BEFORE UPDATE ON public."RH_CONTRATO_ENCARREGADO"
+  FOR EACH ROW EXECUTE FUNCTION public.rh_contrato_enc_touch();
+
+-- ── Permissões ───────────────────────────────────────────────────────────
+-- Acesso ao módulo RH é controlado pelo menu (app_menu/profiles); aqui basta
+-- exigir usuário autenticado. anon nunca toca.
+ALTER TABLE public."RH_CONTRATO_ENCARREGADO" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public."RH_CONTRATO_ENCARREGADO" FROM PUBLIC, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public."RH_CONTRATO_ENCARREGADO" TO authenticated;
+
+DROP POLICY IF EXISTS rh_contrato_enc_all ON public."RH_CONTRATO_ENCARREGADO";
+CREATE POLICY rh_contrato_enc_all ON public."RH_CONTRATO_ENCARREGADO"
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ── Leitura da hierarquia (RPC) ────────────────────────────────────────────
+-- Ler EMPREGADOS direto do cliente (PostgREST) estoura o statement_timeout num
+-- cadastro grande — o mesmo motivo que fez a tela de Colaboradores ler por RPC.
+-- Aqui devolvemos só os campos da hierarquia, numa chamada, server-side.
+-- SECURITY DEFINER: não paga o custo por-linha da RLS da EMPREGADOS. Expõe a
+-- estrutura (nome/setor/nível/cargo/contrato) org-wide, que é a natureza da
+-- tela; troque para SECURITY INVOKER se precisar restringir por empresa.
+-- plpgsql (não `sql`) de propósito: função SQL valida o corpo na criação e
+-- pega lock em EMPREGADOS; plpgsql resolve a tabela só na 1ª execução, então
+-- criar a função não disputa lock com o app (evita deadlock com a leitura viva).
+CREATE OR REPLACE FUNCTION public.rh_hierarquia_dados()
+RETURNS TABLE (id bigint, nome text, setor text, nivel text, cargo text, local_desc text, situacao text)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    e."ID"::bigint,
+    btrim(coalesce(e."Nome", '')),
+    btrim(coalesce(e."Setor_ERP", '')),
+    btrim(coalesce(e."LIDER", '')),
+    coalesce(nullif(btrim(coalesce(e."Título do Cargo", '')), ''),
+             nullif(btrim(coalesce(e."Nome do Cargo", '')), ''), ''),
+    btrim(coalesce(e."Descrição do Local", '')),
+    btrim(coalesce(e."Situação", ''))
+  FROM public."EMPREGADOS" e;
+END $$;
+REVOKE ALL ON FUNCTION public.rh_hierarquia_dados() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rh_hierarquia_dados() TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ==================== migration 20260723000001 ====================
+-- =========================================================================
+-- RH — DIRETOR RESPONSÁVEL POR SETOR
+--
+-- Diretores (nível DIREÇÃO/DIRETOR) ficam ACIMA dos setores, e cada um cuida
+-- de um conjunto de setores — mas QUAIS setores não está no cadastro; é uma
+-- decisão de gestão. Esta tabela guarda isso: para cada setor, qual diretor
+-- responde por ele.
+--
+-- Vira a base da visibilidade:
+--   • Diretor vê os setores onde ele é o diretor_id aqui.
+--   • Líder vê o próprio Setor_ERP (já resolvido em CS_LIDERES_SETOR / cadastro).
+--   • CEO vê tudo.
+--
+-- Chave = setor (um diretor por setor). Atribuir um setor a outro diretor
+-- simplesmente troca a linha.
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS public."RH_SETOR_DIRETOR" (
+  setor          text PRIMARY KEY,
+  diretor_id     bigint NOT NULL,           -- EMPREGADOS."ID" do diretor
+  diretor_nome   text,
+  definido_por   uuid DEFAULT auth.uid(),
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION public.rh_setor_diretor_touch() RETURNS trigger
+LANGUAGE plpgsql AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END $$;
+DROP TRIGGER IF EXISTS rh_setor_diretor_touch_trg ON public."RH_SETOR_DIRETOR";
+CREATE TRIGGER rh_setor_diretor_touch_trg BEFORE UPDATE ON public."RH_SETOR_DIRETOR"
+  FOR EACH ROW EXECUTE FUNCTION public.rh_setor_diretor_touch();
+
+-- Acesso ao RH é gated pelo menu; aqui basta autenticado. anon nunca toca.
+ALTER TABLE public."RH_SETOR_DIRETOR" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public."RH_SETOR_DIRETOR" FROM PUBLIC, anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public."RH_SETOR_DIRETOR" TO authenticated;
+
+DROP POLICY IF EXISTS rh_setor_diretor_all ON public."RH_SETOR_DIRETOR";
+CREATE POLICY rh_setor_diretor_all ON public."RH_SETOR_DIRETOR"
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';
+-- =========================================================================
+-- RH — Perfil_ERP na leitura da hierarquia
+--
+-- A Visão Executiva precisa saber QUEM É ESPERADO responder ao feedback, e a
+-- régua é o cadastro: Perfil_ERP = 'ADMINISTRATIVO' e Situação = 'Trabalhando'.
+-- A RPC rh_hierarquia_dados devolvia tudo menos o perfil, então a tela não
+-- tinha como separar quem entra do quadro esperado de quem não entra.
+--
+-- DROP + CREATE (e não CREATE OR REPLACE): o Postgres não deixa trocar o
+-- RETURNS TABLE de uma função existente. Enquanto a migration roda, as telas
+-- que leem a hierarquia falham por alguns milissegundos — recarregar resolve.
+-- =========================================================================
+
+DROP FUNCTION IF EXISTS public.rh_hierarquia_dados();
+
+CREATE FUNCTION public.rh_hierarquia_dados()
+RETURNS TABLE (id bigint, nome text, setor text, nivel text, cargo text, local_desc text, situacao text, perfil text)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    e."ID"::bigint,
+    btrim(coalesce(e."Nome", '')),
+    btrim(coalesce(e."Setor_ERP", '')),
+    btrim(coalesce(e."LIDER", '')),
+    coalesce(nullif(btrim(coalesce(e."Título do Cargo", '')), ''),
+             nullif(btrim(coalesce(e."Nome do Cargo", '')), ''), ''),
+    btrim(coalesce(e."Descrição do Local", '')),
+    btrim(coalesce(e."Situação", '')),
+    btrim(coalesce(e."Perfil_ERP", ''))
+  FROM public."EMPREGADOS" e;
+END $$;
+
+REVOKE ALL ON FUNCTION public.rh_hierarquia_dados() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rh_hierarquia_dados() TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260724000002_vw_empregados_basico =====
+-- View pública (5 colunas não sensíveis) p/ o formulário público buscar
+-- colaboradores sem login. Liberada p/ anon + authenticated. Idempotente.
+CREATE OR REPLACE VIEW public."VW_EMPREGADOS_BASICO" AS
+SELECT "ID", "Nome", "Setor_ERP", "Título do Cargo", "Situação"
+FROM public."EMPREGADOS";
+
+GRANT SELECT ON public."VW_EMPREGADOS_BASICO" TO anon, authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260731000001_formularios_ver_proprias_por_identidade =====
+-- =========================================================================
+-- NASCIMENTO FORMULÁRIOS — "só as próprias respostas" casa pela IDENTIDADE
+--
+-- Bug: com o papel 'ver_proprias' o usuário via ZERO respostas. A régua era só
+-- `criado_por = auth.uid()`; só que as respostas chegam pelo LINK PÚBLICO, onde
+-- quem responde não está logado — auth.uid() é nulo e criado_por fica nulo. Ou
+-- seja, a condição nunca batia e a leitura devolvia vazio.
+--
+-- Correção: "minha resposta" passa a valer quando EU sou o dono da linha
+-- (criado_por, para quem enviou logado) OU quando EU sou o respondente
+-- identificado, casando o nome gravado na resposta com o Nome do meu cadastro
+-- (EMPREGADOS.auth_user_id = auth.uid()).
+--
+-- Idempotente. Aplicar no banco do app (traz o NOTIFY do PostgREST no fim).
+-- =========================================================================
+
+-- Helper: a resposta (criado_por, respondente_nome) é do usuário logado?
+-- SECURITY DEFINER: precisa ler EMPREGADOS por baixo da RLS (a política de
+-- respostas roda no contexto de quem está lendo). Não expõe nada — devolve só
+-- true/false para a linha que a própria RLS já está avaliando.
+--
+-- criado_por é UUID (CS_FORM_RESPOSTAS.criado_por uuid DEFAULT auth.uid()), então
+-- o 1º parâmetro é uuid: a policy passa a coluna direto e o Postgres precisa
+-- casar a assinatura exata (uuid, text). Remove a versão (text, text) que uma
+-- tentativa anterior pode ter deixado no banco.
+DROP FUNCTION IF EXISTS public.cs_form_minha_resposta(text, text);
+CREATE OR REPLACE FUNCTION public.cs_form_minha_resposta(_criado_por uuid, _respondente_nome text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT (_criado_por IS NOT NULL AND _criado_por = auth.uid())
+      OR (btrim(coalesce(_respondente_nome, '')) <> '' AND EXISTS (
+            SELECT 1 FROM public."EMPREGADOS" e
+             WHERE e.auth_user_id = auth.uid()
+               AND upper(btrim(e."Nome")) = upper(btrim(_respondente_nome))));
+$$;
+REVOKE EXECUTE ON FUNCTION public.cs_form_minha_resposta(uuid, text) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.cs_form_minha_resposta(uuid, text) TO authenticated;
+
+-- Releitura de respostas: mesma UNIÃO de antes, só o ramo ver_proprias muda.
+-- ver_setor continua recortando pelo Setor_ERP carimbado na resposta
+-- (cs_form_cap_setor) — é ele que faz "ver por setor = RH" mostrar só o RH.
+DROP POLICY IF EXISTS cs_form_resp_select ON public."CS_FORM_RESPOSTAS";
+CREATE POLICY cs_form_resp_select ON public."CS_FORM_RESPOSTAS"
+  FOR SELECT TO authenticated USING (
+    public.cs_form_cap('ver_tudo')
+    OR (public.cs_form_cap('ver_proprias') AND public.cs_form_minha_resposta(criado_por, respondente_nome))
+    OR public.cs_form_cap_setor(setor)                 -- setor de quem respondeu
+    OR public.cs_form_cap_form_setor(formulario_id));  -- setor-dono do formulário
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260801000001_formularios_ver_por_lideranca_setor =====
+-- Recorte por LIDERANÇA de setor: "Gerente de <setor>" (CS_LIDERES_SETOR) e
+-- "Diretor de <setor>" (RH_SETOR_DIRETOR) passam a ver, no Painel Gerencial,
+-- só as respostas do(s) setor(es) que lidera/dirige. Enforcement no RLS.
+-- ADITIVO: quem tem 'ver_tudo' segue vendo tudo — para recortar, remova
+-- 'ver_tudo' da conta. Vínculo: EMPREGADOS.auth_user_id = auth.uid();
+-- empregado_id/diretor_id = EMPREGADOS."ID". Idempotente.
+CREATE OR REPLACE FUNCTION public.cs_form_lidera_setor(_setor text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT _setor IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public."EMPREGADOS" e
+     WHERE e.auth_user_id = auth.uid()
+       AND (
+         EXISTS (SELECT 1 FROM public."CS_LIDERES_SETOR" l
+                  WHERE l.empregado_id = e."ID"
+                    AND upper(btrim(l.setor)) = upper(btrim(_setor)))
+      OR EXISTS (SELECT 1 FROM public."RH_SETOR_DIRETOR" d
+                  WHERE d.diretor_id = e."ID"
+                    AND upper(btrim(d.setor)) = upper(btrim(_setor)))
+       ));
+$$;
+REVOKE EXECUTE ON FUNCTION public.cs_form_lidera_setor(text) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.cs_form_lidera_setor(text) TO authenticated;
+
+DROP POLICY IF EXISTS cs_form_resp_select ON public."CS_FORM_RESPOSTAS";
+CREATE POLICY cs_form_resp_select ON public."CS_FORM_RESPOSTAS"
+  FOR SELECT TO authenticated USING (
+    public.cs_form_cap('ver_tudo')
+    OR (public.cs_form_cap('ver_proprias') AND public.cs_form_minha_resposta(criado_por, respondente_nome))
+    OR public.cs_form_cap_setor(setor)                 -- ver_setor (CS_FORM_ACESSOS)
+    OR public.cs_form_cap_form_setor(formulario_id)    -- setor-dono do formulário
+    OR public.cs_form_lidera_setor(setor));            -- gerente/diretor do setor
+
+NOTIFY pgrst, 'reload schema';
+
+-- ===== 20260801000003_rh_colaboradores_sem_view =====
+-- RPCs de RH Colaboradores passam a ler EMPREGADOS direto (CTE inline); a view
+-- v_rh_colaboradores e removida. Fonte unica: EMPREGADOS (+ CONTRATOS so p/ nome).
+-- 1) Dashboard (mesma logica; so troca "FROM v_rh_colaboradores" por CTE `v`)
+CREATE OR REPLACE FUNCTION public.rh_colaboradores_dashboard(
+  _ano int, _mes int,
+  _empresa text DEFAULT '', _contrato text DEFAULT '', _situacao text DEFAULT '', _busca text DEFAULT ''
+) RETURNS jsonb
+LANGUAGE plpgsql STABLE SET search_path = public AS $$
+DECLARE
+  v_ini date := make_date(_ano, _mes, 1);
+  v_fim date := (make_date(_ano, _mes, 1) + interval '1 month' - interval '1 day')::date;
+  v_q   text := nullif(btrim(coalesce(_busca, '')), '');
+  v_emp text := coalesce(_empresa, '');
+  v_ctr text := coalesce(_contrato, '');
+  v_sit text := coalesce(_situacao, '');
+  v_ano int  := extract(year from current_date)::int;
+  v_out jsonb;
+BEGIN
+  WITH ct AS (
+    SELECT DISTINCT ON (btrim(c."Filial"::text))
+           btrim(c."Filial"::text) AS filial,
+           btrim(coalesce(c."NOME CONTRATO", '')) AS nome
+      FROM public."CONTRATOS" c
+     WHERE c."ATIVO" = 'SIM' AND c."Filial" IS NOT NULL
+  ),
+  v AS (
+    SELECT
+      e."ID"                                                            AS id,
+      coalesce(e."Nome", '')                                            AS nome,
+      coalesce(e."CPF", '')                                             AS cpf,
+      coalesce(nullif(btrim(coalesce(e."Título do Cargo", '')), ''),
+               nullif(btrim(coalesce(e."Nome do Cargo", '')), ''), '—') AS cargo,
+      coalesce(public.rh_empresa(e."Empresa"::text, e."Nome da Empresa"), '—') AS empresa,
+      coalesce(nullif(ct.nome, ''), '—')                                AS contrato,
+      coalesce(nullif(btrim(coalesce(e."Nome Filial", '')), ''),
+               nullif(btrim(coalesce(e."Filial"::text, '')), ''), '—')  AS filial,
+      btrim(coalesce(e."Situação", ''))                                 AS situacao,
+      btrim(coalesce(e."Setor_ERP", ''))                                AS setor,
+      public.rh_data(e."Admissão"::text)                                AS admissao,
+      public.rh_data(e."Data Afastamento"::text)                        AS afastamento,
+      public.rh_num(e."Valor Salário"::text)                            AS salario,
+      (btrim(coalesce(e."Situação", '')) ~* '(DEMIT|DESLIG|RESCIS|APOSENT)') AS eh_saida,
+      (coalesce(e."Nome", '') || ' ' || coalesce(e."CPF", '') || ' ' ||
+       coalesce(e."Título do Cargo", '') || ' ' || coalesce(e."Nome do Cargo", '') || ' ' ||
+       coalesce(e."Nome Filial", '') || ' ' || coalesce(e."Setor_ERP", ''))  AS busca_txt
+    FROM public."EMPREGADOS" e
+    LEFT JOIN ct ON ct.filial = btrim(e."Filial"::text)
+  ),
+  flags AS (
+    SELECT v.*,
+      ((v.admissao IS NULL OR v.admissao <= v_fim)
+        AND (NOT v.eh_saida OR (v.afastamento IS NOT NULL AND v.afastamento >= v_ini))) AS no_mes,
+      (v_emp = '' OR v.empresa  = v_emp) AS f_emp,
+      (v_ctr = '' OR v.contrato = v_ctr) AS f_ctr,
+      (v_sit = '' OR v.situacao = v_sit) AS f_sit,
+      (v_q IS NULL OR v.busca_txt ILIKE '%' || v_q || '%') AS f_bus
+    FROM v
+  ),
+  fil    AS (SELECT * FROM flags WHERE no_mes AND f_emp AND f_ctr AND f_sit AND f_bus),
+  semsit AS (SELECT * FROM flags WHERE no_mes AND f_emp AND f_ctr AND f_bus),
+  tempo  AS (SELECT * FROM flags WHERE f_emp AND f_ctr)
+  SELECT jsonb_build_object(
+    'kpis', jsonb_build_object(
+      'ativos_mes', (SELECT count(*) FROM semsit),
+      'no_recorte', (SELECT count(*) FROM fil),
+      'total',      (SELECT count(*) FROM flags),
+      'folha',      (SELECT coalesce(sum(salario), 0) FROM fil),
+      'admitidos',  (SELECT count(*) FROM tempo WHERE admissao BETWEEN v_ini AND v_fim),
+      'desligados', (SELECT count(*) FROM tempo WHERE eh_saida AND afastamento BETWEEN v_ini AND v_fim)
+    ),
+    'por_empresa',   (SELECT coalesce(jsonb_agg(jsonb_build_object('k', k, 'v', v) ORDER BY v DESC), '[]'::jsonb)
+                        FROM (SELECT empresa AS k, count(*) AS v FROM fil GROUP BY 1) t),
+    'folha_empresa', (SELECT coalesce(jsonb_agg(jsonb_build_object('k', k, 'v', v) ORDER BY v DESC), '[]'::jsonb)
+                        FROM (SELECT empresa AS k, coalesce(sum(salario), 0) AS v FROM fil GROUP BY 1) t),
+    'por_situacao',  (SELECT coalesce(jsonb_agg(jsonb_build_object('k', k, 'v', v) ORDER BY v DESC), '[]'::jsonb)
+                        FROM (SELECT coalesce(nullif(situacao, ''), '—') AS k, count(*) AS v FROM semsit GROUP BY 1) t),
+    'por_cargo',     (SELECT coalesce(jsonb_agg(jsonb_build_object('k', k, 'v', v) ORDER BY v DESC), '[]'::jsonb)
+                        FROM (SELECT cargo AS k, count(*) AS v FROM semsit GROUP BY 1) t),
+    'por_contrato',  (SELECT coalesce(jsonb_agg(jsonb_build_object('k', k, 'v', v) ORDER BY v DESC), '[]'::jsonb)
+                        FROM (SELECT contrato AS k, count(*) AS v FROM fil GROUP BY 1 ORDER BY 2 DESC LIMIT 10) t),
+    'por_faixa',     (SELECT jsonb_agg(jsonb_build_object('label', f.label, 'n',
+                              (SELECT count(*) FROM fil x
+                                WHERE x.admissao IS NOT NULL
+                                  AND ((current_date - x.admissao) / 365.25) >= f.mn
+                                  AND ((current_date - x.admissao) / 365.25) <  f.mx)) ORDER BY f.ord)
+                        FROM (VALUES (1, '< 1 ano', 0::numeric, 1::numeric), (2, '1–3 anos', 1, 3),
+                                     (3, '3–5 anos', 3, 5), (4, '5–10 anos', 5, 10),
+                                     (5, '10+ anos', 10, 9999)) AS f(ord, label, mn, mx)),
+    'timeline',      (SELECT coalesce(jsonb_agg(jsonb_build_object('ano', ano, 'adm', adm, 'desl', desl) ORDER BY ano), '[]'::jsonb)
+                        FROM (SELECT a.ano,
+                                     count(*) FILTER (WHERE a.tipo = 'adm')  AS adm,
+                                     count(*) FILTER (WHERE a.tipo = 'desl') AS desl
+                                FROM (SELECT extract(year from admissao)::int AS ano, 'adm' AS tipo
+                                        FROM tempo WHERE admissao IS NOT NULL
+                                       UNION ALL
+                                      SELECT extract(year from afastamento)::int, 'desl'
+                                        FROM tempo WHERE eh_saida AND afastamento IS NOT NULL) a
+                               WHERE a.ano BETWEEN v_ano - 6 AND v_ano
+                               GROUP BY a.ano) z),
+    'opcoes', jsonb_build_object(
+      'empresas',  (SELECT coalesce(jsonb_agg(DISTINCT empresa  ORDER BY empresa),  '[]'::jsonb) FROM flags WHERE empresa  <> '—'),
+      'contratos', (SELECT coalesce(jsonb_agg(DISTINCT contrato ORDER BY contrato), '[]'::jsonb) FROM flags WHERE contrato <> '—'),
+      'situacoes', (SELECT coalesce(jsonb_agg(DISTINCT situacao ORDER BY situacao), '[]'::jsonb) FROM flags WHERE situacao <> ''),
+      'setores',   (SELECT coalesce(jsonb_agg(DISTINCT setor    ORDER BY setor),    '[]'::jsonb) FROM flags WHERE setor    <> '')
+    )
+  ) INTO v_out;
+  RETURN v_out;
+END $$;
+REVOKE ALL ON FUNCTION public.rh_colaboradores_dashboard(int, int, text, text, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rh_colaboradores_dashboard(int, int, text, text, text, text) TO authenticated;
+
+-- 2) Lista paginada (inline + regra de saida completa da 20260801000002)
+CREATE OR REPLACE FUNCTION public.rh_colaboradores_lista(
+  _ano int, _mes int,
+  _empresa text DEFAULT '', _contrato text DEFAULT '', _situacao text DEFAULT '', _busca text DEFAULT '',
+  _offset int DEFAULT 0, _limite int DEFAULT 50
+) RETURNS jsonb
+LANGUAGE plpgsql STABLE SET search_path = public AS $$
+DECLARE
+  v_ini date := make_date(_ano, _mes, 1);
+  v_fim date := (make_date(_ano, _mes, 1) + interval '1 month' - interval '1 day')::date;
+  v_q   text := nullif(btrim(coalesce(_busca, '')), '');
+  v_emp text := coalesce(_empresa, '');
+  v_ctr text := coalesce(_contrato, '');
+  v_sit text := coalesce(_situacao, '');
+  v_saida boolean := v_sit ~* '(DEMIT|DESLIG|RESCIS|APOSENT)';
+  v_out jsonb;
+BEGIN
+  WITH ct AS (
+    SELECT DISTINCT ON (btrim(c."Filial"::text))
+           btrim(c."Filial"::text) AS filial,
+           btrim(coalesce(c."NOME CONTRATO", '')) AS nome
+      FROM public."CONTRATOS" c
+     WHERE c."ATIVO" = 'SIM' AND c."Filial" IS NOT NULL
+  ),
+  v AS (
+    SELECT
+      e."ID"                                                            AS id,
+      coalesce(e."Nome", '')                                            AS nome,
+      coalesce(e."CPF", '')                                             AS cpf,
+      coalesce(nullif(btrim(coalesce(e."Título do Cargo", '')), ''),
+               nullif(btrim(coalesce(e."Nome do Cargo", '')), ''), '—') AS cargo,
+      coalesce(public.rh_empresa(e."Empresa"::text, e."Nome da Empresa"), '—') AS empresa,
+      coalesce(nullif(ct.nome, ''), '—')                                AS contrato,
+      coalesce(nullif(btrim(coalesce(e."Nome Filial", '')), ''),
+               nullif(btrim(coalesce(e."Filial"::text, '')), ''), '—')  AS filial,
+      btrim(coalesce(e."Situação", ''))                                 AS situacao,
+      btrim(coalesce(e."Setor_ERP", ''))                                AS setor,
+      public.rh_data(e."Admissão"::text)                                AS admissao,
+      public.rh_data(e."Data Afastamento"::text)                        AS afastamento,
+      public.rh_num(e."Valor Salário"::text)                            AS salario,
+      (btrim(coalesce(e."Situação", '')) ~* '(DEMIT|DESLIG|RESCIS|APOSENT)') AS eh_saida,
+      (coalesce(e."Nome", '') || ' ' || coalesce(e."CPF", '') || ' ' ||
+       coalesce(e."Título do Cargo", '') || ' ' || coalesce(e."Nome do Cargo", '') || ' ' ||
+       coalesce(e."Nome Filial", '') || ' ' || coalesce(e."Setor_ERP", ''))  AS busca_txt
+    FROM public."EMPREGADOS" e
+    LEFT JOIN ct ON ct.filial = btrim(e."Filial"::text)
+  ),
+  fil AS (
+    SELECT v.* FROM v
+     WHERE (v_saida
+            OR ((v.admissao IS NULL OR v.admissao <= v_fim)
+                AND (NOT v.eh_saida OR (v.afastamento IS NOT NULL AND v.afastamento >= v_ini))))
+       AND (v_emp = '' OR v.empresa  = v_emp)
+       AND (v_ctr = '' OR v.contrato = v_ctr)
+       AND (v_sit = '' OR v.situacao = v_sit)
+       AND (v_q IS NULL OR v.busca_txt ILIKE '%' || v_q || '%')
+  )
+  SELECT jsonb_build_object(
+    'total', (SELECT count(*) FROM fil),
+    'linhas', (SELECT coalesce(jsonb_agg(to_jsonb(p) - 'busca_txt' - 'eh_saida'), '[]'::jsonb)
+                 FROM (SELECT * FROM fil ORDER BY nome, id OFFSET greatest(_offset, 0) LIMIT least(greatest(_limite, 1), 500)) p)
+  ) INTO v_out;
+  RETURN v_out;
+END $$;
+REVOKE ALL ON FUNCTION public.rh_colaboradores_lista(int, int, text, text, text, text, int, int) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.rh_colaboradores_lista(int, int, text, text, text, text, int, int) TO authenticated;
+
+-- 3) Agora que ninguem mais referencia, remove a view.
+DROP VIEW IF EXISTS public.v_rh_colaboradores;
+
+NOTIFY pgrst, 'reload schema';

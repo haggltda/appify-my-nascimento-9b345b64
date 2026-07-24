@@ -29,6 +29,8 @@ export interface Formulario {
   criado_por?: string | null; visibilidade?: "todos" | "restrita";
   perguntas?: Pergunta[];  // jsonb - ordem = posição no array
   pergunta_setor_id?: string | null;  // qual pergunta classifica a resposta (Admin/Operac.)
+  pergunta_nome_id?: string | null;   // qual pergunta diz QUEM respondeu (respostas sem respondente_nome)
+  setor?: string | null;   // setor-DONO do formulário (criar_setor); null = geral
   // --- Segurança do formulário (quem pode RESPONDER; vale no banco) ---
   // 'liberado' = URL pública sem login. 'restrito' = exige login, e o público
   // é a UNIÃO de setores_acesso + CS_FORM_ALVO_USUARIOS (vazio+vazio = qualquer
@@ -36,6 +38,8 @@ export interface Formulario {
   seguranca?: "liberado" | "restrito";
   exige_senha?: boolean;
   setores_acesso?: string[] | null;   // setores (Setor_ERP) liberados quando restrito
+  deleted_at?: string | null;         // soft-delete: na lixeira quando != null
+  deleted_por_nome?: string | null;   // quem moveu para a lixeira
 }
 
 /** Rótulo/cor da segurança, p/ badge na lista e no editor. */
@@ -83,16 +87,23 @@ const btn = (bg: string, c = "#fff", border = "none"): React.CSSProperties =>
 export default function Formularios() {
   const nav = useNavigate();
   const { user } = useAuth();
-  const { can, canVerAlguma, setor } = useFormPerms();
+  const { can, canVerAlguma, canCriarSetor, setoresCriar, setor } = useFormPerms();
+  const meusSetores = [...setoresCriar].sort();  // setores que o usuario e dono (criar_setor)
   const [forms, setForms] = useState<Formulario[]>([]);
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [criando, setCriando] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState("");
+  const [novoSetor, setNovoSetor] = useState("");  // setor-dono ao criar (criador de setor)
   const [importPreview, setImportPreview] = useState<ImportResultado | null>(null);
   const [importTitulo, setImportTitulo] = useState("");
   const [importando, setImportando] = useState(false);
+  const [excluindo, setExcluindo] = useState<Formulario | null>(null);  // modal "digite CONFIRMAR"
+  const [confirmTxt, setConfirmTxt] = useState("");
+  const [lixeiraAberta, setLixeiraAberta] = useState(false);
+  const [lixeira, setLixeira] = useState<Formulario[]>([]);
+  const [lixeiraLoading, setLixeiraLoading] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const [toasts, setToasts] = useState<{ id: number; msg: string; t: string }[]>([]);
   const toast = (msg: string, t = "info") => { const id = Date.now() + Math.random(); setToasts(x => [...x, { id, msg, t }]); setTimeout(() => setToasts(x => x.filter(i => i.id !== id)), 4200); };
@@ -100,7 +111,7 @@ export default function Formularios() {
   const load = useCallback(async () => {
     setLoading(true);
     const [fRes, rRes] = await Promise.all([
-      (supabase as any).from("CS_FORMULARIOS").select("*").order("created_at", { ascending: false }),
+      (supabase as any).from("CS_FORMULARIOS").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
       (supabase as any).from("CS_FORM_RESPOSTAS").select("formulario_id"),
     ]);
     setLoading(false);
@@ -112,12 +123,17 @@ export default function Formularios() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  // Criador SÓ de setor (sem editar_criar amplo) tem que escolher/carimbar o
+  // setor-dono; criador amplo pode deixar em branco (formulário geral).
+  const soSetor = !can("editar_criar") && meusSetores.length > 0;
   const criar = async () => {
     const titulo = novoTitulo.trim();
     if (!titulo) { toast("Dê um título ao formulário.", "err"); return; }
+    if (soSetor && !novoSetor) { toast("Escolha o setor do formulário.", "err"); return; }
     const nome = user?.user_metadata?.nome ?? user?.email ?? "";
-    const { data, error } = await (supabase as any).from("CS_FORMULARIOS")
-      .insert({ titulo, slug: slugify(titulo), criado_por_nome: nome }).select("id").single();
+    const linha: Record<string, any> = { titulo, slug: slugify(titulo), criado_por_nome: nome };
+    if (novoSetor) linha.setor = novoSetor;
+    const { data, error } = await (supabase as any).from("CS_FORMULARIOS").insert(linha).select("id").single();
     if (error) { toast("Erro ao criar: " + error.message, "err"); return; }
     nav(`/app/central-servicos/formularios/${data.id}`);
   };
@@ -207,6 +223,7 @@ export default function Formularios() {
       titulo: f.titulo + " (cópia)", descricao: f.descricao, slug: slugify(f.titulo),
       inicia_em: f.inicia_em, encerra_em: f.encerra_em, max_respostas: f.max_respostas,
       coleta_identificacao: f.coleta_identificacao, imagem_capa_url: f.imagem_capa_url, criado_por_nome: nome,
+      setor: f.setor ?? null,  // mantém o setor-dono (RLS de insert exige p/ criador de setor)
       perguntas: normalizaPerguntas(f.perguntas).map(p => ({ ...p, id: novoUuid() })),
     }).select("id").single();
     if (error) { toast("Erro ao duplicar: " + error.message, "err"); return; }
@@ -214,19 +231,58 @@ export default function Formularios() {
     load();
   };
 
-  const excluir = async (f: Formulario) => {
-    const n = contagens[f.id] || 0;
-    if (!confirm(`Excluir "${f.titulo}"?${n ? ` As ${n} resposta(s) também serão excluídas.` : ""} Essa ação não tem volta.`)) return;
-    const { error } = await (supabase as any).from("CS_FORMULARIOS").delete().eq("id", f.id);
+  // Excluir = soft-delete (vai p/ lixeira 30 dias). Exige digitar CONFIRMAR.
+  const confirmarExcluir = async () => {
+    if (!excluindo) return;
+    if (confirmTxt.trim().toUpperCase() !== "CONFIRMAR") { toast('Digite CONFIRMAR para excluir.', "err"); return; }
+    const nome = user?.user_metadata?.nome ?? user?.email ?? "";
+    const quando = new Date().toISOString();
+    // grava quem apagou; se a coluna ainda não existir no banco, reenvia só a data.
+    let { error } = await (supabase as any).from("CS_FORMULARIOS").update({ deleted_at: quando, deleted_por_nome: nome }).eq("id", excluindo.id);
+    if (error && /deleted_por_nome|column|schema cache/i.test(error.message || "")) {
+      ({ error } = await (supabase as any).from("CS_FORMULARIOS").update({ deleted_at: quando }).eq("id", excluindo.id));
+    }
     if (error) { toast("Erro ao excluir: " + error.message, "err"); return; }
-    toast("Formulário excluído.", "ok");
+    toast("Formulário movido para a lixeira (30 dias para restaurar).", "ok");
+    setExcluindo(null); setConfirmTxt("");
     load();
+  };
+
+  // ── Lixeira ──────────────────────────────────────────────────────────
+  const abrirLixeira = async () => {
+    setLixeiraAberta(true); setLixeiraLoading(true);
+    await (supabase as any).rpc("cs_form_purgar_lixeira");  // purga os > 30 dias (best-effort)
+    const { data, error } = await (supabase as any).from("CS_FORMULARIOS")
+      .select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false });
+    setLixeiraLoading(false);
+    if (error) { toast("Erro ao abrir lixeira: " + error.message, "err"); return; }
+    setLixeira(data ?? []);
+  };
+  const restaurar = async (f: Formulario) => {
+    const { error } = await (supabase as any).from("CS_FORMULARIOS").update({ deleted_at: null }).eq("id", f.id);
+    if (error) { toast("Erro ao restaurar: " + error.message, "err"); return; }
+    toast("Formulário restaurado.", "ok");
+    setLixeira(xs => xs.filter(x => x.id !== f.id));
+    load();
+  };
+  // dias que faltam p/ o apagado ser removido de vez (30 dias após deleted_at).
+  const diasRestantes = (f: Formulario) => {
+    const d = f.deleted_at ? new Date(f.deleted_at) : null;
+    if (!d) return 0;
+    return Math.max(0, 30 - Math.floor((Date.now() - d.getTime()) / 86400000));
   };
 
   // Formulário restrito a setores (setores_acesso) só aparece para esse setor;
   // quem gerencia (editar/encerrar/ver tudo) enxerga todos.
   const podeVerTodos = can("editar_criar") || can("encerrar_excluir") || can("ver_tudo");
+  // Gestão do formulário: quem cria/encerra amplamente OU é dono do setor dele.
+  const podeCriar = can("editar_criar") || meusSetores.length > 0;
+  const podeEditar = (f: Formulario) => can("editar_criar") || canCriarSetor(f.setor);
+  const podeEncerrar = (f: Formulario) => can("encerrar_excluir") || canCriarSetor(f.setor);
+  // Gestor só de setor vê apenas os formulários do(s) seu(s) setor(es).
+  const soGestorSetor = !podeVerTodos && meusSetores.length > 0;
   const visiveis = forms.filter(f => {
+    if (soGestorSetor) return canCriarSetor(f.setor);
     const restr = f.setores_acesso ?? [];
     return restr.length === 0 || podeVerTodos || (!!setor && restr.includes(setor));
   });
@@ -248,11 +304,17 @@ export default function Formularios() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canVerAlguma && <button onClick={() => nav("/app/central-servicos/formularios/dashboard")} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>📊 Dashboard</button>}
-          {can("editar_criar") && <>
-            <button onClick={() => importRef.current?.click()} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬆ Importar SurveyMonkey</button>
-            <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) abrirImport(f); e.target.value = ""; }} />
-            <button onClick={() => { setNovoTitulo(""); setCriando(true); }} style={btn("#0f3171")}>+ Novo formulário</button>
+          {canVerAlguma && <button onClick={() => nav("/app/central-servicos/formularios/painel")} style={btn("#0f3171")}>📈 Painel Gerencial</button>}
+          {/* "Líderes por setor" foi centralizado na Administração → Módulos & Menus →
+              Acesso por Usuário (regra geral por setor). */}
+          {can("ver_lixeira") && <button onClick={abrirLixeira} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>🗑 Lixeira</button>}
+          {podeCriar && <>
+            {can("editar_criar") && <>
+              <button onClick={() => importRef.current?.click()} style={btn("#fff", "#0f3171", "1px solid #0f3171")}>⬆ Importar SurveyMonkey</button>
+              <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) abrirImport(f); e.target.value = ""; }} />
+            </>}
+            <button onClick={() => { setNovoTitulo(""); setNovoSetor(meusSetores.length === 1 ? meusSetores[0] : ""); setCriando(true); }} style={btn("#0f3171")}>+ Novo formulário</button>
           </>}
         </div>
       </div>
@@ -291,20 +353,21 @@ export default function Formularios() {
                         {seg.icone} <b style={{ color: seg.c }}>{seg.rotulo}</b>
                       </span>
                       <span>🗓 {f.inicia_em || f.encerra_em ? `${f.inicia_em ? "de " + fmtDt(f.inicia_em) : ""} ${f.encerra_em ? "até " + fmtDt(f.encerra_em) : ""}` : "sem prazo definido"}</span>
+                      {f.setor && <span>🏷️ Setor: <b style={{ color: "#4338ca" }}>{f.setor}</b></span>}
                       <span>por {f.criado_por_nome || "-"} · criado em {fmtDt(f.created_at)}</span>
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 11 }}>
                       {can("responder") && <a href={urlPublica(f.slug)} target="_blank" rel="noopener noreferrer" style={{ ...btn("#16a34a"), textDecoration: "none", display: "inline-block" }}>↗ Abrir</a>}
-                      {can("editar_criar") && <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}`)} style={btn("#0f3171")}>✏️ Editar</button>}
+                      {podeEditar(f) && <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}`)} style={btn("#0f3171")}>✏️ Editar</button>}
                       {canVerAlguma && <button onClick={() => nav(`/app/central-servicos/formularios/${f.id}/respostas`)} style={btn("rgba(59,130,246,.1)", "#2563eb", "1px solid rgba(59,130,246,.3)")}>📊 Respostas</button>}
-                      {can("encerrar_excluir") && f.status !== "publicado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Publicar</button>}
+                      {podeEncerrar(f) && f.status !== "publicado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Publicar</button>}
                       {f.status === "publicado" && <>
                         <button onClick={() => copiarUrl(f)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>🔗 Copiar URL</button>
-                        {can("encerrar_excluir") && <button onClick={() => mudarStatus(f, "encerrado")} style={btn("rgba(220,38,38,.08)", "#dc2626", "1px solid rgba(220,38,38,.25)")}>Encerrar</button>}
+                        {podeEncerrar(f) && <button onClick={() => mudarStatus(f, "encerrado")} style={btn("rgba(220,38,38,.08)", "#dc2626", "1px solid rgba(220,38,38,.25)")}>Encerrar</button>}
                       </>}
-                      {can("encerrar_excluir") && f.status === "encerrado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Reabrir</button>}
-                      {can("editar_criar") && <button onClick={() => duplicar(f)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Duplicar</button>}
-                      {can("encerrar_excluir") && <button onClick={() => excluir(f)} style={btn("transparent", "#94a3b8")}>Excluir</button>}
+                      {podeEncerrar(f) && f.status === "encerrado" && <button onClick={() => mudarStatus(f, "publicado")} style={btn("#16a34a")}>Reabrir</button>}
+                      {podeEditar(f) && <button onClick={() => duplicar(f)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Duplicar</button>}
+                      {podeEncerrar(f) && <button onClick={() => { setExcluindo(f); setConfirmTxt(""); }} style={btn("transparent", "#94a3b8")}>Excluir</button>}
                     </div>
                   </div>
                 </div>
@@ -323,6 +386,18 @@ export default function Formularios() {
             <input autoFocus placeholder="Ex.: Pesquisa de Clima 2026" value={novoTitulo} onChange={e => setNovoTitulo(e.target.value)}
               onKeyDown={e => e.key === "Enter" && criar()}
               style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 13.5, outline: "none" }} />
+            {meusSetores.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <label style={{ display: "block", fontSize: 10.5, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Setor do formulário{soSetor ? " *" : ""}</label>
+                <select value={novoSetor} onChange={e => setNovoSetor(e.target.value)}
+                  style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 13.5, outline: "none", background: "#fff", color: "#0f172a", fontFamily: "inherit" }}>
+                  {!soSetor && <option value="">Geral (sem setor)</option>}
+                  {soSetor && <option value="">Escolha o setor...</option>}
+                  {meusSetores.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>As respostas ficam visíveis a quem gerencia esse setor.</div>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
               <button onClick={() => setCriando(false)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Cancelar</button>
               <button onClick={criar} style={btn("#0f3171")}>Criar e montar →</button>
@@ -364,6 +439,65 @@ export default function Formularios() {
               <button onClick={importar} disabled={importando} style={btn(importando ? "#94a3b8" : "#16a34a")}>
                 {importando ? "Importando..." : `✓ Importar${importPreview.respostas.length ? ` (${importPreview.respostas.length} respostas)` : ""}`}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: excluir formulário (digitar CONFIRMAR) */}
+      {excluindo && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900, padding: 16 }} onClick={() => { setExcluindo(null); setConfirmTxt(""); }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 22, width: 460, maxWidth: "92vw", position: "relative" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4, color: "#b91c1c" }}>Excluir formulário</div>
+            <div style={{ fontSize: 13, color: "#334155", marginBottom: 6 }}>
+              Você vai excluir <b>"{excluindo.titulo}"</b>{(contagens[excluindo.id] || 0) > 0 ? <> — que tem <b>{contagens[excluindo.id]}</b> resposta(s)</> : null}.
+            </div>
+            <div style={{ fontSize: 12.5, color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 11px", marginBottom: 12 }}>
+              Ele vai para a <b>lixeira por 30 dias</b> e pode ser restaurado. Depois disso é apagado de vez.
+            </div>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 4 }}>Digite <b style={{ color: "#b91c1c" }}>CONFIRMAR</b> para excluir</label>
+            <input autoFocus value={confirmTxt} onChange={e => setConfirmTxt(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && confirmarExcluir()} placeholder="CONFIRMAR"
+              style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 13.5, outline: "none", textTransform: "uppercase" }} />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => { setExcluindo(null); setConfirmTxt(""); }} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Cancelar</button>
+              <button onClick={confirmarExcluir} disabled={confirmTxt.trim().toUpperCase() !== "CONFIRMAR"}
+                style={{ ...btn(confirmTxt.trim().toUpperCase() === "CONFIRMAR" ? "#dc2626" : "#fca5a5"), cursor: confirmTxt.trim().toUpperCase() === "CONFIRMAR" ? "pointer" : "not-allowed" }}>
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: lixeira (formulários apagados, restauráveis 30 dias) */}
+      {lixeiraAberta && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 900, padding: 16 }} onClick={() => setLixeiraAberta(false)}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 22, width: 620, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", position: "relative" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>🗑 Lixeira</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14 }}>Formulários apagados ficam aqui por 30 dias e podem ser restaurados. Depois disso são removidos automaticamente.</div>
+            {lixeiraLoading ? (
+              <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8" }}>Carregando…</div>
+            ) : lixeira.length === 0 ? (
+              <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8" }}>A lixeira está vazia.</div>
+            ) : (
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+                {lixeira.map(f => (
+                  <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderBottom: "1px solid #f1f5f9" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.titulo}</div>
+                      <div style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                        Apagado em {fmtDt(f.deleted_at)}{f.deleted_por_nome ? ` por ${f.deleted_por_nome}` : ""} · restam <b style={{ color: diasRestantes(f) <= 5 ? "#dc2626" : "#475569" }}>{diasRestantes(f)} dia(s)</b>
+                        {f.setor ? ` · setor ${f.setor}` : ""}
+                      </div>
+                    </div>
+                    <button onClick={() => restaurar(f)} style={btn("#16a34a")}>↩ Restaurar</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <button onClick={() => setLixeiraAberta(false)} style={btn("#fff", "#475569", "1px solid #e2e8f0")}>Fechar</button>
             </div>
           </div>
         </div>

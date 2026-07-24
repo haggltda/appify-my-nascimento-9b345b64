@@ -251,6 +251,16 @@ const financeiroModule: ModuleDef = {
   status: "active",
   groups: [
     {
+      label: "Controle de Notas",
+      defaultOpen: true,
+      items: [
+        { label: "Emissão de NF", to: "/app/financeiro/emissao-nf/cadastro", icon: FileText },
+        { label: "Validação de Notas", to: "/app/financeiro/emissao-nf/controle-notas", icon: ClipboardCheck },
+        { label: "Relatório de Serviços", to: "/app/financeiro/relatorio-servicos", icon: TableProperties },
+        { label: "Cobranças", to: "/app/cobrancas", icon: Bell },
+      ],
+    },
+    {
       label: "Operação Financeira",
       defaultOpen: true,
       items: [
@@ -259,14 +269,19 @@ const financeiroModule: ModuleDef = {
         { label: "Programação de Pagamentos", to: "/app/financeiro/programacao-pagamentos", icon: Wallet },
         { label: "Validação Pós-Pagamento", to: "/app/financeiro/validacao-pos-pagamento", icon: Receipt },
         { label: "Contas a Receber", to: "/app/financeiro/contas-receber", icon: Receipt },
-        { label: "Cobranças", to: "/app/cobrancas", icon: Bell },
-        { label: "Relatório de Serviços", to: "/app/financeiro/relatorio-servicos", icon: TableProperties },
         { label: "Fluxo de Caixa", to: "/app/financeiro/fluxo-caixa", icon: TrendingUp },
         { label: "Fluxo de Caixa Diário", to: "/app/financeiro/fluxo-caixa-diario", icon: TrendingUp },
         { label: "Conciliação Fluxo Caixa", to: "/app/financeiro/conciliacao-fluxo-caixa", icon: Receipt },
         { label: "Análise de Capital de Giro", to: "/app/financeiro/capital-giro", icon: TrendingUp },
         { label: "Movimentos Bancários", to: "/app/financeiro/movimentos", icon: Wallet },
         { label: "Integração Bancária", to: "/app/financeiro/integracao-bancaria", icon: Wallet },
+      ],
+    },
+    {
+      label: "Orçamento",
+      defaultOpen: true,
+      items: [
+        { label: "Cadastro de Orçamentos", to: "/app/financeiro/planejamento-orcamentario/cadastro", icon: ClipboardList },
       ],
     },
     {

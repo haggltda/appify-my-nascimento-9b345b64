@@ -59,6 +59,7 @@ export function EmpresaAtivaProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
 
         let rows: any[] = [];
+        let defaultEmpresaId: string | null = null;
         if ((profile as any)?.acessa_todas_empresas) {
           const { data } = await supabase
             .from("empresas")
@@ -70,11 +71,11 @@ export function EmpresaAtivaProvider({ children }: { children: ReactNode }) {
           // Empresas via vínculo
           const { data: vinculos } = await supabase
             .from("user_empresa")
-            .select("empresa_id, empresas:empresa_id(id,codigo,razao_social,nome_fantasia,cnpj,regime,ativa)")
+            .select("empresa_id, is_default, empresas:empresa_id(id,codigo,razao_social,nome_fantasia,cnpj,regime,ativa)")
             .eq("user_id", user.id);
-          rows = (vinculos ?? [])
-            .map((v: any) => v.empresas)
-            .filter((e: any) => e && e.ativa);
+          const vinculosValidos = (vinculos ?? []).filter((v: any) => v.empresas?.ativa);
+          rows = vinculosValidos.map((v: any) => v.empresas);
+          defaultEmpresaId = vinculosValidos.find((v: any) => v.is_default)?.empresa_id ?? null;
           // Fallback: garante a empresa_id do profile
           if (profile?.empresa_id && !rows.some((r) => r.id === profile.empresa_id)) {
             const { data: own } = await supabase
@@ -97,9 +98,10 @@ export function EmpresaAtivaProvider({ children }: { children: ReactNode }) {
         }
         setEmpresas(mapped);
 
-        // Define empresa ativa: empresa_atual_id se for válida, senão primeira do conjunto.
+        // Define empresa ativa: empresa_atual_id > is_default > primeira do conjunto.
         const ativa =
           (profile?.empresa_atual_id && mapped.find((e) => e.id === profile.empresa_atual_id)?.id) ||
+          (defaultEmpresaId && mapped.find((e) => e.id === defaultEmpresaId)?.id) ||
           mapped[0].id;
         setEmpresaId(ativa);
         try { localStorage.setItem(LS_KEY, ativa); } catch { /* noop */ }

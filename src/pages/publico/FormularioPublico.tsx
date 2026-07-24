@@ -16,7 +16,7 @@ interface Form {
   id: string; titulo: string; descricao?: string | null; slug: string;
   status: string; inicia_em?: string | null; encerra_em?: string | null;
   coleta_identificacao: boolean; imagem_capa_url?: string | null;
-  pergunta_setor_id?: string | null; setores_acesso?: string[] | null;
+  pergunta_setor_id?: string | null; pergunta_nome_id?: string | null; setores_acesso?: string[] | null;
   seguranca?: "liberado" | "restrito"; exige_senha?: boolean;
 }
 interface Perg {
@@ -26,6 +26,8 @@ interface Perg {
 
 // Escalas de trabalho (enum posto_jornada do banco).
 const ESCALAS_TRABALHO = ["12x36", "8 horas", "6 horas", "4 horas", "Escala 5x2", "Escala 6x1", "Outra"];
+// Tipos aceitos como anexo do respondente (mesmo conjunto do editor).
+const ACCEPT_ANEXO = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,image/*";
 
 const fmtDt = (s?: string | null) => { if (!s) return ""; const d = new Date(s); return isNaN(+d) ? "" : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); };
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, padding: "18px 20px", boxShadow: "0 10px 30px rgba(15,23,42,.07)" };
@@ -52,6 +54,10 @@ function AnimStyles() {
     .fp-in { opacity:0; animation: fpFadeUp .6s cubic-bezier(.22,1,.36,1) forwards; }
     .fp-card-h { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
     .fp-card-h:hover { transform: translateY(-3px); box-shadow: 0 18px 40px rgba(15,23,42,.12); border-color: #c7d2fe; }
+    /* Card com autocomplete aberto sobe acima dos vizinhos e não faz o hover-lift
+       (senão a lista de sugestões fica atrás do card seguinte). */
+    .fp-card-h:has(.fp-open) { position: relative; z-index: 40; }
+    .fp-card-h:has(.fp-open):hover { transform: none; }
     .fp-scope input:not([type=radio]):not([type=checkbox]):focus, .fp-scope textarea:focus, .fp-scope select:focus { border-color:#0f3171 !important; box-shadow: 0 0 0 4px rgba(15,49,113,.13); }
     .fp-scope input, .fp-scope textarea, .fp-scope select { transition: border-color .18s ease, box-shadow .18s ease; }
     .fp-submit { position: relative; overflow: hidden; transition: transform .2s ease, box-shadow .2s ease, filter .2s ease; }
@@ -137,28 +143,40 @@ function ColaboradorSelect({ value, onChange }: { value: string; onChange: (v: s
   const [busca, setBusca] = useState("");
   const [resultados, setResultados] = useState<{ id: number; nome: string; setor?: string; cargo?: string }[]>([]);
   const [aberto, setAberto] = useState(false);
+  // Cada busca ganha um número crescente; quando a resposta volta, só aplica se
+  // ainda for a última disparada. Sem isso a consulta SEM filtro do onFocus
+  // (a maior/mais lenta) chegava DEPOIS da consulta filtrada e sobrescrevia o
+  // resultado — o campo mostrava "pablo" mas a lista trazia a fila alfabética.
+  const seq = useRef(0);
   const buscar = async (texto: string) => {
     setBusca(texto); setAberto(true);
+    const meu = ++seq.current;
     const termo = texto.trim();
     // Rota pública (sem login) — usa a view sem colunas sensíveis (sem CPF/
-    // salário/PIS), já que a tabela EMPREGADOS completa agora exige acesso
-    // por menu (ver migration 20260717190010).
+    // salário/PIS). A tabela EMPREGADOS completa exige acesso por menu (ver
+    // migration 20260717190010) e não é lida por anon, então NÃO usar aqui.
     let query = (supabase as any).from("VW_EMPREGADOS_BASICO")
       .select('"ID","Nome","Setor_ERP","Título do Cargo","Situação"')
       .order('"Nome"').limit(40);
-    if (termo.length >= 2) query = query.ilike("Nome", `%${termo}%`);
+    // Busca por PALAVRA: cada palavra (≥2 letras) precisa aparecer no nome, em
+    // qualquer ordem — "helena nasciment" acha "HELENA SILVA NASCIMENTO".
+    if (termo.length >= 2) {
+      const palavras = termo.split(/\s+/).map(w => w.replace(/[%_\\]/g, "")).filter(w => w.length >= 2);
+      for (const w of palavras) query = query.ilike("Nome", `%${w}%`);
+    }
     const { data } = await query;
+    if (meu !== seq.current) return;  // chegou uma busca mais nova primeiro — descarta esta
     setResultados((data ?? [])
       .filter((r: any) => !/demitid/i.test(String(r["Situação"] ?? "")))  // só demitido fica de fora
       .map((r: any) => ({ id: r["ID"], nome: r["Nome"] ?? "", setor: r["Setor_ERP"], cargo: r["Título do Cargo"] }))
       .filter((x: any) => x.nome));
   };
   return (
-    <div style={{ position: "relative", maxWidth: 420 }}>
+    <div className={aberto ? "fp-open" : undefined} style={{ position: "relative", maxWidth: 420, zIndex: aberto ? 40 : "auto" }}>
       <input value={aberto ? busca : (value || "")} onFocus={() => buscar("")} onBlur={() => setTimeout(() => setAberto(false), 150)} onChange={e => buscar(e.target.value)}
         placeholder="Digite o nome do colaborador..." style={inp} />
       {aberto && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 20, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, marginTop: 4, boxShadow: "0 12px 28px rgba(15,23,42,.14)", zIndex: 40, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
           {resultados.length === 0 && <div style={{ padding: "8px 11px", fontSize: 12, color: "#94a3b8" }}>{busca.trim().length < 2 ? "Digite ao menos 2 letras..." : "Nenhum colaborador encontrado."}</div>}
           {resultados.map(r => (
             <div key={r.id} onMouseDown={() => { onChange(r.nome); setAberto(false); }} style={{ padding: "8px 11px", cursor: "pointer", borderBottom: "1px solid #f1f5f9" }}>
@@ -197,6 +215,25 @@ export default function FormularioPublico() {
   // "Outro": quando o respondente escolhe Outro, descreve num texto livre.
   const [outroOn, setOutroOn] = useState<Record<string, boolean>>({});
   const [outroTxt, setOutroTxt] = useState<Record<string, string>>({});
+  const [faltando, setFaltando] = useState<Set<string>>(new Set());  // obrigatórias vazias no envio
+  const [anexando, setAnexando] = useState<Record<string, boolean>>({});  // upload de anexo em curso
+
+  // Upload de anexo do respondente (bucket cs-formularios; anon liberado pela
+  // migration). Devolve a URL pública ou null (com aviso).
+  const MAX_ANEXO = 25 * 1024 * 1024;
+  const uploadResp = async (pid: string, file: File) => {
+    if (file.size > MAX_ANEXO) { setErro(`O anexo "${file.name}" passa de 25MB. Envie um arquivo menor.`); return; }
+    setAnexando(x => ({ ...x, [pid]: true }));
+    const ext = (file.name.split(".").pop() || "dat").toLowerCase();
+    const path = `${form?.id ?? "geral"}/resp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+    const { error } = await supabase.storage.from("cs-formularios").upload(path, file, { upsert: false });
+    setAnexando(x => ({ ...x, [pid]: false }));
+    if (error) { setErro("Não foi possível anexar o arquivo: " + error.message); return; }
+    const url = supabase.storage.from("cs-formularios").getPublicUrl(path).data.publicUrl;
+    setValores(x => ({ ...x, [`${pid}__anexo`]: url, [`${pid}__anexo_nome`]: file.name }));
+    setErro("");
+  };
+  const removerAnexo = (pid: string) => setValores(x => { const n = { ...x }; delete n[`${pid}__anexo`]; delete n[`${pid}__anexo_nome`]; return n; });
 
   const load = useCallback(async () => {
     if (authLoading) return;
@@ -295,7 +332,11 @@ export default function FormularioPublico() {
   }
   if (enviado) return <SuccessScreen />;
 
-  const setVal = (pid: string, v: any) => { setValores(x => ({ ...x, [pid]: v })); setErro(""); };
+  const setVal = (pid: string, v: any) => {
+    setValores(x => ({ ...x, [pid]: v }));
+    setErro("");
+    setFaltando(s => { if (!s.has(pid)) return s; const n = new Set(s); n.delete(pid); return n; });  // preencheu → tira o destaque
+  };
 
   // Perguntas visíveis ao respondente: uma pergunta pode ser limitada a setores
   // (config.setores) e/ou a pessoas (config.pessoas = user_id do ERP), em UNIÃO.
@@ -309,11 +350,17 @@ export default function FormularioPublico() {
   const pergsVisiveis = pergs.filter(perguntaVisivel);
 
   const enviar = async () => {
-    for (const p of pergsVisiveis) {
-      if (p.tipo === "texto_info" || !p.obrigatoria) continue;
+    // Junta TODAS as obrigatórias vazias p/ destacar de uma vez e levar à primeira.
+    const faltantes = pergsVisiveis.filter(p => {
+      if (p.tipo === "texto_info" || !p.obrigatoria) return false;
       const v = valores[p.id];
-      const vazio = v == null || v === "" || (Array.isArray(v) && v.length === 0);
-      if (vazio) { setErro(`Responda a pergunta obrigatória: "${p.titulo}"`); document.getElementById(`perg-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+      return v == null || v === "" || (Array.isArray(v) && v.length === 0);
+    });
+    if (faltantes.length) {
+      setFaltando(new Set(faltantes.map(p => p.id)));
+      setErro("Você precisa responder todas as perguntas obrigatórias para concluir.");
+      document.getElementById(`perg-${faltantes[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
     }
     if (form.coleta_identificacao && !empregado && !nome.trim()) { setErro("Informe seu nome."); return; }
     setEnviando(true);
@@ -330,9 +377,16 @@ export default function FormularioPublico() {
     const setorRaw = form.pergunta_setor_id ? valores[form.pergunta_setor_id] : null;
     const setorPergunta = Array.isArray(setorRaw) ? (setorRaw[0] ? String(setorRaw[0]).trim() : null) : (setorRaw != null && setorRaw !== "" ? String(setorRaw).trim() : null);
     const setor = (cadastro?.setor?.trim() || setorPergunta) || null;
-    const nomeResp = cadastro?.nome?.trim() || (form.coleta_identificacao ? nome.trim() : "") || null;
+    // Nome de quem respondeu: cadastro > campo de identificação > pergunta que
+    // identifica o respondente (pergunta_nome_id) — senão fica anônimo.
+    const nomeRaw = form.pergunta_nome_id ? valores[form.pergunta_nome_id] : null;
+    const nomePergunta = Array.isArray(nomeRaw) ? (nomeRaw[0] ? String(nomeRaw[0]).trim() : "") : (nomeRaw != null ? String(nomeRaw).trim() : "");
+    const nomeResp = cadastro?.nome?.trim() || (form.coleta_identificacao ? nome.trim() : "") || nomePergunta || null;
     const emailResp = cadastro?.email?.trim() || (form.coleta_identificacao ? email.trim() : "") || null;
-    // criado_por é preenchido pelo default (auth.uid()) quando logado; anônimo sem dono.
+    // criado_por é carimbado pelo default do banco (auth.uid()) quando quem envia
+    // está logado; anônimo (link público sem login) fica sem dono. Quem não bate
+    // por criado_por é reconhecido pela identidade do cadastro na leitura das
+    // respostas (cs_form_minha_resposta), então não precisa setar aqui.
     const duracao_seg = Math.max(0, Math.round((Date.now() - abertoEm.current) / 1000));  // tempo de conclusão
     const base = { formulario_id: form.id, respondente_nome: nomeResp, respondente_email: emailResp, itens: valores };
     let { error } = await (supabase as any).from("CS_FORM_RESPOSTAS").insert({ ...base, setor, respondente_cadastro: cadastro, duracao_seg });
@@ -413,13 +467,18 @@ export default function FormularioPublico() {
             </div>
           );
           nq++;
+          const falta = faltando.has(p.id);
           return (
-          <div key={p.id} id={`perg-${p.id}`} className="fp-in fp-card-h" style={{ ...card, animationDelay: delay }}>
+          <div key={p.id} id={`perg-${p.id}`} className="fp-in fp-card-h" style={{ ...card, animationDelay: delay, border: falta ? "1.5px solid #dc2626" : card.border, boxShadow: falta ? "0 0 0 3px rgba(220,38,38,.12)" : card.boxShadow }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
               {nq}. {p.titulo} {p.obrigatoria && <span style={{ color: "#dc2626" }}>*</span>}
             </div>
             {p.descricao && <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 3 }}>{p.descricao}</div>}
+            {falta && <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 6 }}>⚠️ Esta pergunta é obrigatória.</div>}
             {p.imagem_url && <img src={p.imagem_url} alt="" style={{ maxWidth: "100%", maxHeight: 280, borderRadius: 10, marginTop: 10, border: "1px solid #f1f5f9" }} />}
+            {p.config?.arquivo_url && (
+              <a href={p.config.arquivo_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 13, fontWeight: 700, color: "#0369a1", textDecoration: "none", background: "#f0f7ff", border: "1px solid #dbeafe", borderRadius: 9, padding: "7px 11px" }}>📎 Baixar {p.config.arquivo_nome || "arquivo"}</a>
+            )}
             <div style={{ marginTop: 12 }}>
               {p.tipo === "texto_curto" && <input value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} style={inp} placeholder="Sua resposta" />}
               {p.tipo === "texto_longo" && <textarea value={valores[p.id] ?? ""} onChange={e => setVal(p.id, e.target.value)} rows={4} style={{ ...inp, resize: "vertical" }} placeholder="Sua resposta" />}
@@ -512,11 +571,36 @@ export default function FormularioPublico() {
                 );
               })()}
             </div>
+            {p.config?.anexo_resp && (() => {
+              const anexoUrl = valores[`${p.id}__anexo`];
+              const anexoNome = valores[`${p.id}__anexo_nome`];
+              const carregando = !!anexando[p.id];
+              return (
+                <div style={{ marginTop: 12, borderTop: "1px dashed #e2e8f0", paddingTop: 12 }}>
+                  {anexoUrl ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "8px 11px" }}>
+                      <a href={anexoUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 700, color: "#15803d", textDecoration: "none", flex: 1, wordBreak: "break-all" }}>📎 {anexoNome || "arquivo anexado"}</a>
+                      <button type="button" onClick={() => removerAnexo(p.id)} style={{ padding: "4px 9px", borderRadius: 8, border: "1px solid rgba(220,38,38,.25)", background: "#fff", color: "#dc2626", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>Remover</button>
+                    </div>
+                  ) : (
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: carregando ? "default" : "pointer", fontSize: 13, fontWeight: 700, color: "#0f3171", background: "#f0f7ff", border: "1px dashed #93c5fd", borderRadius: 10, padding: "9px 13px" }}>
+                      {carregando ? "Enviando anexo…" : "📎 Anexar arquivo (PDF/arquivo até 25MB)"}
+                      <input type="file" accept={ACCEPT_ANEXO} disabled={carregando} style={{ display: "none" }}
+                        onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadResp(p.id, f); }} />
+                    </label>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           );
         }); })()}
 
-        {erro && <div className="fp-in" style={{ background: "#fee2e2", color: "#b91c1c", padding: "11px 15px", borderRadius: 12, fontSize: 13, fontWeight: 700 }}>{erro}</div>}
+        {erro && (
+          <div className="fp-in" style={{ display: "flex", alignItems: "center", gap: 10, background: "#fef2f2", color: "#b91c1c", border: "1.5px solid #fecaca", padding: "13px 16px", borderRadius: 13, fontSize: 13.5, fontWeight: 700, boxShadow: "0 8px 22px rgba(220,38,38,.12)" }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span> {erro}
+          </div>
+        )}
 
         <button onClick={enviar} disabled={enviando} className="fp-submit"
           style={{ padding: "14px", borderRadius: 13, border: "none", background: enviando ? "#94a3b8" : "linear-gradient(135deg,#0f3171 0%,#1e4fa3 100%)", color: "#fff", fontSize: 15, fontWeight: 800, cursor: enviando ? "default" : "pointer", boxShadow: "0 10px 26px rgba(15,49,113,.32)", display: "flex", alignItems: "center", justifyContent: "center", gap: 9 }}>
