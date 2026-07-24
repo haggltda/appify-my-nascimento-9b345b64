@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useAccessibleMenus } from "@/hooks/useAccessibleMenus";
 import { useReunioes, useUsuariosAtivos, useEditarReunioesEmMassa, useExcluirReunioesEmMassa } from "./useReunioes";
-import { useMeusBloqueiosAgenda } from "./useBloqueioAgenda";
+import { useBloqueiosAgendaPorUsuarios } from "./useBloqueioAgenda";
 import { CalendarioMes } from "./componentes/CalendarioMes";
 import { EditarDiaHorarioDialog } from "./componentes/EditarDiaHorarioDialog";
 import { ReuniaoFormCriar } from "./ReuniaoFormCriar";
@@ -41,7 +41,6 @@ export default function Reunioes() {
   const { user } = useAuth();
   const { data: reunioes = [], isLoading } = useReunioes();
   const { data: usuarios = [] } = useUsuariosAtivos();
-  const { data: bloqueios = [] } = useMeusBloqueiosAgenda();
   const { data: access } = useAccessibleMenus("visualizar");
   const podeCriar = access?.codes.has("central_servicos_criar_reuniao") ?? false;
   const [novoOpen, setNovoOpen] = useState(false);
@@ -53,6 +52,8 @@ export default function Reunioes() {
   const [filtroSala, setFiltroSala] = useState("");
   const [selecaoAtiva, setSelecaoAtiva] = useState(false);
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  // Sem filtro de pessoa, mostra os próprios bloqueios; filtrando por alguém, mostra os dela (motivo incluso — visível pra quem tem acesso à Agenda de Reunião).
+  const { data: bloqueios = [] } = useBloqueiosAgendaPorUsuarios([filtroPessoa || user?.id].filter((v): v is string => !!v));
   const [editarLoteOpen, setEditarLoteOpen] = useState(false);
   const editarLote = useEditarReunioesEmMassa();
   const excluirLote = useExcluirReunioesEmMassa();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +11,12 @@ import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Paperclip, Info } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { useVinculoEmpregado } from "@/hooks/useVinculoEmpregado";
 import { useSetoresEmpresa } from "@/hooks/useSetoresEmpresa";
-import { useCriarReuniao, useCriarReunioesRecorrentes, useUsuariosAtivos, verificarBloqueioAgenda, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
+import { useBloqueiosAgendaPorUsuarios } from "./useBloqueioAgenda";
+import { useCriarReuniao, useCriarReunioesRecorrentes, useUsuariosAtivos, bloqueioSobrepoe, verificarBloqueioAgenda, verificarConflitoSala, verificarConflitoParticipante } from "./useReunioes";
 import {
-  ETAPA_COR, ETAPA_LABEL, FINALIDADE_LABEL, NOTIFICAR_POR_LABEL, RESULTADO_ESPERADO_LABEL, SALAS_PRESENCIAIS,
+  ETAPA_COR, ETAPA_LABEL, FINALIDADE_LABEL, MOTIVO_BLOQUEIO_LABEL, NOTIFICAR_POR_LABEL, RESULTADO_ESPERADO_LABEL, SALAS_PRESENCIAIS,
   TIPO_REUNIAO_DURACAO_PADRAO, TIPO_REUNIAO_LABEL, TIPO_REUNIAO_OPCOES_CRIACAO, nomeUsuario,
   type Finalidade, type NotificarPor, type ResultadoEsperado, type TipoLocalReuniao, type TipoReuniao,
 } from "./types";
@@ -92,7 +92,6 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
   const [erroConflito, setErroConflito] = useState("");
   const [verificando, setVerificando] = useState(false);
   const [dataCriacao] = useState(() => new Date());
-  const { user } = useAuth();
   const { data: usuarios = [] } = useUsuariosAtivos();
   const { empregado } = useVinculoEmpregado();
   const criar = useCriarReuniao();
@@ -100,6 +99,28 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
   const { data: setoresDisponiveis = [] } = useSetoresEmpresa();
 
   const opcoesUsuarios = usuarios.map((u) => ({ value: u.id, label: u.display_name }));
+
+  // Aviso ao vivo de agenda bloqueada — junta todo mundo envolvido até agora
+  // (organizador, responsável, convidados, observadores) e busca o bloqueio
+  // deles de uma vez, recalculando sempre que pessoa ou data/horário mudam.
+  const idsRelevantes = useMemo(
+    () => [...new Set([form.organizador, form.responsavel, ...form.convidados, ...form.observadores].filter(Boolean))],
+    [form.organizador, form.responsavel, form.convidados, form.observadores],
+  );
+  const { data: bloqueiosRelevantes = [] } = useBloqueiosAgendaPorUsuarios(idsRelevantes);
+  const avisosBloqueio = useMemo(() => {
+    if (!form.data || !form.hora || form.duracao_minutos <= 0) return [];
+    const dataHoraIso = new Date(`${form.data}T${form.hora}:00`).toISOString();
+    const avisos: string[] = [];
+    for (const id of idsRelevantes) {
+      const bloqueio = bloqueiosRelevantes.find((b) => b.user_id === id && bloqueioSobrepoe(b, dataHoraIso, form.duracao_minutos));
+      if (bloqueio) {
+        const nome = opcoesUsuarios.find((o) => o.value === id)?.label ?? "Alguém";
+        avisos.push(`${nome} está com a agenda bloqueada nesse período (${MOTIVO_BLOQUEIO_LABEL[bloqueio.motivo]}).`);
+      }
+    }
+    return avisos;
+  }, [idsRelevantes, bloqueiosRelevantes, form.data, form.hora, form.duracao_minutos, opcoesUsuarios]);
 
   // Pré-seleciona o setor do usuário logado quando carrega, mas continua editável.
   useEffect(() => {
@@ -214,18 +235,6 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
 
     setVerificando(true);
     try {
-      if (user?.id) {
-        const bloqueio = await verificarBloqueioAgenda({
-          userId: user.id,
-          dataHoraIso: dataHora,
-          duracaoMinutos: form.duracao_minutos,
-        });
-        if (bloqueio) {
-          setErroConflito("Sua agenda está bloqueada nesse horário. Vá em \"Bloquear Agenda\" pra ver ou remover o bloqueio.");
-          return;
-        }
-      }
-
       if (usaSala) {
         const conflito = await verificarConflitoSala({
           local: localFinal,
@@ -245,6 +254,16 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
         ...form.observadores.map((id) => ({ userId: id, rotulo: opcoesUsuarios.find((o) => o.value === id)?.label ?? "Um observador" })),
       ];
       for (const pessoa of pessoasAChecar) {
+        const bloqueio = await verificarBloqueioAgenda({
+          userId: pessoa.userId,
+          dataHoraIso: dataHora,
+          duracaoMinutos: form.duracao_minutos,
+        });
+        if (bloqueio) {
+          setErroConflito(`${pessoa.rotulo} está com a agenda bloqueada nesse horário (${MOTIVO_BLOQUEIO_LABEL[bloqueio.motivo]}).`);
+          return;
+        }
+
         const conflito = await verificarConflitoParticipante({
           userId: pessoa.userId,
           dataHoraIso: dataHora,
@@ -600,6 +619,12 @@ export function ReuniaoFormCriar({ open, onOpenChange }: { open: boolean; onOpen
                 ))}
               </div>
             </div>
+
+            {avisosBloqueio.length > 0 && (
+              <div className="space-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+                {avisosBloqueio.map((aviso, i) => <p key={i}>⚠️ {aviso}</p>)}
+              </div>
+            )}
           </div>
 
           {/* 5. Pauta */}
