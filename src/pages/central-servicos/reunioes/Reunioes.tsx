@@ -17,11 +17,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAccessibleMenus } from "@/hooks/useAccessibleMenus";
 import { useReunioes, useUsuariosAtivos, useEditarReunioesEmMassa, useExcluirReunioesEmMassa } from "./useReunioes";
 import { useBloqueiosAgendaPorUsuarios } from "./useBloqueioAgenda";
-import { CalendarioMes } from "./componentes/CalendarioMes";
+import { CalendarioMes, bloqueioDoDia } from "./componentes/CalendarioMes";
 import { EditarDiaHorarioDialog } from "./componentes/EditarDiaHorarioDialog";
 import { ReuniaoFormCriar } from "./ReuniaoFormCriar";
 import { BloquearAgendaModal } from "./componentes/BloquearAgendaModal";
-import { ETAPA_COR, ETAPA_LABEL, nomeUsuario, salaResumo, SALAS_PRESENCIAIS } from "./types";
+import { ETAPA_COR, ETAPA_LABEL, formatarHoraBloqueio, motivoBloqueioLabel, nomeUsuario, salaResumo, SALAS_PRESENCIAIS } from "./types";
 
 function KpiTile({ icon, label, valor, sub, cor }: { icon: React.ReactNode; label: string; valor: number; sub: string; cor: string }) {
   return (
@@ -54,6 +54,7 @@ export default function Reunioes() {
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   // Sem filtro de pessoa, mostra os próprios bloqueios; filtrando por alguém, mostra os dela (motivo incluso — visível pra quem tem acesso à Agenda de Reunião).
   const { data: bloqueios = [] } = useBloqueiosAgendaPorUsuarios([filtroPessoa || user?.id].filter((v): v is string => !!v));
+  const bloqueioDoDiaSelecionado = useMemo(() => bloqueioDoDia(diaSelecionado, bloqueios), [diaSelecionado, bloqueios]);
   const [editarLoteOpen, setEditarLoteOpen] = useState(false);
   const editarLote = useEditarReunioesEmMassa();
   const excluirLote = useExcluirReunioesEmMassa();
@@ -233,6 +234,17 @@ export default function Reunioes() {
             <p className="mb-3 text-xs capitalize text-muted-foreground">
               {diaSelecionado.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
             </p>
+            {bloqueioDoDiaSelecionado && (
+              <div className="mb-3 rounded border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+                <p className="font-medium">Agenda bloqueada</p>
+                <p>Motivo: {motivoBloqueioLabel(bloqueioDoDiaSelecionado)}</p>
+                {!bloqueioDoDiaSelecionado.dia_inteiro && bloqueioDoDiaSelecionado.hora_inicio && bloqueioDoDiaSelecionado.hora_fim && (
+                  <p>
+                    Horário: {formatarHoraBloqueio(bloqueioDoDiaSelecionado.hora_inicio)} - {formatarHoraBloqueio(bloqueioDoDiaSelecionado.hora_fim)}
+                  </p>
+                )}
+              </div>
+            )}
             <div className="space-y-2">
               {reunioesDoDia.map((r) => (
                 <button
