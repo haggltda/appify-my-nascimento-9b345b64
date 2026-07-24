@@ -201,7 +201,13 @@ const recortesClient = (rows: any[], contratoDe: (e: any) => string, f: Filtro) 
   const casaCtr = (e: any) => !f.contrato || contratoDe(e) === f.contrato;
 
   const semsit = rows.filter(e => noMesQuadro(e) && casaEmp(e) && casaCtr(e) && casaBusca(e));
-  const fil = semsit.filter(e => !f.situacao || String(e["Situação"] ?? "").trim() === f.situacao);
+  // Filtrar por uma situação de SAÍDA = navegar TODOS com aquela situação
+  // (consulta/edição do histórico), sem o recorte de presença no mês. O
+  // dashboard usa `semsit`, então continua com a régua de presença.
+  const ehSaidaSit = /DEMIT|DESLIG|RESCIS|APOSENT/i.test(f.situacao || "");
+  const fil = ehSaidaSit
+    ? rows.filter(e => casaEmp(e) && casaCtr(e) && casaBusca(e) && String(e["Situação"] ?? "").trim() === f.situacao)
+    : semsit.filter(e => !f.situacao || String(e["Situação"] ?? "").trim() === f.situacao);
   const tempo = rows.filter(e => casaEmp(e) && casaCtr(e));
   return { fil, semsit, tempo };
 };

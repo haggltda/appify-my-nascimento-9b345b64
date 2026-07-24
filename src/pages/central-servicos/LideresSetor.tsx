@@ -139,8 +139,8 @@ export const normSetor = (s: string | null | undefined) => semAcento(s ?? "").re
 // "Ativo" = ainda NA empresa, não necessariamente trabalhando hoje. Férias,
 // atestado, licença, afastamento são temporários — a pessoa continua empregada
 // e continua liderando o setor. Só saída de verdade (demissão, desligamento,
-// rescisão, aposentadoria) tira da hierarquia. Mesma régua do `eh_saida` da
-// v_rh_colaboradores. (Antes só valia TRABALHANDO/ATIVO, o que derrubava um
+// rescisão, aposentadoria) tira da hierarquia. Mesma régua de "saída" das RPCs
+// de RH Colaboradores. (Antes só valia TRABALHANDO/ATIVO, o que derrubava um
 // gerente de férias — foi o caso da Carol em FINANCEIRO.)
 export const ehAtivoSit = (situacao: string | null | undefined) => !/DEMIT|DESLIG|RESCIS|APOSENT/.test(semAcento(situacao ?? ""));
 

@@ -642,11 +642,23 @@ function FormPermsUsuario({ userId, onToast }: { userId: string; onToast: (m: st
   }, [userId]);
   useEffect(() => { load(); }, [load]);
 
-  // Setores reais do cadastro — a lista não é fixa no código.
+  // Setores para os grants — a lista não é fixa no código. Une DOIS domínios: o
+  // Setor_ERP do cadastro (EMPREGADOS) E o setor carimbado nas respostas
+  // (CS_FORM_RESPOSTAS). As permissões por setor recortam justamente pelo setor
+  // da resposta (cs_form_cap_setor), então setores que só aparecem em respostas
+  // (ex.: COMPRAS, LICITAÇÃO, TREINAMENTOS, JURÍDICO — sem colaborador com esse
+  // Setor_ERP) precisam ser concedíveis também. Dedup por caixa alta.
   useEffect(() => {
     (async () => {
-      const { data } = await (supabase as any).from("EMPREGADOS").select('"Setor_ERP"').limit(20000);
-      setSetoresErp([...new Set((data ?? []).map((r: any) => String(r["Setor_ERP"] ?? "").trim()).filter(Boolean))].sort() as string[]);
+      const [empRes, respRes] = await Promise.all([
+        (supabase as any).from("EMPREGADOS").select('"Setor_ERP"').limit(20000),
+        (supabase as any).from("CS_FORM_RESPOSTAS").select("setor").not("setor", "is", null).limit(20000),
+      ]);
+      const porChave = new Map<string, string>();  // CHAVE(upper) → rótulo de exibição
+      const add = (v: any) => { const l = String(v ?? "").trim(); if (!l) return; const k = l.toUpperCase(); if (!porChave.has(k)) porChave.set(k, l); };
+      (empRes.data ?? []).forEach((r: any) => add(r["Setor_ERP"]));
+      (respRes.data ?? []).forEach((r: any) => add(r.setor));
+      setSetoresErp([...porChave.values()].sort((a, b) => a.localeCompare(b, "pt-BR")));
     })();
   }, []);
 
